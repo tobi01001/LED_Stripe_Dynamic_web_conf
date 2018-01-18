@@ -36,7 +36,7 @@ Bounce debouncer = Bounce();
 /* Definitions for network usage */
 /* maybe move all wifi stuff to separate files.... */
 #define WIFI_TIMEOUT 5000
-WiFiServer server(80);
+ESP8266WebServer server(80);
 WiFiManager wifiManager;
 
 String AP_SSID = "LED_stripe_" + String(ESP.getChipId());
@@ -320,11 +320,60 @@ void setupWiFi(void)
   //if you get here you have connected to the WiFi
   Serial.print("local ip: ");
   Serial.println(WiFi.localIP());
-  delay(1);
+}
+
+void handleRoot(void)
+{
+    server.send(200, "text/plain", "hello from esp8266! You called root");
+    Serial.println("\t/ called from Webserver...\n");
+}
+
+void handleRGB(void)
+{
+  server.send(200, "text/plain", "hello from esp8266! You called rgb");
+  Serial.println("\t/rgb called from Webserver...\n");
+
+}
+
+void handleNotFound(){
+  String message = "File Not Found\n\n";
+  message += "URI: ";
+  message += server.uri();
+  message += "\nMethod: ";
+  message += (server.method() == HTTP_GET)?"GET":"POST";
+  message += "\nArguments: ";
+  message += server.args();
+  message += "\n";
+  for (uint8_t i=0; i<server.args(); i++){
+    message += " " + server.argName(i) + ": " + server.arg(i) + "\n";
+  }
+  server.send(404, "text/plain", message);
+}
+
+void handleGetModes(void)
+{
+  String message = "\t#;\tname\n";
+  for(uint8_t i=0; i<strip.getModeCount(); i++)
+  {
+    message += "\t";
+    message += i;
+    message += ";\t";
+    message += (String)strip.getModeName(i);
+    message += "\n";
+  }
+  server.send(200, "text/plain", message);
+}
+
+void setupWebServer()
+{
+  server.on("/", handleRoot);
+  server.on("/rgb", handleRGB);
+  server.on("/getmodes", handleGetModes);
+  server.onNotFound(handleNotFound);
+
   server.begin();
   Serial.println("HTTP server started.\n");
 }
-
 
 // setup network and output pins
 void setup()
@@ -340,14 +389,17 @@ void setup()
 
   setupWiFi();
 
+  setupWebServer();
+
   updateConfiguration();
 
   initOverTheAirUpdate();
 
-  // if we got that far, we show by a nice littel animation
+  // if we got that far, we show by a nice little animation
+  // as setup finished signal....
   for(uint8_t num=0; num<4; num++)
   {
-    for(uint16_t i=0; i<strip.getLength(); i++)
+    for(uint16_t i=0; i<strip.getLength(); i+=3)
     {
       if(i%2)
         strip.setPixelColor(i,0x00a000);
@@ -356,7 +408,7 @@ void setup()
     }
     strip.show();
     delay(400);
-    for(uint16_t i=0; i<strip.getLength(); i++)
+    for(uint16_t i=0; i<strip.getLength(); i+=3)
     {
       if(i%2)
         strip.setPixelColor(i,0xa00000);
@@ -454,9 +506,13 @@ void loop()
       ESP.reset();
   }
 
-  // listen for incoming clients
-  WiFiClient client = server.available();  // Check if a client has connected
+  server.handleClient();
 
+  // listen for incoming clients
+  //WiFiClient client = server.client(); //server.available();  // Check if a client has connected
+
+
+  /*
   if (client)
   {
     Serial.println(F("new client"));
@@ -482,6 +538,7 @@ void loop()
         //Serial.println(inputLine);
 
         // SET SINGLE PIXEL url should be GET /rgb/n/rrr,ggg,bbb
+
         if (inputLine.length() > 3 && inputLine.substring(0,9) == F("GET /rgb/")) {
           int slash = inputLine.indexOf('/', 9 );
           ledix = inputLine.substring(9,slash).toInt();
@@ -495,6 +552,7 @@ void loop()
           strip_setpixelcolor(ledix, redLevel, greenLevel, blueLevel);
           isGet = true;
         }
+
         // SET DELAY url should be GET /delay/n
         if (inputLine.length() > 3 && inputLine.substring(0,11) == F("GET /delay/")) {
           stripe_setDelayInterval((uint16_t)inputLine.substring(11).toInt());
@@ -729,14 +787,7 @@ void loop()
         }
         else if (isPost)
         {
-          /*
-          sendOkResponse(client);
-          // give the web browser time to receive the data
-          delay(1);
-          // close the connection:
-          client.stop();
-          Serial.println(F("client disconnected"));
-          */
+
         }
         else
         {
@@ -755,6 +806,8 @@ void loop()
     client.stop();
     Serial.println(F("client disconnected"));
   }
+  */
+
 
   // take care of the current effects to be displayed
   effectHandler();
