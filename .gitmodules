@@ -1,0 +1,3 @@
+[submodule "lib/WS2812FX"]
+	path = lib/WS2812FX
+	url = https://github.com/tobi01001/WS2812FX.git
