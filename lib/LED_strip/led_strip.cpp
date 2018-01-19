@@ -198,7 +198,7 @@ void setEffect(uint8_t Effect)
   //previousEffect = currentEffect;
   currentEffect = Effect;
   strip_On_Off(true);
-  if(strip.getBrightness()==0)
+  if(strip.getBrightness()<128)
   {
     strip.setBrightness(128);
   }

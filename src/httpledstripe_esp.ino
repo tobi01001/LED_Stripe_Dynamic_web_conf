@@ -69,8 +69,7 @@ void saveConfigCallback () {
   shouldSaveConfig = true;
 }
 
-void readConfigurationFS(void)
-{
+void readConfigurationFS(void) {
   //clean FS, for testing
 
   //SPIFFS.format();
@@ -109,9 +108,6 @@ void readConfigurationFS(void)
             //static_gw = json["gateway"];
             //static_sn = json["subnet"];
             Serial.println(static_ip);
-/*            Serial.println("converting ip");
-            IPAddress ip = ipFromCharArray(static_ip);
-            Serial.println(ip);*/
           } else {
             Serial.println("no custom ip in config");
           }
@@ -134,8 +130,7 @@ void readConfigurationFS(void)
   Serial.println(chrResetButtonPin);
 }
 
-void initOverTheAirUpdate(void)
-{
+void initOverTheAirUpdate(void) {
   Serial.println("\nInitializing OTA capabilities....");
   /* init OTA */
   // Port defaults to 8266
@@ -190,16 +185,14 @@ void initOverTheAirUpdate(void)
   delay(500);
 }
 
-void setupResetButton(uint8_t buttonPin)
-{
+void setupResetButton(uint8_t buttonPin){
     pinMode(buttonPin,INPUT_PULLUP);
     // After setting up the button, setup the Bounce instance :
     debouncer.attach(buttonPin);
     debouncer.interval(10); // interval in ms
 }
 
-void updateConfiguration()
-{
+void updateConfiguration(){
   Serial.println("Updating configuration just received");
   // only copy the values in case the Parameter wa sset in config!
   if(shouldSaveConfig)
@@ -258,12 +251,12 @@ void updateConfiguration()
     json["chrLEDCount"] = chrLEDCount;
     json["chrLEDPin"] = chrLEDPin;
 
-/*  Maybe we deal with static IP later.
-    For now we just don't save it....
-    json["ip"] = WiFi.localIP().toString();
-    json["gateway"] = WiFi.gatewayIP().toString();
-    json["subnet"] = WiFi.subnetMask().toString();
-*/
+    /*  Maybe we deal with static IP later.
+        For now we just don't save it....
+        json["ip"] = WiFi.localIP().toString();
+        json["gateway"] = WiFi.gatewayIP().toString();
+        json["subnet"] = WiFi.subnetMask().toString();
+    */
     File configFile = SPIFFS.open("/config.json", "w");
     if (!configFile) {
       Serial.println("failed to open config file for writing");
@@ -278,8 +271,7 @@ void updateConfiguration()
   stripe_setup(ledCount, ledPin, DEFAULT_PIXEL_TYPE);
 }
 
-void setupWiFi(void)
-{
+void setupWiFi(void){
 
   wifiManager.setSaveConfigCallback(saveConfigCallback);
 
@@ -322,19 +314,127 @@ void setupWiFi(void)
   Serial.println(WiFi.localIP());
 }
 
-void handleRoot(void)
-{
+void handleRoot(void){
     server.send(200, "text/plain", "hello from esp8266! You called root");
     Serial.println("\t/ called from Webserver...\n");
 }
 
-void handleRGB(void)
-{
-  server.send(200, "text/plain", "hello from esp8266! You called rgb");
-  Serial.println("\t/rgb called from Webserver...\n");
+// if /set was called
+void handleSet(void){
+  String message = "LED strip set values received:\n";
 
+  // to be completed in general
+  // question: do we include the "effects in the library?"
+  // question: is there enough memory to store color and "timing" per pixel?
+  // i.e. uint32_t onColor, OffColor, uint16_t ontime, offtime
+  // = 12 * 300 = 3600 byte...???
+  // this will be a new branch possibly....
+
+  // here we set a new mode if we have the argument mode
+  if(server.hasArg("mode")) {
+    uint8_t effect = strip.getMode();
+    // currently we need to set this for the service...
+    setEffect(FX_WS2812);
+    // just switch to the next
+    if (server.arg("mode")==(String)"next") {
+      effect = effect + 1;
+
+    }
+    // switch to the previous one
+    else if (server.arg("mode")==(String)"prev") {
+      effect = effect - 1;
+    }
+    // finally switch to the one being provided.
+    // we don't care if its actually an int or not
+    // because it wil be zero anyway if not.
+    else {
+      effect = (uint8_t)server.arg("mode").toInt();
+    }
+    // make sure we roll over at the max number
+    if(effect >= strip.getModeCount()) {
+      effect = 0;
+    }
+    // activate the effect and trigger it once...
+    strip.setMode(effect);
+    strip.start();
+    strip.trigger();
+    // answer to be provided - currently readable format
+    // might be changed to machine readable format (JSON?)
+    message += "Mode number\t" ;
+    message += strip.getMode();
+    message += "\tcalled\t";
+    message += strip.getModeName(effect);
+    message += "\n";
+  }
+  // if we got a new brightness value
+  if(server.hasArg("brightness")) {
+    uint8_t brightness = strip.getBrightness();
+    if (server.arg("brightness") == (String)"up") {
+      brightness = constrain((uint8_t)((brightness * 110)/100), BRIGHTNESS_MIN, BRIGHTNESS_MAX);
+    } else if (server.arg("brightness") == (String)"down") {
+      brightness = constrain((uint8_t)((brightness * 90)/100), BRIGHTNESS_MIN, BRIGHTNESS_MAX);
+    } else {
+      brightness = constrain(server.arg("brightness").toInt(), BRIGHTNESS_MIN, BRIGHTNESS_MAX);
+    }
+    strip.setBrightness(brightness);
+    strip.show();
+    message += "Set new brightness\t";
+    message += brightness;
+    message +="\n";
+  }
+  // if we got a speed value
+  if(server.hasArg("speed")) {
+    uint16_t speed = strip.getSpeed();
+    if (server.arg("speed") == (String)"up") {
+      speed = constrain((uint16_t)((speed * 110)/100), SPEED_MIN, SPEED_MAX);
+    } else if (server.arg("speed") == (String)"down") {
+      speed = constrain((uint16_t)((speed * 90)/100), SPEED_MIN, SPEED_MAX);
+    } else {
+      speed = constrain(server.arg("speed").toInt(), SPEED_MIN, SPEED_MAX);
+    }
+    strip.setSpeed(speed);
+    strip.show();
+    message += "set new Speed\t";
+    message += speed;
+    message +="\n";
+
+  }
+
+  if(server.hasArg("red") && server.hasArg("green") && server.hasArg("blue")) {
+    // assign color values
+    // depending if pixel, range or ..
+    uint8_t r = constrain(server.arg("red").toInt(),   0, 255);
+    uint8_t g = constrain(server.arg("green").toInt(), 0, 255);
+    uint8_t b = constrain(server.arg("blue").toInt(),  0, 255);
+
+    // need to set a single pixel only
+    if(server.hasArg("pixel")) {
+      setEffect(FX_NO_FX);
+      strip.setPixelColor(constrain(server.arg("pixel").toInt(), 0, strip.getLength()-1), r, g, b);
+      strip.show();
+    }
+    else if (server.hasArg("rngStart") && server.hasArg("rngEnd"))
+    {
+      uint16_t start = constrain(server.arg("rngStart").toInt(), 0, strip.getLength());
+      uint16_t end = constrain(server.arg("rngEnd").toInt(), start, strip.getLength());
+      setEffect(FX_NO_FX);
+      for(uint16_t i = start; i<end; i++)
+      {
+        strip.setPixelColor(i, r, g, b);
+      }
+      strip.show();
+    }
+    else
+    {
+      strip.setColor(r, g, b);
+    }
+
+  }
+
+  server.send(200, "text/plain", message);
 }
 
+// if something unknown was called...
 void handleNotFound(){
   String message = "File Not Found\n\n";
   message += "URI: ";
@@ -350,8 +450,7 @@ void handleNotFound(){
   server.send(404, "text/plain", message);
 }
 
-void handleGetModes(void)
-{
+void handleGetModes(void){
   String message = "\t#;\tname\n";
   for(uint8_t i=0; i<strip.getModeCount(); i++)
   {
@@ -364,11 +463,21 @@ void handleGetModes(void)
   server.send(200, "text/plain", message);
 }
 
-void setupWebServer()
-{
+void handleStatus(void){
+
+}
+
+void handleResetRequest(void){
+  // ToDo
+  // Should add a argument to be supplied to be "sure"
+  // e.g. ?reset=PleaseReset
+}
+
+void setupWebServer(){
   server.on("/", handleRoot);
-  server.on("/rgb", handleRGB);
+  server.on("/set", handleSet);
   server.on("/getmodes", handleGetModes);
+  server.on("/status", handleStatus);
   server.onNotFound(handleNotFound);
 
   server.begin();
@@ -376,8 +485,7 @@ void setupWebServer()
 }
 
 // setup network and output pins
-void setup()
-{
+void setup(){
   bool winit = true;
   // Open serial communications and wait for port to open:
   Serial.begin(115200);
@@ -417,14 +525,14 @@ void setup()
     }
     strip.show();
     delay(300);
+
   }
 }
 
 
 
 // request receive loop
-void loop()
-{
+void loop(){
   unsigned long now = millis();
   static uint8_t life_sign = 0;
   static unsigned long last_status_msg = 0;
@@ -432,23 +540,10 @@ void loop()
   // if someone requests a call to the factory reset...
   static bool ResetRequested = false;
 
-  if(now - last_status_msg > 20000)
-  {
+  if(now - last_status_msg > 20000) {
     last_status_msg = now;
-    /*
-    Serial.print("\nCurrent State:\n");
-    Serial.print("Life Sign Counter\t");
-    Serial.print(life_sign++);
-    Serial.print("\nstripIsOn\t");
-    Serial.print(stripIsOn);
-    Serial.print("\nstripWasOff\t");
-    Serial.print(stripWasOff);
-    Serial.print("\npreviousEffect\t");
-    Serial.println(previousEffect);
-    */
     Serial.print("\ncurrentEffect\t");
     Serial.println(currentEffect);
-
   }
 
   if(now - last_wifi_check_time > WIFI_TIMEOUT) {
@@ -473,8 +568,7 @@ void loop()
   ArduinoOTA.handle(); // check and handle OTA updates of the code....
 
   //Button Handling
-  if(hasResetButton)
-  {
+  if(hasResetButton)  {
     debouncer.update();
     if(debouncer.read() == LOW)
     {
@@ -482,8 +576,7 @@ void loop()
     }
   }
 
-  if(ResetRequested)
-  {
+  if(ResetRequested)  {
       ResetRequested = false;
       Serial.println("Someone requested Factory Reset");
       for(uint16_t i = 0; i<strip.getLength(); i++)
