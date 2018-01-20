@@ -54,6 +54,11 @@ WiFiManagerParameter ResetButtonPin("RstPin", "Reset Pin", chrResetButtonPin, 3)
 WiFiManagerParameter LedCountConf("LEDCount","LED Count", chrLEDCount, 4);
 WiFiManagerParameter LedPinConf("LEDPIN", "Strip Data Pin", chrLEDPin, 3);
 
+extern const char index_html[];
+extern const char main_js[];
+
+String modes = "";
+
 //flag for saving data
 bool shouldSaveConfig = false;
 
@@ -162,6 +167,7 @@ void initOverTheAirUpdate(void) {
     uint16_t pixel = (uint16_t)(progress / (total / strip.getLength()));
     strip.setPixelColor(pixel, 0x00ff00);
     strip.show();
+    delay(1);
   });
   ArduinoOTA.onError([](ota_error_t error) {
     Serial.printf("Error[%u]: ", error);
@@ -315,13 +321,45 @@ void setupWiFi(void){
 }
 
 void handleRoot(void){
-    server.send(200, "text/plain", "hello from esp8266! You called root");
+    server.send_P(200,"text/html", index_html);
     Serial.println("\t/ called from Webserver...\n");
+}
+
+void srv_handle_main_js() {
+  server.send_P(200,"application/javascript", main_js);
+}
+
+void modes_setup() {
+  modes = "";
+  uint8_t num_modes = strip.getModeCount();
+  for(uint8_t i=0; i < num_modes; i++) {
+    uint8_t m = i;
+    modes += "<li><a href='#' class='mo' id='";
+    modes += m;
+    modes += "'>";
+    modes += strip.getModeName(m);
+    modes += "</a></li>";
+  }
+}
+
+void srv_handle_modes() {
+  server.send(200,"text/plain", modes);
 }
 
 // if /set was called
 void handleSet(void){
-  String message = "LED strip set values received:\n";
+  String message = "/set LED strip set values received:\n";
+  Serial.println("<Begin>Server Args:");
+  for(uint8_t i = 0; i<server.args(); i++)
+  {
+    Serial.print(server.argName(i));
+    Serial.print("\t");
+    Serial.println(server.arg(i));
+    Serial.print(server.argName(i));
+    Serial.print("\t char[0]: ");
+    Serial.println(server.arg(i)[0]);
+  }
+  Serial.println("<End> Server Args");
 
   // to be completed in general
   // question: do we include the "effects in the library?"
@@ -330,25 +368,36 @@ void handleSet(void){
   // = 12 * 300 = 3600 byte...???
   // this will be a new branch possibly....
 
+  // mo = mode set (eihter +, - or value)
+  // br = brightness (eihter +, - or value)
+  // co = color (32 bit unsigned color) (eihter +, - or value)
+  // re = red value of color (eihter +, - or value)
+  // gr = green value of color (eihter +, - or value)
+  // bl = blue value of color (eihter +, - or value)
+  // sp = speed (eihter +, - or value)
+  // ti = time in seconds....
+  // pi = pixel to be set (clears others?)
+  // rnS = Range start Pixel;
+
   // here we set a new mode if we have the argument mode
-  if(server.hasArg("mode")) {
+  if(server.hasArg("mo")) {
     uint8_t effect = strip.getMode();
     // currently we need to set this for the service...
     setEffect(FX_WS2812);
     // just switch to the next
-    if (server.arg("mode")==(String)"next") {
+    if (server.arg("mo")[0] == 'u') {
       effect = effect + 1;
 
     }
     // switch to the previous one
-    else if (server.arg("mode")==(String)"prev") {
+    else if (server.arg("mo")[0] == 'd') {
       effect = effect - 1;
     }
     // finally switch to the one being provided.
     // we don't care if its actually an int or not
     // because it wil be zero anyway if not.
     else {
-      effect = (uint8_t)server.arg("mode").toInt();
+      effect = (uint8_t)strtoul(&server.arg("mo")[0], NULL, 10);
     }
     // make sure we roll over at the max number
     if(effect >= strip.getModeCount()) {
@@ -367,15 +416,27 @@ void handleSet(void){
     message += "\n";
   }
   // if we got a new brightness value
-  if(server.hasArg("brightness")) {
+  if(server.hasArg("br")) {
     uint8_t brightness = strip.getBrightness();
-    if (server.arg("brightness") == (String)"up") {
-      brightness = constrain((uint8_t)((brightness * 110)/100), BRIGHTNESS_MIN, BRIGHTNESS_MAX);
-    } else if (server.arg("brightness") == (String)"down") {
+    if (server.arg("br")[0] == 'u') {
+      if(brightness < 10)
+      {
+        brightness = 10;
+      }
+      else if (brightness >= 230)
+      {
+        brightness = 255;
+      }
+      else
+      {
+        brightness = constrain((uint8_t)((brightness * 110)/100), BRIGHTNESS_MIN, BRIGHTNESS_MAX);
+      }
+    } else if (server.arg("br")[0] == 'd') {
       brightness = constrain((uint8_t)((brightness * 90)/100), BRIGHTNESS_MIN, BRIGHTNESS_MAX);
     } else {
-      brightness = constrain(server.arg("brightness").toInt(), BRIGHTNESS_MIN, BRIGHTNESS_MAX);
+      brightness = constrain((uint8_t)strtoul(&server.arg("br")[0], NULL, 10), BRIGHTNESS_MIN, BRIGHTNESS_MAX);
     }
+    message += "\n";
     strip.setBrightness(brightness);
     strip.show();
     message += "Set new brightness\t";
@@ -383,54 +444,172 @@ void handleSet(void){
     message +="\n";
   }
   // if we got a speed value
-  if(server.hasArg("speed")) {
+  if(server.hasArg("sp")) {
     uint16_t speed = strip.getSpeed();
-    if (server.arg("speed") == (String)"up") {
-      speed = constrain((uint16_t)((speed * 110)/100), SPEED_MIN, SPEED_MAX);
-    } else if (server.arg("speed") == (String)"down") {
+    if (server.arg("sp")[0] == 'u') {
+      if(speed < 10)
+      {
+        speed = 10;
+      }
+      else if (speed >= (SPEED_MAX * 90) / 100)
+      {
+        speed = SPEED_MAX;
+      }
+      else
+      {
+        speed = constrain((uint16_t)((speed * 110)/100), SPEED_MIN, SPEED_MAX);
+      }
+    } else if (server.arg("sp")[0] == 'd') {
       speed = constrain((uint16_t)((speed * 90)/100), SPEED_MIN, SPEED_MAX);
     } else {
-      speed = constrain(server.arg("speed").toInt(), SPEED_MIN, SPEED_MAX);
+      speed = constrain((uint16_t)strtoul(&server.arg("sp")[0], NULL, 10), SPEED_MIN, SPEED_MAX);
     }
     strip.setSpeed(speed);
     strip.show();
     message += "set new Speed\t";
     message += speed;
     message +="\n";
-
   }
 
-  if(server.hasArg("red") && server.hasArg("green") && server.hasArg("blue")) {
-    // assign color values
-    // depending if pixel, range or ..
-    uint8_t r = constrain(server.arg("red").toInt(),   0, 255);
-    uint8_t g = constrain(server.arg("green").toInt(), 0, 255);
-    uint8_t b = constrain(server.arg("blue").toInt(),  0, 255);
-
-    // need to set a single pixel only
-    if(server.hasArg("pixel")) {
-      setEffect(FX_NO_FX);
-      strip.setPixelColor(constrain(server.arg("pixel").toInt(), 0, strip.getLength()-1), r, g, b);
-      strip.show();
-    }
-    else if (server.hasArg("rngStart") && server.hasArg("rngEnd"))
+  // color handling
+  uint32_t color = strip.getColor();
+  if(server.hasArg("re")) {
+    uint8_t re = Red(color);
+    if(server.arg("re")[0] == 'u')
     {
-      uint16_t start = constrain(server.arg("rngStart").toInt(), 0, strip.getLength());
-      uint16_t end = constrain(server.arg("rngEnd").toInt(), start, strip.getLength());
-      setEffect(FX_NO_FX);
-      for(uint16_t i = start; i<end; i++)
-      {
-        strip.setPixelColor(i, r, g, b);
-      }
-      strip.show();
+      
+        if(re < 10)
+        {
+          re = 10;
+        }
+        else if (re > (255 * 90) / 100)
+        {
+          re = 255;
+        }
+        else
+        {
+          re = (uint8_t)((re * 110) / 100);
+        }
+    }
+    else if (server.arg("re")[0] == 'd')
+    {
+
+      re = (uint8_t)((re * 90) / 100);
     }
     else
     {
-      strip.setColor(r, g, b);
+
+      re = constrain((uint8_t)strtoul(&server.arg("re")[0], NULL, 10), 0, 255);
     }
-
+    color = (color & 0x00ffff) | (re << 16);
+    message += "set new red\t";
+    message += re;
+    message +="\n";
   }
+  if(server.hasArg("gr")) {
+    uint8_t gr = Green(color);
+    if(server.arg("gr")[0] == 'u')
+    {
+        if(gr < 10)
+        {
+          gr = 10;
+        }
+        else if (gr > (255 * 90) / 100)
+        {
+          gr = 255;
+        }
+        else
+        {
+          gr = (uint8_t)((gr * 110) / 100);
+        }
+    }
+    else if (server.arg("gr")[0] == 'd')
+    {
+      gr = (uint8_t)((gr * 90) / 100);
+    }
+    else
+    {
+      gr = constrain((uint8_t)strtoul(&server.arg("gr")[0], NULL, 10), 0, 255);
 
+    }
+    color = (color & 0xff00ff) | (gr << 8);
+    message += "set new green\t";
+    message += gr;
+    message +="\n";
+  }
+  if(server.hasArg("bl")) {
+    uint8_t bl = Blue(color);
+    if(server.arg("bl")[0] == 'u')
+    {
+
+        if(bl < 10)
+        {
+          bl = 10;
+        }
+        else if (bl > (255 * 90) / 100)
+        {
+          bl = 255;
+        }
+        else
+        {
+          bl = (uint8_t)((bl * 110) / 100);
+        }
+    }
+    else if (server.arg("bl")[0] == 'd')
+    {
+
+      bl = (uint8_t)((bl * 90) / 100);
+    }
+    else
+    {
+
+      bl = constrain((uint8_t)strtoul(&server.arg("bl")[0], NULL, 10), 0, 255);
+
+    }
+    color = (color & 0xffff00) | (bl << 0);
+    message += "set new blue\t";
+    message += bl;
+    message +="\n";
+  }
+  if(server.hasArg("co")) {
+    color = constrain((uint32_t)strtoul(&server.arg("co")[0], NULL, 16), 0, 0xffffff);
+    message += "set new color\t";
+    message += color;
+    message +="\n";
+  }
+  if(server.hasArg("pi")) {
+    setEffect(FX_NO_FX);
+    uint16_t pixel = constrain((uint16_t)strtoul(&server.arg("pi")[0], NULL, 10), 0, strip.getLength()-1);
+    strip.setPixelColor(pixel, color);
+    strip.show();
+    message += "set pixel\t";
+    message += pixel;
+    message +="\n";
+  }
+  else if (server.hasArg("rnS") && server.hasArg("rnE"))
+  {
+    uint16_t start = constrain((uint16_t)strtoul(&server.arg("rnS")[0], NULL, 10), 0, strip.getLength());
+    uint16_t end = constrain((uint16_t)strtoul(&server.arg("rnE")[0], NULL, 10), start, strip.getLength());
+    if(start > end && end > 0) {
+      start = end-1;
+    }
+    setEffect(FX_NO_FX);
+    for(uint16_t i = start; i<end; i++)
+    {
+      strip.setPixelColor(i, color);
+    }
+    strip.show();
+    message += "set pixel range from \t";
+    message += start;
+    message +=" to\t";
+    message += end;
+    message +="\n";
+  }
+  else
+  {
+    strip.setColor(color);
+  }
+  Serial.println(message);
   server.send(200, "text/plain", message);
 }
 
@@ -474,6 +653,11 @@ void handleResetRequest(void){
 }
 
 void setupWebServer(){
+  modes.reserve(5000);
+  modes_setup();
+
+  server.on("/main.js", srv_handle_main_js);
+  server.on("/modes", srv_handle_modes);
   server.on("/", handleRoot);
   server.on("/set", handleSet);
   server.on("/getmodes", handleGetModes);
@@ -507,7 +691,7 @@ void setup(){
   // as setup finished signal....
   for(uint8_t num=0; num<4; num++)
   {
-    for(uint16_t i=0; i<strip.getLength(); i+=3)
+    for(uint16_t i=0; i<strip.getLength(); i+=1)
     {
       if(i%2)
         strip.setPixelColor(i,0x00a000);
@@ -516,7 +700,7 @@ void setup(){
     }
     strip.show();
     delay(400);
-    for(uint16_t i=0; i<strip.getLength(); i+=3)
+    for(uint16_t i=0; i<strip.getLength(); i+=1)
     {
       if(i%2)
         strip.setPixelColor(i,0xa00000);
@@ -525,8 +709,8 @@ void setup(){
     }
     strip.show();
     delay(300);
-
   }
+  strip.stop();
 }
 
 

@@ -343,7 +343,7 @@ void reset() {
   {
     strip.setBrightness(150);
   }
-  strip.stop();
+  //strip.stop();
 }
 
 // LED flicker fire effect
