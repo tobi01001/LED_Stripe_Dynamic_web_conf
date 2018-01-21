@@ -152,6 +152,8 @@ void initOverTheAirUpdate(void) {
   });
   ArduinoOTA.onEnd([]() {
     Serial.println("\nOTA end");
+    // OTA finished.
+    // Green Leds fade out.
     for(uint8_t i = Green(strip.getPixelColor(0)); i>0; i--)
     {
       for(uint16_t p=0; p<strip.getLength(); p++)
@@ -164,6 +166,7 @@ void initOverTheAirUpdate(void) {
   });
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
     Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+    // OTA Update will show increasing green LEDs during progress:
     uint16_t pixel = (uint16_t)(progress / (total / strip.getLength()));
     strip.setPixelColor(pixel, 0x00ff00);
     strip.show();
@@ -176,6 +179,8 @@ void initOverTheAirUpdate(void) {
     else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
     else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
     else if (error == OTA_END_ERROR) Serial.println("End Failed");
+    // something went wrong during OTA.
+    // We will fade in to red...
     for(uint8_t c = 0; c<256; c++)
     {
       for(uint16_t i = 0; i<strip.getLength(); i++)
@@ -348,7 +353,9 @@ void srv_handle_modes() {
 
 // if /set was called
 void handleSet(void){
-  String message = "/set LED strip set values received:\n";
+  String message = "set LED strip:\n";
+
+  // Debug only
   Serial.println("<Begin>Server Args:");
   for(uint8_t i = 0; i<server.args(); i++)
   {
@@ -378,42 +385,89 @@ void handleSet(void){
   // ti = time in seconds....
   // pi = pixel to be set (clears others?)
   // rnS = Range start Pixel;
+  // rnE = Range end Pixel;
 
   // here we set a new mode if we have the argument mode
   if(server.hasArg("mo")) {
+    bool isWS2812FX = false;
     uint8_t effect = strip.getMode();
     // currently we need to set this for the service...
     setEffect(FX_WS2812);
     // just switch to the next
     if (server.arg("mo")[0] == 'u') {
       effect = effect + 1;
-
+      isWS2812FX = true;
     }
     // switch to the previous one
     else if (server.arg("mo")[0] == 'd') {
       effect = effect - 1;
+      isWS2812FX = true;
+    }
+    else if (server.arg("mo")[0] == 'o') {
+      strip_On_Off(false);
+      strip.clear();
+      message += "No FX\n";
+    }
+    else if (server.arg("mo")[0] == 'f') {
+      setEffect(FX_FIRE);
+      message += "Fire Effect\n";
+    }
+    else if (server.arg("mo")[0] == 'r') {
+      setEffect(FX_RAINBOW);
+      message += "Rainbow Effect\n";
+    }
+    else if (server.arg("mo")[0] == 'k') {
+      setEffect(FX_KNIGHTRIDER);
+      message += "Knightrider Effect\n";
+    }
+    else if (server.arg("mo")[0] == 's') {
+      setEffect(FX_SPARKS);
+      message += "Sparks Effect\n";
+    }
+    else if (server.arg("mo")[0] == 'w') {
+      setEffect(FX_WHITESPARKS);
+      message += "White Sparks Effect\n";
+    }
+    // sunrise effect
+    // + delta value
+    // ToDo Implement
+    else if (server.arg("mo") == "sunrise") {
+
+    }
+    // sunrise effect
+    // + delta value
+    // ToDo Implement
+    else if (server.arg("mo") == "sunset") {
+
     }
     // finally switch to the one being provided.
     // we don't care if its actually an int or not
     // because it wil be zero anyway if not.
     else {
       effect = (uint8_t)strtoul(&server.arg("mo")[0], NULL, 10);
+      isWS2812FX = true;
     }
     // make sure we roll over at the max number
     if(effect >= strip.getModeCount()) {
       effect = 0;
     }
     // activate the effect and trigger it once...
-    strip.setMode(effect);
-    strip.start();
-    strip.trigger();
-    // answer to be provided - currently readable format
-    // might be changed to machine readable format (JSON?)
-    message += "Mode number\t" ;
-    message += strip.getMode();
-    message += "\tcalled\t";
-    message += strip.getModeName(effect);
-    message += "\n";
+    if(isWS2812FX)
+    {
+      setEffect(FX_WS2812);
+      strip.setMode(effect);
+      strip.start();
+      strip.trigger();
+      // answer to be provided - currently readable format
+      // ToDo: might be changed to machine readable format (JSON?)
+      message += "WS2812FX Effect\n" ;
+      message += strip.getMode();
+      message += "\t";
+      message += strip.getModeName(effect);
+      message += "\n";
+    }
+
+
   }
   // if we got a new brightness value
   if(server.hasArg("br")) {
@@ -465,6 +519,7 @@ void handleSet(void){
       speed = constrain((uint16_t)strtoul(&server.arg("sp")[0], NULL, 10), SPEED_MIN, SPEED_MAX);
     }
     strip.setSpeed(speed);
+    delay_interval = (uint8_t)(speed / 256);
     strip.show();
     message += "set new Speed\t";
     message += speed;
@@ -477,7 +532,7 @@ void handleSet(void){
     uint8_t re = Red(color);
     if(server.arg("re")[0] == 'u')
     {
-      
+
         if(re < 10)
         {
           re = 10;
@@ -574,7 +629,9 @@ void handleSet(void){
   if(server.hasArg("co")) {
     color = constrain((uint32_t)strtoul(&server.arg("co")[0], NULL, 16), 0, 0xffffff);
     message += "set new color\t";
-    message += color;
+    char temp[7];
+    sprintf(temp,"%6.6x", color);
+    message += (String)temp;
     message +="\n";
   }
   if(server.hasArg("pi")) {
@@ -586,8 +643,7 @@ void handleSet(void){
     message += pixel;
     message +="\n";
   }
-  else if (server.hasArg("rnS") && server.hasArg("rnE"))
-  {
+  else if (server.hasArg("rnS") && server.hasArg("rnE"))  {
     uint16_t start = constrain((uint16_t)strtoul(&server.arg("rnS")[0], NULL, 10), 0, strip.getLength());
     uint16_t end = constrain((uint16_t)strtoul(&server.arg("rnE")[0], NULL, 10), start, strip.getLength());
     if(start > end && end > 0) {
@@ -605,8 +661,7 @@ void handleSet(void){
     message += end;
     message +="\n";
   }
-  else
-  {
+  else  {
     strip.setColor(color);
   }
   Serial.println(message);
@@ -630,6 +685,7 @@ void handleNotFound(){
 }
 
 void handleGetModes(void){
+  // /getmodes
   String message = "\t#;\tname\n";
   for(uint8_t i=0; i<strip.getModeCount(); i++)
   {
@@ -643,10 +699,11 @@ void handleGetModes(void){
 }
 
 void handleStatus(void){
-
+  // /status
 }
 
 void handleResetRequest(void){
+  // /reset
   // ToDo
   // Should add a argument to be supplied to be "sure"
   // e.g. ?reset=PleaseReset
@@ -662,6 +719,7 @@ void setupWebServer(){
   server.on("/set", handleSet);
   server.on("/getmodes", handleGetModes);
   server.on("/status", handleStatus);
+  server.on("/reset", handleResetRequest);
   server.onNotFound(handleNotFound);
 
   server.begin();
@@ -691,7 +749,7 @@ void setup(){
   // as setup finished signal....
   for(uint8_t num=0; num<4; num++)
   {
-    for(uint16_t i=0; i<strip.getLength(); i+=1)
+    for(uint16_t i=0; i<strip.getLength(); i+=2)
     {
       if(i%2)
         strip.setPixelColor(i,0x00a000);
@@ -699,8 +757,8 @@ void setup(){
         strip.setPixelColor(i,0xa00000);
     }
     strip.show();
-    delay(400);
-    for(uint16_t i=0; i<strip.getLength(); i+=1)
+    delay(250);
+    for(uint16_t i=0; i<strip.getLength(); i+=2)
     {
       if(i%2)
         strip.setPixelColor(i,0xa00000);
@@ -708,7 +766,7 @@ void setup(){
         strip.setPixelColor(i,0x00a000);
     }
     strip.show();
-    delay(300);
+    delay(150);
   }
   strip.stop();
 }
@@ -724,34 +782,45 @@ void loop(){
   // if someone requests a call to the factory reset...
   static bool ResetRequested = false;
 
+  // Debug Watchdog. to be removed for "production"
+  // ToDo: Easy Debug 'Handling'...
   if(now - last_status_msg > 20000) {
     last_status_msg = now;
     Serial.print("\ncurrentEffect\t");
     Serial.println(currentEffect);
   }
 
+  // Checking WiFi state every WIFI_TIMEOUT
+  // Reset on disconnection
   if(now - last_wifi_check_time > WIFI_TIMEOUT) {
     //Serial.print("\nChecking WiFi... ");
     if(WiFi.status() != WL_CONNECTED) {
       Serial.println("WiFi connection lost. Reconnecting...");
         Serial.println("Lost Wifi Connection....");
+        // Show the WiFi loss with yellow LEDs.
+        // Whole strip lid finally.
         for(uint16_t i = 0; i<strip.getLength(); i++)
         {
           strip.setPixelColor(i, 0xa0a000);
           strip.show();
         }
+        // Reset after 6 seconds....
         delay(3000);
         Serial.println("Resetting ESP....");
         delay(3000);
         ESP.reset();
     } else {
-      // Serial.println("OK");
+      Serial.println("WiFi connection OK");
+      Serial.print("\t Connected to: ");
+
     }
     last_wifi_check_time = now;
   }
+
   ArduinoOTA.handle(); // check and handle OTA updates of the code....
 
   //Button Handling
+  // ToDo: Move to function?
   if(hasResetButton)  {
     debouncer.update();
     if(debouncer.read() == LOW)
@@ -760,9 +829,14 @@ void loop(){
     }
   }
 
+  // Someone correctly requested a Reset.
+  // we will move this to a separate function
+  // ToDo: Move to function
   if(ResetRequested)  {
       ResetRequested = false;
       Serial.println("Someone requested Factory Reset");
+      // on factory reset, each led will be red
+      // increasing from led 0 to max.
       for(uint16_t i = 0; i<strip.getLength(); i++)
       {
         strip.setPixelColor(i, 0xa00000);
@@ -811,56 +885,15 @@ void loop(){
       if(client.available())
       {
         inputLine = client.readStringUntil('\n');
-        //Serial.printf("Received Line # %u \n", linecount++);
-        //Serial.println(inputLine);
 
-        // SET SINGLE PIXEL url should be GET /rgb/n/rrr,ggg,bbb
 
-        if (inputLine.length() > 3 && inputLine.substring(0,9) == F("GET /rgb/")) {
-          int slash = inputLine.indexOf('/', 9 );
-          ledix = inputLine.substring(9,slash).toInt();
-          int urlend = inputLine.indexOf(' ', 9 );
-          String getParam = inputLine.substring(slash+1,urlend+1);
-          int komma1 = getParam.indexOf(',');
-          int komma2 = getParam.indexOf(',',komma1+1);
-          redLevel = getParam.substring(0,komma1).toInt();
-          greenLevel = getParam.substring(komma1+1,komma2).toInt();
-          blueLevel = getParam.substring(komma2+1).toInt();
-          strip_setpixelcolor(ledix, redLevel, greenLevel, blueLevel);
-          isGet = true;
-        }
 
-        // SET DELAY url should be GET /delay/n
-        if (inputLine.length() > 3 && inputLine.substring(0,11) == F("GET /delay/")) {
-          stripe_setDelayInterval((uint16_t)inputLine.substring(11).toInt());
-          isGet = true;
-        }
-        // SET BRIGHTNESS url should be GET /brightness/n
-        if (inputLine.length() > 3 && inputLine.substring(0,16) == F("GET /brightness/")) {
-          stripe_setBrightness(inputLine.substring(16).toInt());
-          isGet = true;
-        }
-        // SET PIXEL RANGE url should be GET /range/x,y/rrr,ggg,bbb
-        if (inputLine.length() > 3 && inputLine.substring(0,11) == F("GET /range/")) {
-          int slash = inputLine.indexOf('/', 11 );
-          int komma1 = inputLine.indexOf(',');
-          int x = inputLine.substring(11, komma1).toInt();
-          int y = inputLine.substring(komma1+1, slash).toInt();
-          int urlend = inputLine.indexOf(' ', 11 );
-          String getParam = inputLine.substring(slash+1,urlend+1);
-          komma1 = getParam.indexOf(',');
-          int komma2 = getParam.indexOf(',',komma1+1);
-          redLevel = getParam.substring(0,komma1).toInt();
-          greenLevel = getParam.substring(komma1+1,komma2).toInt();
-          blueLevel = getParam.substring(komma2+1).toInt();
-          set_Range((uint16_t)x, (uint16_t) y, (uint8_t) redLevel, (uint8_t) greenLevel, (uint8_t) blueLevel);
-          isGet = true;
-        }
         // POST PIXEL DATA
         if (inputLine.length() > 3 && inputLine.substring(0,10) == F("POST /leds")) {
           isPost = true;
           //Serial.println("Received POST Data...");
         }
+
         if (inputLine.length() > 3 && inputLine.substring(0,16) == F("Content-Length: ")) {
           //postDataLength = inputLine.substring(16).toInt();
           //Serial.printf("\t\tGot Postdata with Length %u\n", postDataLength);
@@ -881,26 +914,10 @@ void loop(){
           strip.show();
           isGet = true;
         }
-        // SET ALL PIXELS OFF url should be GET /off
-        if (inputLine.length() > 3 && inputLine.substring(0,8) == F("GET /off")) {
-          strip_On_Off(false);
-          strip.clear();
-          isGet = true;
-        }
 
-        // GET STATUS url should be GET /status
-        if (inputLine.length() > 3 && inputLine.substring(0,11) == F("GET /status")) {
-          isGet = true;
-        }
         // GET Config url should be GET /config
         if (inputLine.length() > 3 && inputLine.substring(0,14) == F("GET /factreset")) {
           ResetRequested = true;
-          isGet = true;
-        }
-
-        // SET FIRE EFFECT
-        if (inputLine.length() > 3 && inputLine.substring(0,9) == F("GET /fire")) {
-          setEffect(FX_FIRE);
           isGet = true;
         }
 
@@ -933,31 +950,6 @@ void loop(){
 
         }
 
-        // SET RAINBOW EFFECT
-        if (inputLine.length() > 3 && inputLine.substring(0,12) == F("GET /rainbow")) {
-          setEffect(FX_RAINBOW);
-          isGet = true;
-        }
-        // SET WHITE_SPARKS EFFECT
-        if (inputLine.length() > 3 && inputLine.substring(0,17) == F("GET /white_sparks")) {
-
-          setEffect(FX_WHITESPARKS);
-
-          isGet = true;
-        }
-        // SET SPARKS EFFECT
-        if (inputLine.length() > 3 && inputLine.substring(0,11) == F("GET /sparks")) {
-
-          setEffect(FX_SPARKS);
-
-          isGet = true;
-        }
-        // SET KNIGHTRIDER EFFECT
-        if (inputLine.length() > 3 && inputLine.substring(0,16) == F("GET /knightrider")) {
-
-          setEffect(FX_KNIGHTRIDER);
-          isGet = true;
-        }
         // SET no_effects
         if (inputLine.length() > 3 && inputLine.substring(0,9) == F("GET /nofx")) {
 
@@ -989,70 +981,7 @@ void loop(){
 
           isGet = true;
         }
-        // ws2812fx library handling
-        // either move all effects together (should be easily possible to integrate in library)
-        // or ease the handling a bit...
-        // check how fhem could be initialized with all effects....
-        if (inputLine.length() > 3 && inputLine.substring(0,14) == F("GET /ws2812fx/")) {
-          //Serial.println("\nReceived ws2812 fx command...:");
-          static uint8_t wsfx_mode = 0;
-          int slash = inputLine.indexOf('/', 14 );
-          bool next = false;
-          bool prev = false;
-          uint8_t new_fx = 0;
-          if(inputLine.substring(14,slash) == F("next"))
-          {
-            next = true;
-          }
-          else if (inputLine.substring(14,slash) == F("prev"))
-          {
-            prev = true;
-          }
-          else
-          {
-              new_fx = (uint8_t)inputLine.substring(14,slash).toInt();
-          }
-          int urlend = inputLine.indexOf(' ', 14 );
-          String getParam = inputLine.substring(slash+1,urlend+1);
-          //Serial.print("getParam substring looks like: ");
-          //Serial.println(getParam);
-          //Serial.print("Komma drin und Position: ");
-          //Serial.println(getParam.indexOf(','));
-          if(getParam.indexOf(',') > 0)
-          {
-          //  Serial.print("Input has color values rgb: ");
-            int komma1 = getParam.indexOf(',');
-            int komma2 = getParam.indexOf(',',komma1+1);
-            uint8_t red = (uint8_t)getParam.substring(0,komma1).toInt();
-            uint8_t green = (uint8_t)getParam.substring(komma1+1,komma2).toInt();
-            uint8_t blue = (uint8_t)getParam.substring(komma2+1).toInt();
-            redLevel = red;
-            greenLevel = green;
-            blueLevel = blue;
-            strip.setColor(red, green, blue);
-            strip.trigger();
-          }
 
-          setEffect(FX_WS2812);
-
-          //Serial.print("New fx raw value: ");
-          Serial.println(new_fx);
-          if(next) new_fx++;
-          if(prev) new_fx--;
-
-          if(new_fx >= strip.getModeCount())
-          {
-            new_fx = strip.getModeCount()-1;
-          }
-          wsfx_mode = new_fx;
-
-
-          strip.setMode(wsfx_mode);
-          strip.start();
-          strip.trigger();
-
-          isGet = true;
-        }
         if(isGet)
         {
           sendOkResponse(client);

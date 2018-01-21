@@ -6,7 +6,7 @@ char index_html[] PROGMEM = R"=====(
   <meta http-equiv='Content-Type' content='text/html; charset=utf-8' />
   <meta name='viewport' content='width=device-width' />
 
-  <title>WS2812FX Ctrl</title>
+  <title>LED Lampensteuerung</title>
 
   <script type='text/javascript' src='main.js'></script>
 
@@ -26,7 +26,7 @@ char index_html[] PROGMEM = R"=====(
   h1 {
     width:65%;
     margin:25px 0 25px 25%;
-    color:#454545;
+    color:#0a0aa0;
     text-align:center;
   }
 
@@ -49,7 +49,7 @@ char index_html[] PROGMEM = R"=====(
     width:20%;
   }
 
-  ul#brightness li, ul#speed li, ul#auto ul#colorrgb li {
+  ul#brightness li, ul#speed li, ul#auto li, ul#colorrgb li {
     display:inline-block;
     width:20%;
   }
@@ -58,16 +58,16 @@ char index_html[] PROGMEM = R"=====(
     display:block;
     margin:3px;
     padding:10px 5px;
-    border:2px solid #454545;
+    border:2px solid #0a0aa0;
     border-radius:5px;
-    color:#454545;
+    color:#0a0aa0;
     font-weight:bold;
     text-decoration:none;
   }
 
   ul li a.active {
-    border:2px solid #909090;
-    color:#909090;
+    border:2px solid #a0a0ff;
+    color:#a0a0ff;
   }
   </style>
 </head>
@@ -78,32 +78,32 @@ char index_html[] PROGMEM = R"=====(
     <ul id='mode'></ul>
 
     <ul id='brightness'>
-      <li>Brightness</li>
+      <licolor=#0a0aa0>Helligkeit</li>
       <li><a href='#' class='br' id='u'>u</a></li>
       <li><a href='#' class='br' id='d'>d</a></li>
     </ul>
     <ul id='speed'>
-      <li>Speed</li>
+      <licolor=#0a0aa0>Geschwindigkeit</li>
       <li><a href='#' class='sp' id='u'>u</a></li>
       <li><a href='#' class='sp' id='d'>d</a></li>
     </ul>
     <ul id='auto'>
-      <li>mode</li>
+      <licolor=#0a0aa0>Effekt</li>
       <li><a href='#' class='mo' id='u'>u</a></li>
       <li><a href='#' class='mo' id='d'>d</a></li>
     </ul>
     <ul id='colorrgb'>
-      <li>Red</li>
+      <li color=#a00000>Rot</li>
       <li><a href='#' class='re' id='u'>u</a></li>
       <li><a href='#' class='re' id='d'>d</a></li>
     </ul>
     <ul id='colorrgb'>
-      <li>Green</li>
+      <li color=#00a000>Grün</li>
       <li><a href='#' class='gr' id='u'>u</a></li>
       <li><a href='#' class='gr' id='d'>d</a></li>
     </ul>
     <ul id='colorrgb'>
-      <li>Blue</li>
+      <li color=#0000a0>Blau</li>
       <li><a href='#' class='bl' id='u'>u</a></li>
       <li><a href='#' class='bl' id='d'>d</a></li>
     </ul>
