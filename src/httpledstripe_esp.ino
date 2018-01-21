@@ -431,6 +431,7 @@ void handleSet(void){
     // sunrise effect
     // + delta value
     // ToDo Implement
+<<<<<<< HEAD
     else if (server.arg("mo") == "Sunrise") {
       // milliseconds time to full sunrise
       uint32_t mytime = 0;
@@ -458,10 +459,15 @@ void handleSet(void){
       message += " seconds (";
       message += (mytime/60000);
       message += " minutes)";
+=======
+    else if (server.arg("mo") == "sunrise") {
+
+>>>>>>> 3609d0311dffec02177a3fbf86ac979c6144488e
     }
     // sunrise effect
     // + delta value
     // ToDo Implement
+<<<<<<< HEAD
     else if (server.arg("mo") == "Sunset") {
       // milliseconds time to full sunrise
       uint32_t mytime = 0;
@@ -489,6 +495,10 @@ void handleSet(void){
       message += " seconds (";
       message += (mytime/60000);
       message += " minutes)";
+=======
+    else if (server.arg("mo") == "sunset") {
+
+>>>>>>> 3609d0311dffec02177a3fbf86ac979c6144488e
     }
     // finally switch to the one being provided.
     // we don't care if its actually an int or not
@@ -859,6 +869,13 @@ void loop(){
         Serial.println("Resetting ESP....");
         delay(3000);
         ESP.reset();
+<<<<<<< HEAD
+=======
+    } else {
+      Serial.println("WiFi connection OK");
+      Serial.print("\t Connected to: ");
+
+>>>>>>> 3609d0311dffec02177a3fbf86ac979c6144488e
     }
     last_wifi_check_time = now;
   }
