@@ -859,6 +859,13 @@ void loop(){
         Serial.println("Resetting ESP....");
         delay(3000);
         ESP.reset();
+<<<<<<< HEAD
+=======
+    } else {
+      Serial.println("WiFi connection OK");
+      Serial.print("\t Connected to: ");
+
+>>>>>>> 3609d0311dffec02177a3fbf86ac979c6144488e
     }
     last_wifi_check_time = now;
   }
