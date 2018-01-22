@@ -50,6 +50,13 @@ struct sunriseParam {
   uint32_t lastChange;
 } sunriseParam;
 
+pah_color myColor(0,   512, 1024,
+                  0,   0, 0,
+                  67,  4,  0,
+                  127,  31, 0,
+                  191, 63, 3,
+                  255, 200,  128);
+
 // Parameter 1 = number of pixels in strip
 // Parameter 2 = Arduino pin number (most are valid)
 // Parameter 3 = pixel type flags, add together as needed:
@@ -59,9 +66,7 @@ struct sunriseParam {
 //   NEO_RGB     Pixels are wired for RGB bitstream (v1 FLORA pixels, not v2)
 WS2812FX strip = WS2812FX(300, 1, DEFAULT_PIXEL_TYPE); // WS2812FX(strip.getLength(), LEDPIN, NEO_GRB + NEO_KHZ800);
 
-
-void stripe_setDelayInterval(uint16_t delay)
-{
+void stripe_setDelayInterval(uint16_t delay){
   // new speed in ws2812fx library is 10 to 65535
   // we use the old "delay" but may multiply to get a new speed for ws2812fx
   uint16_t speed = (delay*257);
@@ -73,14 +78,12 @@ void stripe_setDelayInterval(uint16_t delay)
   delay_interval = delay;
 }
 
-uint16_t stripe_getDelayInterval()
-{
+uint16_t stripe_getDelayInterval(){
   return delay_interval;
 }
 
 // set all pixels to 'off'
-void stripe_setup(uint16_t LEDCount, uint8_t dataPin, neoPixelType pixelType)
-{
+void stripe_setup(uint16_t LEDCount, uint8_t dataPin, neoPixelType pixelType){
   //initialize the stripe
 
   strip.setLength(LEDCount);
@@ -100,22 +103,17 @@ void stripe_setup(uint16_t LEDCount, uint8_t dataPin, neoPixelType pixelType)
   strip.show();
 }
 
-void strip_On_Off(bool onOff)
-{
+void strip_On_Off(bool onOff){
     stripIsOn = onOff;
     stripWasOff = false;
 }
 
-
-
-void stripe_setBrightness(uint8_t brightness)
-{
+void stripe_setBrightness(uint8_t brightness){
   strip.setBrightness(brightness);
   strip.show();
 }
 
-void set_Range(uint16_t start, uint16_t stop, uint8_t r, uint8_t g, uint8_t b)
-{
+void set_Range(uint16_t start, uint16_t stop, uint8_t r, uint8_t g, uint8_t b){
   strip_On_Off(true);
   setEffect(FX_NO_FX);
   for(uint16_t i=start; i<=stop; i++) {
@@ -125,8 +123,7 @@ void set_Range(uint16_t start, uint16_t stop, uint8_t r, uint8_t g, uint8_t b)
   strip.setColor(r, g, b);
 }
 
-void strip_setpixelcolor(uint16_t pixel, uint8_t r, uint8_t g, uint8_t b)
-{
+void strip_setpixelcolor(uint16_t pixel, uint8_t r, uint8_t g, uint8_t b){
   strip_On_Off(true);
   setEffect(FX_NO_FX);
   strip.setPixelColor(pixel, r, g, b);
@@ -135,8 +132,7 @@ void strip_setpixelcolor(uint16_t pixel, uint8_t r, uint8_t g, uint8_t b)
 }
 
 // just calls the right effec routine according to the current Effect
-void effectHandler(void)
-{
+void effectHandler(void){
   //switching on or OFF
 
   if(stripIsOn && stripWasOff)
@@ -192,8 +188,7 @@ void effectHandler(void)
 }
 
 // Sets a new Effect to be called
-void setEffect(uint8_t Effect)
-{
+void setEffect(uint8_t Effect){
   reset();
   //previousEffect = currentEffect;
   currentEffect = Effect;
@@ -204,52 +199,41 @@ void setEffect(uint8_t Effect)
   }
 }
 
-
 // returns the current Effect
-uint8_t getEffect(void)
-{
+uint8_t getEffect(void){
   return currentEffect;
 }
 
 // return the previous effect
-uint8_t getPreviousEffect(void)
-{
+uint8_t getPreviousEffect(void){
   return previousEffect;
 }
 
-
-
-uint32_t strip_color32(uint8_t r, uint8_t g, uint8_t b)
-{
+uint32_t strip_color32(uint8_t r, uint8_t g, uint8_t b){
   return ((uint32_t)r << 16) | ((uint32_t)g <<  8) | b;
 }
 
-uint8_t Red(uint32_t color)
-{
+uint8_t Red(uint32_t color){
   return (color >> 16) & 0xFF;
 }
 
 // Returns the Green component of a 32-bit color
-uint8_t Green(uint32_t color)
-{
+uint8_t Green(uint32_t color){
   return (color >> 8) & 0xFF;
 }
 
 // Returns the Blue component of a 32-bit color
-uint8_t Blue(uint32_t color)
-{
+uint8_t Blue(uint32_t color){
   return color & 0xFF;
 }
 // Dims a strip by rightshift
-uint32_t DimColor(uint32_t color)
-{
+uint32_t DimColor(uint32_t color){
   uint32_t dimColor = strip.Color(Red(color) >> 1, Green(color) >> 1, Blue(color) >> 1);
   return dimColor;
 }
 
 // Dim the Pixel to DimColor
-void strip_dimPixel(uint16_t pixel, bool dim_default, uint8_t byValue)
-{
+void strip_dimPixel(uint16_t pixel, bool dim_default, uint8_t byValue){
   if(dim_default)
     strip.setPixelColor(pixel, DimColor(strip.getPixelColor(pixel)));
   else
@@ -269,25 +253,17 @@ void strip_dimPixel(uint16_t pixel, bool dim_default, uint8_t byValue)
 }
 
 // helper for long delays (prevents watchdog reboot)
-void delaymicro(unsigned int mics)
-{
+void delaymicro(unsigned int mics){
   delayMicroseconds(mics);
   yield();
 }
 
-pah_color myColor(0,   500, 1000,
-                  0,   0, 0,
-                  67,  4,  0,
-                  127,  31, 0,
-                  191, 63, 3,
-                  255, 200,  128);
-
 // sunrise funtionality... may need to do thata bit  different finally
 // both for color as for logic and start/stop/running
-void mySunriseStart(uint32_t  mytime, uint16_t steps, bool up)
-{
+void mySunriseStart(uint32_t  mytime, uint16_t steps, bool up) {
   sunriseParam.isRunning = true;
   sunriseParam.steps = steps;
+  myColor.setStepValues(0, steps/2, steps);
   if(up)
   {
     sunriseParam.step = 0;
@@ -303,11 +279,12 @@ void mySunriseStart(uint32_t  mytime, uint16_t steps, bool up)
   //reset the stripe
   strip.clear();
   strip.show();
+  #ifdef DEBUG
   Serial.printf("\nStarted Sunrise with %.3u steps in %u ms which are %u minutes.\n", steps, mytime, (mytime/60000));
+  #endif
 }
 
-void mySunriseTrigger(void)
-{
+void mySunriseTrigger(void) {
   if(!sunriseParam.isRunning) return;
   uint32_t now = (uint32_t)millis();
   if(now > (uint32_t)(sunriseParam.lastChange + sunriseParam.deltaTime))
@@ -385,7 +362,7 @@ void blinkerEffect() {
     strip.setPixelColor(i, 0, 0, 0);
   }
   strip.show();
-delay(fx_blinker_time_off);
+  delay(fx_blinker_time_off);
 }
 
 void sparksEffect() {
