@@ -11,6 +11,8 @@
  **************************************************************/
 #include <FS.h>
 
+//0#define DEBUG
+
 #include "Arduino.h"
 #include <ArduinoJson.h>
 #include <ESP8266WiFi.h>
@@ -26,7 +28,7 @@
 
 #include <pahcolor.h>
 
-//#define DEBUG
+
 
 /* Flash Button can be used here for toggles.... */
 bool hasResetButton = false;
@@ -431,6 +433,13 @@ void srv_handle_modes(void) {
   server.send(200,"text/plain", modes);
 }
 
+
+uint8_t changebypercentage (uint8_t value, uint8_t percentage) {
+  uint16_t ret = max((value*percentage)/100, 10);
+  if (ret > 255) ret = 255;
+  return (uint8_t) ret;
+}
+
 // if /set was called
 void handleSet(void){
 
@@ -470,8 +479,7 @@ void handleSet(void){
   if(server.hasArg("mo")) {
     bool isWS2812FX = false;
     uint8_t effect = strip.getMode();
-    // currently we need to set this for the service...
-    setEffect(FX_WS2812);
+
     // just switch to the next
     if (server.arg("mo")[0] == 'u') {
       effect = effect + 1;
@@ -485,21 +493,28 @@ void handleSet(void){
     else if (server.arg("mo")[0] == 'o') {
       strip_On_Off(false);
       strip.clear();
+      strip.stop();
     }
     else if (server.arg("mo")[0] == 'f') {
-      setEffect(FX_FIRE);
+      effect = FX_MODE_FIRE_FLICKER;
+      isWS2812FX = true;
     }
     else if (server.arg("mo")[0] == 'r') {
-      setEffect(FX_RAINBOW);
+      effect = FX_MODE_RAINBOW_CYCLE;
+      isWS2812FX = true;
     }
     else if (server.arg("mo")[0] == 'k') {
-      setEffect(FX_KNIGHTRIDER);
+      effect = FX_MODE_LARSON_SCANNER;
+      isWS2812FX = true;
     }
     else if (server.arg("mo")[0] == 's') {
-      setEffect(FX_SPARKS);
+      effect = FX_MODE_TWINKLE_FADE_RANDOM;
+      isWS2812FX = true;
     }
     else if (server.arg("mo")[0] == 'w') {
-      setEffect(FX_WHITESPARKS);
+      strip.setColor(0xffffff);
+      effect = FX_MODE_TWINKLE_FADE;
+      isWS2812FX = true;
     }
     // sunrise effect
     // + delta value
@@ -508,7 +523,7 @@ void handleSet(void){
     else if (server.arg("mo") == "Sunrise") {
       // milliseconds time to full sunrise
       uint32_t mytime = 0;
-      const uint16_t mysteps = 512; // defaults to 1000;
+      const uint16_t mysteps = 512; // defaults to 512;
       // sunrise time in seconds
       if(server.hasArg("sec")) {
         mytime = 1000 * (uint32_t)strtoul(&server.arg("sec")[0], NULL, 10);
@@ -575,20 +590,9 @@ void handleSet(void){
   if(server.hasArg("br")) {
     uint8_t brightness = strip.getBrightness();
     if (server.arg("br")[0] == 'u') {
-      if(brightness < 10)
-      {
-        brightness = 10;
-      }
-      else if (brightness >= 230)
-      {
-        brightness = 255;
-      }
-      else
-      {
-        brightness = constrain((uint8_t)((brightness * 110)/100), BRIGHTNESS_MIN, BRIGHTNESS_MAX);
-      }
+    brightness = changebypercentage(brightness, 110);
     } else if (server.arg("br")[0] == 'd') {
-      brightness = constrain((uint8_t)((brightness * 90)/100), BRIGHTNESS_MIN, BRIGHTNESS_MAX);
+      brightness = changebypercentage(brightness, 90);
     } else {
       brightness = constrain((uint8_t)strtoul(&server.arg("br")[0], NULL, 10), BRIGHTNESS_MIN, BRIGHTNESS_MAX);
     }
@@ -599,115 +603,54 @@ void handleSet(void){
   if(server.hasArg("sp")) {
     uint16_t speed = strip.getSpeed();
     if (server.arg("sp")[0] == 'u') {
-      if(speed < 10)
-      {
-        speed = 10;
-      }
-      else if (speed >= (SPEED_MAX * 90) / 100)
-      {
-        speed = SPEED_MAX;
-      }
-      else
-      {
-        speed = constrain((uint16_t)((speed * 110)/100), SPEED_MIN, SPEED_MAX);
-      }
+      uint16_t ret = max((speed*110)/100, 10);
+      if (ret > SPEED_MAX) ret = SPEED_MAX;
+      speed = ret;
+      //speed = changebypercentage(speed, 110);
     } else if (server.arg("sp")[0] == 'd') {
-      speed = constrain((uint16_t)((speed * 90)/100), SPEED_MIN, SPEED_MAX);
+      uint16_t ret = max((speed*90)/100, 10);
+      if (ret > SPEED_MAX) ret = SPEED_MAX;
+      speed = ret;
+      //speed = changebypercentage(speed, 90);
     } else {
       speed = constrain((uint16_t)strtoul(&server.arg("sp")[0], NULL, 10), SPEED_MIN, SPEED_MAX);
     }
     strip.setSpeed(speed);
-    delay_interval = (uint8_t)(speed / 256);
+    // delay_interval = (uint8_t)(speed / 256); // obsolete???
     strip.show();
   }
   // color handling
   uint32_t color = strip.getColor();
   if(server.hasArg("re")) {
     uint8_t re = Red(color);
-    if(server.arg("re")[0] == 'u')
-    {
-
-        if(re < 10)
-        {
-          re = 10;
-        }
-        else if (re > (255 * 90) / 100)
-        {
-          re = 255;
-        }
-        else
-        {
-          re = (uint8_t)((re * 110) / 100);
-        }
-    }
-    else if (server.arg("re")[0] == 'd')
-    {
-
-      re = (uint8_t)((re * 90) / 100);
-    }
-    else
-    {
-
+    if(server.arg("re")[0] == 'u') {
+        re = changebypercentage(re, 110);
+    } else if (server.arg("re")[0] == 'd') {
+      re = changebypercentage(re, 90);
+    } else {
       re = constrain((uint8_t)strtoul(&server.arg("re")[0], NULL, 10), 0, 255);
     }
     color = (color & 0x00ffff) | (re << 16);
   }
   if(server.hasArg("gr")) {
     uint8_t gr = Green(color);
-    if(server.arg("gr")[0] == 'u')
-    {
-        if(gr < 10)
-        {
-          gr = 10;
-        }
-        else if (gr > (255 * 90) / 100)
-        {
-          gr = 255;
-        }
-        else
-        {
-          gr = (uint8_t)((gr * 110) / 100);
-        }
-    }
-    else if (server.arg("gr")[0] == 'd')
-    {
-      gr = (uint8_t)((gr * 90) / 100);
-    }
-    else
-    {
+    if(server.arg("gr")[0] == 'u') {
+        gr = changebypercentage(gr, 110);
+    } else if (server.arg("gr")[0] == 'd') {
+      gr = changebypercentage(gr, 90);
+    } else {
       gr = constrain((uint8_t)strtoul(&server.arg("gr")[0], NULL, 10), 0, 255);
-
     }
     color = (color & 0xff00ff) | (gr << 8);
   }
   if(server.hasArg("bl")) {
     uint8_t bl = Blue(color);
-    if(server.arg("bl")[0] == 'u')
-    {
-
-        if(bl < 10)
-        {
-          bl = 10;
-        }
-        else if (bl > (255 * 90) / 100)
-        {
-          bl = 255;
-        }
-        else
-        {
-          bl = (uint8_t)((bl * 110) / 100);
-        }
-    }
-    else if (server.arg("bl")[0] == 'd')
-    {
-
-      bl = (uint8_t)((bl * 90) / 100);
-    }
-    else
-    {
-
+    if(server.arg("bl")[0] == 'u') {
+        bl = changebypercentage(bl, 110);
+    } else if (server.arg("bl")[0] == 'd') {
+      bl = changebypercentage(bl, 90);
+    } else {
       bl = constrain((uint8_t)strtoul(&server.arg("bl")[0], NULL, 10), 0, 255);
-
     }
     color = (color & 0xffff00) | (bl << 0);
   }
@@ -715,25 +658,32 @@ void handleSet(void){
     color = constrain((uint32_t)strtoul(&server.arg("co")[0], NULL, 16), 0, 0xffffff);
   }
   if(server.hasArg("pi")) {
-    setEffect(FX_NO_FX);
+    //setEffect(FX_NO_FX);
     uint16_t pixel = constrain((uint16_t)strtoul(&server.arg("pi")[0], NULL, 10), 0, strip.getLength()-1);
+    strip_setpixelcolor(pixel, color);
+/*
     strip.setPixelColor(pixel, color);
     strip.show();
-  }
-  else if (server.hasArg("rnS") && server.hasArg("rnE"))  {
+*/
+  } else if (server.hasArg("rnS") && server.hasArg("rnE")) {
     uint16_t start = constrain((uint16_t)strtoul(&server.arg("rnS")[0], NULL, 10), 0, strip.getLength());
     uint16_t end = constrain((uint16_t)strtoul(&server.arg("rnE")[0], NULL, 10), start, strip.getLength());
+    set_Range(start, end, color);
+/*
     if(start > end && end > 0) {
       start = end-1;
     }
     setEffect(FX_NO_FX);
-    for(uint16_t i = start; i<end; i++)
-    {
+    for(uint16_t i = start; i<(end+1)%strip.getLength(); i++) {
       strip.setPixelColor(i, color);
     }
     strip.show();
-  }
-  else  {
+*/
+  } else if (server.hasArg("rgb")) {
+    strip.setColor(color);
+    setEffect(FX_WS2812);
+    strip.setMode(FX_MODE_STATIC);
+  } else {
     strip.setColor(color);
   }
   handleStatus();
@@ -803,24 +753,6 @@ void handleStatus(void){
   switch (currentEffect) {
     case FX_NO_FX :
       currentState["modename"] = F("No FX");
-      break;
-    case FX_FIRE :
-      currentState["modename"] = F("Fire Effect");
-      break;
-    case FX_RAINBOW :
-      currentState["modename"] = F("Rainbow Effect");
-      break;
-    case FX_BLINKER :
-      currentState["modename"] = F("LED Range Blinker");
-      break;
-    case FX_SPARKS :
-      currentState["modename"] = F("Sparks Effect");
-      break;
-    case FX_WHITESPARKS :
-      currentState["modename"] = F("White Sparks Effect");
-      break;
-    case FX_KNIGHTRIDER :
-      currentState["modename"] = F("Knightrider Effect");
       break;
     case FX_SUNRISE :
       currentState["modename"] = F("Sunrise Effect");

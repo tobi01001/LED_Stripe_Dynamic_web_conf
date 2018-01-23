@@ -27,15 +27,9 @@
 #define DEFAULT_PIXEL_TYPE (NEO_GRB + NEO_KHZ800)
 
 #define FX_NO_FX        0
-#define FX_FIRE         1
-#define FX_RAINBOW      2
-#define FX_BLINKER      3
-#define FX_SPARKS       4
-#define FX_WHITESPARKS  5
-#define FX_KNIGHTRIDER  6
-#define FX_SUNRISE      7
-#define FX_SUNSET       8
-#define FX_WS2812       9
+#define FX_SUNRISE      1
+#define FX_SUNSET       2
+#define FX_WS2812       3
 
 
 
@@ -59,7 +53,7 @@ uint8_t getEffect(void);
 // return the previous effect
 uint8_t getPreviousEffect(void);
 
-
+/*
 // fire Effect (not WS2812BFX)
 void fireEffect(void) ;
 // Rainbow  (not WS2812BFX)
@@ -83,7 +77,7 @@ int colorVal(char c);
 // dims a single pixel either by right shift (division by 2)
 //  or by a certain value (enables smoother but also slower dims)
 void strip_dimPixel(uint16_t pixel, bool dim_default, uint8_t byValue);
-
+*/
 // 32 Bit Color out of 3 Color values....
 uint32_t strip_color32(uint8_t r, uint8_t g, uint8_t b);
 
@@ -102,6 +96,10 @@ void delaymicro(unsigned int mics);
 // set color for a single pixel (deactivates effects)
 // but also sets the color for the effect library
 void strip_setpixelcolor(uint16_t pixel, uint8_t r, uint8_t g, uint8_t b);
+void strip_setpixelcolor(uint16_t pixel, uint32_t color);
+
+void set_Range(uint16_t start, uint16_t stop, uint8_t r, uint8_t g, uint8_t b);
+void set_Range(uint16_t start, uint16_t stop, uint32_t color);
 
 void stripe_setDelayInterval(uint16_t delay);
 
@@ -113,7 +111,7 @@ void strip_On_Off(bool onOff);
 
 void stripe_setBrightness(uint8_t brightness);
 
-void set_Range(uint16_t start, uint16_t stop, uint8_t r, uint8_t g, uint8_t b);
+
 
 void mySunriseStart(uint32_t  mytime, uint16_t steps, bool up);
 
@@ -123,6 +121,7 @@ void mySunriseTrigger(void);
 //globals... here or in the ccp file? - use it here for the moment
 /* Globals */
 // ToDo: Redefine for effectiveness (static etc)
+/*
 extern uint16_t fx_blinker_start_pixel;
 extern uint16_t fx_blinker_end_pixel;
 extern uint8_t fx_blinker_red;
@@ -130,21 +129,21 @@ extern uint8_t fx_blinker_green;
 extern uint8_t fx_blinker_blue;
 extern uint16_t fx_blinker_time_on;
 extern uint16_t fx_blinker_time_off;
-
+*/
 // control special effects
 extern bool sunrise_running;
 extern bool stripWasOff;
 extern bool stripIsOn;
 
 
-extern unsigned long last_delay_trigger;
+//extern unsigned long last_delay_trigger;
 
 extern uint8_t currentEffect;
 extern uint8_t previousEffect;
 
-extern uint16_t rainbowColor;
+//extern uint16_t rainbowColor;
 
-extern uint16_t delay_interval;
+//extern uint16_t delay_interval;
 
 // Parameter 1 = number of pixels in strip
 // Parameter 2 = Arduino pin number (most are valid)

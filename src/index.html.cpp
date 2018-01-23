@@ -79,33 +79,33 @@ char index_html[] PROGMEM = R"=====(
 
     <ul id='brightness'>
       <licolor=#0a0aa0>Helligkeit</li>
-      <li><a href='#' class='br' id='u'>u</a></li>
-      <li><a href='#' class='br' id='d'>d</a></li>
+      <li><a href='#' class='br' id='u'>brighter</a></li>
+      <li><a href='#' class='br' id='d'>darker</a></li>
     </ul>
     <ul id='speed'>
       <licolor=#0a0aa0>Geschwindigkeit</li>
-      <li><a href='#' class='sp' id='u'>u</a></li>
-      <li><a href='#' class='sp' id='d'>d</a></li>
+      <li><a href='#' class='sp' id='u'>slower</a></li>
+      <li><a href='#' class='sp' id='d'>faster</a></li>
     </ul>
     <ul id='auto'>
       <licolor=#0a0aa0>Effekt</li>
-      <li><a href='#' class='mo' id='u'>u</a></li>
-      <li><a href='#' class='mo' id='d'>d</a></li>
+      <li><a href='#' class='mo' id='u'>next</a></li>
+      <li><a href='#' class='mo' id='d'>prev</a></li>
     </ul>
     <ul id='colorrgb'>
       <li color=#a00000>Rot</li>
-      <li><a href='#' class='re' id='u'>u</a></li>
-      <li><a href='#' class='re' id='d'>d</a></li>
+      <li><a href='#' class='re' id='u'>plus</a></li>
+      <li><a href='#' class='re' id='d'>minus</a></li>
     </ul>
     <ul id='colorrgb'>
       <li color=#00a000>Grün</li>
-      <li><a href='#' class='gr' id='u'>u</a></li>
-      <li><a href='#' class='gr' id='d'>d</a></li>
+      <li><a href='#' class='gr' id='u'>plus</a></li>
+      <li><a href='#' class='gr' id='d'>minus</a></li>
     </ul>
     <ul id='colorrgb'>
       <li color=#0000a0>Blau</li>
-      <li><a href='#' class='bl' id='u'>u</a></li>
-      <li><a href='#' class='bl' id='d'>d</a></li>
+      <li><a href='#' class='bl' id='u'>plus</a></li>
+      <li><a href='#' class='bl' id='d'>minus</a></li>
     </ul>
   </div>
 </body>
