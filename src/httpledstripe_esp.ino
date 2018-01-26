@@ -11,7 +11,7 @@
  **************************************************************/
 #include <FS.h>
 
-//0#define DEBUG
+#define DEBUG
 
 #include "Arduino.h"
 #include <ArduinoJson.h>
@@ -99,6 +99,11 @@ void saveConfigCallback(void) {
 
 void readConfigurationFS(void) {
   //read configuration from FS json
+
+  /*  check if we really need to use the filw system or if a somple EEPROM
+      write/read would do the trick as well
+  */
+
   #ifdef DEBUG
     Serial.println("mounting FS...");
   #endif
@@ -131,17 +136,15 @@ void readConfigurationFS(void) {
           strcpy(chrResetButtonPin, json["chrResetButtonPin"]);
           strcpy(chrLEDCount, json["chrLEDCount"]);
           strcpy(chrLEDPin, json["chrLEDPin"]);
+          // This checks if a IP is contained in the file
+          // currently not used as no IP will be written
           if(json["ip"]) {
             #ifdef DEBUG
             Serial.println("setting custom ip from config");
             #endif
-            //static_ip = json["ip"];
             strcpy(static_ip, json["ip"]);
             strcpy(static_gw, json["gateway"]);
             strcpy(static_sn, json["subnet"]);
-            //strcat(static_ip, json["ip"]);
-            //static_gw = json["gateway"];
-            //static_sn = json["subnet"];
             #ifdef DEBUG
             Serial.println(static_ip);
             #endif
@@ -182,6 +185,8 @@ void initOverTheAirUpdate(void) {
   /* init OTA */
   // Port defaults to 8266
   ArduinoOTA.setPort(8266);
+
+  // ToDo: Implement Hostname in config and WIFI Settings?
 
   // Hostname defaults to esp8266-[ChipID]
   //ArduinoOTA.setHostname("esp8266Toby01");
@@ -268,7 +273,7 @@ void setupResetButton(uint8_t buttonPin){
     pinMode(buttonPin,INPUT_PULLUP);
     // After setting up the button, setup the Bounce instance :
     debouncer.attach(buttonPin);
-    debouncer.interval(10); // interval in ms
+    debouncer.interval(50); // interval in ms
 }
 
 void updateConfiguration(void){
@@ -281,12 +286,15 @@ void updateConfiguration(void){
     strcpy(chrLEDCount, LedCountConf.getValue());
     strcpy(chrLEDPin, LedPinConf.getValue());
   }
+  /*
   String sLedCount = chrLEDCount;
   String sLedPin   = chrLEDPin;
 
   uint16_t ledCount = sLedCount.toInt();
   uint8_t ledPin = sLedPin.toInt();
-
+  */
+  uint16_t ledCount = (uint16_t) strtoul(chrLEDCount, NULL, 10);
+  uint8_t ledPin = (uint8_t) strtoul(chrLEDPin, NULL, 10);
   // if something went wrong here (GPIO = 0 or LEDs = 0)
   // we reset and start allover again
   if(ledCount == 0 || ledPin == 0) {
