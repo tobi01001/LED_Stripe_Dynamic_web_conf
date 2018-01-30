@@ -8,7 +8,7 @@ function handle_M_B_S(e) {
   var name = e.target.className;
   var val = e.target.id;
   if(e.target.className.indexOf('m') > -1) {
-    elems = document.querySelectorAll('#mode li a');
+    elems = document.querySelectorAll('#mode a');
     [].forEach.call(elems, function(el) {
       el.classList.remove('active');
       name = e.target.className;
@@ -102,7 +102,7 @@ function setup(){
   xhttp.onreadystatechange = function() {
     if (xhttp.readyState == 4 && xhttp.status == 200) {
       document.getElementById('mode').innerHTML = xhttp.responseText;
-      elems = document.querySelectorAll('ul li a'); // adds listener also to existing s and b buttons
+      elems = document.querySelectorAll('div p a'); // adds listener also to existing s and b buttons
       [].forEach.call(elems, function(el) {
         el.addEventListener('touchstart', handle_M_B_S, false);
         el.addEventListener('click', handle_M_B_S, false);

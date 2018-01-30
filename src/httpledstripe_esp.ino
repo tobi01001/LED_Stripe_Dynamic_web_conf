@@ -11,7 +11,7 @@
  **************************************************************/
 #include <FS.h>
 
-#define DEBUG
+//#define DEBUG
 
 #include "Arduino.h"
 #include <ArduinoJson.h>
@@ -429,11 +429,11 @@ void modes_setup(void) {
   uint8_t num_modes = strip.getModeCount();
   for(uint8_t i=0; i < num_modes; i++) {
     uint8_t m = i;
-    modes += "<li><a href='#' class='mo' id='";
+    modes += "<a href='#' class='mo' id='";
     modes += m;
     modes += "'>";
     modes += strip.getModeName(m);
-    modes += "</a></li>";
+    modes += "</a>";
   }
 }
 
@@ -669,24 +669,10 @@ void handleSet(void){
     //setEffect(FX_NO_FX);
     uint16_t pixel = constrain((uint16_t)strtoul(&server.arg("pi")[0], NULL, 10), 0, strip.getLength()-1);
     strip_setpixelcolor(pixel, color);
-/*
-    strip.setPixelColor(pixel, color);
-    strip.show();
-*/
   } else if (server.hasArg("rnS") && server.hasArg("rnE")) {
     uint16_t start = constrain((uint16_t)strtoul(&server.arg("rnS")[0], NULL, 10), 0, strip.getLength());
     uint16_t end = constrain((uint16_t)strtoul(&server.arg("rnE")[0], NULL, 10), start, strip.getLength());
     set_Range(start, end, color);
-/*
-    if(start > end && end > 0) {
-      start = end-1;
-    }
-    setEffect(FX_NO_FX);
-    for(uint16_t i = start; i<(end+1)%strip.getLength(); i++) {
-      strip.setPixelColor(i, color);
-    }
-    strip.show();
-*/
   } else if (server.hasArg("rgb")) {
     strip.setColor(color);
     setEffect(FX_WS2812);
@@ -755,7 +741,11 @@ void handleStatus(void){
 
   JsonObject& currentState = root.createNestedObject("currentState");
 
-  currentState["state"] = stripIsOn;
+  if(stripIsOn) {
+    currentState["state"] = "on";
+  } else {
+    currentState["state"] = "off";
+  }
   currentState["LedsOn"] = num_leds_on;
   currentState["mode"] = currentEffect;
   switch (currentEffect) {
@@ -778,9 +768,37 @@ void handleStatus(void){
   currentState["wsfxmode"] = strip.getMode();
   currentState["speed"] = strip.getSpeed();
   currentState["brightness"] = strip.getBrightness();
-  currentState["red"] = Red(strip.getColor());
-  currentState["green"] = Green(strip.getColor());
-  currentState["blue"] = Blue(strip.getColor());
+  currentState["color_red"] = Red(strip.getColor());
+  currentState["color_green"] = Green(strip.getColor());
+  currentState["color_blue"] = Blue(strip.getColor());
+
+  JsonObject& sunRiseState = root.createNestedObject("sunRiseState");
+
+  if(sunriseParam.isSunrise) {
+    sunRiseState["sunRiseMode"] = F("Sunrise");
+  } else {
+    sunRiseState["sunRiseMode"] = F("Sunset");
+  }
+  if(sunriseParam.isRunning) {
+    sunRiseState["sunRiseActive"] = F("on");
+    sunRiseState["sunRiseTimeToFinish"] =
+      ((sunriseParam.steps - sunriseParam.step) * sunriseParam.deltaTime)/1000;
+    sunRiseState["sunRiseCurrStep"] = sunriseParam.step;
+    sunRiseState["sunRiseTotalSteps"] = sunriseParam.steps;
+  } else {
+    sunRiseState["sunRiseActive"] = F("off");
+    sunRiseState["sunRiseTimeToFinish"] = 0;
+    sunRiseState["sunRiseCurrStep"] = 0;
+    sunRiseState["sunRiseTotalSteps"] = sunriseParam.steps;
+  }
+  sunRiseState["sunRiseMinStep"] = myColor.getStepStart();
+  sunRiseState["sunRiseMidStep"] = myColor.getStepMid();
+  sunRiseState["sunRiseEndStep"] = myColor.getStepEnd();
+  sunRiseState["sunRiseStartColor"] = myColor.getColorStart();
+  sunRiseState["sunRiseMid1Color"] = myColor.getColorMid1();
+  sunRiseState["sunRiseMid2Color"] = myColor.getColorMid2();
+  sunRiseState["sunRiseMid3Color"] = myColor.getColorMid3();
+  sunRiseState["sunRiseEndColor"] = myColor.getColorEnd();
 
   #ifdef DEBUG
   JsonObject& ESP_Data = root.createNestedObject("ESP_Data");
@@ -790,7 +808,6 @@ void handleStatus(void){
   ESP_Data["Free RAM"] = ESP.getFreeHeap();
   ESP_Data["Free Sketch Space"] = ESP.getFreeSketchSpace();
   ESP_Data["Sketch Size"] = ESP.getSketchSize();
-  ESP_Data["Vcc"] = ESP.getVcc();
   root.prettyPrintTo(Serial);
   #endif
 

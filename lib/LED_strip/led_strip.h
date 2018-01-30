@@ -17,6 +17,7 @@
 
 #include <WS2812FX.h>
 #include <Adafruit_NeoPixel.h>
+#include "pahcolor.h"
 
 /* should be in library now....
 // QUICKFIX...See https://github.com/esp8266/Arduino/issues/263
@@ -131,6 +132,17 @@ extern uint16_t fx_blinker_time_on;
 extern uint16_t fx_blinker_time_off;
 */
 // control special effects
+
+typedef struct sunriseParam {
+  bool isRunning;
+  bool isSunrise;
+  uint16_t steps;
+  uint16_t step;
+  uint32_t deltaTime;
+  uint32_t lastChange;
+} mysunriseParam;
+
+
 extern bool sunrise_running;
 extern bool stripWasOff;
 extern bool stripIsOn;
@@ -140,6 +152,11 @@ extern bool stripIsOn;
 
 extern uint8_t currentEffect;
 extern uint8_t previousEffect;
+
+extern pah_color myColor;
+
+extern mysunriseParam sunriseParam;
+
 
 //extern uint16_t rainbowColor;
 

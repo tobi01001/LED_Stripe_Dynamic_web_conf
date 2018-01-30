@@ -44,14 +44,7 @@ uint8_t previousEffect = FX_NO_FX;
 
 //uint16_t delay_interval = 50;
 
-struct sunriseParam {
-  bool isRunning;
-  bool isSunrise;
-  uint16_t steps;
-  uint16_t step;
-  uint32_t deltaTime;
-  uint32_t lastChange;
-} sunriseParam;
+mysunriseParam sunriseParam;
 
 pah_color myColor(0,   512, 1024,
                   0,   0, 0,
@@ -201,12 +194,13 @@ void setEffect(uint8_t Effect){
   //previousEffect = currentEffect;
   currentEffect = Effect;
   strip_On_Off(true);
-  if(strip.getBrightness()<128)
+  if(strip.getBrightness()<1)
   {
-    strip.setBrightness(128);
+    strip.setBrightness(10);
   }
   if(Effect == FX_WS2812) {
     strip.start();
+    strip.trigger();
   }
 }
 

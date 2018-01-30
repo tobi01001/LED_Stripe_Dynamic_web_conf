@@ -67,7 +67,17 @@ public:
       setStepValues (int16_t start, int16_t mid, int16_t end);
 
    uint32_t calcColorValue  (int16_t currentValue),
-            get32BitColor   (uint8_t r, uint8_t g, uint8_t b);
+            get32BitColor   (uint8_t r, uint8_t g, uint8_t b),
+            getColorStart(void),
+            getColorMid1(void),
+            getColorMid2(void),
+            getColorMid3(void),
+            getColorEnd(void);
+
+   uint16_t getStepStart(void),
+            getStepMid(void),
+            getStepEnd(void);
+
 
    uint8_t getRed  (uint32_t Color),
            getGreen(uint32_t Color),

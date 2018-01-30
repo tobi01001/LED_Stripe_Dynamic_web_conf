@@ -177,3 +177,29 @@ uint8_t pah_color::getBlue (uint32_t Color)
 {
   return Color & 0xFF;
 }
+
+uint32_t pah_color::getColorStart(void) {
+  return (pahColorValues.startColorR << 16) | (pahColorValues.startColorG << 8) | (pahColorValues.startColorB << 0);
+}
+uint32_t pah_color::getColorMid1(void) {
+  return (pahColorValues.mid1ColorR << 16) | (pahColorValues.mid1ColorG << 8) | (pahColorValues.mid1ColorB << 0);
+}
+uint32_t pah_color::getColorMid2(void) {
+  return (pahColorValues.mid2ColorR << 16) | (pahColorValues.mid2ColorG << 8) | (pahColorValues.mid2ColorB << 0);
+}
+uint32_t pah_color::getColorMid3(void) {
+  return (pahColorValues.mid3ColorR << 16) | (pahColorValues.mid3ColorG << 8) | (pahColorValues.mid3ColorB << 0);
+}
+uint32_t pah_color::getColorEnd(void) {
+  return (pahColorValues.endColorR << 16) | (pahColorValues.endColorG << 8) | (pahColorValues.endColorB << 0);
+}
+
+uint16_t pah_color::getStepStart(void) {
+  return pahColorValues.startValue;
+}
+uint16_t pah_color::getStepMid(void) {
+  return pahColorValues.midValue;
+}
+uint16_t pah_color::getStepEnd(void) {
+  return pahColorValues.endValue;
+}
