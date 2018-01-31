@@ -200,10 +200,12 @@ void initOverTheAirUpdate(void) {
     #endif
     setEffect(FX_NO_FX);
     reset();
-    for(uint8_t c = 0; c<5; c++){
+    uint8_t factor = 85;
+    for(uint8_t c = 0; c < 4; c++) {
+
       for(uint16_t i=0; i<strip.getLength(); i++) {
-        uint8_t r = 256 - (c*64);
-        uint8_t g = c > 0 ? (c*64-1) : (c*64);
+        uint8_t r = 256 - (c*factor);
+        uint8_t g = c > 0 ? (c*factor-1) : (c*factor);
         strip.setPixelColor(i, r, g, 0);
       }
       strip.show();
@@ -236,8 +238,15 @@ void initOverTheAirUpdate(void) {
     Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
     #endif
     // OTA Update will show increasing green LEDs during progress:
-    uint16_t pixel = (uint16_t)(progress / (total / strip.getLength()));
-    strip.setPixelColor(pixel, 0x00ff00);
+    uint8_t color = 0;
+
+    uint16_t progress_value = progress*100 / (total / strip.getLength());
+    uint16_t pixel = (uint16_t) (progress_value / 100);
+    uint16_t temp_color = progress_value - (pixel*100);
+    if(temp_color > 255) temp_color = 255;
+
+    //uint16_t pixel = (uint16_t)(progress / (total / strip.getLength()));
+    strip.setPixelColor(pixel, 0, (uint8_t)temp_color, 0);
     strip.show();
     delay(1);
   });
@@ -252,11 +261,11 @@ void initOverTheAirUpdate(void) {
     #endif
     // something went wrong during OTA.
     // We will fade in to red...
-    for(uint8_t c = 0; c<256; c++)
+    for(uint16_t c = 0; c<256; c++)
     {
       for(uint16_t i = 0; i<strip.getLength(); i++)
       {
-        strip.setPixelColor(i,c,0,0);
+        strip.setPixelColor(i,(uint8_t)c,0,0);
       }
       strip.show();
       delay(2);
@@ -772,6 +781,7 @@ void handleStatus(void){
   currentState["color_green"] = Green(strip.getColor());
   currentState["color_blue"] = Blue(strip.getColor());
 
+
   JsonObject& sunRiseState = root.createNestedObject("sunRiseState");
 
   if(sunriseParam.isSunrise) {
@@ -781,15 +791,24 @@ void handleStatus(void){
   }
   if(sunriseParam.isRunning) {
     sunRiseState["sunRiseActive"] = F("on");
-    sunRiseState["sunRiseTimeToFinish"] =
-      ((sunriseParam.steps - sunriseParam.step) * sunriseParam.deltaTime)/1000;
     sunRiseState["sunRiseCurrStep"] = sunriseParam.step;
     sunRiseState["sunRiseTotalSteps"] = sunriseParam.steps;
+    if(sunriseParam.isSunrise) {
+      sunRiseState["sunRiseTimeToFinish"] =
+        ((sunriseParam.steps - sunriseParam.step) * sunriseParam.deltaTime)/1000;
+    } else {
+      sunRiseState["sunRiseTimeToFinish"] =
+        ((sunriseParam.step) * sunriseParam.deltaTime)/1000;
+    }
+
+    currentState["rgb"] = myColor.calcColorValue(sunriseParam.step);
+
   } else {
     sunRiseState["sunRiseActive"] = F("off");
     sunRiseState["sunRiseTimeToFinish"] = 0;
     sunRiseState["sunRiseCurrStep"] = 0;
     sunRiseState["sunRiseTotalSteps"] = sunriseParam.steps;
+    currentState["rgb"] = strip.getColor();
   }
   sunRiseState["sunRiseMinStep"] = myColor.getStepStart();
   sunRiseState["sunRiseMidStep"] = myColor.getStepMid();
@@ -894,7 +913,8 @@ void setup() {
 
   // if we got that far, we show by a nice little animation
   // as setup finished signal....
-  for(uint8_t num=0; num<4; num++)
+  /*
+  for(uint8_t num=0; num<3; num++)
   {
     for(uint16_t i=0; i<strip.getLength(); i+=1)
     {
@@ -915,11 +935,29 @@ void setup() {
     strip.show();
     delay(150);
   }
+  */
+  for(uint8_t a = 0; a < 3; a++) {
+    for(uint16_t c = 0; c<256; c++) {
+      for(uint16_t i = 0; i<strip.getLength(); i++) {
+        strip.setPixelColor(i,0,(uint8_t)c,0);
+      }
+      strip.show();
+      delay(1);
+    }
+    delay(2);
+    for(uint8_t c = 255; c>0; c--) {
+      for(uint16_t i = 0; i<strip.getLength(); i++) {
+        strip.setPixelColor(i,0,c,0);
+      }
+      strip.show();
+      delay(1);
+    }
+  }
   strip.stop();
 }
 
 // request receive loop
-void loop(){
+void loop() {
   unsigned long now = millis();
   #ifdef DEBUG
   static uint8_t life_sign = 0;
@@ -976,69 +1014,5 @@ void loop(){
   }
   server.handleClient();
   effectHandler();
-  /*
-  if (client)
-  {
-    while(client.connected())
-    {
-      if(client.available())
-      {
-        inputLine = client.readStringUntil('\n');
-
-
-
-        // POST PIXEL DATA
-        if (inputLine.length() > 3 && inputLine.substring(0,10) == F("POST /leds")) {
-          isPost = true;
-          //Serial.println("Received POST Data...");
-        }
-
-        if (inputLine.length() > 3 && inputLine.substring(0,16) == F("Content-Length: ")) {
-          //postDataLength = inputLine.substring(16).toInt();
-          //Serial.printf("\t\tGot Postdata with Length %u\n", postDataLength);
-          client.readStringUntil('\n');
-          inputLine = client.readStringUntil('\n');
-          //Serial.print("Inputline with content:\n\t-->Start of Line\n\t\t");
-          //Serial.println(inputLine);
-          //Serial.println("\t--> End of Line");
-          uint8_t r,g,b = 0;
-          uint16_t pixel = 0;
-          for(uint16_t i=0; i<inputLine.length()-1; i+=3)
-          {
-            r = colorVal(inputLine[i]);
-            g = colorVal(inputLine[i+1]);
-            b = colorVal(inputLine[i+2]);
-            if(pixel < strip.getLength()) strip.setPixelColor(pixel++,r,g,b);
-          }
-          strip.show();
-          isGet = true;
-        }
-
-        // let the given range blink
-        // rework for encapsulation and such....
-        if (inputLine.length() > 3 && inputLine.substring(0,11) == F("GET /blink/")) {
-          int slash = inputLine.indexOf('/', 11 );
-          int komma1 = inputLine.indexOf(',');
-          fx_blinker_start_pixel = inputLine.substring(11, komma1).toInt();
-          fx_blinker_end_pixel = inputLine.substring(komma1+1, slash).toInt();
-          int urlend = inputLine.indexOf(' ', 11 );
-          String getParam = inputLine.substring(slash+1,urlend+1);
-          komma1 = getParam.indexOf(',');
-          int komma2 = getParam.indexOf(',',komma1+1);
-          int komma3 = getParam.indexOf(',',komma2+1);
-          int komma4 = getParam.indexOf(',',komma3+1);
-          fx_blinker_red = getParam.substring(0,komma1).toInt();
-          fx_blinker_green = getParam.substring(komma1+1, komma2).toInt();
-          fx_blinker_blue = getParam.substring(komma2+1, komma3).toInt();
-
-          fx_blinker_time_on = getParam.substring(komma3+1, komma4).toInt();
-          fx_blinker_time_off = getParam.substring(komma4+1).toInt();
-
-          setEffect(FX_BLINKER);
-
-          isGet = true;
-        }
-
-  */
 
 }
