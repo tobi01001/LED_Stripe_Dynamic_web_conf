@@ -36,6 +36,14 @@ pah_color::~pah_color()
 
 }
 
+void pah_color::setPahColorValues(pah_colorvalues values) {
+  _pahColorValues = values;
+}
+
+pah_colorvalues pah_color::getPahColorValues(void) {
+  return _pahColorValues;
+}
+
 void pah_color::setColorvalues( uint8_t startR, uint8_t startG, uint8_t startB,
                   uint8_t mid1R, uint8_t mid1G, uint8_t mid1B,
                   uint8_t mid2R, uint8_t mid2G, uint8_t mid2B,
@@ -62,40 +70,40 @@ void pah_color::setColorvalues( uint32_t start, uint32_t mid1, uint32_t mid2,
 
 void pah_color::setColorStart (uint8_t r, uint8_t g, uint8_t b)
 {
-  pahColorValues.startColorR = r;
-  pahColorValues.startColorG = g;
-  pahColorValues.startColorB = b;
+  _pahColorValues.startColorR = r;
+  _pahColorValues.startColorG = g;
+  _pahColorValues.startColorB = b;
 }
 void pah_color::setColorMid1  (uint8_t r, uint8_t g, uint8_t b)
 {
-  pahColorValues.mid1ColorR = r;
-  pahColorValues.mid1ColorG = g;
-  pahColorValues.mid1ColorB = b;
+  _pahColorValues.mid1ColorR = r;
+  _pahColorValues.mid1ColorG = g;
+  _pahColorValues.mid1ColorB = b;
 }
 void pah_color::setColorMid2  (uint8_t r, uint8_t g, uint8_t b)
 {
-  pahColorValues.mid2ColorR = r;
-  pahColorValues.mid2ColorG = g;
-  pahColorValues.mid2ColorB = b;
+  _pahColorValues.mid2ColorR = r;
+  _pahColorValues.mid2ColorG = g;
+  _pahColorValues.mid2ColorB = b;
 }
 void pah_color::setColorMid3  (uint8_t r, uint8_t g, uint8_t b)
 {
-  pahColorValues.mid3ColorR = r;
-  pahColorValues.mid3ColorG = g;
-  pahColorValues.mid3ColorB = b;
+  _pahColorValues.mid3ColorR = r;
+  _pahColorValues.mid3ColorG = g;
+  _pahColorValues.mid3ColorB = b;
 }
 void pah_color::setColorEnd   (uint8_t r, uint8_t g, uint8_t b)
 {
-  pahColorValues.endColorR = r;
-  pahColorValues.endColorG = g;
-  pahColorValues.endColorB = b;
+  _pahColorValues.endColorR = r;
+  _pahColorValues.endColorG = g;
+  _pahColorValues.endColorB = b;
 }
 
 void pah_color::setStepValues (int16_t start, int16_t mid, int16_t end)
 {
-  pahColorValues.startValue = start;
-  pahColorValues.midValue = mid;
-  pahColorValues.endValue = end;
+  _pahColorValues.startValue = start;
+  _pahColorValues.midValue = mid;
+  _pahColorValues.endValue = end;
 }
 
 uint8_t pah_color::interpol(float u, uint8_t c1, uint8_t c2, uint8_t c3)
@@ -107,18 +115,18 @@ uint8_t pah_color::interpol(float u, uint8_t c1, uint8_t c2, uint8_t c3)
 
 uint32_t pah_color::calcColorValue  (int16_t currentValue)
 {
-  if(currentValue <= pahColorValues.startValue)
+  if(currentValue <= _pahColorValues.startValue)
   {
-    return get32BitColor( pahColorValues.startColorR,
-                          pahColorValues.startColorG,
-                          pahColorValues.startColorB);
+    return get32BitColor( _pahColorValues.startColorR,
+                          _pahColorValues.startColorG,
+                          _pahColorValues.startColorB);
   }
 
-  if(currentValue > pahColorValues.endValue)
+  if(currentValue > _pahColorValues.endValue)
   {
-    return get32BitColor( pahColorValues.endColorR,
-                          pahColorValues.endColorG,
-                          pahColorValues.endColorB);
+    return get32BitColor( _pahColorValues.endColorR,
+                          _pahColorValues.endColorG,
+                          _pahColorValues.endColorB);
   }
 
   float delta = 0;
@@ -126,36 +134,36 @@ uint32_t pah_color::calcColorValue  (int16_t currentValue)
   uint8_t g = 0;
   uint8_t b = 0;
 
-  if(currentValue <= pahColorValues.midValue)
+  if(currentValue <= _pahColorValues.midValue)
   {
-    delta = ((float)currentValue - (float)pahColorValues.startValue) /
-            ((float)pahColorValues.midValue - (float)pahColorValues.startValue);
+    delta = ((float)currentValue - (float)_pahColorValues.startValue) /
+            ((float)_pahColorValues.midValue - (float)_pahColorValues.startValue);
 
-    r = interpol(delta, pahColorValues.startColorR,
-                        pahColorValues.mid1ColorR,
-                        pahColorValues.mid2ColorR);
-    g = interpol(delta, pahColorValues.startColorG,
-                        pahColorValues.mid1ColorG,
-                        pahColorValues.mid2ColorG);
-    b = interpol(delta, pahColorValues.startColorB,
-                        pahColorValues.mid1ColorB,
-                        pahColorValues.mid2ColorB);
+    r = interpol(delta, _pahColorValues.startColorR,
+                        _pahColorValues.mid1ColorR,
+                        _pahColorValues.mid2ColorR);
+    g = interpol(delta, _pahColorValues.startColorG,
+                        _pahColorValues.mid1ColorG,
+                        _pahColorValues.mid2ColorG);
+    b = interpol(delta, _pahColorValues.startColorB,
+                        _pahColorValues.mid1ColorB,
+                        _pahColorValues.mid2ColorB);
     return get32BitColor(r, g, b);
   }
-  if(currentValue <= pahColorValues.endValue)
+  if(currentValue <= _pahColorValues.endValue)
   {
-    delta = (float)(currentValue - pahColorValues.midValue) /
-            (float)(pahColorValues.endValue - pahColorValues.midValue);
+    delta = (float)(currentValue - _pahColorValues.midValue) /
+            (float)(_pahColorValues.endValue - _pahColorValues.midValue);
 
-    r = interpol(delta, pahColorValues.mid2ColorR,
-                        pahColorValues.mid3ColorR,
-                        pahColorValues.endColorR);
-    g = interpol(delta, pahColorValues.mid2ColorG,
-                        pahColorValues.mid3ColorG,
-                        pahColorValues.endColorG);
-    b = interpol(delta, pahColorValues.mid2ColorB,
-                        pahColorValues.mid3ColorB,
-                        pahColorValues.endColorB);
+    r = interpol(delta, _pahColorValues.mid2ColorR,
+                        _pahColorValues.mid3ColorR,
+                        _pahColorValues.endColorR);
+    g = interpol(delta, _pahColorValues.mid2ColorG,
+                        _pahColorValues.mid3ColorG,
+                        _pahColorValues.endColorG);
+    b = interpol(delta, _pahColorValues.mid2ColorB,
+                        _pahColorValues.mid3ColorB,
+                        _pahColorValues.endColorB);
     return get32BitColor(r, g, b);
   }
   return 0x000000;
@@ -179,27 +187,27 @@ uint8_t pah_color::getBlue (uint32_t Color)
 }
 
 uint32_t pah_color::getColorStart(void) {
-  return (pahColorValues.startColorR << 16) | (pahColorValues.startColorG << 8) | (pahColorValues.startColorB << 0);
+  return (_pahColorValues.startColorR << 16) | (_pahColorValues.startColorG << 8) | (_pahColorValues.startColorB << 0);
 }
 uint32_t pah_color::getColorMid1(void) {
-  return (pahColorValues.mid1ColorR << 16) | (pahColorValues.mid1ColorG << 8) | (pahColorValues.mid1ColorB << 0);
+  return (_pahColorValues.mid1ColorR << 16) | (_pahColorValues.mid1ColorG << 8) | (_pahColorValues.mid1ColorB << 0);
 }
 uint32_t pah_color::getColorMid2(void) {
-  return (pahColorValues.mid2ColorR << 16) | (pahColorValues.mid2ColorG << 8) | (pahColorValues.mid2ColorB << 0);
+  return (_pahColorValues.mid2ColorR << 16) | (_pahColorValues.mid2ColorG << 8) | (_pahColorValues.mid2ColorB << 0);
 }
 uint32_t pah_color::getColorMid3(void) {
-  return (pahColorValues.mid3ColorR << 16) | (pahColorValues.mid3ColorG << 8) | (pahColorValues.mid3ColorB << 0);
+  return (_pahColorValues.mid3ColorR << 16) | (_pahColorValues.mid3ColorG << 8) | (_pahColorValues.mid3ColorB << 0);
 }
 uint32_t pah_color::getColorEnd(void) {
-  return (pahColorValues.endColorR << 16) | (pahColorValues.endColorG << 8) | (pahColorValues.endColorB << 0);
+  return (_pahColorValues.endColorR << 16) | (_pahColorValues.endColorG << 8) | (_pahColorValues.endColorB << 0);
 }
 
 uint16_t pah_color::getStepStart(void) {
-  return pahColorValues.startValue;
+  return _pahColorValues.startValue;
 }
 uint16_t pah_color::getStepMid(void) {
-  return pahColorValues.midValue;
+  return _pahColorValues.midValue;
 }
 uint16_t pah_color::getStepEnd(void) {
-  return pahColorValues.endValue;
+  return _pahColorValues.endValue;
 }

@@ -64,6 +64,8 @@ public:
       setColorMid3  (uint8_t r, uint8_t g, uint8_t b),
       setColorEnd   (uint8_t r, uint8_t g, uint8_t b),
 
+      setPahColorValues(pah_colorvalues values),
+
       setStepValues (int16_t start, int16_t mid, int16_t end);
 
    uint32_t calcColorValue  (int16_t currentValue),
@@ -83,11 +85,12 @@ public:
            getGreen(uint32_t Color),
            getBlue (uint32_t Color);
 
+   pah_colorvalues getPahColorValues(void);
 
 private:
 
 
-    pah_colorvalues pahColorValues;
+    pah_colorvalues _pahColorValues;
 
     uint8_t interpol(float u, uint8_t c1, uint8_t c2, uint8_t c3);
 
