@@ -17,32 +17,15 @@
 
 #include <pahcolor.h>
 
-
-//globals... here or in the ccp file? - use it here for the moment
-/* Globals */
-// ToDo: Redefine for effectiveness (static etc)
-/*
-uint16_t fx_blinker_start_pixel;
-uint16_t fx_blinker_end_pixel;
-uint8_t fx_blinker_red;
-uint8_t fx_blinker_green;
-uint8_t fx_blinker_blue;
-uint16_t fx_blinker_time_on;
-uint16_t fx_blinker_time_off;
-*/
 // control special effects
-bool sunrise_running = false;
+//bool sunrise_running = false;
 bool stripWasOff = true;
 bool stripIsOn = true;
+extern bool shouldSaveRuntime;
 
-//unsigned long last_delay_trigger = 0;
 
 uint8_t currentEffect = FX_NO_FX;
 uint8_t previousEffect = FX_NO_FX;
-
-//uint16_t rainbowColor=0;
-
-//uint16_t delay_interval = 50;
 
 mysunriseParam sunriseParam;
 
@@ -61,24 +44,6 @@ pah_color myColor(0,   512, 1024,
 //   NEO_GRB     Pixels are wired for GRB bitstream (most NeoPixel products)
 //   NEO_RGB     Pixels are wired for RGB bitstream (v1 FLORA pixels, not v2)
 WS2812FX strip = WS2812FX(1,3, DEFAULT_PIXEL_TYPE); // use no constructor at all? old: = WS2812FX(300, 1, DEFAULT_PIXEL_TYPE); // WS2812FX(strip.getLength(), LEDPIN, NEO_GRB + NEO_KHZ800);
-
-/* obsolete
-void stripe_setDelayInterval(uint16_t delay) {
-  // new speed in ws2812fx library is 10 to 65535
-  // we use the old "delay" but may multiply to get a new speed for ws2812fx
-  uint16_t speed = (delay*257);
-  if(delay > 255) delay = 255;
-  //if(delay < 1) delay = 1;
-  if(speed > SPEED_MAX) speed = SPEED_MAX;
-  if(speed < SPEED_MIN) speed = SPEED_MIN;
-  strip.setSpeed(speed);
-  delay_interval = delay;
-}
-
-uint16_t stripe_getDelayInterval(){
-  return delay_interval;
-}
-*/ // end obsolete
 
 // set all pixels to 'off'
 void stripe_setup(uint16_t LEDCount, uint8_t dataPin, neoPixelType pixelType){
@@ -103,13 +68,6 @@ void strip_On_Off(bool onOff){
     stripIsOn = onOff;
     stripWasOff = false;
 }
-
-/*
-void stripe_setBrightness(uint8_t brightness){
-  strip.setBrightness(brightness);
-  strip.show();
-}
-*/
 
 void set_Range(uint16_t start, uint16_t stop, uint8_t r, uint8_t g, uint8_t b) {
   if(start >= strip.getLength() || stop >= strip.getLength()) return;
@@ -285,6 +243,7 @@ void mySunriseStart(uint32_t  mytime, uint16_t steps, bool up) {
   //strip.clear();
   strip.setBrightness(BRIGHTNESS_MAX);
   strip.show();
+  shouldSaveRuntime = true;
   #ifdef DEBUG
   Serial.printf("\nStarted Sunrise with %.3u steps in %u ms which are %u minutes.\n", steps, mytime, (mytime/60000));
   #endif
