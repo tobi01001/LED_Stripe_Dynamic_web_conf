@@ -21,6 +21,7 @@
 #include <WiFiManager.h>
 #include <Bounce2.h>
 #include <ArduinoOTA.h>
+#include <EEPROM.h>
 
 
 // new approach starts here:
@@ -58,6 +59,8 @@ WiFiManagerParameter ResetButtonPin("RstPin", "Reset Pin", chrResetButtonPin, 3)
 WiFiManagerParameter LedCountConf("LEDCount","LED Count", chrLEDCount, 4);
 WiFiManagerParameter LedPinConf("LEDPIN", "Strip Data Pin", chrLEDPin, 3);
 
+/* END Network Definitions */
+
 extern const char index_html[];
 extern const char main_js[];
 
@@ -65,13 +68,27 @@ String modes = "";
 
 //flag for saving data
 bool shouldSaveConfig = false;
+bool shouldSaveRuntime = false;
 
-/* END Network Definitions */
+
+
+typedef struct {
+    bool dataValid = false;
+    WS2812FX::segment seg;
+    uint8_t brightness = DEFAULT_BRIGHTNESS;
+    mysunriseParam sParam;
+    pah_colorvalues sunriseColors;
+    uint8_t currentEffect = FX_NO_FX;
+    bool stripIsOn = false;
+} EEPROMSaveData;
+
+EEPROMSaveData myEEPROMSaveData;
 
 unsigned long last_wifi_check_time = 0;
 
 // function Definitions
 void  saveConfigCallback(void),
+      saveEEPROMData(void),
       readConfigurationFS(void),
       initOverTheAirUpdate(void),
       setupResetButton(uint8_t buttonPin),
@@ -89,12 +106,102 @@ void  saveConfigCallback(void),
       handleResetRequest(void),
       setupWebServer(void);
 
+// write runtime data to EEPROM
+void saveEEPROMData(void) {
+  if(!shouldSaveRuntime) return;
+  shouldSaveRuntime = false;
+  #ifdef DEBUG
+    Serial.println("\nGoing to store runtime on EEPROM...");
+  #endif
+  myEEPROMSaveData.dataValid = true;
+  myEEPROMSaveData.seg = strip.getSegments()[0];
+  myEEPROMSaveData.brightness = strip.getBrightness();
+  myEEPROMSaveData.sParam = sunriseParam;
+  myEEPROMSaveData.sunriseColors = myColor.getPahColorValues();
+  myEEPROMSaveData.currentEffect = currentEffect;
+  myEEPROMSaveData.stripIsOn = stripIsOn;
+
+  #ifdef DEBUG
+  Serial.print("\tdataValid\t");
+  Serial.println(myEEPROMSaveData.dataValid);
+
+  Serial.print("\tBrightness\t");
+  Serial.println(myEEPROMSaveData.brightness);
+
+  Serial.print("\tCurrentEffect\t");
+  Serial.println(myEEPROMSaveData.currentEffect);
+
+  Serial.print("\twsfxmode\t");
+  Serial.println(myEEPROMSaveData.seg.mode);
+
+  Serial.print("\tstripIsOn\t");
+  Serial.println(myEEPROMSaveData.stripIsOn);
+  #endif
+
+  EEPROM.begin(sizeof(myEEPROMSaveData)+10);
+  EEPROM.put(0, myEEPROMSaveData);
+  EEPROM.commit();
+  EEPROM.end();
+  #ifdef DEBUG
+    Serial.println("EEPROM write finished...");
+  #endif
+}
+
 //callback notifying us of the need to save config
 void saveConfigCallback(void) {
   #ifdef DEBUG
     Serial.println("\n\tWe are now invited to save the configuration...");
   #endif // DEBUG
   shouldSaveConfig = true;
+}
+
+
+// reads the stored runtime data from EEPROM
+// must be called after everything else is already setup to be working
+// otherwise this may terribly fail
+void readRuntimeDataEEPROM(void) {
+  #ifdef DEBUG
+    Serial.println("\n\tReading Config From EEPROM...");
+  #endif
+  //read the configuration from EEPROM into RAM
+  EEPROM.begin(sizeof(myEEPROMSaveData)+10);
+
+  EEPROM.get(0, myEEPROMSaveData);
+  EEPROM.end();
+
+  if(myEEPROMSaveData.dataValid) {
+    strip.setSegment(0, myEEPROMSaveData.seg.start, myEEPROMSaveData.seg.stop,
+                        myEEPROMSaveData.seg.mode, myEEPROMSaveData.seg.colors,
+                        myEEPROMSaveData.seg.speed, myEEPROMSaveData.seg.reverse);
+    strip.setBrightness(myEEPROMSaveData.brightness);
+    sunriseParam = myEEPROMSaveData.sParam;
+    myColor.setPahColorValues(myEEPROMSaveData.sunriseColors);
+    currentEffect = myEEPROMSaveData.currentEffect;
+    stripIsOn = myEEPROMSaveData.stripIsOn;
+  }
+  #ifdef DEBUG
+  Serial.print("\tdataValid\n");
+  Serial.println(myEEPROMSaveData.dataValid);
+
+  Serial.print("\tBrightness\n");
+  Serial.println(myEEPROMSaveData.brightness);
+  Serial.println(strip.getBrightness());
+
+  Serial.print("\tCurrentEffect\n");
+  Serial.println(myEEPROMSaveData.currentEffect);
+  Serial.println(currentEffect);
+
+  Serial.print("\twsfxmode\n");
+  Serial.println(myEEPROMSaveData.seg.mode);
+  Serial.println(strip.getMode());
+
+  Serial.print("\tstripIsOn\n");
+  Serial.println(myEEPROMSaveData.stripIsOn);
+  Serial.println(stripIsOn);
+  #endif
+
+  // no need to save right now. next save should be after /set?....
+  shouldSaveRuntime = false;
 }
 
 void readConfigurationFS(void) {
@@ -334,8 +441,7 @@ void updateConfiguration(void){
       #ifdef DEBUG
       Serial.println("No Reset Button specified.");
       #endif
-  }
-  else {
+  } else {
       String srstPin = chrResetButtonPin;
       uint8_t rstPin =  srstPin.toInt();
       #ifdef DEBUG
@@ -377,6 +483,8 @@ void updateConfiguration(void){
   }
   #ifdef DEBUG
   Serial.println("\nEverything in place... setting up stripe.");
+
+
   #endif
   stripe_setup(ledCount, ledPin, DEFAULT_PIXEL_TYPE);
 }
@@ -690,6 +798,7 @@ void handleSet(void){
     strip.setColor(color);
   }
   handleStatus();
+  shouldSaveRuntime = true;
 }
 
 // if something unknown was called...
@@ -913,29 +1022,6 @@ void setup() {
 
   // if we got that far, we show by a nice little animation
   // as setup finished signal....
-  /*
-  for(uint8_t num=0; num<3; num++)
-  {
-    for(uint16_t i=0; i<strip.getLength(); i+=1)
-    {
-      if(i%2)
-        strip.setPixelColor(i,0x00a000);
-      else
-        strip.setPixelColor(i,0xa00000);
-    }
-    strip.show();
-    delay(250);
-    for(uint16_t i=0; i<strip.getLength(); i+=1)
-    {
-      if(i%2)
-        strip.setPixelColor(i,0xa00000);
-      else
-        strip.setPixelColor(i,0x00a000);
-    }
-    strip.show();
-    delay(150);
-  }
-  */
   for(uint8_t a = 0; a < 3; a++) {
     for(uint16_t c = 0; c<256; c++) {
       for(uint16_t i = 0; i<strip.getLength(); i++) {
@@ -953,7 +1039,10 @@ void setup() {
       delay(1);
     }
   }
-  strip.stop();
+  //strip.stop();
+  delay(100);
+  readRuntimeDataEEPROM();
+  if(stripIsOn) strip_On_Off(true);
 }
 
 // request receive loop
@@ -1014,5 +1103,10 @@ void loop() {
   }
   server.handleClient();
   effectHandler();
+
+  if(shouldSaveRuntime) {
+    saveEEPROMData();
+    shouldSaveRuntime = false;
+  }
 
 }
