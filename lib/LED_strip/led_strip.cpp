@@ -59,7 +59,7 @@ void stripe_setup(uint16_t LEDCount, uint8_t dataPin, neoPixelType pixelType){
   strip.init();
   strip.setBrightness(150);
   strip.setSpeed(1000);
-  strip.setColor(0xff9900);
+  //strip.setColor(0xff9900);
   strip.start();
   strip.show();
 }
@@ -282,9 +282,29 @@ void mySunriseTrigger(void) {
 void reset() {
   previousEffect = currentEffect;
   currentEffect = FX_NO_FX;
-  if(strip.getBrightness() < 150)
-  {
-    strip.setBrightness(150);
+  uint8_t max = 0;
+  uint32_t color = 0;
+  for(uint8_t i = 0; i<strip.getLength(); i++) {
+    color = strip.getPixelColor(i);
+    if(Red(color)>max) max = Red(color);
+    if(Green(color)>max) max = Green(color);
+    if(Blue(color)>max) max = Blue(color);
   }
-  //strip.stop();
+  uint8_t r,g,b;
+
+  for(uint8_t i = 0; i<max; i++) {
+    for(uint16_t p=0; p<strip.getLength(); p++)
+    {
+        r = Red(strip.getPixelColor(p));
+        g = Green(strip.getPixelColor(p));
+        b = Blue(strip.getPixelColor(p));
+        if(r>0) r--;
+        if(g>0) g--;
+        if(b>0) b--;
+        strip.setPixelColor(p, r, g, b);
+    }
+    strip.show();
+    //delay(1);
+  }
+
 }
