@@ -582,7 +582,6 @@ void handleSet(void){
   Serial.println("<End> Server Args");
   #endif
   // to be completed in general
-  // question: do we include the "effects in the library?"
   // question: is there enough memory to store color and "timing" per pixel?
   // i.e. uint32_t onColor, OffColor, uint16_t ontime, offtime
   // = 12 * 300 = 3600 byte...???
@@ -590,12 +589,13 @@ void handleSet(void){
 
   // mo = mode set (eihter +, - or value)
   // br = brightness (eihter +, - or value)
-  // co = color (32 bit unsigned color) (eihter +, - or value)
+  // co = color (32 bit unsigned color)
   // re = red value of color (eihter +, - or value)
   // gr = green value of color (eihter +, - or value)
   // bl = blue value of color (eihter +, - or value)
   // sp = speed (eihter +, - or value)
-  // ti = time in seconds....
+  // sec = sunrise / sunset time in seconds....
+  // min = sunrise/ sunset time in minutes
   // pi = pixel to be set (clears others?)
   // rnS = Range start Pixel;
   // rnE = Range end Pixel;
@@ -694,7 +694,7 @@ void handleSet(void){
     }
     // finally switch to the one being provided.
     // we don't care if its actually an int or not
-    // because it wil be zero anyway if not.
+    // because it will be zero anyway if not.
     else {
       effect = (uint8_t)strtoul(&server.arg("mo")[0], NULL, 10);
       isWS2812FX = true;
@@ -967,19 +967,43 @@ void factoryReset(void){
   #endif
   wifiManager.resetSettings();
   delay(3000);
+  //Clearing EEPROM
+  #ifdef DEBUG
+  Serial.println("Clearing EEPROM");
+  #endif
+  EEPROM.begin(sizeof(myEEPROMSaveData)+10);
+  for(int i = 0; i< EEPROM.length(); i++)
+  {
+    EEPROM.write(i,0);
+  }
+  EEPROM.commit();
+  EEPROM.end();
+  delay(3000);
   //reset and try again
   #ifdef DEBUG
   Serial.println("Reset ESP and start all over...");
   #endif
+  delay(3000);
   ESP.reset();
 }
 
 // Received Factoryreset request.
 // To be sure we check the related parameter....
 void handleResetRequest(void){
-  if(server.arg("rst") == "FactoryReset")
-  {
+  if(server.arg("rst") == "FactoryReset") {
+    server.send(200, "text/plain", "Will now Reset to factory settings. You need to connect to the WLAN AP afterwards....");
     factoryReset();
+  } else if(server.arg("rst") == "Defaults") {
+    uint32_t colors[3];
+    colors[0] = 0xff0000;
+    colors[1] = 0x00ff00;
+    colors[2] = 0x0000ff;
+    strip.setSegment(0, 0, strip.getLength()-1, FX_MODE_STATIC, colors, DEFAULT_SPEED, false);
+    setEffect(FX_NO_FX);
+    strip.stop();
+    strip_On_Off(false);
+    server.send(200, "text/plain", "Strip was reset to the default values...");
+    shouldSaveRuntime = true;
   }
 }
 
