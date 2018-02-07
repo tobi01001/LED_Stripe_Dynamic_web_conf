@@ -70,10 +70,10 @@ String modes = "";
 bool shouldSaveConfig = false;
 bool shouldSaveRuntime = false;
 
-
+#define DATAVALID_KEY 0x55aa5a5a
 
 typedef struct {
-    bool dataValid = false;
+    uint32_t dataValid = 0x00000000;
     WS2812FX::segment seg;
     uint8_t brightness = DEFAULT_BRIGHTNESS;
     mysunriseParam sParam;
@@ -104,7 +104,8 @@ void  saveConfigCallback(void),
       handleStatus(void),
       factoryReset(void),
       handleResetRequest(void),
-      setupWebServer(void);
+      setupWebServer(void),
+      clearEEPROM(void);
 
 // write runtime data to EEPROM
 void saveEEPROMData(void) {
@@ -113,7 +114,7 @@ void saveEEPROMData(void) {
   #ifdef DEBUG
     Serial.println("\nGoing to store runtime on EEPROM...");
   #endif
-  myEEPROMSaveData.dataValid = true;
+  myEEPROMSaveData.dataValid = DATAVALID_KEY;
   myEEPROMSaveData.seg = strip.getSegments()[0];
   myEEPROMSaveData.brightness = strip.getBrightness();
   myEEPROMSaveData.sParam = sunriseParam;
@@ -169,7 +170,7 @@ void readRuntimeDataEEPROM(void) {
   EEPROM.get(0, myEEPROMSaveData);
   EEPROM.end();
 
-  if(myEEPROMSaveData.dataValid) {
+  if(myEEPROMSaveData.dataValid == DATAVALID_KEY) {
     strip.setSegment(0, myEEPROMSaveData.seg.start, myEEPROMSaveData.seg.stop,
                         myEEPROMSaveData.seg.mode, myEEPROMSaveData.seg.colors,
                         myEEPROMSaveData.seg.speed, myEEPROMSaveData.seg.reverse);
@@ -323,11 +324,13 @@ void initOverTheAirUpdate(void) {
       strip.show();
       delay(400);
     }
+    server.stop();
   });
   ArduinoOTA.onEnd([]() {
     #ifdef DEBUG
     Serial.println("\nOTA end");
     #endif
+    clearEEPROM();
     // OTA finished.
     // Green Leds fade out.
     for(uint8_t i = Green(strip.getPixelColor(0)); i>0; i--)
@@ -616,6 +619,7 @@ void handleSet(void){
       isWS2812FX = true;
     }
     else if (server.arg("mo")[0] == 'o') {
+      reset();
       strip_On_Off(false);
       strip.clear();
       strip.stop();
@@ -930,13 +934,17 @@ void handleStatus(void){
 
   #ifdef DEBUG
   JsonObject& ESP_Data = root.createNestedObject("ESP_Data");
-  ESP_Data["Debug code"] = "On";
-  ESP_Data["CPU_Freq"] = ESP.getCpuFreqMHz();
-  ESP_Data["Flash Real Size"] = ESP.getFlashChipRealSize();
-  ESP_Data["Free RAM"] = ESP.getFreeHeap();
-  ESP_Data["Free Sketch Space"] = ESP.getFreeSketchSpace();
-  ESP_Data["Sketch Size"] = ESP.getSketchSize();
+  ESP_Data["DBG_Debug code"] = "On";
+  ESP_Data["DBG_CPU_Freq"] = ESP.getCpuFreqMHz();
+  ESP_Data["DBG_Flash Real Size"] = ESP.getFlashChipRealSize();
+  ESP_Data["DBG_Free RAM"] = ESP.getFreeHeap();
+  ESP_Data["DBG_Free Sketch Space"] = ESP.getFreeSketchSpace();
+  ESP_Data["DBG_Sketch Size"] = ESP.getSketchSize();
   root.prettyPrintTo(Serial);
+  JsonObject& Server_Args = root.createNestedObject("Server_Args");
+  for(uint8_t i = 0; i<server.args(); i++) {
+    Server_Args[server.argName(i)] = server.arg(i);
+  }
   #endif
 
   root.prettyPrintTo(message);
@@ -966,7 +974,17 @@ void factoryReset(void){
   Serial.println("Reset WiFi Settings");
   #endif
   wifiManager.resetSettings();
+  delay(1000);
+  clearEEPROM();
+  //reset and try again
+  #ifdef DEBUG
+  Serial.println("Reset ESP and start all over...");
+  #endif
   delay(3000);
+  ESP.reset();
+}
+
+void clearEEPROM(void) {
   //Clearing EEPROM
   #ifdef DEBUG
   Serial.println("Clearing EEPROM");
@@ -978,13 +996,6 @@ void factoryReset(void){
   }
   EEPROM.commit();
   EEPROM.end();
-  delay(3000);
-  //reset and try again
-  #ifdef DEBUG
-  Serial.println("Reset ESP and start all over...");
-  #endif
-  delay(3000);
-  ESP.reset();
 }
 
 // Received Factoryreset request.
