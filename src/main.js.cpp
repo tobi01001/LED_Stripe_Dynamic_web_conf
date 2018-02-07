@@ -13,7 +13,7 @@ function handle_M_B_S(e) {
       el.classList.remove('active');
       name = e.target.className;
     });
-    if(val != 'u' && val != 'd')
+    if(val != 'u' && val != 'd' && val != 'o')
     {
         e.target.classList.add('active');
     }

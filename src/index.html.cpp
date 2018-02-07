@@ -76,6 +76,11 @@ char index_html[] PROGMEM = R"=====(
     <h3>LED Steuerung</h3>
     <canvas id='colorbar' width='75' height='1080'></canvas>
     <div id='controls'>
+      <div id='off'>
+        <p style='color:#a0a0a0;'>
+          <a href='#' class='mo' id='o' style='color:#a0a0a0;'>Off</a>
+        </p>
+      </div>
       <div id='div_mode'>
     	<p id='mode' style='color:#a0a0a0;'>Effekte
 
