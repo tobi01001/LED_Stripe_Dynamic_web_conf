@@ -36,32 +36,33 @@ pah_color myColor(0,   512, 1024,
                   191, 63, 3,
                   255, 200,  128);
 
-// Parameter 1 = number of pixels in strip
-// Parameter 2 = Arduino pin number (most are valid)
-// Parameter 3 = pixel type flags, add together as needed:
-//   NEO_KHZ800  800 KHz bitstream (most NeoPixel products w/WS2812 LEDs)
-//   NEO_KHZ400  400 KHz (classic 'v1' (not v2) FLORA pixels, WS2811 drivers)
-//   NEO_GRB     Pixels are wired for GRB bitstream (most NeoPixel products)
-//   NEO_RGB     Pixels are wired for RGB bitstream (v1 FLORA pixels, not v2)
-WS2812FX strip = WS2812FX(1,3, DEFAULT_PIXEL_TYPE); // use no constructor at all? old: = WS2812FX(300, 1, DEFAULT_PIXEL_TYPE); // WS2812FX(strip.getLength(), LEDPIN, NEO_GRB + NEO_KHZ800);
+
+WS2812FX *strip;  
 
 // set all pixels to 'off'
-void stripe_setup(uint16_t LEDCount, uint8_t dataPin, neoPixelType pixelType){
+void stripe_setup(  const uint16_t LEDCount, 
+                    const uint8_t FPS = 60, 
+                    const uint8_t volt = 5, 
+                    const uint16_t milliamps = 500, 
+                    const CRGBPalette16 pal = Rainbow_gp, 
+                    const String Name = "Custom",
+                    const LEDColorCorrection colc = TypicalLEDStrip ){
+  strip = new WS2812FX(LEDCount, FPS, volt, milliamps, pal, Name, colc);
   //initialize the stripe
-  strip.setLength(LEDCount);
+  //strip->setLength(LEDCount);
 
-  strip.setPin(dataPin);
+  //strip->setPin(dataPin);
 
-  strip.updateType(pixelType);
+  //strip->updateType(pixelType);
 
-  strip.begin();
-  strip.clear();
-  strip.init();
-  strip.setBrightness(150);
-  strip.setSpeed(1000);
-  //strip.setColor(0xff9900);
-  strip.start();
-  strip.show();
+  //strip->begin();
+  //strip->clear();
+  strip->init();
+  strip->setBrightness(150);
+  strip->setSpeed(1000);
+  //strip->setColor(0xff9900);
+  strip->start();
+  strip->show();
 }
 
 void strip_On_Off(bool onOff){
@@ -70,43 +71,45 @@ void strip_On_Off(bool onOff){
 }
 
 void set_Range(uint16_t start, uint16_t stop, uint8_t r, uint8_t g, uint8_t b) {
-  if(start >= strip.getLength() || stop >= strip.getLength()) return;
+  if(start >= strip->getLength() || stop >= strip->getLength()) return;
   strip_On_Off(true);
   setEffect(FX_NO_FX);
   for(uint16_t i=start; i<=stop; i++) {
-    strip.setPixelColor(i, r, g, b);
+    strip->leds[i] = CRGB(((uint32_t)r << 16) | ((uint32_t)g << 8) | b);
   }
-  strip.setColor(r, g, b);
-  strip.show();
+  //strip->setColor(r, g, b);
+  strip->show();
 }
 
 void set_Range(uint16_t start, uint16_t stop, uint32_t color) {
-  if(start >= strip.getLength() || stop >= strip.getLength()) return;
+  if(start >= strip->getLength() || stop >= strip->getLength()) return;
   strip_On_Off(true);
   setEffect(FX_NO_FX);
   for(uint16_t i=start; i<=stop; i++) {
-    strip.setPixelColor(i, color);
+    strip->leds[i] = CRGB(color);
   }
-  strip.setColor(color);
-  strip.show();
+  //strip->setColor(color);
+  FastLED.show();
 }
 
 void strip_setpixelcolor(uint16_t pixel, uint8_t r, uint8_t g, uint8_t b) {
-  if(pixel >= strip.getLength()) return;
+  if(pixel >= strip->getLength()) return;
   strip_On_Off(true);
   setEffect(FX_NO_FX);
-  strip.setPixelColor(pixel, r, g, b);
-  strip.setColor(r, g, b);
-  strip.show();
+  //strip->setPixelColor(pixel, r, g, b);
+  strip->leds[pixel] = CRGB(((uint32_t)r << 16) | ((uint32_t)g << 8) | b);
+  //strip->setColor(r, g, b);
+  strip->show();
 }
 
 void strip_setpixelcolor(uint16_t pixel, uint32_t color) {
-  if(pixel >= strip.getLength()) return;
+  if(pixel >= strip->getLength()) return;
   strip_On_Off(true);
   setEffect(FX_NO_FX);
-  strip.setPixelColor(pixel, color);
-  strip.setColor(color);
-  strip.show();
+  strip->leds[pixel] = CRGB(color);
+  //strip->setPixelColor(pixel, color);
+  //strip->setColor(color);
+  strip->show();
 }
 
 // just calls the right effec routine according to the current Effect
@@ -139,7 +142,7 @@ void effectHandler(void){
       }
       break;
     case FX_WS2812 :
-      strip.service();
+      strip->service();
       break;
     default:
       reset();
@@ -148,17 +151,17 @@ void effectHandler(void){
 
 // Sets a new Effect to be called
 void setEffect(uint8_t Effect){
-  reset();
+  //if(Effect != FX_WS2812) reset(); // Only reset (with fade) for non-WS2812FX as we have the fading build-in
   //previousEffect = currentEffect;
   currentEffect = Effect;
   strip_On_Off(true);
-  if(strip.getBrightness()<1)
+  if(strip->getBrightness()<1)
   {
-    strip.setBrightness(10);
+    strip->setBrightness(10);
   }
   if(Effect == FX_WS2812) {
-    strip.start();
-    strip.trigger();
+    strip->start();
+    strip->trigger();
   }
 }
 
@@ -191,17 +194,19 @@ uint8_t Blue(uint32_t color){
 }
 // Dims a strip by rightshift
 uint32_t DimColor(uint32_t color){
-  uint32_t dimColor = strip.Color(Red(color) >> 1, Green(color) >> 1, Blue(color) >> 1);
+  uint32_t dimColor = strip_color32(Red(color) >> 1, Green(color) >> 1, Blue(color) >> 1);
   return dimColor;
 }
 
 // Dim the Pixel to DimColor
 void strip_dimPixel(uint16_t pixel, bool dim_default, uint8_t byValue){
   if(dim_default)
-    strip.setPixelColor(pixel, DimColor(strip.getPixelColor(pixel)));
+    strip->leds[pixel].fadeToBlackBy(2);
   else
   {
-    uint32_t color = strip.getPixelColor(pixel);
+    strip->leds[pixel].subtractFromRGB(byValue);
+    /*
+    uint32_t color = strip->leds[pixel].raw;
     uint8_t r = Red(color);
     uint8_t g = Green(color);
     uint8_t b = Blue(color);
@@ -211,7 +216,8 @@ void strip_dimPixel(uint16_t pixel, bool dim_default, uint8_t byValue){
     else g -= byValue;
     if(b < byValue) b=0;
     else b -= byValue;
-    strip.setPixelColor(pixel, r, g, b);
+    strip->setPixelColor(pixel, r, g, b);
+    */
   }
 }
 
@@ -240,9 +246,9 @@ void mySunriseStart(uint32_t  mytime, uint16_t steps, bool up) {
   sunriseParam.deltaTime = (mytime/steps);
   sunriseParam.lastChange = millis();
   //reset the stripe
-  //strip.clear();
-  strip.setBrightness(BRIGHTNESS_MAX);
-  strip.show();
+  //strip->clear();
+  strip->setBrightness(BRIGHTNESS_MAX);
+  strip->show();
   shouldSaveRuntime = true;
   #ifdef DEBUG
   Serial.printf("\nStarted Sunrise with %.3u steps in %u ms which are %u minutes.\n", steps, mytime, (mytime/60000));
@@ -262,13 +268,15 @@ void mySunriseTrigger(void) {
     {
       sunriseParam.step--;
     }
+    // ToDo: We change to palette and move along the palette...
     uint32_t cColor = myColor.calcColorValue(sunriseParam.step);
-    for(uint16_t i = 0; i<strip.getLength();i++)
+    for(uint16_t i = 0; i<strip->getLength();i++)
     {
-      strip.setPixelColor(i, cColor);
+      //strip->setPixelColor(i, cColor);
+      strip->leds[i] = CRGB(cColor);
     }
-    strip.setColor(cColor);
-    strip.show();
+    //strip->setColor(cColor);
+    strip->show();
     sunriseParam.lastChange = (uint32_t)millis();
     if((sunriseParam.step >= sunriseParam.steps) || (sunriseParam.step == 0))
     {
@@ -282,29 +290,41 @@ void mySunriseTrigger(void) {
 void reset() {
   previousEffect = currentEffect;
   currentEffect = FX_NO_FX;
-  uint8_t max = 0;
+  /*uint8_t max = 0;
   uint32_t color = 0;
-  for(uint8_t i = 0; i<strip.getLength(); i++) {
-    color = strip.getPixelColor(i);
-    if(Red(color)>max) max = Red(color);
-    if(Green(color)>max) max = Green(color);
-    if(Blue(color)>max) max = Blue(color);
+  for(uint8_t i = 0; i<strip->getLength(); i++) {
+    if(strip->leds[i].r >max ) max = strip->leds[i].r;
+    if(strip->leds[i].g >max ) max = strip->leds[i].g;
+    if(strip->leds[i].b >max ) max = strip->leds[i].b;
   }
   uint8_t r,g,b;
 
+  // ToDo: Fade To Black!
+
   for(uint8_t i = 0; i<max; i++) {
-    for(uint16_t p=0; p<strip.getLength(); p++)
+    for(uint16_t p=0; p<strip->getLength(); p++)
     {
-        r = Red(strip.getPixelColor(p));
-        g = Green(strip.getPixelColor(p));
-        b = Blue(strip.getPixelColor(p));
+        r = Red(strip->getPixelColor(p));
+        g = Green(strip->getPixelColor(p));
+        b = Blue(strip->getPixelColor(p));
         if(r>0) r--;
         if(g>0) g--;
         if(b>0) b--;
-        strip.setPixelColor(p, r, g, b);
+        strip->leds[p].subtractFromRGB(2);
+        //strip->setPixelColor(p, r, g, b);
     }
-    strip.show();
+    strip->show();
     //delay(1);
   }
-
+  */
+  bool isBlack = true;
+  do {
+    isBlack = true;
+    fadeToBlackBy(strip->leds, strip->getLength(), 16);
+    for(uint16_t i = 0; i < strip->getLength(); i++)
+    {
+      if(strip->leds[i]) isBlack = false;
+    }
+    FastLED.show();
+  } while (!isBlack);
 }

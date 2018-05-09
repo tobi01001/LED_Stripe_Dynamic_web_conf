@@ -7,16 +7,23 @@ function handle_M_B_S(e) {
   e.preventDefault();
   var name = e.target.className;
   var val = e.target.id;
+  
   if(e.target.className.indexOf('m') > -1) {
     elems = document.querySelectorAll('#mode a');
     [].forEach.call(elems, function(el) {
       el.classList.remove('active');
       name = e.target.className;
     });
-    if(val != 'u' && val != 'd' && val != 'o')
-    {
-        e.target.classList.add('active');
-    }
+    e.target.classList.add('active');
+  }
+  
+  if(e.target.className.indexOf('p') > -1) {
+    elems = document.querySelectorAll('#pal a');
+    [].forEach.call(elems, function(el) {
+      el.classList.remove('active');
+      name = e.target.className;
+    });
+    e.target.classList.add('active');
   }
   submitVal(name, val);
 }
@@ -48,14 +55,14 @@ function Touch(e) {
   };
   rgb = ctx.getImageData(pos.x, pos.y, 1, 1).data;
   drawColorbar(rgb);
-  submitVal('co', compToHex(rgb[0]) + compToHex(rgb[1]) + compToHex(rgb[2]));
+  submitVal('c', compToHex(rgb[0]) + compToHex(rgb[1]) + compToHex(rgb[2]));
 }
 
 function Click(e) {
   pos = getMousePos(can, e);
   rgb = ctx.getImageData(pos.x, pos.y, 1, 1).data;
   drawColorbar(rgb);
-  submitVal('co', compToHex(rgb[0]) + compToHex(rgb[1]) + compToHex(rgb[2]));
+  submitVal('c', compToHex(rgb[0]) + compToHex(rgb[1]) + compToHex(rgb[2]));
 }
 
 // Thanks to the backup at http://axonflux.com/handy-rgb-to-hsl-and-rgb-to-hsv-color-model-c
@@ -86,9 +93,9 @@ function drawColorbar(rgb = [0, 0, 0]) {
   ctx = can.getContext('2d');
   can.width = document.body.clientWidth * 0.25;
   var h = can.height / 360;
-
+  
   var hsl = rgbToHsl(rgb[0], rgb[1], rgb[2]);
-
+  
   for(var i=0; i<=360; i++) {
     ctx.fillStyle = 'hsl('+i+', 100%, 50%)';
     ctx.fillRect(0, i * h, can.width/2, h);
@@ -111,13 +118,30 @@ function setup(){
   };
   xhttp.open('GET', 'modes', true);
   xhttp.send();
+  
+  var xhttp2 = new XMLHttpRequest();
+  xhttp2.onreadystatechange = function() {
+    if (xhttp2.readyState == 4 && xhttp2.status == 200) {
+      document.getElementById('pal').innerHTML = xhttp2.responseText;
+      elems = document.querySelectorAll('div p a'); // adds listener also to existing s and b buttons
+      [].forEach.call(elems, function(el) {
+        el.addEventListener('touchstart', handle_M_B_S, false);
+        el.addEventListener('click', handle_M_B_S, false);
+      });
+    }
+  };
+  xhttp2.open('GET', 'pals', true);
+  xhttp2.send();
+
+  
 
   var can = document.getElementById('colorbar');
   var ctx = can.getContext('2d');
 
   drawColorbar();
-
+  
   can.addEventListener('touchstart', Touch, false);
   can.addEventListener('click', Click, false);
 }
 )=====";
+

@@ -1,12 +1,12 @@
 #include <pgmspace.h>
 char index_html[] PROGMEM = R"=====(
-  <!DOCTYPE html>
-  <html lang='en'>
-  <head>
-    <meta http-equiv='Content-Type' content='text/html; charset=utf-8' />
-    <meta name='viewport' content='width=device-width' />
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+  <meta http-equiv='Content-Type' content='text/html; charset=utf-8' />
+  <meta name='viewport' content='width=device-width' />
 
-    <title>LED Lampensteuerung</title>
+  <title>LED Lampensteuerung</title>
 
     <script type='text/javascript' src='main.js'></script>
 
@@ -49,6 +49,11 @@ char index_html[] PROGMEM = R"=====(
       display:block;
       width:25%;
     }
+	
+	 ul#pal li {
+      display:block;
+      width:25%;
+    }
 
     ul#brightness li, ul#speed li, ul#auto li, ul#colorrgb li {
       display:block;
@@ -72,10 +77,10 @@ char index_html[] PROGMEM = R"=====(
     }
     </style>
   </head>
-  <body>
-    <h3>LED Steuerung</h3>
-    <canvas id='colorbar' width='75' height='1080'></canvas>
-    <div id='controls'>
+<body>
+  <h3>LED_Steuerung</h3>
+  <canvas id='colorbar' width='50' height='360'></canvas>
+  <div id='controls'>
       <div id='off'>
         <p style='color:#a0a0a0;'>
           <a href='#' class='mo' id='o' style='color:#a0a0a0;'>Off</a>
@@ -85,44 +90,42 @@ char index_html[] PROGMEM = R"=====(
     	<p id='mode' style='color:#a0a0a0;'>Effekte
 
 
-      </p>
+		</p>
       </div>
-      <div id='brightness'>
+	  <div id='div_pal'>
+    	<p id='pal' style='color:#a0a0a0;'>Paletten
+
+
+		</p>
+      </div>
+	  <div id='brightness'>
         <p style='color:#a0a0a0;'>Helligkeit
-          <a href='#' class='br' id='d' style='color:#a0a0a0;'>dunkler</a>
-          <a href='#' class='br' id='u' style='color:#c0c0c0;'>heller</a>
+          <a href='#' class='b' id='d' style='color:#a0a0a0;'>dunkler</a>
+          <a href='#' class='b' id='u' style='color:#c0c0c0;'>heller</a>
         </p>
       </div>
       <div id='speed'>
         <p style='color:#a0a0a0;'>Tempo
-        	<a href='#' class='sp' id='u' style='color:#6060a0;'>langsamer</a>
-        	<a href='#' class='sp' id='d' style='color:#a06060;'>schneller</a>
+        	<a href='#' class='s' id='d' style='color:#6060a0;'>langsamer</a>
+        	<a href='#' class='s' id='u' style='color:#a06060;'>schneller</a>
         </p>
       </div>
       <div id='auto'>
-        <p style='color:#a0a0a0;'>Effekt
-          <a href='#' class='mo' id='d' style='color:#6060a0;'>vorheriger</a>
-          <a href='#' class='mo' id='u' style='color:#a06060;'>naechster</a>
+        <p style='color:#a0a0a0;'>Blend Type
+          <a href='#' class='tbl' id='N' style='color:#6060a0;'>No Blend</a>
+          <a href='#' class='tbl' id='L' style='color:#a06060;'>Linear Blend</a>
         </p>
-      </div>
-      <div id='colorrgb'>
-        <p style='color:#c02020;'>Rot
-        	<a href='#' class='re' id='u' style='color:#c02020;'>mehr</a></li>
-        	<a href='#' class='re' id='d' style='color:#a02020;'>weniger</a>
+        <p style='color:#a0a0a0;'>Auto Mode
+          <a href='#' class='am' id='y' style='color:#6060a0;'>Auto</a>
+          <a href='#' class='am' id='n' style='color:#a06060;'>Manual</a>
         </p>
-      </div>
-      <div id='colorrgb'>
-        <p style='color:#20c020;'>Grün
-        	<a href='#' class='gr' id='u' style='color:#20c020;'>mehr</a>
-        	<a href='#' class='gr' id='d' style='color:#20a020;'>weniger</a>
-      </div>
-      <div id='colorrgb'>
-        <p style='color:#2020c0;'>Blau
-        	<a href='#' class='bl' id='u' style='color:#2020c0;'>mehr</a>
-        	<a href='#' class='bl' id='d' style='color:#2020a0;'>weniger</a>
+        <p style='color:#a0a0a0;'>Auto Palette
+          <a href='#' class='ap' id='y' style='color:#6060a0;'>Auto</a>
+          <a href='#' class='ap' id='n' style='color:#a06060;'>Manual</a>
         </p>
       </div>
     </div>
   </body>
   </html>
 )=====";
+

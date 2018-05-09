@@ -15,8 +15,10 @@
 #ifndef led_strip_h
 #define led_strip_h
 
-#include <WS2812FX.h>
-#include <Adafruit_NeoPixel.h>
+#include "WS2812FX.h"
+//#include <Adafruit_NeoPixel.h>
+
+//ToDo: Rework for ColorPalettes
 #include "pahcolor.h"
 
 /* should be in library now....
@@ -25,7 +27,7 @@
 #define max(a,b) ((a)>(b)?(a):(b))
 */
 
-#define DEFAULT_PIXEL_TYPE (NEO_GRB + NEO_KHZ800)
+//#define DEFAULT_PIXEL_TYPE (NEO_GRB + NEO_KHZ800)
 
 #define FX_NO_FX        0
 #define FX_SUNRISE      1
@@ -37,7 +39,13 @@
 // initialize the strip during boot (or at changes)
 // strip can be any neopixel arrangement
 // but is currently limited to NEO_GRB
-void stripe_setup(uint16_t LEDCount, uint8_t dataPin, neoPixelType pixelType);
+void stripe_setup(  const uint16_t LEDCount, 
+                    const uint8_t FPS, 
+                    const uint8_t volt , 
+                    const uint16_t milliamps , 
+                    const CRGBPalette16 pal , 
+                    const String Name ,
+                    const LEDColorCorrection colc);
 
 // resets the current effects and stops the strip
 void reset(void);
@@ -54,31 +62,6 @@ uint8_t getEffect(void);
 // return the previous effect
 uint8_t getPreviousEffect(void);
 
-/*
-// fire Effect (not WS2812BFX)
-void fireEffect(void) ;
-// Rainbow  (not WS2812BFX)
-void rainbowCycle(void);
-// Blinker Effect (not WS2812BFX)
-void blinkerEffect(void);
-// Sparks Effect (not WS2812BFX)
-void sparksEffect(void);
-// WhiteSparks(not WS2812BFX)
-void white_sparksEffect(void);
-// Knightrider (not WS2812BFX)
-void knightriderEffect(void);
-
-// Input a value 0 to 255 to get a color value.
-// The colours are a transition r - g - b - back to r.
-uint32_t Wheel(byte WheelPos);
-
-//noch benutzt?
-int colorVal(char c);
-
-// dims a single pixel either by right shift (division by 2)
-//  or by a certain value (enables smoother but also slower dims)
-void strip_dimPixel(uint16_t pixel, bool dim_default, uint8_t byValue);
-*/
 // 32 Bit Color out of 3 Color values....
 uint32_t strip_color32(uint8_t r, uint8_t g, uint8_t b);
 
@@ -112,27 +95,11 @@ void strip_On_Off(bool onOff);
 
 void stripe_setBrightness(uint8_t brightness);
 
-
-
 void mySunriseStart(uint32_t  mytime, uint16_t steps, bool up);
 
 void mySunriseTrigger(void);
 
-
-//globals... here or in the ccp file? - use it here for the moment
-/* Globals */
-// ToDo: Redefine for effectiveness (static etc)
-/*
-extern uint16_t fx_blinker_start_pixel;
-extern uint16_t fx_blinker_end_pixel;
-extern uint8_t fx_blinker_red;
-extern uint8_t fx_blinker_green;
-extern uint8_t fx_blinker_blue;
-extern uint16_t fx_blinker_time_on;
-extern uint16_t fx_blinker_time_off;
-*/
-// control special effects
-
+// ToDo: To be reqorked for the FastLED approach
 typedef struct sunriseParam {
   bool isRunning;
   bool isSunrise;
@@ -158,18 +125,7 @@ extern pah_color myColor;
 extern mysunriseParam sunriseParam;
 
 
-//extern uint16_t rainbowColor;
-
-//extern uint16_t delay_interval;
-
-// Parameter 1 = number of pixels in strip
-// Parameter 2 = Arduino pin number (most are valid)
-// Parameter 3 = pixel type flags, add together as needed:
-//   NEO_KHZ800  800 KHz bitstream (most NeoPixel products w/WS2812 LEDs)
-//   NEO_KHZ400  400 KHz (classic 'v1' (not v2) FLORA pixels, WS2811 drivers)
-//   NEO_GRB     Pixels are wired for GRB bitstream (most NeoPixel products)
-//   NEO_RGB     Pixels are wired for RGB bitstream (v1 FLORA pixels, not v2)
-extern WS2812FX strip; // = WS2812FX(1, 1, DEFAULT_PIXEL_TYPE); // WS2812FX(strip.getLength(), LEDPIN, NEO_GRB + NEO_KHZ800);
+extern WS2812FX *strip; // = WS2812FX(1, 1, DEFAULT_PIXEL_TYPE); // WS2812FX(strip.getLength(), LEDPIN, NEO_GRB + NEO_KHZ800);
 
 
 #endif

@@ -11,6 +11,17 @@
  **************************************************************/
 #include <FS.h>
 
+#define FASTLED_ESP8266_RAW_PIN_ORDER
+#define FASTLED_ESP8266_DMA
+#define FASTLED_USE_PROGMEM 1
+
+#define LED_COUNT 50
+#define LED_PIN 3
+
+#define STRIP_FPS 60
+#define STRIP_VOLTAGE 5
+#define STRIP_MILLIAMPS 2500
+
 //#define DEBUG
 
 #include "Arduino.h"
@@ -25,17 +36,16 @@
 
 
 // new approach starts here:
-#include <led_strip.h>
+#include "led_strip.h"
 
-#include <pahcolor.h>
-
-
+#include "pahcolor.h"
 
 /* Flash Button can be used here for toggles.... */
 bool hasResetButton = false;
 Bounce debouncer = Bounce();
 
-
+#define LED_COUNT 100
+#define LED_PIN 3
 
 
 /* Definitions for network usage */
@@ -46,31 +56,32 @@ WiFiManager wifiManager;
 
 String AP_SSID = "LED_stripe_" + String(ESP.getChipId());
 
-char chrResetButtonPin[3]="X";
-char chrLEDCount[5] = "0";
-char chrLEDPin[2] = "0";
+//char chrResetButtonPin[3]="X";
+//char chrLEDCount[5] = "0";
+//char chrLEDPin[2] = "0";
 
 //default custom static IP
 char static_ip[16] = "";
 char static_gw[16] = "";
 char static_sn[16] = "255.255.255.0";
 
-WiFiManagerParameter ResetButtonPin("RstPin", "Reset Pin", chrResetButtonPin, 3);
-WiFiManagerParameter LedCountConf("LEDCount","LED Count", chrLEDCount, 4);
-WiFiManagerParameter LedPinConf("LEDPIN", "Strip Data Pin", chrLEDPin, 3);
+//WiFiManagerParameter ResetButtonPin("RstPin", "Reset Pin", chrResetButtonPin, 3);
+//WiFiManagerParameter LedCountConf("LEDCount","LED Count", chrLEDCount, 4);
+//WiFiManagerParameter LedPinConf("LEDPIN", "Strip Data Pin", chrLEDPin, 3);
 
 /* END Network Definitions */
 
 extern const char index_html[];
 extern const char main_js[];
 
-String modes = "";
+//String modes = "";
 
 //flag for saving data
 bool shouldSaveConfig = false;
 bool shouldSaveRuntime = false;
 
-#define DATAVALID_KEY 0x55aa5a5a
+// ToDo: CRC checking....
+#define DATAVALID_KEY 0xa5aa5a5a
 
 typedef struct {
     uint32_t dataValid = 0x00000000;
@@ -87,25 +98,30 @@ EEPROMSaveData myEEPROMSaveData;
 unsigned long last_wifi_check_time = 0;
 
 // function Definitions
-void  saveConfigCallback(void),
-      saveEEPROMData(void),
-      readConfigurationFS(void),
-      initOverTheAirUpdate(void),
-      setupResetButton(uint8_t buttonPin),
-      updateConfiguration(void),
-      setupWiFi(void),
-      handleRoot(void),
-      srv_handle_main_js(void),
-      modes_setup(void),
-      srv_handle_modes(void),
-      handleSet(void),
-      handleNotFound(void),
-      handleGetModes(void),
-      handleStatus(void),
-      factoryReset(void),
-      handleResetRequest(void),
-      setupWebServer(void),
-      clearEEPROM(void);
+void  saveConfigCallback    (void),
+      saveEEPROMData        (void),
+      readConfigurationFS   (void),
+      initOverTheAirUpdate  (void),
+      setupResetButton      (uint8_t buttonPin),
+      updateConfiguration   (void),
+      setupWiFi             (void),
+      handleRoot            (void),
+      srv_handle_main_js    (void),      
+      srv_handle_modes      (void),
+      srv_handle_pals       (void),
+      handleSet             (void),
+      handleNotFound        (void),
+      handleGetModes        (void),
+      handleStatus          (void),
+      factoryReset          (void),
+      handleResetRequest    (void),
+      setupWebServer        (void),
+      clearEEPROM           (void);
+
+      
+const String 
+      pals_setup            (void),
+      modes_setup           (void);
 
 // write runtime data to EEPROM
 void saveEEPROMData(void) {
@@ -115,8 +131,8 @@ void saveEEPROMData(void) {
     Serial.println("\nGoing to store runtime on EEPROM...");
   #endif
   myEEPROMSaveData.dataValid = DATAVALID_KEY;
-  myEEPROMSaveData.seg = strip.getSegments()[0];
-  myEEPROMSaveData.brightness = strip.getBrightness();
+  myEEPROMSaveData.seg = strip->getSegments()[0];
+  myEEPROMSaveData.brightness = strip->getBrightness();
   myEEPROMSaveData.sParam = sunriseParam;
   myEEPROMSaveData.sunriseColors = myColor.getPahColorValues();
   myEEPROMSaveData.currentEffect = currentEffect;
@@ -171,10 +187,10 @@ void readRuntimeDataEEPROM(void) {
   EEPROM.end();
 
   if(myEEPROMSaveData.dataValid == DATAVALID_KEY) {
-    strip.setSegment(0, myEEPROMSaveData.seg.start, myEEPROMSaveData.seg.stop,
-                        myEEPROMSaveData.seg.mode, myEEPROMSaveData.seg.colors,
-                        myEEPROMSaveData.seg.speed, myEEPROMSaveData.seg.reverse);
-    strip.setBrightness(myEEPROMSaveData.brightness);
+    strip->setSegment(0, myEEPROMSaveData.seg.start,  myEEPROMSaveData.seg.stop,
+                         myEEPROMSaveData.seg.mode,   myEEPROMSaveData.seg.cPalette,
+                         myEEPROMSaveData.seg.beat88, myEEPROMSaveData.seg.reverse);
+    strip->setBrightness(myEEPROMSaveData.brightness);
     sunriseParam = myEEPROMSaveData.sParam;
     myColor.setPahColorValues(myEEPROMSaveData.sunriseColors);
     currentEffect = myEEPROMSaveData.currentEffect;
@@ -186,7 +202,7 @@ void readRuntimeDataEEPROM(void) {
 
   Serial.print("\tBrightness\n");
   Serial.println(myEEPROMSaveData.brightness);
-  Serial.println(strip.getBrightness());
+  Serial.println(strip->getBrightness());
 
   Serial.print("\tCurrentEffect\n");
   Serial.println(myEEPROMSaveData.currentEffect);
@@ -194,7 +210,7 @@ void readRuntimeDataEEPROM(void) {
 
   Serial.print("\twsfxmode\n");
   Serial.println(myEEPROMSaveData.seg.mode);
-  Serial.println(strip.getMode());
+  Serial.println(strip->getMode());
 
   Serial.print("\tstripIsOn\n");
   Serial.println(myEEPROMSaveData.stripIsOn);
@@ -241,9 +257,9 @@ void readConfigurationFS(void) {
           #ifdef DEBUG
           Serial.println("\nparsed json");
           #endif
-          strcpy(chrResetButtonPin, json["chrResetButtonPin"]);
-          strcpy(chrLEDCount, json["chrLEDCount"]);
-          strcpy(chrLEDPin, json["chrLEDPin"]);
+          //strcpy(chrResetButtonPin, json["chrResetButtonPin"]);
+          //strcpy(chrLEDCount, json["chrLEDCount"]);
+          //strcpy(chrLEDPin, json["chrLEDPin"]);
           // This checks if a IP is contained in the file
           // currently not used as no IP will be written
           if(json["ip"]) {
@@ -277,12 +293,12 @@ void readConfigurationFS(void) {
   #ifdef DEBUG
   Serial.print("Static IP: \t");
   Serial.println(static_ip);
-  Serial.print("LED Count: \t");
-  Serial.println(chrLEDCount);
-  Serial.print("LED Pin: \t");
-  Serial.println(chrLEDPin);
-  Serial.print("Rst Btn Pin: \t");
-  Serial.println(chrResetButtonPin);
+  //Serial.print("LED Count: \t");
+  //Serial.println(chrLEDCount);
+  //Serial.print("LED Pin: \t");
+  //Serial.println(chrLEDPin);
+  //Serial.print("Rst Btn Pin: \t");
+  //Serial.println(chrResetButtonPin);
   #endif
 }
 
@@ -311,17 +327,19 @@ void initOverTheAirUpdate(void) {
     uint8_t factor = 85;
     for(uint8_t c = 0; c < 4; c++) {
 
-      for(uint16_t i=0; i<strip.getLength(); i++) {
+      for(uint16_t i=0; i<strip->getLength(); i++) {
         uint8_t r = 256 - (c*factor);
         uint8_t g = c > 0 ? (c*factor-1) : (c*factor);
-        strip.setPixelColor(i, r, g, 0);
+        //strip.setPixelColor(i, r, g, 0);
+        strip->leds[i] = CRGB(strip_color32(r,g,0));
       }
-      strip.show();
+      strip->show();
       delay(400);
-      for(uint16_t i=0; i<strip.getLength(); i++) {
-        strip.setPixelColor(i, 0x000000);
+      for(uint16_t i=0; i<strip->getLength(); i++) {
+        strip->leds[i] = CRGB::Black;
+        //strip.setPixelColor(i, 0x000000);
       }
-      strip.show();
+      strip->show();
       delay(400);
     }
     server.stop();
@@ -333,13 +351,14 @@ void initOverTheAirUpdate(void) {
     clearEEPROM();
     // OTA finished.
     // Green Leds fade out.
-    for(uint8_t i = Green(strip.getPixelColor(0)); i>0; i--)
+    for(uint8_t i = strip->leds[i].green; i>0; i--)
     {
-      for(uint16_t p=0; p<strip.getLength(); p++)
+      for(uint16_t p=0; p<strip->getLength(); p++)
       {
-        strip.setPixelColor(p, 0, i-1 ,0);
+        strip->leds[p].subtractFromRGB(1);
+        //strip.setPixelColor(p, 0, i-1 ,0);
       }
-      strip.show();
+      strip->show();
       delay(2);
     }
   });
@@ -350,15 +369,16 @@ void initOverTheAirUpdate(void) {
     // OTA Update will show increasing green LEDs during progress:
     uint8_t color = 0;
 
-    uint16_t progress_value = progress*100 / (total / strip.getLength());
+    uint16_t progress_value = progress*100 / (total / strip->getLength());
     uint16_t pixel = (uint16_t) (progress_value / 100);
     uint16_t temp_color = progress_value - (pixel*100);
     if(temp_color > 255) temp_color = 255;
 
     //uint16_t pixel = (uint16_t)(progress / (total / strip.getLength()));
-    strip.setPixelColor(pixel, 0, (uint8_t)temp_color, 0);
-    strip.show();
-    delay(1);
+    //strip.setPixelColor(pixel, 0, (uint8_t)temp_color, 0);
+    strip->leds[pixel] = strip_color32(0, (uint8_t)temp_color, 0);
+    strip->show();
+    //delay(1);
   });
   ArduinoOTA.onError([](ota_error_t error) {
     #ifdef DEBUG
@@ -373,11 +393,12 @@ void initOverTheAirUpdate(void) {
     // We will fade in to red...
     for(uint16_t c = 0; c<256; c++)
     {
-      for(uint16_t i = 0; i<strip.getLength(); i++)
+      for(uint16_t i = 0; i<strip->getLength(); i++)
       {
-        strip.setPixelColor(i,(uint8_t)c,0,0);
+        //strip.setPixelColor(i,(uint8_t)c,0,0);
+        strip->leds[i] = strip_color32((uint8_t)c,0,0);
       }
-      strip.show();
+      strip->show();
       delay(2);
     }
   });
@@ -401,9 +422,9 @@ void updateConfiguration(void){
   #endif
   // only copy the values in case the Parameter wa sset in config!
   if(shouldSaveConfig) {
-    strcpy(chrResetButtonPin, ResetButtonPin.getValue());
-    strcpy(chrLEDCount, LedCountConf.getValue());
-    strcpy(chrLEDPin, LedPinConf.getValue());
+  //  strcpy(chrResetButtonPin, ResetButtonPin.getValue());
+  //  strcpy(chrLEDCount, LedCountConf.getValue());
+  //  strcpy(chrLEDPin, LedPinConf.getValue());
   }
   /*
   String sLedCount = chrLEDCount;
@@ -412,6 +433,8 @@ void updateConfiguration(void){
   uint16_t ledCount = sLedCount.toInt();
   uint8_t ledPin = sLedPin.toInt();
   */
+
+  /*
   uint16_t ledCount = (uint16_t) strtoul(chrLEDCount, NULL, 10);
   uint8_t ledPin = (uint8_t) strtoul(chrLEDPin, NULL, 10);
   // if something went wrong here (GPIO = 0 or LEDs = 0)
@@ -454,7 +477,9 @@ void updateConfiguration(void){
       hasResetButton = true;
       setupResetButton(rstPin);
   }
+  */
 
+  /*
   if (shouldSaveConfig) {
     #ifdef DEBUG
     Serial.println("saving config");
@@ -464,13 +489,14 @@ void updateConfiguration(void){
     json["chrResetButtonPin"] = chrResetButtonPin;
     json["chrLEDCount"] = chrLEDCount;
     json["chrLEDPin"] = chrLEDPin;
-
+  */
     /*  Maybe we deal with static IP later.
         For now we just don't save it....
         json["ip"] = WiFi.localIP().toString();
         json["gateway"] = WiFi.gatewayIP().toString();
         json["subnet"] = WiFi.subnetMask().toString();
     */
+  /*
     File configFile = SPIFFS.open("/config.json", "w");
     if (!configFile) {
       #ifdef DEBUG
@@ -484,22 +510,22 @@ void updateConfiguration(void){
     configFile.close();
     //end save
   }
+  */
   #ifdef DEBUG
   Serial.println("\nEverything in place... setting up stripe.");
-
-
   #endif
-  stripe_setup(ledCount, ledPin, DEFAULT_PIXEL_TYPE);
+  //stripe_setup( LED_COUNT, STRIP_FPS, STRIP_VOLTAGE, STRIP_MILLIAMPS, RainbowColors_p, F("Rainbow Colors"), TypicalLEDStrip);
 }
 
 void setupWiFi(void){
 
   wifiManager.setSaveConfigCallback(saveConfigCallback);
 
+/*
   wifiManager.addParameter(&ResetButtonPin);
   wifiManager.addParameter(&LedCountConf);
   wifiManager.addParameter(&LedPinConf);
-
+*/
   // 4 Minutes should be sufficient.
   // Especially in case of WiFi loss...
   wifiManager.setConfigPortalTimeout(240);
@@ -520,6 +546,7 @@ void setupWiFi(void){
     delay(5000);
   }
   #ifdef DEBUG
+  /*
   Serial.println("Print LED config again to be sure: ");
   Serial.print("LED Count: \t");
   Serial.println(chrLEDCount);
@@ -527,6 +554,8 @@ void setupWiFi(void){
   Serial.println(chrLEDPin);
   Serial.print("Rst Btn Pin: \t");
   Serial.println(chrResetButtonPin);
+  */
+
   //if you get here you have connected to the WiFi
   Serial.print("local ip: ");
   Serial.println(WiFi.localIP());
@@ -544,23 +573,42 @@ void srv_handle_main_js(void) {
   server.send_P(200,"application/javascript", main_js);
 }
 
-void modes_setup(void) {
-  modes = "";
-  uint8_t num_modes = strip.getModeCount();
+const String modes_setup(void) {
+  String modes = "";
+  uint8_t num_modes = strip->getModeCount();
   for(uint8_t i=0; i < num_modes; i++) {
     uint8_t m = i;
-    modes += "<a href='#' class='mo' id='";
+    modes += F("<a href='#' class='mo' id='");
     modes += m;
-    modes += "'>";
-    modes += strip.getModeName(m);
-    modes += "</a>";
+    modes += F("'>");
+    modes += strip->getModeName(m);
+    modes += F("</a>");
   }
+  return modes;
+}
+
+const String pals_setup(void) {
+  uint8_t num_modes = strip->getPalCount();
+  String palettes = "";
+  palettes.reserve(400);
+  for(uint8_t i=0; i <  num_modes; i++)
+  {
+    palettes += F("<a href='#' class='pa' id='");
+    palettes += i;
+    palettes += F("'>");
+    palettes += strip->getPalName(i);
+    palettes += F("</a>");
+  }
+  return palettes;
 }
 
 void srv_handle_modes(void) {
-  server.send(200,"text/plain", modes);
+  server.send(200,"text/plain", modes_setup());
 }
 
+void srv_handle_pals(void) {
+  server.send(200,"text/plain", pals_setup());
+}
 
 uint8_t changebypercentage (uint8_t value, uint8_t percentage) {
   uint16_t ret = max((value*percentage)/100, 10);
@@ -606,7 +654,7 @@ void handleSet(void){
   // here we set a new mode if we have the argument mode
   if(server.hasArg("mo")) {
     bool isWS2812FX = false;
-    uint8_t effect = strip.getMode();
+    uint8_t effect = strip->getMode();
 
     // just switch to the next
     if (server.arg("mo")[0] == 'u') {
@@ -621,8 +669,8 @@ void handleSet(void){
     else if (server.arg("mo")[0] == 'o') {
       reset();
       strip_On_Off(false);
-      strip.clear();
-      strip.stop();
+      FastLED.clearData();
+      strip->stop();
     }
     else if (server.arg("mo")[0] == 'f') {
       effect = FX_MODE_FIRE_FLICKER;
@@ -637,11 +685,11 @@ void handleSet(void){
       isWS2812FX = true;
     }
     else if (server.arg("mo")[0] == 's') {
-      effect = FX_MODE_TWINKLE_FADE_RANDOM;
+      effect = FX_MODE_TWINKLE_FOX;
       isWS2812FX = true;
     }
     else if (server.arg("mo")[0] == 'w') {
-      strip.setColor(0xffffff);
+      strip->setColor(CRGBPalette16(CRGB::White));
       effect = FX_MODE_TWINKLE_FADE;
       isWS2812FX = true;
     }
@@ -704,20 +752,28 @@ void handleSet(void){
       isWS2812FX = true;
     }
     // make sure we roll over at the max number
-    if(effect >= strip.getModeCount()) {
+    if(effect >= strip->getModeCount()) {
       effect = 0;
     }
     // activate the effect and trigger it once...
     if(isWS2812FX) {
       setEffect(FX_WS2812);
-      strip.setMode(effect);
-      strip.start();
-      strip.trigger();
+      strip->setMode(effect);
+      strip->start();
+      strip->trigger();
     }
   }
+  
+  // if we got a palette change
+  if(server.hasArg("pa")) {
+    // ToDo: Possibility to setColors and new Palettes...
+    uint8_t pal = (uint8_t)strtoul(&server.arg("pa")[0], NULL, 10);
+    strip->setTargetPalette(pal);
+  }
+
   // if we got a new brightness value
   if(server.hasArg("br")) {
-    uint8_t brightness = strip.getBrightness();
+    uint8_t brightness = strip->getBrightness();
     if (server.arg("br")[0] == 'u') {
     brightness = changebypercentage(brightness, 110);
     } else if (server.arg("br")[0] == 'd') {
@@ -725,31 +781,53 @@ void handleSet(void){
     } else {
       brightness = constrain((uint8_t)strtoul(&server.arg("br")[0], NULL, 10), BRIGHTNESS_MIN, BRIGHTNESS_MAX);
     }
-    strip.setBrightness(brightness);
-    strip.show();
+    strip->setBrightness(brightness);
+    strip->show();
   }
   // if we got a speed value
   if(server.hasArg("sp")) {
-    uint16_t speed = strip.getSpeed();
+    uint16_t speed = strip->getBeat88();
     if (server.arg("sp")[0] == 'u') {
       uint16_t ret = max((speed*110)/100, 10);
-      if (ret > SPEED_MAX) ret = SPEED_MAX;
+      if (ret > BEAT88_MAX) ret = BEAT88_MAX;
       speed = ret;
       //speed = changebypercentage(speed, 110);
     } else if (server.arg("sp")[0] == 'd') {
       uint16_t ret = max((speed*90)/100, 10);
-      if (ret > SPEED_MAX) ret = SPEED_MAX;
+      if (ret > BEAT88_MAX) ret = BEAT88_MAX;
       speed = ret;
       //speed = changebypercentage(speed, 90);
     } else {
-      speed = constrain((uint16_t)strtoul(&server.arg("sp")[0], NULL, 10), SPEED_MIN, SPEED_MAX);
+      speed = constrain((uint16_t)strtoul(&server.arg("sp")[0], NULL, 10), BEAT88_MIN, BEAT88_MAX);
     }
-    strip.setSpeed(speed);
+    strip->setSpeed(speed);
     // delay_interval = (uint8_t)(speed / 256); // obsolete???
-    strip.show();
+    strip->show();
   }
+
+  // if we got a speed value
+  if(server.hasArg("be")) {
+    uint16_t speed = strip->getBeat88();
+    if (server.arg("be")[0] == 'u') {
+      uint16_t ret = max((speed*110)/100, 10);
+      if (ret > BEAT88_MAX) ret = BEAT88_MAX;
+      speed = ret;
+      //speed = changebypercentage(speed, 110);
+    } else if (server.arg("be")[0] == 'd') {
+      uint16_t ret = max((speed*90)/100, 10);
+      if (ret > BEAT88_MAX) ret = BEAT88_MAX;
+      speed = ret;
+      //speed = changebypercentage(speed, 90);
+    } else {
+      speed = constrain((uint16_t)strtoul(&server.arg("be")[0], NULL, 10), BEAT88_MIN, BEAT88_MAX);
+    }
+    strip->setSpeed(speed);
+    // delay_interval = (uint8_t)(speed / 256); // obsolete???
+    strip->show();
+  }
+
   // color handling
-  uint32_t color = strip.getColor();
+  uint32_t color = strip->getColor(0);
   if(server.hasArg("re")) {
     uint8_t re = Red(color);
     if(server.arg("re")[0] == 'u') {
@@ -788,18 +866,18 @@ void handleSet(void){
   }
   if(server.hasArg("pi")) {
     //setEffect(FX_NO_FX);
-    uint16_t pixel = constrain((uint16_t)strtoul(&server.arg("pi")[0], NULL, 10), 0, strip.getLength()-1);
+    uint16_t pixel = constrain((uint16_t)strtoul(&server.arg("pi")[0], NULL, 10), 0, strip->getLength()-1);
     strip_setpixelcolor(pixel, color);
   } else if (server.hasArg("rnS") && server.hasArg("rnE")) {
-    uint16_t start = constrain((uint16_t)strtoul(&server.arg("rnS")[0], NULL, 10), 0, strip.getLength());
-    uint16_t end = constrain((uint16_t)strtoul(&server.arg("rnE")[0], NULL, 10), start, strip.getLength());
+    uint16_t start = constrain((uint16_t)strtoul(&server.arg("rnS")[0], NULL, 10), 0, strip->getLength());
+    uint16_t end = constrain((uint16_t)strtoul(&server.arg("rnE")[0], NULL, 10), start, strip->getLength());
     set_Range(start, end, color);
   } else if (server.hasArg("rgb")) {
-    strip.setColor(color);
+    strip->setColor(color);
     setEffect(FX_WS2812);
-    strip.setMode(FX_MODE_STATIC);
+    strip->setMode(FX_MODE_STATIC);
   } else {
-    strip.setColor(color);
+    strip->setColor(color);
   }
   handleStatus();
   shouldSaveRuntime = true;
@@ -828,11 +906,11 @@ void handleGetModes(void){
   JsonObject& root = jsonBuffer.createObject();
 
   JsonObject& modeinfo = root.createNestedObject("modeinfo");
-  modeinfo["count"] = strip.getModeCount();
+  modeinfo["count"] = strip->getModeCount();
 
   JsonObject& modeinfo_modes = modeinfo.createNestedObject("modes");
-  for(uint8_t i=0; i<strip.getModeCount(); i++) {
-      modeinfo_modes[strip.getModeName(i)] = i;
+  for(uint8_t i=0; i<strip->getModeCount(); i++) {
+      modeinfo_modes[strip->getModeName(i)] = i;
   }
 
   #ifdef DEBUG
@@ -844,6 +922,30 @@ void handleGetModes(void){
   server.send(200, "application/json", message);
 }
 
+void handleGetPals(void){
+  const size_t bufferSize = JSON_OBJECT_SIZE(1) + JSON_OBJECT_SIZE(2) + JSON_OBJECT_SIZE(56) + 1070;
+  DynamicJsonBuffer jsonBuffer(bufferSize);
+
+  JsonObject& root = jsonBuffer.createObject();
+
+  JsonObject& modeinfo = root.createNestedObject("palinfo");
+  modeinfo["count"] = strip->getPalCount();
+
+  JsonObject& modeinfo_modes = modeinfo.createNestedObject("pals");
+  for(uint8_t i=0; i<strip->getPalCount(); i++) {
+      modeinfo_modes[strip->getPalName(i)] = i;
+  }
+
+  #ifdef DEBUG
+  root.printTo(Serial);
+  #endif
+
+  String message = "";
+  root.prettyPrintTo(message);
+  server.send(200, "application/json", message);
+}
+
+
 void handleStatus(void){
   const size_t bufferSize = JSON_OBJECT_SIZE(1) + JSON_OBJECT_SIZE(10) + 180;
   DynamicJsonBuffer jsonBuffer(bufferSize);
@@ -851,11 +953,11 @@ void handleStatus(void){
   String message = "";
   uint16_t num_leds_on = 0;
   // if brightness = 0, no LED can be lid.
-  if(strip.getBrightness()) {
+  if(strip->getBrightness()) {
     // count the number of active LEDs
     // in rare occassions, this can still be 0, depending on the effect.
-    for(uint16_t i=0; i<strip.getLength(); i++) {
-      if(strip.getPixelColor(i)) num_leds_on++;
+    for(uint16_t i=0; i<strip->getLength(); i++) {
+      if(strip->leds[i]) num_leds_on++;
     }
   }
 
@@ -881,18 +983,20 @@ void handleStatus(void){
       currentState["modename"] = F("Sunset Effect");
       break;
     case FX_WS2812 :
-      currentState["modename"] = (String)"WS2812fx " + (String)strip.getModeName(strip.getMode());
+      currentState["modename"] = (String)"WS2812fx " + (String)strip->getModeName(strip->getMode());
       break;
     default :
       currentState["modename"] = F("UNKNOWN");
       break;
   }
-  currentState["wsfxmode"] = strip.getMode();
-  currentState["speed"] = strip.getSpeed();
-  currentState["brightness"] = strip.getBrightness();
-  currentState["color_red"] = Red(strip.getColor());
-  currentState["color_green"] = Green(strip.getColor());
-  currentState["color_blue"] = Blue(strip.getColor());
+  currentState["wsfxmode"] = strip->getMode();
+  currentState["beat88"] = strip->getBeat88();
+  currentState["brightness"] = strip->getBrightness();
+  /*
+  currentState["color_red"] = Red(strip->getColor());
+  currentState["color_green"] = Green(strip->getColor());
+  currentState["color_blue"] = Blue(strip->getColor());
+  */
 
 
   JsonObject& sunRiseState = root.createNestedObject("sunRiseState");
@@ -921,7 +1025,7 @@ void handleStatus(void){
     sunRiseState["sunRiseTimeToFinish"] = 0;
     sunRiseState["sunRiseCurrStep"] = 0;
     sunRiseState["sunRiseTotalSteps"] = sunriseParam.steps;
-    currentState["rgb"] = strip.getColor();
+    //currentState["rgb"] = strip->getColor();
   }
   sunRiseState["sunRiseMinStep"] = myColor.getStepStart();
   sunRiseState["sunRiseMidStep"] = myColor.getStepMid();
@@ -957,12 +1061,12 @@ void factoryReset(void){
   #endif
   // on factory reset, each led will be red
   // increasing from led 0 to max.
-  for(uint16_t i = 0; i<strip.getLength(); i++) {
-    strip.setPixelColor(i, 0xa00000);
-    strip.show();
+  for(uint16_t i = 0; i<strip->getLength(); i++) {
+    strip->leds[i] = 0xa00000;
+    strip->show();
     delay(2);
   }
-  strip.show();
+  strip->show();
   // formatting File system
   #ifdef DEBUG
   Serial.println("Format File System");
@@ -1009,9 +1113,9 @@ void handleResetRequest(void){
     colors[0] = 0xff0000;
     colors[1] = 0x00ff00;
     colors[2] = 0x0000ff;
-    strip.setSegment(0, 0, strip.getLength()-1, FX_MODE_STATIC, colors, DEFAULT_SPEED, false);
+    strip->setSegment(0, 0, strip->getLength()-1, FX_MODE_STATIC, colors, DEFAULT_BEAT88, false);
     setEffect(FX_NO_FX);
-    strip.stop();
+    strip->stop();
     strip_On_Off(false);
     server.send(200, "text/plain", "Strip was reset to the default values...");
     shouldSaveRuntime = true;
@@ -1019,14 +1123,16 @@ void handleResetRequest(void){
 }
 
 void setupWebServer(void){
-  modes.reserve(5000);
-  modes_setup();
+  //modes.reserve(5000);
+  //modes_setup();
 
   server.on("/main.js", srv_handle_main_js);
   server.on("/modes", srv_handle_modes);
+  server.on("/pals", srv_handle_pals);
   server.on("/", handleRoot);
   server.on("/set", handleSet);
   server.on("/getmodes", handleGetModes);
+  server.on("/getpals", handleGetPals);
   server.on("/status", handleStatus);
   server.on("/reset", handleResetRequest);
   server.onNotFound(handleNotFound);
@@ -1036,6 +1142,7 @@ void setupWebServer(void){
   Serial.println("HTTP server started.\n");
   #endif
 }
+
 
 // setup network and output pins
 void setup() {
@@ -1047,6 +1154,14 @@ void setup() {
   #endif
   readConfigurationFS();
 
+  stripe_setup( LED_COUNT, 
+                STRIP_FPS, 
+                STRIP_VOLTAGE, 
+                STRIP_MILLIAMPS, 
+                RainbowColors_p, 
+                F("Rainbow Colors"), 
+                TypicalLEDStrip);
+
   setupWiFi();
 
   setupWebServer();
@@ -1057,24 +1172,24 @@ void setup() {
 
   // if we got that far, we show by a nice little animation
   // as setup finished signal....
-  for(uint8_t a = 0; a < 3; a++) {
-    for(uint16_t c = 0; c<256; c++) {
-      for(uint16_t i = 0; i<strip.getLength(); i++) {
-        strip.setPixelColor(i,0,(uint8_t)c,0);
+  for(uint8_t a = 0; a < 1; a++) {
+    for(uint16_t c = 0; c<256; c+=3) {
+      for(uint16_t i = 0; i<strip->getLength(); i++) {
+        strip->leds[i].green = c;
       }
-      strip.show();
+      strip->show();
       delay(1);
     }
     delay(2);
-    for(uint8_t c = 255; c>0; c--) {
-      for(uint16_t i = 0; i<strip.getLength(); i++) {
-        strip.setPixelColor(i,0,c,0);
+    for(uint8_t c = 255; c>0; c-=3) {
+      for(uint16_t i = 0; i<strip->getLength(); i++) {
+        strip->leds[i].subtractFromRGB(3);
       }
-      strip.show();
+      strip->show();
       delay(1);
     }
   }
-  //strip.stop();
+  //strip->stop();
   delay(100);
   readRuntimeDataEEPROM();
   if(stripIsOn) strip_On_Off(true);
@@ -1109,10 +1224,10 @@ void loop() {
       #endif
       // Show the WiFi loss with yellow LEDs.
       // Whole strip lid finally.
-      for(uint16_t i = 0; i<strip.getLength(); i++)
+      for(uint16_t i = 0; i<strip->getLength(); i++)
       {
-        strip.setPixelColor(i, 0xa0a000);
-        strip.show();
+        strip->leds[i] = 0xa0a000;
+        strip->show();
       }
       // Reset after 6 seconds....
       delay(3000);
