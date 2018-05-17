@@ -22,7 +22,7 @@
 #define STRIP_VOLTAGE 5
 #define STRIP_MILLIAMPS 2500
 
-//#define DEBUG
+#define DEBUG
 
 #include "Arduino.h"
 #include <ArduinoJson.h>
@@ -44,7 +44,7 @@
 bool hasResetButton = false;
 Bounce debouncer = Bounce();
 
-#define LED_COUNT 100
+#define LED_COUNT 50
 #define LED_PIN 3
 
 
@@ -782,18 +782,18 @@ void handleSet(void){
       brightness = constrain((uint8_t)strtoul(&server.arg("br")[0], NULL, 10), BRIGHTNESS_MIN, BRIGHTNESS_MAX);
     }
     strip->setBrightness(brightness);
-    strip->show();
+    //strip->show();
   }
   // if we got a speed value
   if(server.hasArg("sp")) {
     uint16_t speed = strip->getBeat88();
     if (server.arg("sp")[0] == 'u') {
-      uint16_t ret = max((speed*110)/100, 10);
+      uint16_t ret = max((speed*115)/100, 10);
       if (ret > BEAT88_MAX) ret = BEAT88_MAX;
       speed = ret;
       //speed = changebypercentage(speed, 110);
     } else if (server.arg("sp")[0] == 'd') {
-      uint16_t ret = max((speed*90)/100, 10);
+      uint16_t ret = max((speed*80)/100, 10);
       if (ret > BEAT88_MAX) ret = BEAT88_MAX;
       speed = ret;
       //speed = changebypercentage(speed, 90);
@@ -809,12 +809,12 @@ void handleSet(void){
   if(server.hasArg("be")) {
     uint16_t speed = strip->getBeat88();
     if (server.arg("be")[0] == 'u') {
-      uint16_t ret = max((speed*110)/100, 10);
+      uint16_t ret = max((speed*115)/100, 10);
       if (ret > BEAT88_MAX) ret = BEAT88_MAX;
       speed = ret;
       //speed = changebypercentage(speed, 110);
     } else if (server.arg("be")[0] == 'd') {
-      uint16_t ret = max((speed*90)/100, 10);
+      uint16_t ret = max((speed*80)/100, 10);
       if (ret > BEAT88_MAX) ret = BEAT88_MAX;
       speed = ret;
       //speed = changebypercentage(speed, 90);

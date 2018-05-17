@@ -100,14 +100,14 @@ char index_html[] PROGMEM = R"=====(
       </div>
 	  <div id='brightness'>
         <p style='color:#a0a0a0;'>Helligkeit
-          <a href='#' class='b' id='d' style='color:#a0a0a0;'>dunkler</a>
-          <a href='#' class='b' id='u' style='color:#c0c0c0;'>heller</a>
+          <a href='#' class='br' id='d' style='color:#a0a0a0;'>dunkler</a>
+          <a href='#' class='br' id='u' style='color:#c0c0c0;'>heller</a>
         </p>
       </div>
       <div id='speed'>
         <p style='color:#a0a0a0;'>Tempo
-        	<a href='#' class='s' id='d' style='color:#6060a0;'>langsamer</a>
-        	<a href='#' class='s' id='u' style='color:#a06060;'>schneller</a>
+        	<a href='#' class='sp' id='d' style='color:#6060a0;'>langsamer</a>
+        	<a href='#' class='sp' id='u' style='color:#a06060;'>schneller</a>
         </p>
       </div>
       <div id='auto'>

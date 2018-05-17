@@ -58,8 +58,8 @@ void stripe_setup(  const uint16_t LEDCount,
   //strip->begin();
   //strip->clear();
   strip->init();
-  strip->setBrightness(150);
-  strip->setSpeed(1000);
+  strip->setBrightness(DEFAULT_BRIGHTNESS);
+  strip->setSpeed(DEFAULT_BEAT88);
   //strip->setColor(0xff9900);
   strip->start();
   strip->show();

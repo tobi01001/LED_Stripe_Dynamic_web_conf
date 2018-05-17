@@ -8,7 +8,7 @@ function handle_M_B_S(e) {
   var name = e.target.className;
   var val = e.target.id;
   
-  if(e.target.className.indexOf('m') > -1) {
+  if(e.target.className == 'mo' ) {
     elems = document.querySelectorAll('#mode a');
     [].forEach.call(elems, function(el) {
       el.classList.remove('active');
@@ -17,7 +17,7 @@ function handle_M_B_S(e) {
     e.target.classList.add('active');
   }
   
-  if(e.target.className.indexOf('p') > -1) {
+  if(e.target.className == 'pa') {
     elems = document.querySelectorAll('#pal a');
     [].forEach.call(elems, function(el) {
       el.classList.remove('active');
