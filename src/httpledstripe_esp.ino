@@ -15,6 +15,12 @@
 #define FASTLED_ESP8266_DMA
 #define FASTLED_USE_PROGMEM 1
 
+
+//#define LED_NAME "\"LED Dev-Board\""
+#define LED_NAME "\"LED Papa Nachttisch\""
+//#define LED_NAME "\"LED Hannah Norah\""
+//#define LED_NAME "\"LED Wohnzimmer\""
+//#define LED_NAME "\"LED Flurbeleuchtung\""
 #define LED_COUNT 50
 #define LED_PIN 3
 
@@ -22,13 +28,21 @@
 #define STRIP_VOLTAGE 5
 #define STRIP_MILLIAMPS 2500
 
-#define DEBUG
+//#define DEBUG
+
+#define ARRAY_SIZE(A) (sizeof(A) / sizeof((A)[0]))
+
+
+extern "C" {
+#include "user_interface.h"
+}
 
 #include "Arduino.h"
 #include <ArduinoJson.h>
 #include <ESP8266WiFi.h>
-#include <DNSServer.h>
+//#include <DNSServer.h>
 #include <ESP8266WebServer.h>
+#include <WebSocketsServer.h>
 #include <WiFiManager.h>
 #include <Bounce2.h>
 #include <ArduinoOTA.h>
@@ -39,6 +53,9 @@
 #include "led_strip.h"
 
 #include "pahcolor.h"
+
+
+
 
 /* Flash Button can be used here for toggles.... */
 bool hasResetButton = false;
@@ -52,6 +69,7 @@ Bounce debouncer = Bounce();
 /* maybe move all wifi stuff to separate files.... */
 #define WIFI_TIMEOUT 5000
 ESP8266WebServer server(80);
+WebSocketsServer webSocketsServer = WebSocketsServer(81);
 WiFiManager wifiManager;
 
 String AP_SSID = "LED_stripe_" + String(ESP.getChipId());
@@ -71,8 +89,10 @@ char static_sn[16] = "255.255.255.0";
 
 /* END Network Definitions */
 
+/* Removed in favor of Webserver SPIFFS 
 extern const char index_html[];
 extern const char main_js[];
+*/
 
 //String modes = "";
 
@@ -80,22 +100,26 @@ extern const char main_js[];
 bool shouldSaveConfig = false;
 bool shouldSaveRuntime = false;
 
-// ToDo: CRC checking....
-#define DATAVALID_KEY 0xa5aa5a5a
-
 typedef struct {
-    uint32_t dataValid = 0x00000000;
+    uint16_t CRC = 0;
     WS2812FX::segment seg;
     uint8_t brightness = DEFAULT_BRIGHTNESS;
     mysunriseParam sParam;
     pah_colorvalues sunriseColors;
     uint8_t currentEffect = FX_NO_FX;
+    uint8_t pal_num;
+    CRGBPalette16 pal;
+    //String pal_name = "Red Green White Colors";
     bool stripIsOn = false;
 } EEPROMSaveData;
 
 EEPROMSaveData myEEPROMSaveData;
 
 unsigned long last_wifi_check_time = 0;
+
+
+#include "FSBrowser.h"
+
 
 // function Definitions
 void  saveConfigCallback    (void),
@@ -116,6 +140,11 @@ void  saveConfigCallback    (void),
       factoryReset          (void),
       handleResetRequest    (void),
       setupWebServer        (void),
+      sendInt               (uint8_t value),
+      sendString            (String value),
+      broadcastInt          (String name, uint16_t value),
+      broadcastString       (String name, String value),
+      webSocketEvent        (uint8_t num, WStype_t type, uint8_t * payload, size_t length),
       clearEEPROM           (void);
 
       
@@ -123,42 +152,151 @@ const String
       pals_setup            (void),
       modes_setup           (void);
 
+
+
+
+void sendInt(uint8_t value)
+{
+  sendString(String(value));
+}
+
+void sendString(String value)
+{
+  #ifdef DEBUG
+  Serial.print("Send HTML respone 200, text/plain with value: ");
+  Serial.println(value);
+  #endif
+  //server.send(200, "text/plain", value);
+  //handleStatus();
+}
+
+void broadcastInt(String name, uint16_t value)
+{
+  String json = "{\"name\":\"" + name + "\",\"value\":" + String(value) + "}";
+  #ifdef DEBUG
+  Serial.print("Send websocket broadcast with value: ");
+  Serial.println(json);
+  #endif
+  webSocketsServer.broadcastTXT(json);
+}
+
+void broadcastString(String name, String value)
+{
+  String json = "{\"name\":\"" + name + "\",\"value\":\"" + String(value) + "\"}";
+  #ifdef DEBUG
+  Serial.print("Send websocket broadcast with value: ");
+  Serial.println(json);
+  #endif
+  webSocketsServer.broadcastTXT(json);
+}
+
+unsigned int calc_CRC16(unsigned int crc, unsigned char *buf, int len)
+{
+	for (int pos = 0; pos < len; pos++)
+	{
+		crc ^= (unsigned int)buf[pos];    // XOR byte into least sig. byte of crc
+
+		for (int i = 8; i != 0; i--) {    // Loop over each bit
+			if ((crc & 0x0001) != 0) {      // If the LSB is set
+				crc >>= 1;                    // Shift right and XOR 0xA001
+				crc ^= 0xA001;
+			}
+			else                            // Else LSB is not set
+				crc >>= 1;                    // Just shift right
+		}
+	}
+	return crc;
+}
+
 // write runtime data to EEPROM
 void saveEEPROMData(void) {
   if(!shouldSaveRuntime) return;
   shouldSaveRuntime = false;
   #ifdef DEBUG
     Serial.println("\nGoing to store runtime on EEPROM...");
+  
+    Serial.println("\tget segments");
   #endif
-  myEEPROMSaveData.dataValid = DATAVALID_KEY;
   myEEPROMSaveData.seg = strip->getSegments()[0];
+  #ifdef DEBUG
+    Serial.print("\t\tautoPal ");
+    Serial.println(myEEPROMSaveData.seg.autoPal);
+    Serial.print("\t\tautoPalDuration ");
+    Serial.println(myEEPROMSaveData.seg.autoPalDuration);
+    Serial.print("\t\tautoplay ");
+    Serial.println(myEEPROMSaveData.seg.autoplay);
+    Serial.print("\t\t autoplayDuration ");
+    Serial.println(myEEPROMSaveData.seg.autoplayDuration);
+    Serial.print("\t\t beat88 ");
+    Serial.println(myEEPROMSaveData.seg.beat88);
+    Serial.print("\t\t blendType ");
+    Serial.println(myEEPROMSaveData.seg.blendType);
+    Serial.print("\t\t cooling ");
+    Serial.println(myEEPROMSaveData.seg.cooling);
+    Serial.print("\t\t deltaHue ");
+    Serial.println(myEEPROMSaveData.seg.deltaHue);
+    Serial.print("\t\t hueTime ");
+    Serial.println(myEEPROMSaveData.seg.hueTime);
+    Serial.print("\t\t milliamps ");
+    Serial.println(myEEPROMSaveData.seg.milliamps);
+    Serial.print("\t\t mode ");
+    Serial.println(myEEPROMSaveData.seg.mode);
+    Serial.print("\t\t reverse ");
+    Serial.println(myEEPROMSaveData.seg.reverse);
+    Serial.print("\t\t sparking ");
+    Serial.println(myEEPROMSaveData.seg.sparking);
+  #endif
   myEEPROMSaveData.brightness = strip->getBrightness();
+  #ifdef DEBUG
+    Serial.print("\tget brightness ");
+    Serial.println(myEEPROMSaveData.brightness);
+  #endif
   myEEPROMSaveData.sParam = sunriseParam;
+  #ifdef DEBUG
+    Serial.println("\tget sunriseparam");
+  #endif
   myEEPROMSaveData.sunriseColors = myColor.getPahColorValues();
+  #ifdef DEBUG
+    Serial.println("\tget pahColorvalues");
+  #endif
   myEEPROMSaveData.currentEffect = currentEffect;
+  #ifdef DEBUG
+    Serial.print("\tget current effect ");
+    Serial.println(myEEPROMSaveData.currentEffect);
+  #endif
+  myEEPROMSaveData.pal_num = strip->getTargetPaletteNumber();
+  #ifdef DEBUG
+    Serial.print("\tget pal number ");
+    Serial.println(myEEPROMSaveData.pal_num);
+  #endif
+  myEEPROMSaveData.pal = strip->getTargetPalette();
+  #ifdef DEBUG
+    Serial.println("\tget palette");
+  #endif
   myEEPROMSaveData.stripIsOn = stripIsOn;
+  #ifdef DEBUG
+    Serial.print("\tget stripIsOn ");
+    Serial.println(myEEPROMSaveData.stripIsOn);
+
+    Serial.println("\nGoing to calculate the CRC over the data...");
+    Serial.print("\tsize of myEEPROMSaveData\t");
+    Serial.println(sizeof(myEEPROMSaveData));
+    Serial.print("\tsize of myEEPROMSaveData - 2\t");
+    Serial.println(sizeof(myEEPROMSaveData)-2);
+    Serial.print("\tsize of myEEPROMSaveData.CRC\t");
+    Serial.println(sizeof(myEEPROMSaveData.CRC));
+  #endif
+  
+  myEEPROMSaveData.CRC = (uint16_t)calc_CRC16(0x5a5a, (unsigned char*)&myEEPROMSaveData+2, sizeof(myEEPROMSaveData)-2);
 
   #ifdef DEBUG
-  Serial.print("\tdataValid\t");
-  Serial.println(myEEPROMSaveData.dataValid);
-
-  Serial.print("\tBrightness\t");
-  Serial.println(myEEPROMSaveData.brightness);
-
-  Serial.print("\tCurrentEffect\t");
-  Serial.println(myEEPROMSaveData.currentEffect);
-
-  Serial.print("\twsfxmode\t");
-  Serial.println(myEEPROMSaveData.seg.mode);
-
-  Serial.print("\tstripIsOn\t");
-  Serial.println(myEEPROMSaveData.stripIsOn);
+  Serial.printf("\tCRC\t0x%04x\n", myEEPROMSaveData.CRC);
   #endif
 
-  EEPROM.begin(sizeof(myEEPROMSaveData)+10);
+  //EEPROM.begin(sizeof(myEEPROMSaveData));
   EEPROM.put(0, myEEPROMSaveData);
   EEPROM.commit();
-  EEPROM.end();
+  //EEPROM.end();
   #ifdef DEBUG
     Serial.println("EEPROM write finished...");
   #endif
@@ -181,52 +319,99 @@ void readRuntimeDataEEPROM(void) {
     Serial.println("\n\tReading Config From EEPROM...");
   #endif
   //read the configuration from EEPROM into RAM
-  EEPROM.begin(sizeof(myEEPROMSaveData)+10);
+  EEPROM.begin(sizeof(myEEPROMSaveData));
 
   EEPROM.get(0, myEEPROMSaveData);
-  EEPROM.end();
+  //EEPROM.end();
 
-  if(myEEPROMSaveData.dataValid == DATAVALID_KEY) {
-    strip->setSegment(0, myEEPROMSaveData.seg.start,  myEEPROMSaveData.seg.stop,
+  uint16_t mCRC =  (uint16_t)calc_CRC16( 0x5a5a, 
+                            (unsigned char*)&myEEPROMSaveData+2, 
+                            sizeof(myEEPROMSaveData)-2);
+
+  if( myEEPROMSaveData.CRC == mCRC) 
+  {
+
+    /*strip->setSegment(0, myEEPROMSaveData.seg.start,  myEEPROMSaveData.seg.stop,
                          myEEPROMSaveData.seg.mode,   myEEPROMSaveData.seg.cPalette,
                          myEEPROMSaveData.seg.beat88, myEEPROMSaveData.seg.reverse);
+    */
     strip->setBrightness(myEEPROMSaveData.brightness);
+
+    strip->getSegments()[0] = myEEPROMSaveData.seg;
+
     sunriseParam = myEEPROMSaveData.sParam;
     myColor.setPahColorValues(myEEPROMSaveData.sunriseColors);
     currentEffect = myEEPROMSaveData.currentEffect;
+    if(myEEPROMSaveData.pal_num < strip->getPalCount())
+    {
+      strip->setTargetPalette(myEEPROMSaveData.pal_num);
+    }
+    else
+    {
+      strip->setTargetPalette(myEEPROMSaveData.pal, "Custom");
+    }
     stripIsOn = myEEPROMSaveData.stripIsOn;
+    stripWasOff = stripIsOn;
+    previousEffect = currentEffect;    
+    //setEffect(currentEffect);
   }
+  else // load defaults
+  {
+
+  }
+
   #ifdef DEBUG
-  Serial.print("\tdataValid\n");
-  Serial.println(myEEPROMSaveData.dataValid);
+  Serial.printf("\tCRC stored\t0x%04x\n", myEEPROMSaveData.CRC);
+  Serial.printf("\tCRC calculated\t0x%04x\n", mCRC);
+    Serial.println("\tRead Segment Data:");
+    Serial.print("\t\tautoPal\t\t ");
+    Serial.println(myEEPROMSaveData.seg.autoPal);
+    Serial.print("\t\tautoPalDuration\t\t ");
+    Serial.println(myEEPROMSaveData.seg.autoPalDuration);
+    Serial.print("\t\tautoplay\t\t ");
+    Serial.println(myEEPROMSaveData.seg.autoplay);
+    Serial.print("\t\t autoplayDuration\t\t ");
+    Serial.println(myEEPROMSaveData.seg.autoplayDuration);
+    Serial.print("\t\t beat88\t\t ");
+    Serial.println(myEEPROMSaveData.seg.beat88);
+    Serial.print("\t\t blendType\t\t ");
+    Serial.println(myEEPROMSaveData.seg.blendType);
+    Serial.print("\t\t cooling\t\t ");
+    Serial.println(myEEPROMSaveData.seg.cooling);
+    Serial.print("\t\t deltaHue\t\t ");
+    Serial.println(myEEPROMSaveData.seg.deltaHue);
+    Serial.print("\t\t hueTime\t\t ");
+    Serial.println(myEEPROMSaveData.seg.hueTime);
+    Serial.print("\t\t milliamps\t\t ");
+    Serial.println(myEEPROMSaveData.seg.milliamps);
+    Serial.print("\t\t mode\t\t ");
+    Serial.println(myEEPROMSaveData.seg.mode);
+    Serial.print("\t\t reverse\t\t ");
+    Serial.println(myEEPROMSaveData.seg.reverse);
+    Serial.print("\t\t sparking\t\t ");
+    Serial.println(myEEPROMSaveData.seg.sparking);
 
-  Serial.print("\tBrightness\n");
-  Serial.println(myEEPROMSaveData.brightness);
-  Serial.println(strip->getBrightness());
-
-  Serial.print("\tCurrentEffect\n");
-  Serial.println(myEEPROMSaveData.currentEffect);
-  Serial.println(currentEffect);
-
-  Serial.print("\twsfxmode\n");
-  Serial.println(myEEPROMSaveData.seg.mode);
-  Serial.println(strip->getMode());
-
-  Serial.print("\tstripIsOn\n");
-  Serial.println(myEEPROMSaveData.stripIsOn);
-  Serial.println(stripIsOn);
+    Serial.print("\tget brightness\t\t ");
+    Serial.println(myEEPROMSaveData.brightness);
+    Serial.print("\tget current effect\t\t ");
+    Serial.println(myEEPROMSaveData.currentEffect);
+    Serial.print("\tget pal number\t\t ");
+    Serial.println(myEEPROMSaveData.pal_num);
+    Serial.print("\tget stripIsOn\t\t ");
+    Serial.println(myEEPROMSaveData.stripIsOn);
   #endif
 
   // no need to save right now. next save should be after /set?....
   shouldSaveRuntime = false;
 }
 
+
+void readConfigurationFS(void) {}
+
+/*
 void readConfigurationFS(void) {
   //read configuration from FS json
 
-  /*  check if we really need to use the filw system or if a somple EEPROM
-      write/read would do the trick as well
-  */
 
   #ifdef DEBUG
     Serial.println("mounting FS...");
@@ -301,11 +486,16 @@ void readConfigurationFS(void) {
   //Serial.println(chrResetButtonPin);
   #endif
 }
+*/
+
+bool OTAisRunning = false;
 
 void initOverTheAirUpdate(void) {
   #ifdef DEBUG
   Serial.println("\nInitializing OTA capabilities....");
   #endif
+  FastLED.showColor(CRGB::Blue);
+  delay(500);
   /* init OTA */
   // Port defaults to 8266
   ArduinoOTA.setPort(8266);
@@ -322,6 +512,7 @@ void initOverTheAirUpdate(void) {
     #ifdef DEBUG
     Serial.println("OTA start");
     #endif
+    
     setEffect(FX_NO_FX);
     reset();
     uint8_t factor = 85;
@@ -342,25 +533,28 @@ void initOverTheAirUpdate(void) {
       strip->show();
       delay(400);
     }
+    webSocketsServer.disconnect();
     server.stop();
+    OTAisRunning = true;
   });
   ArduinoOTA.onEnd([]() {
     #ifdef DEBUG
     Serial.println("\nOTA end");
     #endif
-    clearEEPROM();
+    // clearEEPROM();
     // OTA finished.
     // Green Leds fade out.
     for(uint8_t i = strip->leds[i].green; i>0; i--)
     {
       for(uint16_t p=0; p<strip->getLength(); p++)
       {
-        strip->leds[p].subtractFromRGB(1);
+        strip->leds[p].subtractFromRGB(2);
         //strip.setPixelColor(p, 0, i-1 ,0);
       }
       strip->show();
       delay(2);
     }
+    OTAisRunning = false;
   });
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
     #ifdef DEBUG
@@ -406,119 +600,128 @@ void initOverTheAirUpdate(void) {
   #ifdef DEBUG
   Serial.println("OTA capabilities initialized....");
   #endif
+  FastLED.showColor(CRGB::Green);
+  delay(500);
+  FastLED.showColor(CRGB::Black);
   delay(500);
 }
 
+/*
 void setupResetButton(uint8_t buttonPin){
     pinMode(buttonPin,INPUT_PULLUP);
     // After setting up the button, setup the Bounce instance :
     debouncer.attach(buttonPin);
     debouncer.interval(50); // interval in ms
 }
+*/
 
-void updateConfiguration(void){
-  #ifdef DEBUG
-  Serial.println("Updating configuration just received");
-  #endif
-  // only copy the values in case the Parameter wa sset in config!
-  if(shouldSaveConfig) {
-  //  strcpy(chrResetButtonPin, ResetButtonPin.getValue());
-  //  strcpy(chrLEDCount, LedCountConf.getValue());
-  //  strcpy(chrLEDPin, LedPinConf.getValue());
-  }
-  /*
-  String sLedCount = chrLEDCount;
-  String sLedPin   = chrLEDPin;
+void updateConfiguration(void){}
+// void updateConfiguration(void){
+//   #ifdef DEBUG
+//   Serial.println("Updating configuration just received");
+//   #endif
+//   // only copy the values in case the Parameter wa sset in config!
+//   if(shouldSaveConfig) {
+//   //  strcpy(chrResetButtonPin, ResetButtonPin.getValue());
+//   //  strcpy(chrLEDCount, LedCountConf.getValue());
+//   //  strcpy(chrLEDPin, LedPinConf.getValue());
+//   }
+//   /*
+//   String sLedCount = chrLEDCount;
+//   String sLedPin   = chrLEDPin;
 
-  uint16_t ledCount = sLedCount.toInt();
-  uint8_t ledPin = sLedPin.toInt();
-  */
+//   uint16_t ledCount = sLedCount.toInt();
+//   uint8_t ledPin = sLedPin.toInt();
+//   */
 
-  /*
-  uint16_t ledCount = (uint16_t) strtoul(chrLEDCount, NULL, 10);
-  uint8_t ledPin = (uint8_t) strtoul(chrLEDPin, NULL, 10);
-  // if something went wrong here (GPIO = 0 or LEDs = 0)
-  // we reset and start allover again
-  if(ledCount == 0 || ledPin == 0) {
-    #ifdef DEBUG
-    Serial.println("\n\tSomething went wrong! Config will be deleted and ESP Reset!");
-    #endif
-    SPIFFS.format();
-    wifiManager.resetSettings();
-    #ifdef DEBUG
-    Serial.println("\nCountdown to Reset:");
-    #endif
-    for(uint8_t i = 0; i<10; i++) {
-      #ifdef DEBUG
-      Serial.println(10-i);
-      #endif
-    }
-    ESP.reset();
-  }
-  #ifdef DEBUG
-  Serial.print("LEDCount: ");
-  Serial.println(ledCount);
+//   /*
+//   uint16_t ledCount = (uint16_t) strtoul(chrLEDCount, NULL, 10);
+//   uint8_t ledPin = (uint8_t) strtoul(chrLEDPin, NULL, 10);
+//   // if something went wrong here (GPIO = 0 or LEDs = 0)
+//   // we reset and start allover again
+//   if(ledCount == 0 || ledPin == 0) {
+//     #ifdef DEBUG
+//     Serial.println("\n\tSomething went wrong! Config will be deleted and ESP Reset!");
+//     #endif
+//     SPIFFS.format();
+//     wifiManager.resetSettings();
+//     #ifdef DEBUG
+//     Serial.println("\nCountdown to Reset:");
+//     #endif
+//     for(uint8_t i = 0; i<10; i++) {
+//       #ifdef DEBUG
+//       Serial.println(10-i);
+//       #endif
+//     }
+//     ESP.reset();
+//   }
+//   #ifdef DEBUG
+//   Serial.print("LEDCount: ");
+//   Serial.println(ledCount);
 
-  Serial.print("LED datapin: ");
-  Serial.println(ledPin);
-  #endif
-  if(chrResetButtonPin[0] == 'x' || chrResetButtonPin[0] == 'X') {
-      hasResetButton = false;
-      #ifdef DEBUG
-      Serial.println("No Reset Button specified.");
-      #endif
-  } else {
-      String srstPin = chrResetButtonPin;
-      uint8_t rstPin =  srstPin.toInt();
-      #ifdef DEBUG
-      Serial.print("Reset Button Pin: ");
-      Serial.println(rstPin);
-      #endif
-      hasResetButton = true;
-      setupResetButton(rstPin);
-  }
-  */
+//   Serial.print("LED datapin: ");
+//   Serial.println(ledPin);
+//   #endif
+//   if(chrResetButtonPin[0] == 'x' || chrResetButtonPin[0] == 'X') {
+//       hasResetButton = false;
+//       #ifdef DEBUG
+//       Serial.println("No Reset Button specified.");
+//       #endif
+//   } else {
+//       String srstPin = chrResetButtonPin;
+//       uint8_t rstPin =  srstPin.toInt();
+//       #ifdef DEBUG
+//       Serial.print("Reset Button Pin: ");
+//       Serial.println(rstPin);
+//       #endif
+//       hasResetButton = true;
+//       setupResetButton(rstPin);
+//   }
+//   */
 
-  /*
-  if (shouldSaveConfig) {
-    #ifdef DEBUG
-    Serial.println("saving config");
-    #endif
-    DynamicJsonBuffer jsonBuffer;
-    JsonObject& json = jsonBuffer.createObject();
-    json["chrResetButtonPin"] = chrResetButtonPin;
-    json["chrLEDCount"] = chrLEDCount;
-    json["chrLEDPin"] = chrLEDPin;
-  */
-    /*  Maybe we deal with static IP later.
-        For now we just don't save it....
-        json["ip"] = WiFi.localIP().toString();
-        json["gateway"] = WiFi.gatewayIP().toString();
-        json["subnet"] = WiFi.subnetMask().toString();
-    */
-  /*
-    File configFile = SPIFFS.open("/config.json", "w");
-    if (!configFile) {
-      #ifdef DEBUG
-      Serial.println("failed to open config file for writing");
-      #endif
-    }
-    #ifdef DEBUG
-    json.prettyPrintTo(Serial);
-    #endif
-    json.printTo(configFile);
-    configFile.close();
-    //end save
-  }
-  */
-  #ifdef DEBUG
-  Serial.println("\nEverything in place... setting up stripe.");
-  #endif
-  //stripe_setup( LED_COUNT, STRIP_FPS, STRIP_VOLTAGE, STRIP_MILLIAMPS, RainbowColors_p, F("Rainbow Colors"), TypicalLEDStrip);
-}
+//   /*
+//   if (shouldSaveConfig) {
+//     #ifdef DEBUG
+//     Serial.println("saving config");
+//     #endif
+//     DynamicJsonBuffer jsonBuffer;
+//     JsonObject& json = jsonBuffer.createObject();
+//     json["chrResetButtonPin"] = chrResetButtonPin;
+//     json["chrLEDCount"] = chrLEDCount;
+//     json["chrLEDPin"] = chrLEDPin;
+//   */
+//     /*  Maybe we deal with static IP later.
+//         For now we just don't save it....
+//         json["ip"] = WiFi.localIP().toString();
+//         json["gateway"] = WiFi.gatewayIP().toString();
+//         json["subnet"] = WiFi.subnetMask().toString();
+//     */
+//   /*
+//     File configFile = SPIFFS.open("/config.json", "w");
+//     if (!configFile) {
+//       #ifdef DEBUG
+//       Serial.println("failed to open config file for writing");
+//       #endif
+//     }
+//     #ifdef DEBUG
+//     json.prettyPrintTo(Serial);
+//     #endif
+//     json.printTo(configFile);
+//     configFile.close();
+//     //end save
+//   }
+//   */
+//   #ifdef DEBUG
+//   Serial.println("\nEverything in place... setting up stripe.");
+//   #endif
+//   //stripe_setup( LED_COUNT, STRIP_FPS, STRIP_VOLTAGE, STRIP_MILLIAMPS, RainbowColors_p, F("Rainbow Colors"), TypicalLEDStrip);
+// }
 
 void setupWiFi(void){
 
+  
+  FastLED.showColor(CRGB::Blue);
+  delay(500);
   wifiManager.setSaveConfigCallback(saveConfigCallback);
 
 /*
@@ -541,7 +744,9 @@ void setupWiFi(void){
     #ifdef DEBUG
     Serial.println("failed to connect, we should reset as see if it connects");
     #endif
+    FastLED.showColor(CRGB::Yellow);
     delay(3000);
+    FastLED.showColor(CRGB::Red);
     ESP.reset();
     delay(5000);
   }
@@ -560,18 +765,25 @@ void setupWiFi(void){
   Serial.print("local ip: ");
   Serial.println(WiFi.localIP());
   #endif
+
+  FastLED.showColor(CRGB::Green);
+  delay(500);
+  FastLED.showColor(CRGB::Black);
 }
 
+/*
 void handleRoot(void){
     server.send_P(200,"text/html", index_html);
     #ifdef DEBUG
-    Serial.println("\t/ called from Webserver...\n");
+    Serial.println("\t/ called from server...\n");
     #endif
 }
-
+*/
+/*
 void srv_handle_main_js(void) {
   server.send_P(200,"application/javascript", main_js);
 }
+*/
 
 const String modes_setup(void) {
   String modes = "";
@@ -655,40 +867,66 @@ void handleSet(void){
   if(server.hasArg("mo")) {
     bool isWS2812FX = false;
     uint8_t effect = strip->getMode();
-
+    #ifdef DEBUG
+    Serial.println("got Argument mo....");
+    #endif
     // just switch to the next
     if (server.arg("mo")[0] == 'u') {
+    #ifdef DEBUG
+    Serial.println("got Argument mode up....");
+    #endif
       effect = effect + 1;
       isWS2812FX = true;
     }
     // switch to the previous one
     else if (server.arg("mo")[0] == 'd') {
+      #ifdef DEBUG
+      Serial.println("got Argument mode down....");
+      #endif
       effect = effect - 1;
       isWS2812FX = true;
     }
     else if (server.arg("mo")[0] == 'o') {
+      #ifdef DEBUG
+      Serial.println("got Argument mode Off....");
+      #endif
       reset();
       strip_On_Off(false);
       FastLED.clearData();
       strip->stop();
     }
     else if (server.arg("mo")[0] == 'f') {
+      #ifdef DEBUG
+      Serial.println("got Argument fire....");
+      #endif
       effect = FX_MODE_FIRE_FLICKER;
       isWS2812FX = true;
     }
     else if (server.arg("mo")[0] == 'r') {
+      #ifdef DEBUG
+      Serial.println("got Argument mode rainbow cycle....");
+      #endif
       effect = FX_MODE_RAINBOW_CYCLE;
       isWS2812FX = true;
     }
     else if (server.arg("mo")[0] == 'k') {
+      #ifdef DEBUG
+      Serial.println("got Argument mode KITT....");
+      #endif
       effect = FX_MODE_LARSON_SCANNER;
       isWS2812FX = true;
     }
     else if (server.arg("mo")[0] == 's') {
+      #ifdef DEBUG
+      Serial.println("got Argument mode Twinkle Fox....");
+      #endif
       effect = FX_MODE_TWINKLE_FOX;
       isWS2812FX = true;
     }
     else if (server.arg("mo")[0] == 'w') {
+      #ifdef DEBUG
+      Serial.println("got Argument mode White Twinkle....");
+      #endif
       strip->setColor(CRGBPalette16(CRGB::White));
       effect = FX_MODE_TWINKLE_FADE;
       isWS2812FX = true;
@@ -696,17 +934,26 @@ void handleSet(void){
     // sunrise effect
     // + delta value
     // ToDo Implement
-
+    //#pragma message "Change Sunrise / Sunset to different unique modes in set call!"
     else if (server.arg("mo") == "Sunrise") {
+      #ifdef DEBUG
+      Serial.println("got Argument mode sunrise....");
+      #endif
       // milliseconds time to full sunrise
       uint32_t mytime = 0;
       const uint16_t mysteps = 512; // defaults to 512;
       // sunrise time in seconds
       if(server.hasArg("sec")) {
+        #ifdef DEBUG
+        Serial.println("got Argument sec....");
+        #endif
         mytime = 1000 * (uint32_t)strtoul(&server.arg("sec")[0], NULL, 10);
       }
       // sunrise time in minutes
       else if(server.hasArg("min")) {
+        #ifdef DEBUG
+        Serial.println("got Argument min....");
+        #endif
         mytime = (1000 * 60) * (uint8_t)strtoul(&server.arg("min")[0], NULL, 10);
       }
       // use default if time = 0;
@@ -723,15 +970,24 @@ void handleSet(void){
     // + delta value
     // ToDo Implement
     else if (server.arg("mo") == "Sunset") {
+      #ifdef DEBUG
+      Serial.println("got Argument mode sunset....");
+      #endif
       // milliseconds time to full sunrise
       uint32_t mytime = 0;
       const uint16_t mysteps = 512; // defaults to 1000;
       // sunrise time in seconds
       if(server.hasArg("sec")) {
+        #ifdef DEBUG
+        Serial.println("got Argument sec....");
+        #endif
         mytime = 1000 * (uint32_t)strtoul(&server.arg("sec")[0], NULL, 10);
       }
       // sunrise time in minutes
       else if(server.hasArg("min")) {
+        #ifdef DEBUG
+        Serial.println("got Argument min....");
+        #endif
         mytime = (1000 * 60) * (uint8_t)strtoul(&server.arg("min")[0], NULL, 10);
       }
       // use default if time = 0;
@@ -748,11 +1004,17 @@ void handleSet(void){
     // we don't care if its actually an int or not
     // because it will be zero anyway if not.
     else {
+      #ifdef DEBUG
+      Serial.println("got Argument mode and seems to be an Effect....");
+      #endif
       effect = (uint8_t)strtoul(&server.arg("mo")[0], NULL, 10);
       isWS2812FX = true;
     }
     // make sure we roll over at the max number
     if(effect >= strip->getModeCount()) {
+      #ifdef DEBUG
+      Serial.println("Effect to high....");
+      #endif
       effect = 0;
     }
     // activate the effect and trigger it once...
@@ -760,19 +1022,54 @@ void handleSet(void){
       setEffect(FX_WS2812);
       strip->setMode(effect);
       strip->start();
-      strip->trigger();
+      #ifdef DEBUG
+      Serial.println("gonna send mo response....");
+      #endif
+      //strip->trigger();
+      sendInt(effect);
+      broadcastInt("mo", effect);
     }
   }
-  
+  if(server.hasArg("power"))
+  {
+    #ifdef DEBUG
+      Serial.println("got Argument power....");
+      #endif
+    if(server.arg("power")[0] == '0')
+    {
+      //reset();
+      strip_On_Off(false);
+      //FastLED.clearData();
+    }
+    else
+    {
+      strip_On_Off(true);
+    }
+    sendInt(stripIsOn);
+    broadcastInt("power", stripIsOn);
+  }
+    
+
   // if we got a palette change
   if(server.hasArg("pa")) {
     // ToDo: Possibility to setColors and new Palettes...
     uint8_t pal = (uint8_t)strtoul(&server.arg("pa")[0], NULL, 10);
+    #ifdef DEBUG
+    Serial.print("New palette with value: ");
+    Serial.println(pal);
+    #endif
     strip->setTargetPalette(pal);
+    sendInt(pal);
+    broadcastInt("pa", pal);
   }
+
+
 
   // if we got a new brightness value
   if(server.hasArg("br")) {
+    #ifdef DEBUG
+      Serial.println("got Argument brightness....");
+      #endif
     uint8_t brightness = strip->getBrightness();
     if (server.arg("br")[0] == 'u') {
     brightness = changebypercentage(brightness, 110);
@@ -782,10 +1079,15 @@ void handleSet(void){
       brightness = constrain((uint8_t)strtoul(&server.arg("br")[0], NULL, 10), BRIGHTNESS_MIN, BRIGHTNESS_MAX);
     }
     strip->setBrightness(brightness);
+    sendInt(brightness);
+    broadcastInt("br", strip->getBrightness());
     //strip->show();
   }
   // if we got a speed value
   if(server.hasArg("sp")) {
+    #ifdef DEBUG
+      Serial.println("got Argument speed....");
+      #endif
     uint16_t speed = strip->getBeat88();
     if (server.arg("sp")[0] == 'u') {
       uint16_t ret = max((speed*115)/100, 10);
@@ -803,10 +1105,15 @@ void handleSet(void){
     strip->setSpeed(speed);
     // delay_interval = (uint8_t)(speed / 256); // obsolete???
     strip->show();
+    sendInt(speed);
+    broadcastInt("sp", strip->getBeat88());
   }
 
   // if we got a speed value
   if(server.hasArg("be")) {
+    #ifdef DEBUG
+      Serial.println("got Argument speed (beat)....");
+      #endif
     uint16_t speed = strip->getBeat88();
     if (server.arg("be")[0] == 'u') {
       uint16_t ret = max((speed*115)/100, 10);
@@ -824,11 +1131,18 @@ void handleSet(void){
     strip->setSpeed(speed);
     // delay_interval = (uint8_t)(speed / 256); // obsolete???
     strip->show();
+    sendInt(speed);
+    broadcastInt("sp", strip->getBeat88());
   }
 
   // color handling
   uint32_t color = strip->getColor(0);
+  bool setColor = false;
   if(server.hasArg("re")) {
+    setColor = true;
+    #ifdef DEBUG
+      Serial.println("got Argument red....");
+      #endif
     uint8_t re = Red(color);
     if(server.arg("re")[0] == 'u') {
         re = changebypercentage(re, 110);
@@ -840,6 +1154,10 @@ void handleSet(void){
     color = (color & 0x00ffff) | (re << 16);
   }
   if(server.hasArg("gr")) {
+    setColor = true;
+    #ifdef DEBUG
+      Serial.println("got Argument green....");
+      #endif
     uint8_t gr = Green(color);
     if(server.arg("gr")[0] == 'u') {
         gr = changebypercentage(gr, 110);
@@ -851,6 +1169,10 @@ void handleSet(void){
     color = (color & 0xff00ff) | (gr << 8);
   }
   if(server.hasArg("bl")) {
+    setColor = true;
+    #ifdef DEBUG
+      Serial.println("got Argument blue....");
+      #endif
     uint8_t bl = Blue(color);
     if(server.arg("bl")[0] == 'u') {
         bl = changebypercentage(bl, 110);
@@ -862,23 +1184,154 @@ void handleSet(void){
     color = (color & 0xffff00) | (bl << 0);
   }
   if(server.hasArg("co")) {
+    setColor = true;
+    #ifdef DEBUG
+      Serial.println("got Argument color....");
+      #endif
     color = constrain((uint32_t)strtoul(&server.arg("co")[0], NULL, 16), 0, 0xffffff);
   }
+  if(server.hasArg("solidColor"))
+  {
+    setColor = true;
+    #ifdef DEBUG
+      Serial.println("got Argument solidColor....");
+      #endif
+    uint8_t r,g,b;
+    r = constrain((uint8_t)strtoul(&server.arg("r")[0], NULL, 10), 0, 255);  
+    g = constrain((uint8_t)strtoul(&server.arg("g")[0], NULL, 10), 0, 255);  
+    b = constrain((uint8_t)strtoul(&server.arg("b")[0], NULL, 10), 0, 255); 
+    color = (r << 16) | (g << 8) | (b << 0);
+    CRGB solidColor(color);
+    sendString(String(solidColor.r) + "," + String(solidColor.g) + "," + String(solidColor.b));
+    //broadcastString("solidColor", String(solidColor.r) + "," + String(solidColor.g) + "," + String(solidColor.b));
+    //broadcastInt("pa", strip->getPalCount());
+  }
   if(server.hasArg("pi")) {
+    #ifdef DEBUG
+      Serial.println("got Argument pixel....");
+      #endif
     //setEffect(FX_NO_FX);
     uint16_t pixel = constrain((uint16_t)strtoul(&server.arg("pi")[0], NULL, 10), 0, strip->getLength()-1);
     strip_setpixelcolor(pixel, color);
   } else if (server.hasArg("rnS") && server.hasArg("rnE")) {
+    #ifdef DEBUG
+      Serial.println("got Argument range start / range end....");
+      #endif
     uint16_t start = constrain((uint16_t)strtoul(&server.arg("rnS")[0], NULL, 10), 0, strip->getLength());
     uint16_t end = constrain((uint16_t)strtoul(&server.arg("rnE")[0], NULL, 10), start, strip->getLength());
     set_Range(start, end, color);
   } else if (server.hasArg("rgb")) {
+    #ifdef DEBUG
+      Serial.println("got Argument rgb....");
+      #endif
     strip->setColor(color);
     setEffect(FX_WS2812);
     strip->setMode(FX_MODE_STATIC);
   } else {
-    strip->setColor(color);
+    if(setColor) strip->setColor(color);
   }
+
+  if(server.hasArg("autoplay"))
+  {
+    uint16_t value = String(server.arg("autoplay")).toInt();
+    strip->getSegments()[0].autoplay = value;
+    sendInt(value);
+    broadcastInt("autoplay", value);
+  }
+
+  if(server.hasArg("autoplayDuration"))
+  {
+    uint16_t value = String(server.arg("autoplayDuration")).toInt();
+    strip->setAutoplayDuration(value);
+    sendInt(value);
+    broadcastInt("autoplayDuration", value);
+  }
+
+  if(server.hasArg("autopal"))
+  {
+    uint16_t value = String(server.arg("autopal")).toInt();
+    strip->getSegments()[0].autoPal = value;
+    sendInt(value);
+    broadcastInt("autopal", value);
+  }
+
+  if(server.hasArg("autopalDuration"))
+  {
+    uint16_t value = String(server.arg("autopalDuration")).toInt();
+    strip->setAutoPalDuration(value);
+    sendInt(value);
+    broadcastInt("autopalDuration", value);
+  }
+
+
+  if(server.hasArg("huetime"))
+  {
+    uint16_t value = String(server.arg("huetime")).toInt();
+    sendInt(value);
+    broadcastInt("huetime", value);
+    strip->sethueTime(value);
+  }
+
+  if(server.hasArg("deltahue"))
+  {
+    uint16_t value = constrain(String(server.arg("deltahue")).toInt(), 0, 255);
+    sendInt(value);
+    broadcastInt("deltahue", value);
+    strip->getSegments()[0].deltaHue = value;
+  }
+
+  if(server.hasArg("cooling"))
+  {
+    uint16_t value = String(server.arg("cooling")).toInt();
+    sendInt(value);
+    broadcastInt("cooling", value);
+    strip->getSegments()[0].cooling = value;
+  }
+
+
+  if(server.hasArg("sparking"))
+  {
+    uint16_t value = String(server.arg("sparking")).toInt();
+    sendInt(value);
+    broadcastInt("sparking", value);
+    strip->getSegments()[0].sparking = value;
+  }
+
+  if(server.hasArg("twinkleSpeed"))
+  {
+    uint16_t value = String(server.arg("twinkleSpeed")).toInt();
+    sendInt(value);
+    broadcastInt("twinkleSpeed", value);
+    strip->getSegments()[0].twinkleSpeed = value;
+  }
+
+  if(server.hasArg("twinkleDensity"))
+  {
+    uint16_t value = String(server.arg("twinkleDensity")).toInt();
+    sendInt(value);
+    broadcastInt("twinkleDensity", value);
+    strip->getSegments()[0].cooling = value;
+  }
+
+  if(server.hasArg("blendType"))
+  {
+    uint16_t value = String(server.arg("blendType")).toInt();
+    sendInt(value);
+    broadcastInt("blendType", value);
+    if(value)
+      strip->getSegments()[0].blendType = LINEARBLEND;
+    else
+      strip->getSegments()[0].blendType = NOBLEND;
+  }
+
+  if(server.hasArg("reverse"))
+  {
+    uint16_t value = String(server.arg("reverse")).toInt();
+    sendInt(value);
+    broadcastInt("reverse", value);
+    strip->getSegments()[0].reverse = value;
+  }
+
   handleStatus();
   shouldSaveRuntime = true;
 }
@@ -945,8 +1398,208 @@ void handleGetPals(void){
   server.send(200, "application/json", message);
 }
 
-
 void handleStatus(void){
+  #ifdef DEBUG
+  uint32_t delta_time = millis();
+  #endif
+
+  String message = "";
+  uint16_t num_leds_on = 0;
+  // if brightness = 0, no LED can be lid.
+  if(strip->getBrightness()) {
+    // count the number of active LEDs
+    // in rare occassions, this can still be 0, depending on the effect.
+    for(uint16_t i=0; i<strip->getLength(); i++) {
+      if(strip->leds[i]) num_leds_on++;
+    }
+  }
+
+  message += F("{\n  \"currentState\": {\n    \"state\": ");
+  if(stripIsOn) {
+    message += F("\"on\"");
+  } else {
+    message += F("\"off\"");
+  }
+  message += F(",\n    \"Lampenname\": ");
+  message += String(LED_NAME);
+  message += F(",\n    \"LedsOn\": ");
+  message += String(num_leds_on) ;
+  message += F(",\n    \"mode\": "); 
+  message += String(currentEffect); 
+  message += F(",\n    \"modename\": ");
+  switch (currentEffect) {
+    case FX_NO_FX :
+      message += F("\"No FX\"");
+      break;
+    case FX_SUNRISE :
+      message += F("\"Sunrise Effect\"");
+      break;
+    case FX_SUNSET :
+      message += F("\"Sunset Effect\"");
+      break;
+    case FX_WS2812 :
+      message += F("\"WS2812fx "); 
+      message += String(strip->getModeName(strip->getMode()));
+      break;
+    default :
+      message += F("\"UNKNOWN\"");
+      break;
+  }
+  message += F("\", \n    \"wsfxmode\": "); 
+  message += String(strip->getMode());
+  message += F(", \n    \"beat88\": ");
+  message += String(strip->getBeat88());
+  message += F(", \n    \"speed\": ");
+  message += String(strip->getBeat88());
+  message += F(", \n    \"brightness\": ");
+  message += String(strip->getBrightness());
+  
+  // Palettes and Colors
+  message += F(", \n    \"palette\": ");
+  message += String(strip->getTargetPaletteNumber()); 
+  message += F(", \n    \"palette name\": \"");
+  message += String(strip->getTargetPaletteName());
+  message += F("\"");
+
+  CRGB col = CRGB::Black;
+  // We return either black (strip effectively off)
+  // or the color of the first pixel....
+  for(uint16_t i = 0; i<strip->getLength(); i++)
+  {
+    if(strip->leds[i])
+    {
+      col = strip->leds[i];
+      break;
+    }
+  }
+  message += F(", \n    \"rgb\": ");
+  message += String( ((col.r << 16) | 
+                      (col.g <<  8) | 
+                      (col.b <<  0)) & 0xffffff );
+  message += F(", \n    \"color red\": ");
+  message += String(col.red);
+  message += F(", \n    \"color green\": ");
+  message += String(col.green);
+  message += F(", \n    \"color blue\": ");
+  message += String(col.blue);
+
+  message += F(", \n    \"BlendType\": ");
+  if(strip->getSegments()[0].blendType == NOBLEND)
+  {
+    message += "\"No Blend\"";
+  }
+  else if (strip->getSegments()[0].blendType == LINEARBLEND)
+  {
+    message += "\"Linear Blend\"";
+  }
+  else
+  {
+    message += "\"Unknown Blend\"";
+  }
+  
+  message += F(", \n    \"Reverse\": ");
+  message += getReverse();
+
+  message += F(", \n    \"Hue change time\": ");
+  message += getHueTime();
+  message += F(", \n    \"Delta hue per change\": ");
+  message += getDeltaHue();
+
+  message += F(", \n    \"Autoplay Mode\": ");
+  message += getAutoplay();
+  message += F(", \n    \"Autoplay Mode Interval\": ");
+  message += getAutoplayDuration();
+
+  message += F(", \n    \"Autoplay Palette\": ");
+  message += getAutopal();
+
+  message += F(", \n    \"Autoplay Palette Interval\": ");
+  message += getAutopalDuration();
+
+  message += F(", \n    \"Fire Cooling\": ");
+  message += getCooling();
+
+  message += F(", \n    \"Fire sparking\": ");
+  message += getSparking();
+
+  message += F(", \n    \"Twinkle Speed\": ");
+  message += getTwinkleSpeed();
+
+  message += F(", \n    \"Twinkle Density\": ");
+  message += getTwinkleDensity();
+
+  message += F("\n  },\n  \"sunRiseState\": {\n    \"sunRiseMode\": ");
+
+
+  if(sunriseParam.isSunrise) {
+    message += F("\"Sunrise\"");
+  } else {
+    message += F("\"Sunset\"");
+  }
+  message += F(",\n    \"sunRiseActive\": ");
+  if(sunriseParam.isRunning) {
+    message += F("\"on\"");
+    message += F(", \n    \"sunRiseCurrStep\": ");
+    message += String(sunriseParam.step);
+    message += F(", \n    \"sunRiseTotalSteps\": ");
+    message += String(sunriseParam.steps);
+    if(sunriseParam.isSunrise) {
+      message += F(", \n    \"sunRiseTimeToFinish\": ");
+      message += String(((sunriseParam.steps - sunriseParam.step) * sunriseParam.deltaTime)/1000);
+    } else {
+      message += F(", \n    \"sunRiseTimeToFinish\": ");
+      message += String(((sunriseParam.step) * sunriseParam.deltaTime)/1000);
+    }
+  } else {
+    message += F("\"off\", \n    \"sunRiseCurrStep\": 0, \n    \"sunRiseTotalSteps\": 0, \n    \"sunRiseTimeToFinish\": 0"); 
+  }
+
+  message += F("\n  }");
+
+  #ifdef DEBUG
+  message += F(",\n  \"ESP_Data\": {\n    \"DBG_Debug code\": \"On\",\n    \"DBG_CPU_Freq\": ");
+  message += String(ESP.getCpuFreqMHz());
+  message += F(",\n    \"DBG_Flash Real Size\": ");
+  message += String(ESP.getFlashChipRealSize());
+  message += F(",\n    \"DBG_Free RAM\": ");
+  message += String(ESP.getFreeHeap());
+  message += F(",\n    \"DBG_Free Sketch Space\": ");
+  message += String(ESP.getFreeSketchSpace());
+  message += F(",\n    \"DBG_Sketch Size\": ");
+  message += String(ESP.getSketchSize());
+  message += F("\n  }");
+  
+  message += F(",\n  \"Server_Args\": {");
+  for(uint8_t i = 0; i<server.args(); i++) {
+    message += F("\n    \"");
+    message += server.argName(i);
+    message += F("\": \"");
+    message += server.arg(i);
+    if( i < server.args()-1)
+      message += F("\",");
+    else
+      message += F("\"");
+  }
+  message += F("\n  }");
+  #endif
+
+  message += F("\n}");
+
+  #ifdef DEBUG
+  Serial.println(message);
+  #endif
+  
+  server.send(200, "application/json", message);
+  #ifdef DEBUG
+  Serial.printf("\n\n\tAnswer preparation and sending took %d milliseconds.\n\n", millis() - delta_time);
+  #endif
+}
+
+
+void temp_old_handleStatus(void){
+  #ifdef DEBUG
+  uint32_t delta_time = millis();
+  #endif
   const size_t bufferSize = JSON_OBJECT_SIZE(1) + JSON_OBJECT_SIZE(10) + 180;
   DynamicJsonBuffer jsonBuffer(bufferSize);
 
@@ -963,12 +1616,12 @@ void handleStatus(void){
 
   JsonObject& root = jsonBuffer.createObject();
 
-  JsonObject& currentState = root.createNestedObject("currentState");
+  JsonObject& currentState = root.createNestedObject(F("currentState"));
 
   if(stripIsOn) {
-    currentState["state"] = "on";
+    currentState["state"] = F("on");
   } else {
-    currentState["state"] = "off";
+    currentState["state"] = F("off");
   }
   currentState["LedsOn"] = num_leds_on;
   currentState["mode"] = currentEffect;
@@ -992,14 +1645,8 @@ void handleStatus(void){
   currentState["wsfxmode"] = strip->getMode();
   currentState["beat88"] = strip->getBeat88();
   currentState["brightness"] = strip->getBrightness();
-  /*
-  currentState["color_red"] = Red(strip->getColor());
-  currentState["color_green"] = Green(strip->getColor());
-  currentState["color_blue"] = Blue(strip->getColor());
-  */
-
-
-  JsonObject& sunRiseState = root.createNestedObject("sunRiseState");
+  
+  JsonObject& sunRiseState = root.createNestedObject(F("sunRiseState"));
 
   if(sunriseParam.isSunrise) {
     sunRiseState["sunRiseMode"] = F("Sunrise");
@@ -1049,9 +1696,11 @@ void handleStatus(void){
   for(uint8_t i = 0; i<server.args(); i++) {
     Server_Args[server.argName(i)] = server.arg(i);
   }
+  root.prettyPrintTo(message);
+  Serial.printf("\n\n\tAnswer preparation took %d milliseconds.\n\n", millis() - delta_time);
   #endif
 
-  root.prettyPrintTo(message);
+  
   server.send(200, "application/json", message);
 }
 
@@ -1071,14 +1720,14 @@ void factoryReset(void){
   #ifdef DEBUG
   Serial.println("Format File System");
   #endif
-  delay(1000);
-  SPIFFS.format();
-  delay(1000);
+  delay(500);
+  //SPIFFS.format();
+  delay(500);
   #ifdef DEBUG
   Serial.println("Reset WiFi Settings");
   #endif
   wifiManager.resetSettings();
-  delay(1000);
+  delay(500);
   clearEEPROM();
   //reset and try again
   #ifdef DEBUG
@@ -1125,33 +1774,151 @@ void handleResetRequest(void){
 void setupWebServer(void){
   //modes.reserve(5000);
   //modes_setup();
+  FastLED.showColor(CRGB::Blue);
+  delay(500);
+  SPIFFS.begin();
+  {
+   
+    Dir dir = SPIFFS.openDir("/");
+    while (dir.next()) {
+      String fileName = dir.fileName();
+      size_t fileSize = dir.fileSize();
+      #ifdef DEBUG
+      Serial.printf("FS File: %s, size: %s\n", fileName.c_str(), String(fileSize).c_str());
+      #endif
+    }
+    #ifdef DEBUG
+    Serial.printf("\n");
+    #endif
+  }
 
-  server.on("/main.js", srv_handle_main_js);
+  server.on("/all", HTTP_GET, []() {
+    #ifdef DEBUG
+    Serial.println("Called /all!");
+    #endif
+    String json = getFieldsJson(fields, fieldCount);
+    server.send(200, "text/json", json);
+  });
+
+  server.on("/fieldValue", HTTP_GET, []() {
+    String name = server.arg("name");
+    #ifdef DEBUG
+    Serial.println("Called /fieldValue with arg name =");
+    Serial.println(name);
+    #endif
+   
+    String value = getFieldValue(name, fields, fieldCount);
+    server.send(200, "text/json", value);
+  });
+
+  //list directory
+  server.on("/list", HTTP_GET, handleFileList);
+  //load editor
+  server.on("/edit", HTTP_GET, []() {
+    if (!handleFileRead("/edit.htm")) server.send(404, "text/plain", "FileNotFound");
+  });
+
+  //create file
+  server.on("/edit", HTTP_PUT, handleFileCreate);
+  //delete file
+  server.on("/edit", HTTP_DELETE, handleFileDelete);
+  //first callback is called after the request has ended with all parsed arguments
+  //second callback handles file uploads at that location
+  server.on("/edit", HTTP_POST, []() {
+    server.send(200, "text/plain", "");
+  }, handleFileUpload);
+
+  
+
+  //server.on("/main.js", srv_handle_main_js);
   server.on("/modes", srv_handle_modes);
   server.on("/pals", srv_handle_pals);
-  server.on("/", handleRoot);
+  //server.on("/", handleRoot);
   server.on("/set", handleSet);
   server.on("/getmodes", handleGetModes);
   server.on("/getpals", handleGetPals);
   server.on("/status", handleStatus);
   server.on("/reset", handleResetRequest);
   server.onNotFound(handleNotFound);
-
+  
+  server.serveStatic("/", SPIFFS, "/", "max-age=86400");
+  delay(100);
   server.begin();
+
+  FastLED.showColor(CRGB::Yellow);
+  delay(500);
   #ifdef DEBUG
   Serial.println("HTTP server started.\n");
   #endif
+
+  webSocketsServer.begin();
+  webSocketsServer.onEvent(webSocketEvent);
+
+  FastLED.showColor(CRGB::Green);
+  delay(500);
+  #ifdef DEBUG
+  Serial.println("webSocketServer started.\n");
+  #endif
+  FastLED.showColor(CRGB::Black);
+  delay(500);
 }
 
+void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
+
+  switch (type) {
+    case WStype_DISCONNECTED:
+      #ifdef DEBUG
+      Serial.printf("[%u] Disconnected!\n", num);
+      #endif
+      break;
+
+    case WStype_CONNECTED:
+      {
+        IPAddress ip = webSocketsServer.remoteIP(num);
+        #ifdef DEBUG
+        Serial.printf("[%u] Connected from %d.%d.%d.%d url: %s\n", num, ip[0], ip[1], ip[2], ip[3], payload);
+        #endif
+
+        // send message to client
+        // webSocketsServer.sendTXT(num, "Connected");
+      }
+      break;
+
+    case WStype_TEXT:
+      #ifdef DEBUG
+      Serial.printf("[%u] get Text: %s\n", num, payload);
+      #endif
+
+      // send message to client
+      // webSocketsServer.sendTXT(num, "message here");
+
+      // send data to all connected clients
+      // webSocketsServer.broadcastTXT("message here");
+      break;
+
+    case WStype_BIN:
+      #ifdef DEBUG
+      Serial.printf("[%u] get binary length: %u\n", num, length);
+      #endif
+      hexdump(payload, length);
+
+      // send message to client
+      // webSocketsServer.sendBIN(num, payload, lenght);
+      break;
+  }
+}
 
 // setup network and output pins
 void setup() {
+  // Sanity delay to get everything settled....
+  delay(500);
   #ifdef DEBUG
   // Open serial communications and wait for port to open:
   Serial.begin(115200);
   Serial.println("\n\n\n");
   Serial.println(F("Booting"));
   #endif
+  
   readConfigurationFS();
 
   stripe_setup( LED_COUNT, 
@@ -1172,6 +1939,11 @@ void setup() {
 
   // if we got that far, we show by a nice little animation
   // as setup finished signal....
+  #ifdef DEBUG
+  Serial.println("Init done - fading green in..");
+  Serial.print("\tcurrent Effect = ");
+  Serial.println(currentEffect);
+  #endif
   for(uint8_t a = 0; a < 1; a++) {
     for(uint16_t c = 0; c<256; c+=3) {
       for(uint16_t i = 0; i<strip->getLength(); i++) {
@@ -1180,10 +1952,15 @@ void setup() {
       strip->show();
       delay(1);
     }
+    #ifdef DEBUG
+  Serial.println("Init done - fading green out..");
+  Serial.print("\tcurrent Effect = ");
+  Serial.println(currentEffect);
+  #endif
     delay(2);
     for(uint8_t c = 255; c>0; c-=3) {
       for(uint16_t i = 0; i<strip->getLength(); i++) {
-        strip->leds[i].subtractFromRGB(3);
+        strip->leds[i].subtractFromRGB(4);
       }
       strip->show();
       delay(1);
@@ -1191,8 +1968,18 @@ void setup() {
   }
   //strip->stop();
   delay(100);
+  #ifdef DEBUG
+  Serial.println("Init finished.. Read runtime data");
+  Serial.print("\tcurrent Effect = ");
+  Serial.println(currentEffect);
+  #endif
   readRuntimeDataEEPROM();
-  if(stripIsOn) strip_On_Off(true);
+  #ifdef DEBUG
+  Serial.println("Runtime Data loaded");
+  Serial.print("\tcurrent Effect = ");
+  Serial.println(currentEffect);
+  #endif
+  //if(stripIsOn) strip_On_Off(true);
 }
 
 // request receive loop
@@ -1202,15 +1989,39 @@ void loop() {
   static uint8_t life_sign = 0;
   static unsigned long last_status_msg = 0;
   #endif
+  if (OTAisRunning) return;
   // if someone requests a call to the factory reset...
-  static bool ResetRequested = false;
+  //static bool ResetRequested = false;
 
   #ifdef DEBUG
     // Debug Watchdog. to be removed for "production".
-  if(now - last_status_msg > 20000) {
+  if(now - last_status_msg > 10000) {
     last_status_msg = now;
     Serial.print("\ncurrentEffect\t");
-    Serial.println(currentEffect);
+     switch (currentEffect) {
+      case FX_NO_FX :
+        Serial.println("No FX");
+        break;
+      case FX_SUNRISE :
+        Serial.println("Sunrise");
+        break;
+      case FX_SUNSET :
+        Serial.println("Sunset");
+        break;
+      case FX_WS2812 :
+        Serial.println("WS2812FX");
+        Serial.print("\t\tEffect Number\t");
+        Serial.println(strip->getMode());
+        Serial.print("\t\tEffect Name\t");
+        Serial.println(strip->getModeName(strip->getMode()));
+        break;
+      default:
+        Serial.println("This is a problem!!!");
+    }
+    Serial.print("Current Palette:\t");
+    Serial.println(strip->getCurrentPaletteName());
+    Serial.print("Target Palette:\t\t");
+    Serial.println(strip->getTargetPaletteName());
   }
   #endif
   // Checking WiFi state every WIFI_TIMEOUT
@@ -1242,16 +2053,11 @@ void loop() {
 
   ArduinoOTA.handle(); // check and handle OTA updates of the code....
 
-  //Button Handling
-  // ToDo: Move to function?
-  if(hasResetButton)  {
-    debouncer.update();
-    if(debouncer.read() == LOW)
-    {
-      factoryReset();
-    }
-  }
+  
+  webSocketsServer.loop();
+  
   server.handleClient();
+  
   effectHandler();
 
   if(shouldSaveRuntime) {

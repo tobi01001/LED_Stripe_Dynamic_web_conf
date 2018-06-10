@@ -39,6 +39,215 @@ pah_color myColor(0,   512, 1024,
 
 WS2812FX *strip;  
 
+const String NumberFieldType = "Number";
+const String BooleanFieldType = "Boolean";
+const String SelectFieldType = "Select";
+const String ColorFieldType = "Color";
+const String SectionFieldType = "Section";
+
+Field getField(String name, FieldList fields, uint8_t count) {
+  for (uint8_t i = 0; i < count; i++) {
+    Field field = fields[i];
+    if (field.name == name) {
+      return field;
+    }
+  }
+  return Field();
+}
+
+String getFieldValue(String name, FieldList fields, uint8_t count) {
+  Field field = getField(name, fields, count);
+  if (field.getValue) {
+    return field.getValue();
+  }
+  return String();
+}
+
+String setFieldValue(String name, String value, FieldList fields, uint8_t count) {
+  Field field = getField(name, fields, count);
+  if (field.setValue) {
+    return field.setValue(value);
+  }
+  return String();
+}
+
+String getFieldsJson(FieldList fields, uint8_t count) {
+  String json = "[";
+
+  for (uint8_t i = 0; i < count; i++) {
+    Field field = fields[i];
+
+    json += "{\"name\":\"" + field.name + "\",\"label\":\"" + field.label + "\",\"type\":\"" + field.type + "\"";
+
+    if(field.getValue) {
+      if (field.type == ColorFieldType || field.type == "String") {
+        json += ",\"value\":\"" + field.getValue() + "\"";
+      }
+      else {
+        json += ",\"value\":" + field.getValue();
+      }
+    }
+
+    if (field.type == NumberFieldType) {
+      json += ",\"min\":" + String(field.min);
+      json += ",\"max\":" + String(field.max);
+    }
+
+    if (field.getOptions) {
+      json += ",\"options\":[";
+      json += field.getOptions();
+      json += "]";
+    }
+
+    json += "}";
+
+    if (i < count - 1)
+      json += ",";
+  }
+
+  json += "]";
+
+  return json;
+}
+
+String getPower() {
+  return String(stripIsOn);
+}
+
+
+String getBrightness() {
+  return String(strip->getBrightness());
+}
+
+String getPattern() {
+  return String(strip->getMode());
+}
+
+String getPatterns() {
+  String json = "";
+
+  for (uint8_t i = 0; i < strip->getModeCount(); i++) {
+    json += "\"" + String(strip->getModeName(i)) + "\"";
+    if (i < strip->getModeCount() - 1)
+      json += ",";
+  }
+
+  return json;
+}
+
+String getPalette() {
+  return String(strip->getTargetPaletteNumber());
+}
+
+String getPalettes() {
+  String json = "";
+
+  for (uint8_t i = 0; i < strip->getPalCount(); i++) {
+    json += "\"" + String(strip->getPalName(i)) + "\"";
+    //if (i < strip->getPalCount() - 1)
+      json += ",";
+  }
+  json += "\"Custom\"";
+
+  return json;
+}
+
+String getAutoplay() {
+  return String(strip->getSegments()[0].autoplay);
+}
+
+String getAutoplayDuration() {
+  return String(strip->getSegments()[0].autoplayDuration);
+}
+
+String getAutopal() {
+  return String(strip->getSegments()[0].autoPal);
+}
+
+String getAutopalDuration() {
+  return String(strip->getSegments()[0].autoPalDuration);
+}
+
+String getSolidColor() {
+  CRGB solidColor = strip->getTargetPalette().entries[0];
+  return String(solidColor.r) + "," + String(solidColor.g) + "," + String(solidColor.b);
+}
+
+String getCooling() {
+  return String(strip->getCooling());
+}
+
+String getSparking() {
+  return String(strip->getSparking());
+}
+
+String getSpeed() {
+  return String(strip->getBeat88());
+}
+
+String getTwinkleSpeed() {
+  return String(strip->getTwinkleSpeed());
+}
+
+String getTwinkleDensity() {
+  return String(strip->getTwinkleDensity());
+}
+
+String getHueTime() {
+  return String(strip->getSegments()[0].hueTime);
+}
+
+String getDeltaHue() {
+  return String(strip->getSegments()[0].deltaHue);
+}
+
+String getBlendType() {
+  return String(strip->getSegments()[0].blendType);
+}
+
+String getBlendTypes() {
+  return "\"NoBlend\",\"LinearBlend\"";
+}
+
+String getReverse() {
+  return String(strip->getSegments()[0].reverse);
+}
+
+FieldList fields = {
+  { "power",            "LED Schalter",                     SectionFieldType                                                                        },
+  { "power",            "LED Schalter",                     BooleanFieldType,   0,              1,                      getPower                    },
+  { "basicControl",     "Basic control",                    SectionFieldType                                                                        },
+  { "br",               "Helligkeit",                       NumberFieldType,    BRIGHTNESS_MIN, BRIGHTNESS_MAX,         getBrightness               },
+  { "mo",               "Lichteffekt",                      SelectFieldType,    0,              strip->getModeCount(),  getPattern, getPatterns     },
+  { "pa",               "Farbpalette",                      SelectFieldType,    0,              strip->getPalCount()+1, getPalette, getPalettes     },
+  { "sp",               "Geschwindigkeit",                  NumberFieldType,    BEAT88_MIN,     BEAT88_MAX,             getSpeed                    },
+  { "blendType",        "Blendmodus",                       SelectFieldType,    NOBLEND,        LINEARBLEND,            getBlendType, getBlendTypes },
+  { "reverse",          "Rückwärts",                        BooleanFieldType,   0,              1,                      getReverse                  },
+  { "hue",              "Farbwechsel",                      SectionFieldType                                                                        },
+  { "huetime",          "Hue Wechselintervall",             NumberFieldType,    1,              10000,                  getHueTime                  },
+  { "deltahue",         "Hue Wechselschritt",               NumberFieldType,    0,              255,                    getDeltaHue                 },
+  { "autoplay",         "Mode Autoplay",                    SectionFieldType                                                                        },
+  { "autoplay",         "Mode Automatisch wechseln",        BooleanFieldType,   0,              1,                      getAutoplay                 },
+  { "autoplayDuration", "Mode Wechselzeit",                 NumberFieldType,    5,              1000,                   getAutoplayDuration         },
+  { "autopal",          "Farbpalette Autoplay",             SectionFieldType                                                                        },
+  { "autopal",          "Farbpalette Automatisch wechseln", BooleanFieldType,   0,              1,                      getAutopal                  },
+  { "autopalDuration",  "Farbpalette Wechselzeit",          NumberFieldType,    5,              1000,                   getAutopalDuration          },
+  { "solidColor",       "Feste Farbe",                      SectionFieldType                                                                        },
+  { "solidColor",       "Farbe",                            ColorFieldType,     0,              255,                    getSolidColor               },
+  { "fire",             "Feuer und Wasser",                 SectionFieldType                                                                        },
+  { "cooling",          "Kühlung",                          NumberFieldType,    0,              255,                    getCooling                  },
+  { "sparking",         "Funken",                           NumberFieldType,    0,              255,                    getSparking                 },
+  { "twinkles",         "Funkeln",                          SectionFieldType                                                                        },
+  { "twinkleSpeed",     "Funkelgeschwindigkeit",            NumberFieldType,    0,              8,                      getTwinkleSpeed             },
+  { "twinkleDensity",   "Wieviel Funkellichter",            NumberFieldType,    0,              8,                      getTwinkleDensity           },
+};
+
+#ifndef ARRAY_SIZE
+  #define ARRAY_SIZE(A) (sizeof(A) / sizeof((A)[0]))
+#endif
+
+uint8_t fieldCount = ARRAY_SIZE(fields);
+
 // set all pixels to 'off'
 void stripe_setup(  const uint16_t LEDCount, 
                     const uint8_t FPS = 60, 
@@ -67,7 +276,7 @@ void stripe_setup(  const uint16_t LEDCount,
 
 void strip_On_Off(bool onOff){
     stripIsOn = onOff;
-    stripWasOff = false;
+    //stripWasOff = false;
 }
 
 void set_Range(uint16_t start, uint16_t stop, uint8_t r, uint8_t g, uint8_t b) {
@@ -120,6 +329,7 @@ void effectHandler(void){
   {
     setEffect(getPreviousEffect());
     stripWasOff = false;
+    strip->start();
   }
   else if (!stripIsOn && !stripWasOff)
   {
@@ -145,7 +355,8 @@ void effectHandler(void){
       strip->service();
       break;
     default:
-      reset();
+      break;
+      //reset();
   }
 }
 
@@ -269,12 +480,42 @@ void mySunriseTrigger(void) {
       sunriseParam.step--;
     }
     // ToDo: We change to palette and move along the palette...
+    
+    fill_solid(strip->leds, strip->getLength(), 
+               ColorFromPalette( HeatColors_p, 
+                                (uint8_t)map(sunriseParam.step, 
+                                             0, 
+                                             sunriseParam.steps, 
+                                             0, 
+                                             240), 
+                                 strip->getBrightness(), 
+                                 LINEARBLEND));
+    /*
+    for(uint16_t i = 0; i < strip->getLength(); i++)
+    {
+      uint8_t delt = random8(16);
+      uint8_t doit = random8(3);
+      switch (doit) {
+        case 0 :
+          strip->leds[i].addToRGB(delt);
+        break;
+        case 1 :
+          strip->leds[i].subtractFromRGB(delt);
+        break;
+        default : 
+        break;
+      }
+    }
+    */
+    /*
     uint32_t cColor = myColor.calcColorValue(sunriseParam.step);
     for(uint16_t i = 0; i<strip->getLength();i++)
     {
       //strip->setPixelColor(i, cColor);
       strip->leds[i] = CRGB(cColor);
     }
+    */
+
     //strip->setColor(cColor);
     strip->show();
     sunriseParam.lastChange = (uint32_t)millis();
@@ -327,4 +568,5 @@ void reset() {
     }
     FastLED.show();
   } while (!isBlack);
+  //strip->stop();
 }

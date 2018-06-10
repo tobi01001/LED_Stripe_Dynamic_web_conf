@@ -34,6 +34,8 @@
 #define FX_SUNSET       2
 #define FX_WS2812       3
 
+extern WS2812FX *strip; // = WS2812FX(1, 1, DEFAULT_PIXEL_TYPE); // WS2812FX(strip.getLength(), LEDPIN, NEO_GRB + NEO_KHZ800);
+
 
 
 // initialize the strip during boot (or at changes)
@@ -124,8 +126,96 @@ extern pah_color myColor;
 
 extern mysunriseParam sunriseParam;
 
+// Field.h
+/*
+   ESP8266 + FastLED + IR Remote: https://github.com/jasoncoon/esp8266-fastled-webserver
+   Copyright (C) 2016 Jason Coon
 
-extern WS2812FX *strip; // = WS2812FX(1, 1, DEFAULT_PIXEL_TYPE); // WS2812FX(strip.getLength(), LEDPIN, NEO_GRB + NEO_KHZ800);
+   This program is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+
+typedef String (*FieldSetter)(String);
+typedef String (*FieldGetter)();
+
+
+
+typedef struct Field {
+  String name;
+  String label;
+  String type;
+  uint16_t min;
+  uint16_t max;
+  FieldGetter getValue;
+  FieldGetter getOptions;
+  FieldSetter setValue;
+};
+
+typedef Field FieldList[];
+
+
+// /End Field.h
+
+// Fields.h
+/*
+   ESP8266 + FastLED + IR Remote: https://github.com/jasoncoon/esp8266-fastled-webserver
+   Copyright (C) 2016 Jason Coon
+
+   This program is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+Field getField(String name, FieldList fields, uint8_t count);
+String getFieldValue(String name, FieldList fields, uint8_t count);
+String setFieldValue(String name, String value, FieldList fields, uint8_t count);
+String getFieldsJson(FieldList fields, uint8_t count); 
+String getPower(void);
+String getBrightness(void);
+String getPattern(void);
+String getPatterns(void);
+String getPalette(void);
+String getPalettes(void);
+String getAutoplay(void); 
+String getAutoplayDuration(void);
+String getAutopal(void);
+String getAutopalDuration(void);
+String getSolidColor(void);
+String getCooling(void);
+String getSparking(void);
+String getSpeed(void);
+String getTwinkleSpeed(void);
+String getTwinkleDensity(void);
+String getBlendType(void);
+String getBlendTypes(void);
+String getReverse(void);
+String getHueTime(void);
+String getDeltaHue(void);
+
+extern FieldList fields;
+extern uint8_t fieldCount;
+
+// /End Fields.h
 
 
 #endif
