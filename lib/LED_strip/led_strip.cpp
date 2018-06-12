@@ -207,6 +207,10 @@ String getMilliamps(void) {
   return String(strip->getMilliamps());
 }
 
+String getBlurValue(void) {
+  return String(strip->getBlurValue());
+}
+
 FieldList fields = {
   { "power",            "LED Schalter",                     SectionFieldType                                                                        },
   { "power",            "LED Schalter",                     BooleanFieldType,   0,              1,                      getPower                    },
@@ -216,6 +220,7 @@ FieldList fields = {
   { "pa",               "Farbpalette",                      SelectFieldType,    0,   (uint16_t)(strip->getPalCount()+1),getPalette, getPalettes     },
   { "sp",               "Geschwindigkeit",                  NumberFieldType,    BEAT88_MIN,     BEAT88_MAX,             getSpeed                    },
   { "blendType",        "Blendmodus",                       SelectFieldType,    NOBLEND,        LINEARBLEND,            getBlendType, getBlendTypes },
+  { "LEDblur",          "LED / Effect Blending",            NumberFieldType,    0,              255,                    getBlurValue                },
   { "reverse",          "Rückwärts",                        BooleanFieldType,   0,              1,                      getReverse                  },
   { "hue",              "Farbwechsel",                      SectionFieldType                                                                        },
   { "huetime",          "Hue Wechselintervall",             NumberFieldType,    1,              10000,                  getHueTime                  },
@@ -294,7 +299,7 @@ void set_Range(uint16_t start, uint16_t stop, uint32_t color) {
     strip->leds[i] = CRGB(color);
   }
   //strip->setColor(color);
-  FastLED.show();
+  strip->show();
 }
 
 void strip_setpixelcolor(uint16_t pixel, uint8_t r, uint8_t g, uint8_t b) {
@@ -574,7 +579,7 @@ void reset() {
     {
       if(strip->leds[i]) isBlack = false;
     }
-    FastLED.show();
+    strip->show();
   } while (!isBlack);
   //strip->stop();
 }

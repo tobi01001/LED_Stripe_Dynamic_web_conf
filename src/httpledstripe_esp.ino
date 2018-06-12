@@ -2,11 +2,17 @@
    This work is based on many others.
    If published then under whatever licence free to be used,
    distibuted, changed and whatsoever.
-   Work is based on:
-   WS2812BFX library by  - see:
-   fhem esp8266 implementation by   - see:
-   WiFiManager library by - - see:
-   ... many others ( see includes)
+   This Work is based on many others 
+   and heavily modified for my personal use.
+   It is basically based on the following great developments:
+   - Adafruit Neopixel https://github.com/adafruit/Adafruit_NeoPixel
+   - WS2812FX library https://github.com/kitesurfer1404/WS2812FX
+   - fhem esp8266 implementation - Idea from https://github.com/sw-home/FHEM-LEDStripe 
+   - FastLED library - see http://www.fastLed.io
+   - ESPWebserver - see https://github.com/jasoncoon/esp8266-fastled-webserver
+  
+  My GIT source code storage
+  https://github.com/tobi01001/LED_Stripe_Dynamic_web_conf
 
  **************************************************************/
 #include <FS.h>
@@ -16,8 +22,8 @@
 #define FASTLED_USE_PROGMEM 1
 
 
-#define LED_NAME "\"LED Dev-Board\""
-//#define LED_NAME "\"LED Papa Nachttisch\""
+//#define LED_NAME "\"LED Dev-Board\""
+#define LED_NAME "\"LED Papa Nachttisch\""
 //#define LED_NAME "\"LED Hannah Norah\""
 //#define LED_NAME "\"LED Wohnzimmer\""
 //#define LED_NAME "\"LED Flurbeleuchtung\""
@@ -29,6 +35,8 @@
 #define STRIP_MILLIAMPS 2500
 
 //#define DEBUG
+
+#define INITDELAY 200
 
 #define ARRAY_SIZE(A) (sizeof(A) / sizeof((A)[0]))
 
@@ -486,7 +494,7 @@ void initOverTheAirUpdate(void) {
   Serial.println("\nInitializing OTA capabilities....");
   #endif
   FastLED.showColor(CRGB::Blue);
-  delay(500);
+  delay(INITDELAY);
   /* init OTA */
   // Port defaults to 8266
   ArduinoOTA.setPort(8266);
@@ -516,13 +524,13 @@ void initOverTheAirUpdate(void) {
         strip->leds[i] = CRGB(strip_color32(r,g,0));
       }
       strip->show();
-      delay(400);
+      delay(INITDELAY);
       for(uint16_t i=0; i<strip->getLength(); i++) {
         strip->leds[i] = CRGB::Black;
         //strip.setPixelColor(i, 0x000000);
       }
       strip->show();
-      delay(400);
+      delay(INITDELAY);
     }
     webSocketsServer.disconnect();
     server.stop();
@@ -594,9 +602,9 @@ void initOverTheAirUpdate(void) {
   Serial.println("OTA capabilities initialized....");
   #endif
   FastLED.showColor(CRGB::Green);
-  delay(500);
+  delay(INITDELAY);
   FastLED.showColor(CRGB::Black);
-  delay(500);
+  delay(INITDELAY);
 }
 
 /*
@@ -714,7 +722,7 @@ void setupWiFi(void){
 
   
   FastLED.showColor(CRGB::Blue);
-  delay(500);
+  delay(INITDELAY);
   wifiManager.setSaveConfigCallback(saveConfigCallback);
 
 /*
@@ -760,7 +768,7 @@ void setupWiFi(void){
   #endif
 
   FastLED.showColor(CRGB::Green);
-  delay(500);
+  delay(INITDELAY);
   FastLED.showColor(CRGB::Black);
 }
 
@@ -1333,6 +1341,15 @@ void handleSet(void){
     strip->setMilliamps(value);
   }
 
+  if(server.hasArg("LEDblur"))
+  {
+    uint8_t value = String(server.arg("LEDblur")).toInt();
+    sendInt(value);
+    broadcastInt("LEDblur", value);
+    strip->setBlurValue(value);
+  }
+
+
   handleStatus();
   shouldSaveRuntime = true;
 }
@@ -1625,14 +1642,14 @@ void factoryReset(void){
   #ifdef DEBUG
   Serial.println("Format File System");
   #endif
-  delay(500);
+  delay(INITDELAY);
   //SPIFFS.format();
-  delay(500);
+  delay(INITDELAY);
   #ifdef DEBUG
   Serial.println("Reset WiFi Settings");
   #endif
   //wifiManager.resetSettings();
-  delay(500);
+  delay(INITDELAY);
   clearEEPROM();
   //reset and try again
   #ifdef DEBUG
@@ -1680,7 +1697,7 @@ void setupWebServer(void){
   //modes.reserve(5000);
   //modes_setup();
   FastLED.showColor(CRGB::Blue);
-  delay(500);
+  delay(INITDELAY);
   SPIFFS.begin();
   {
    
@@ -1747,11 +1764,11 @@ void setupWebServer(void){
   server.onNotFound(handleNotFound);
   
   server.serveStatic("/", SPIFFS, "/", "max-age=86400");
-  delay(100);
+  delay(10);
   server.begin();
 
   FastLED.showColor(CRGB::Yellow);
-  delay(500);
+  delay(INITDELAY);
   #ifdef DEBUG
   Serial.println("HTTP server started.\n");
   #endif
@@ -1760,12 +1777,12 @@ void setupWebServer(void){
   webSocketsServer.onEvent(webSocketEvent);
 
   FastLED.showColor(CRGB::Green);
-  delay(500);
+  delay(INITDELAY);
   #ifdef DEBUG
   Serial.println("webSocketServer started.\n");
   #endif
   FastLED.showColor(CRGB::Black);
-  delay(500);
+  delay(INITDELAY);
 }
 
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
@@ -1872,7 +1889,7 @@ void setup() {
     }
   }
   //strip->stop();
-  delay(100);
+  delay(INITDELAY);
   #ifdef DEBUG
   Serial.println("Init finished.. Read runtime data");
   Serial.print("\tcurrent Effect = ");

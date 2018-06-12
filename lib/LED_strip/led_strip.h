@@ -1,16 +1,23 @@
-/**************************************************************
+/*************************************************************************************
    This work is based on many others.
    If published then under whatever licence free to be used,
    distibuted, changed and whatsoever.
-   Work is based on:
-   WS2812BFX library by  - see:
-   fhem esp8266 implementation by   - see:
-   WiFiManager library by - - see:
-   ... many others ( see includes)
+   This Work is based on many others 
+   and heavily modified for my personal use.
+   It is basically based on the following great developments:
+   - Adafruit Neopixel https://github.com/adafruit/Adafruit_NeoPixel
+   - WS2812FX library https://github.com/kitesurfer1404/WS2812FX
+   - fhem esp8266 implementation - Idea from https://github.com/sw-home/FHEM-LEDStripe 
+   - FastLED library - see http://www.fastLed.io
+   - ESPWebserver - see https://github.com/jasoncoon/esp8266-fastled-webserver
+  
+  My GIT source code storage
+  https://github.com/tobi01001/LED_Stripe_Dynamic_web_conf
+
 
    ToDo: Make this a class (encapsulation)
 
- **************************************************************/
+ **************************************************************************************/
 
 #ifndef led_strip_h
 #define led_strip_h
