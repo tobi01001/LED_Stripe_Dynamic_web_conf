@@ -16,8 +16,8 @@
 #define FASTLED_USE_PROGMEM 1
 
 
-//#define LED_NAME "\"LED Dev-Board\""
-#define LED_NAME "\"LED Papa Nachttisch\""
+#define LED_NAME "\"LED Dev-Board\""
+//#define LED_NAME "\"LED Papa Nachttisch\""
 //#define LED_NAME "\"LED Hannah Norah\""
 //#define LED_NAME "\"LED Wohnzimmer\""
 //#define LED_NAME "\"LED Flurbeleuchtung\""
@@ -52,17 +52,9 @@ extern "C" {
 // new approach starts here:
 #include "led_strip.h"
 
-#include "pahcolor.h"
-
-
-
-
 /* Flash Button can be used here for toggles.... */
 bool hasResetButton = false;
 Bounce debouncer = Bounce();
-
-#define LED_COUNT 50
-#define LED_PIN 3
 
 
 /* Definitions for network usage */
@@ -105,7 +97,6 @@ typedef struct {
     WS2812FX::segment seg;
     uint8_t brightness = DEFAULT_BRIGHTNESS;
     mysunriseParam sParam;
-    pah_colorvalues sunriseColors;
     uint8_t currentEffect = FX_NO_FX;
     uint8_t pal_num;
     CRGBPalette16 pal;
@@ -255,10 +246,6 @@ void saveEEPROMData(void) {
   #ifdef DEBUG
     Serial.println("\tget sunriseparam");
   #endif
-  myEEPROMSaveData.sunriseColors = myColor.getPahColorValues();
-  #ifdef DEBUG
-    Serial.println("\tget pahColorvalues");
-  #endif
   myEEPROMSaveData.currentEffect = currentEffect;
   #ifdef DEBUG
     Serial.print("\tget current effect ");
@@ -337,10 +324,14 @@ void readRuntimeDataEEPROM(void) {
     */
     strip->setBrightness(myEEPROMSaveData.brightness);
 
+    if(strip->getSegments()[0].stop != myEEPROMSaveData.seg.stop)
+    {
+      myEEPROMSaveData.seg.stop = strip->getSegments()[0].stop;
+    }
+
     strip->getSegments()[0] = myEEPROMSaveData.seg;
 
     sunriseParam = myEEPROMSaveData.sParam;
-    myColor.setPahColorValues(myEEPROMSaveData.sunriseColors);
     currentEffect = myEEPROMSaveData.currentEffect;
     if(myEEPROMSaveData.pal_num < strip->getPalCount())
     {
@@ -595,6 +586,8 @@ void initOverTheAirUpdate(void) {
       strip->show();
       delay(2);
     }
+    delay(3000);
+    ESP.reset();
   });
   ArduinoOTA.begin();
   #ifdef DEBUG
@@ -1332,6 +1325,14 @@ void handleSet(void){
     strip->getSegments()[0].reverse = value;
   }
 
+  if(server.hasArg("current"))
+  {
+    uint16_t value = String(server.arg("current")).toInt();
+    sendInt(value);
+    broadcastInt("current", value);
+    strip->setMilliamps(value);
+  }
+
   handleStatus();
   shouldSaveRuntime = true;
 }
@@ -1422,7 +1423,17 @@ void handleStatus(void){
   }
   message += F(",\n    \"Lampenname\": ");
   message += String(LED_NAME);
-  message += F(",\n    \"LedsOn\": ");
+  message += F(",\n    \"Anzahl Leds\": ");
+  message += String(strip->getLength());
+  message += F(",\n    \"Lamp Voltage\": ");
+  message += String(strip->getVoltage());
+  message += F(",\n    \"Lamp Max Current\": ");
+  message += String(strip->getMilliamps());
+  message += F(",\n    \"Lamp Max Power (mW)\": ");
+  message += String(strip->getVoltage() * strip->getMilliamps());
+  message += F(",\n    \"Lamp current Power\": ");
+  message += String(strip->getCurrentPower());
+  message += F(",\n    \"Leds an\": ");
   message += String(num_leds_on) ;
   message += F(",\n    \"mode\": "); 
   message += String(currentEffect); 
@@ -1455,6 +1466,8 @@ void handleStatus(void){
   message += String(strip->getBrightness());
   
   // Palettes and Colors
+  message += F(", \n    \"palette count\": ");
+  message += String(strip->getPalCount()); 
   message += F(", \n    \"palette\": ");
   message += String(strip->getTargetPaletteNumber()); 
   message += F(", \n    \"palette name\": \"");
@@ -1596,114 +1609,6 @@ void handleStatus(void){
 }
 
 
-void temp_old_handleStatus(void){
-  #ifdef DEBUG
-  uint32_t delta_time = millis();
-  #endif
-  const size_t bufferSize = JSON_OBJECT_SIZE(1) + JSON_OBJECT_SIZE(10) + 180;
-  DynamicJsonBuffer jsonBuffer(bufferSize);
-
-  String message = "";
-  uint16_t num_leds_on = 0;
-  // if brightness = 0, no LED can be lid.
-  if(strip->getBrightness()) {
-    // count the number of active LEDs
-    // in rare occassions, this can still be 0, depending on the effect.
-    for(uint16_t i=0; i<strip->getLength(); i++) {
-      if(strip->leds[i]) num_leds_on++;
-    }
-  }
-
-  JsonObject& root = jsonBuffer.createObject();
-
-  JsonObject& currentState = root.createNestedObject(F("currentState"));
-
-  if(stripIsOn) {
-    currentState["state"] = F("on");
-  } else {
-    currentState["state"] = F("off");
-  }
-  currentState["LedsOn"] = num_leds_on;
-  currentState["mode"] = currentEffect;
-  switch (currentEffect) {
-    case FX_NO_FX :
-      currentState["modename"] = F("No FX");
-      break;
-    case FX_SUNRISE :
-      currentState["modename"] = F("Sunrise Effect");
-      break;
-    case FX_SUNSET :
-      currentState["modename"] = F("Sunset Effect");
-      break;
-    case FX_WS2812 :
-      currentState["modename"] = (String)"WS2812fx " + (String)strip->getModeName(strip->getMode());
-      break;
-    default :
-      currentState["modename"] = F("UNKNOWN");
-      break;
-  }
-  currentState["wsfxmode"] = strip->getMode();
-  currentState["beat88"] = strip->getBeat88();
-  currentState["brightness"] = strip->getBrightness();
-  
-  JsonObject& sunRiseState = root.createNestedObject(F("sunRiseState"));
-
-  if(sunriseParam.isSunrise) {
-    sunRiseState["sunRiseMode"] = F("Sunrise");
-  } else {
-    sunRiseState["sunRiseMode"] = F("Sunset");
-  }
-  if(sunriseParam.isRunning) {
-    sunRiseState["sunRiseActive"] = F("on");
-    sunRiseState["sunRiseCurrStep"] = sunriseParam.step;
-    sunRiseState["sunRiseTotalSteps"] = sunriseParam.steps;
-    if(sunriseParam.isSunrise) {
-      sunRiseState["sunRiseTimeToFinish"] =
-        ((sunriseParam.steps - sunriseParam.step) * sunriseParam.deltaTime)/1000;
-    } else {
-      sunRiseState["sunRiseTimeToFinish"] =
-        ((sunriseParam.step) * sunriseParam.deltaTime)/1000;
-    }
-
-    currentState["rgb"] = myColor.calcColorValue(sunriseParam.step);
-
-  } else {
-    sunRiseState["sunRiseActive"] = F("off");
-    sunRiseState["sunRiseTimeToFinish"] = 0;
-    sunRiseState["sunRiseCurrStep"] = 0;
-    sunRiseState["sunRiseTotalSteps"] = sunriseParam.steps;
-    //currentState["rgb"] = strip->getColor();
-  }
-  sunRiseState["sunRiseMinStep"] = myColor.getStepStart();
-  sunRiseState["sunRiseMidStep"] = myColor.getStepMid();
-  sunRiseState["sunRiseEndStep"] = myColor.getStepEnd();
-  sunRiseState["sunRiseStartColor"] = myColor.getColorStart();
-  sunRiseState["sunRiseMid1Color"] = myColor.getColorMid1();
-  sunRiseState["sunRiseMid2Color"] = myColor.getColorMid2();
-  sunRiseState["sunRiseMid3Color"] = myColor.getColorMid3();
-  sunRiseState["sunRiseEndColor"] = myColor.getColorEnd();
-
-  #ifdef DEBUG
-  JsonObject& ESP_Data = root.createNestedObject("ESP_Data");
-  ESP_Data["DBG_Debug code"] = "On";
-  ESP_Data["DBG_CPU_Freq"] = ESP.getCpuFreqMHz();
-  ESP_Data["DBG_Flash Real Size"] = ESP.getFlashChipRealSize();
-  ESP_Data["DBG_Free RAM"] = ESP.getFreeHeap();
-  ESP_Data["DBG_Free Sketch Space"] = ESP.getFreeSketchSpace();
-  ESP_Data["DBG_Sketch Size"] = ESP.getSketchSize();
-  root.prettyPrintTo(Serial);
-  JsonObject& Server_Args = root.createNestedObject("Server_Args");
-  for(uint8_t i = 0; i<server.args(); i++) {
-    Server_Args[server.argName(i)] = server.arg(i);
-  }
-  root.prettyPrintTo(message);
-  Serial.printf("\n\n\tAnswer preparation took %d milliseconds.\n\n", millis() - delta_time);
-  #endif
-
-  
-  server.send(200, "application/json", message);
-}
-
 void factoryReset(void){
   #ifdef DEBUG
   Serial.println("Someone requested Factory Reset");
@@ -1726,7 +1631,7 @@ void factoryReset(void){
   #ifdef DEBUG
   Serial.println("Reset WiFi Settings");
   #endif
-  wifiManager.resetSettings();
+  //wifiManager.resetSettings();
   delay(500);
   clearEEPROM();
   //reset and try again
@@ -1978,7 +1883,10 @@ void setup() {
   Serial.println("Runtime Data loaded");
   Serial.print("\tcurrent Effect = ");
   Serial.println(currentEffect);
+  
   #endif
+
+  set_max_power_indicator_LED(BUILTIN_LED);
   //if(stripIsOn) strip_On_Off(true);
 }
 

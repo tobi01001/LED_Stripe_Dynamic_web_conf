@@ -15,28 +15,17 @@
 #ifndef led_strip_h
 #define led_strip_h
 
+// we gonna need our own adoption from the library. 
+// Maybe its worth renaming and separating...
 #include "WS2812FX.h"
-//#include <Adafruit_NeoPixel.h>
 
-//ToDo: Rework for ColorPalettes
-#include "pahcolor.h"
-
-/* should be in library now....
-// QUICKFIX...See https://github.com/esp8266/Arduino/issues/263
-#define min(a,b) ((a)<(b)?(a):(b))
-#define max(a,b) ((a)>(b)?(a):(b))
-*/
-
-//#define DEFAULT_PIXEL_TYPE (NEO_GRB + NEO_KHZ800)
-
+// These define modes besides the fx library
 #define FX_NO_FX        0
 #define FX_SUNRISE      1
 #define FX_SUNSET       2
 #define FX_WS2812       3
 
-extern WS2812FX *strip; // = WS2812FX(1, 1, DEFAULT_PIXEL_TYPE); // WS2812FX(strip.getLength(), LEDPIN, NEO_GRB + NEO_KHZ800);
-
-
+extern WS2812FX *strip; 
 
 // initialize the strip during boot (or at changes)
 // strip can be any neopixel arrangement
@@ -122,8 +111,6 @@ extern bool stripIsOn;
 extern uint8_t currentEffect;
 extern uint8_t previousEffect;
 
-extern pah_color myColor;
-
 extern mysunriseParam sunriseParam;
 
 // Field.h
@@ -151,7 +138,7 @@ typedef String (*FieldGetter)();
 
 
 
-typedef struct Field {
+struct Field {
   String name;
   String label;
   String type;
@@ -191,6 +178,7 @@ String getFieldValue(String name, FieldList fields, uint8_t count);
 String setFieldValue(String name, String value, FieldList fields, uint8_t count);
 String getFieldsJson(FieldList fields, uint8_t count); 
 String getPower(void);
+String getMilliamps(void);
 String getBrightness(void);
 String getPattern(void);
 String getPatterns(void);

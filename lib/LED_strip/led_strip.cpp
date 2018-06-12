@@ -15,10 +15,8 @@
 #include "led_strip.h"
 #endif
 
-#include <pahcolor.h>
+//#include <pahcolor.h>
 
-// control special effects
-//bool sunrise_running = false;
 bool stripWasOff = true;
 bool stripIsOn = true;
 extern bool shouldSaveRuntime;
@@ -28,14 +26,6 @@ uint8_t currentEffect = FX_NO_FX;
 uint8_t previousEffect = FX_NO_FX;
 
 mysunriseParam sunriseParam;
-
-pah_color myColor(0,   512, 1024,
-                  0,   0, 0,
-                  67,  5,  2,
-                  127,  31, 0,
-                  191, 63, 3,
-                  255, 200,  128);
-
 
 WS2812FX *strip;  
 
@@ -213,13 +203,17 @@ String getReverse() {
   return String(strip->getSegments()[0].reverse);
 }
 
+String getMilliamps(void) {
+  return String(strip->getMilliamps());
+}
+
 FieldList fields = {
   { "power",            "LED Schalter",                     SectionFieldType                                                                        },
   { "power",            "LED Schalter",                     BooleanFieldType,   0,              1,                      getPower                    },
   { "basicControl",     "Basic control",                    SectionFieldType                                                                        },
   { "br",               "Helligkeit",                       NumberFieldType,    BRIGHTNESS_MIN, BRIGHTNESS_MAX,         getBrightness               },
   { "mo",               "Lichteffekt",                      SelectFieldType,    0,              strip->getModeCount(),  getPattern, getPatterns     },
-  { "pa",               "Farbpalette",                      SelectFieldType,    0,              strip->getPalCount()+1, getPalette, getPalettes     },
+  { "pa",               "Farbpalette",                      SelectFieldType,    0,   (uint16_t)(strip->getPalCount()+1),getPalette, getPalettes     },
   { "sp",               "Geschwindigkeit",                  NumberFieldType,    BEAT88_MIN,     BEAT88_MAX,             getSpeed                    },
   { "blendType",        "Blendmodus",                       SelectFieldType,    NOBLEND,        LINEARBLEND,            getBlendType, getBlendTypes },
   { "reverse",          "Rückwärts",                        BooleanFieldType,   0,              1,                      getReverse                  },
@@ -240,6 +234,8 @@ FieldList fields = {
   { "twinkles",         "Funkeln",                          SectionFieldType                                                                        },
   { "twinkleSpeed",     "Funkelgeschwindigkeit",            NumberFieldType,    0,              8,                      getTwinkleSpeed             },
   { "twinkleDensity",   "Wieviel Funkellichter",            NumberFieldType,    0,              8,                      getTwinkleDensity           },
+  { "Settings",         "Einstellungen",                    SectionFieldType                                                                        },
+  { "current",          "max Strom",                        NumberFieldType,    100,            20000,                  getMilliamps                },
 };
 
 #ifndef ARRAY_SIZE
@@ -443,7 +439,6 @@ void delaymicro(unsigned int mics){
 void mySunriseStart(uint32_t  mytime, uint16_t steps, bool up) {
   sunriseParam.isRunning = true;
   sunriseParam.steps = steps;
-  myColor.setStepValues(0, steps/2, steps);
   if(up)
   {
     sunriseParam.step = 0;
@@ -480,7 +475,20 @@ void mySunriseTrigger(void) {
       sunriseParam.step--;
     }
     // ToDo: We change to palette and move along the palette...
-    
+    uint8_t brightness_steps = (uint16_t)(sunriseParam.steps / 2.5);
+    uint8_t br = 0;
+    if(sunriseParam.step <= brightness_steps)
+    {
+      br = (uint8_t)map(sunriseParam.step,
+                        BRIGHTNESS_MIN+1,
+                        brightness_steps,
+                        0,
+                        BRIGHTNESS_MAX);
+    }
+    else
+    {
+      br = BRIGHTNESS_MAX;
+    }
     fill_solid(strip->leds, strip->getLength(), 
                ColorFromPalette( HeatColors_p, 
                                 (uint8_t)map(sunriseParam.step, 
@@ -488,7 +496,7 @@ void mySunriseTrigger(void) {
                                              sunriseParam.steps, 
                                              0, 
                                              240), 
-                                 strip->getBrightness(), 
+                                 br,
                                  LINEARBLEND));
     /*
     for(uint16_t i = 0; i < strip->getLength(); i++)
