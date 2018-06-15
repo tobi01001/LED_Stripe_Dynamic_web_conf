@@ -1488,9 +1488,9 @@ void handleStatus(void){
   } else {
     message += F("\"off\"");
   }
-  message += F(",\n    \"Lampenname\": ");
+  message += F(",\n    \"Lampenname\": \"");
   message += String(LED_NAME);
-  message += F(",\n    \"Anzahl Leds\": ");
+  message += F("\",\n    \"Anzahl Leds\": ");
   message += String(strip->getLength());
   message += F(",\n    \"Lamp Voltage\": ");
   message += String(strip->getVoltage());
