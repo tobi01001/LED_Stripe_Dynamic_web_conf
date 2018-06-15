@@ -21,38 +21,53 @@
 #define FASTLED_ESP8266_DMA
 #define FASTLED_USE_PROGMEM 1
 
-
+/* use build flags to define these */
+#ifndef LED_NAME
+  #error "You need to give your LED a Name (build flag e.g. '-DLED_NAME=\"My LED\"')!"
+#endif
 //#define LED_NAME "\"LED Dev-Board\""
-#define LED_NAME "\"LED Papa Nachttisch\""
+//#define LED_NAME "\"LED Papa Nachttisch\""
 //#define LED_NAME "\"LED Hannah Norah\""
 //#define LED_NAME "\"LED Wohnzimmer\""
 //#define LED_NAME "\"LED Flurbeleuchtung\""
-#define LED_COUNT 50
-#define LED_PIN 3
 
-#define STRIP_FPS 60
-#define STRIP_VOLTAGE 5
-#define STRIP_MILLIAMPS 2500
+/* use build flags to define these */
 
 //#define DEBUG
+#ifndef LED_COUNT
+  #error "You need to define the number of Leds by LED_COUND (build flag e.g. -DLED_COUNT=50)"
+#endif
 
+#define LED_PIN 3  // Needs to be 3 (raw value) for ESP8266 because of DMA
+
+#define STRIP_FPS 60          // 60 FPS seems to be a good value
+#define STRIP_VOLTAGE 5       // fixed to 5 volts
+#define STRIP_MILLIAMPS 2500  // can be changed during runtime
+
+// The delay being used for several init phases.
 #define INITDELAY 200
 
-#define ARRAY_SIZE(A) (sizeof(A) / sizeof((A)[0]))
+// For the Webserver Answers..
+#define ANSWERSTATE 0
+#define ANSWERSUNRISE 1
 
 
+// to count the ARRAY SIZE - not used?
+// #define ARRAY_SIZE(A) (sizeof(A) / sizeof((A)[0]))
+
+/*
 extern "C" {
 #include "user_interface.h"
 }
+*/
 
 #include "Arduino.h"
 #include <ArduinoJson.h>
 #include <ESP8266WiFi.h>
-//#include <DNSServer.h>
 #include <ESP8266WebServer.h>
 #include <WebSocketsServer.h>
 #include <WiFiManager.h>
-#include <Bounce2.h>
+//#include <Bounce2.h>
 #include <ArduinoOTA.h>
 #include <EEPROM.h>
 
@@ -62,7 +77,7 @@ extern "C" {
 
 /* Flash Button can be used here for toggles.... */
 bool hasResetButton = false;
-Bounce debouncer = Bounce();
+//Bounce debouncer = Bounce();
 
 
 /* Definitions for network usage */
@@ -72,16 +87,16 @@ ESP8266WebServer server(80);
 WebSocketsServer webSocketsServer = WebSocketsServer(81);
 WiFiManager wifiManager;
 
-String AP_SSID = "LED_stripe_" + String(ESP.getChipId());
+String AP_SSID = LED_NAME + String(ESP.getChipId());
 
 //char chrResetButtonPin[3]="X";
 //char chrLEDCount[5] = "0";
 //char chrLEDPin[2] = "0";
 
 //default custom static IP
-char static_ip[16] = "";
-char static_gw[16] = "";
-char static_sn[16] = "255.255.255.0";
+//char static_ip[16] = "";
+//char static_gw[16] = "";
+//char static_sn[16] = "255.255.255.0";
 
 //WiFiManagerParameter ResetButtonPin("RstPin", "Reset Pin", chrResetButtonPin, 3);
 //WiFiManagerParameter LedCountConf("LEDCount","LED Count", chrLEDCount, 4);
@@ -125,7 +140,7 @@ void  saveConfigCallback    (void),
       saveEEPROMData        (void),
       readConfigurationFS   (void),
       initOverTheAirUpdate  (void),
-      setupResetButton      (uint8_t buttonPin),
+      //setupResetButton      (uint8_t buttonPin),
       updateConfiguration   (void),
       setupWiFi             (void),
       handleRoot            (void),
@@ -139,8 +154,9 @@ void  saveConfigCallback    (void),
       factoryReset          (void),
       handleResetRequest    (void),
       setupWebServer        (void),
-      sendInt               (uint8_t value),
-      sendString            (String value),
+      sendInt               (String name, uint16_t value),
+      sendString            (String name, String value),
+      sendAnswer            (String jsonAnswer),
       broadcastInt          (String name, uint16_t value),
       broadcastString       (String name, String value),
       webSocketEvent        (uint8_t num, WStype_t type, uint8_t * payload, size_t length),
@@ -154,19 +170,40 @@ const String
 
 
 
-void sendInt(uint8_t value)
+void sendInt(String name, uint16_t value)
 {
-  sendString(String(value));
+  String answer = F("{ ");
+  answer += F("\"currentState\" : { \"");  
+  answer += name;
+  answer += F("\": ");
+  answer += value;
+  answer += " } }";
+  #ifdef DEBUG
+  Serial.print("Send HTML respone 200, application/json with value: ");
+  Serial.println(answer);
+  #endif
+  server.send(200, "application/json", answer);
 }
 
-void sendString(String value)
+void sendString(String name, String value)
 {
+  String answer = F("{ ");
+  answer += F("\"currentState\" : { \"");  
+  answer += name;
+  answer += F("\": \"");
+  answer += value;
+  answer += "\" } }";
   #ifdef DEBUG
-  Serial.print("Send HTML respone 200, text/plain with value: ");
-  Serial.println(value);
+  Serial.print("Send HTML respone 200, application/json with value: ");
+  Serial.println(answer);
   #endif
-  //server.send(200, "text/plain", value);
-  //handleStatus();
+  server.send(200, "application/json", answer);
+}
+
+void sendAnswer(String jsonAnswer)
+{
+  String answer = "{ \"currentState\": { " + jsonAnswer + "} }";
+  server.send(200, "application/json", answer);
 }
 
 void broadcastInt(String name, uint16_t value)
@@ -830,7 +867,7 @@ uint8_t changebypercentage (uint8_t value, uint8_t percentage) {
 }
 
 // if /set was called
-void handleSet(void){
+void handleSet(void) {
 
   // Debug only
   #ifdef DEBUG
@@ -891,10 +928,11 @@ void handleSet(void){
       #ifdef DEBUG
       Serial.println("got Argument mode Off....");
       #endif
+      sendString("state", "off");
       reset();
       strip_On_Off(false);
-      FastLED.clearData();
       strip->stop();
+      
     }
     else if (server.arg("mo")[0] == 'f') {
       #ifdef DEBUG
@@ -966,6 +1004,7 @@ void handleSet(void){
       }
       mySunriseStart(mytime, mysteps, true);
       setEffect(FX_SUNRISE);
+      handleStatus();
     }
     // sunrise effect
     // + delta value
@@ -1000,6 +1039,7 @@ void handleSet(void){
       }
       mySunriseStart(mytime, mysteps, false);
       setEffect(FX_SUNSET);
+      handleStatus();
     }
     // finally switch to the one being provided.
     // we don't care if its actually an int or not
@@ -1027,7 +1067,9 @@ void handleSet(void){
       Serial.println("gonna send mo response....");
       #endif
       //strip->trigger();
-      sendInt(effect);
+      sendAnswer(  "\"mode\": 3, \"modename\": \"" + 
+                  (String)strip->getModeName(effect) + 
+                  "\", \"wsfxmode\": " + String(effect));
       broadcastInt("mo", effect);
     }
   }
@@ -1046,7 +1088,7 @@ void handleSet(void){
     {
       strip_On_Off(true);
     }
-    sendInt(stripIsOn);
+    sendString("state", stripIsOn?"on":"off");
     broadcastInt("power", stripIsOn);
   }
     
@@ -1060,7 +1102,8 @@ void handleSet(void){
     Serial.println(pal);
     #endif
     strip->setTargetPalette(pal);
-    sendInt(pal);
+    sendAnswer(   "\"palette\": " + String(pal) + ", \"palette name\": \"" + 
+                  (String)strip->getPalName(pal) + "\"");
     broadcastInt("pa", pal);
   }
 
@@ -1080,7 +1123,7 @@ void handleSet(void){
       brightness = constrain((uint8_t)strtoul(&server.arg("br")[0], NULL, 10), BRIGHTNESS_MIN, BRIGHTNESS_MAX);
     }
     strip->setBrightness(brightness);
-    sendInt(brightness);
+    sendInt("brightness", brightness);
     broadcastInt("br", strip->getBrightness());
     //strip->show();
   }
@@ -1106,7 +1149,7 @@ void handleSet(void){
     strip->setSpeed(speed);
     // delay_interval = (uint8_t)(speed / 256); // obsolete???
     strip->show();
-    sendInt(speed);
+    sendAnswer( "\"speed\": " + String(speed) + ", \"beat88\": \"" + String(speed));
     broadcastInt("sp", strip->getBeat88());
   }
 
@@ -1120,19 +1163,16 @@ void handleSet(void){
       uint16_t ret = max((speed*115)/100, 10);
       if (ret > BEAT88_MAX) ret = BEAT88_MAX;
       speed = ret;
-      //speed = changebypercentage(speed, 110);
     } else if (server.arg("be")[0] == 'd') {
       uint16_t ret = max((speed*80)/100, 10);
       if (ret > BEAT88_MAX) ret = BEAT88_MAX;
       speed = ret;
-      //speed = changebypercentage(speed, 90);
     } else {
       speed = constrain((uint16_t)strtoul(&server.arg("be")[0], NULL, 10), BEAT88_MIN, BEAT88_MAX);
     }
     strip->setSpeed(speed);
-    // delay_interval = (uint8_t)(speed / 256); // obsolete???
     strip->show();
-    sendInt(speed);
+    sendAnswer( "\"speed\": " + String(speed) + ", \"beat88\": \"" + String(speed));
     broadcastInt("sp", strip->getBeat88());
   }
 
@@ -1203,9 +1243,10 @@ void handleSet(void){
     b = constrain((uint8_t)strtoul(&server.arg("b")[0], NULL, 10), 0, 255); 
     color = (r << 16) | (g << 8) | (b << 0);
     CRGB solidColor(color);
-    sendString(String(solidColor.r) + "," + String(solidColor.g) + "," + String(solidColor.b));
+    
+    //sendString(String(solidColor.r) + "," + String(solidColor.g) + "," + String(solidColor.b));
     //broadcastString("solidColor", String(solidColor.r) + "," + String(solidColor.g) + "," + String(solidColor.b));
-    //broadcastInt("pa", strip->getPalCount());
+    broadcastInt("pa", strip->getPalCount());
   }
   if(server.hasArg("pi")) {
     #ifdef DEBUG
@@ -1214,6 +1255,7 @@ void handleSet(void){
     //setEffect(FX_NO_FX);
     uint16_t pixel = constrain((uint16_t)strtoul(&server.arg("pi")[0], NULL, 10), 0, strip->getLength()-1);
     strip_setpixelcolor(pixel, color);
+    handleStatus();  
   } else if (server.hasArg("rnS") && server.hasArg("rnE")) {
     #ifdef DEBUG
       Serial.println("got Argument range start / range end....");
@@ -1221,6 +1263,7 @@ void handleSet(void){
     uint16_t start = constrain((uint16_t)strtoul(&server.arg("rnS")[0], NULL, 10), 0, strip->getLength());
     uint16_t end = constrain((uint16_t)strtoul(&server.arg("rnE")[0], NULL, 10), start, strip->getLength());
     set_Range(start, end, color);
+    handleStatus();
   } else if (server.hasArg("rgb")) {
     #ifdef DEBUG
       Serial.println("got Argument rgb....");
@@ -1228,15 +1271,19 @@ void handleSet(void){
     strip->setColor(color);
     setEffect(FX_WS2812);
     strip->setMode(FX_MODE_STATIC);
+    handleStatus();
   } else {
-    if(setColor) strip->setColor(color);
+    if(setColor) {
+      strip->setColor(color);
+      handleStatus();
+    }
   }
 
   if(server.hasArg("autoplay"))
   {
     uint16_t value = String(server.arg("autoplay")).toInt();
     strip->getSegments()[0].autoplay = value;
-    sendInt(value);
+    sendInt("Autoplay Mode", value);
     broadcastInt("autoplay", value);
   }
 
@@ -1244,7 +1291,7 @@ void handleSet(void){
   {
     uint16_t value = String(server.arg("autoplayDuration")).toInt();
     strip->setAutoplayDuration(value);
-    sendInt(value);
+    sendInt("Autoplay Mode Interval", value);
     broadcastInt("autoplayDuration", value);
   }
 
@@ -1252,7 +1299,7 @@ void handleSet(void){
   {
     uint16_t value = String(server.arg("autopal")).toInt();
     strip->getSegments()[0].autoPal = value;
-    sendInt(value);
+    sendInt("Autoplay Palette", value);
     broadcastInt("autopal", value);
   }
 
@@ -1260,7 +1307,7 @@ void handleSet(void){
   {
     uint16_t value = String(server.arg("autopalDuration")).toInt();
     strip->setAutoPalDuration(value);
-    sendInt(value);
+    sendInt("Autoplay Palette Interval", value);
     broadcastInt("autopalDuration", value);
   }
 
@@ -1268,7 +1315,7 @@ void handleSet(void){
   if(server.hasArg("huetime"))
   {
     uint16_t value = String(server.arg("huetime")).toInt();
-    sendInt(value);
+    sendInt("Hue change time", value);
     broadcastInt("huetime", value);
     strip->sethueTime(value);
   }
@@ -1276,7 +1323,7 @@ void handleSet(void){
   if(server.hasArg("deltahue"))
   {
     uint16_t value = constrain(String(server.arg("deltahue")).toInt(), 0, 255);
-    sendInt(value);
+    sendInt("Delta hue per change", value);
     broadcastInt("deltahue", value);
     strip->getSegments()[0].deltaHue = value;
   }
@@ -1284,7 +1331,7 @@ void handleSet(void){
   if(server.hasArg("cooling"))
   {
     uint16_t value = String(server.arg("cooling")).toInt();
-    sendInt(value);
+    sendInt("Fire Cooling", value);
     broadcastInt("cooling", value);
     strip->getSegments()[0].cooling = value;
   }
@@ -1293,7 +1340,7 @@ void handleSet(void){
   if(server.hasArg("sparking"))
   {
     uint16_t value = String(server.arg("sparking")).toInt();
-    sendInt(value);
+    sendInt("Fire sparking", value);
     broadcastInt("sparking", value);
     strip->getSegments()[0].sparking = value;
   }
@@ -1301,7 +1348,7 @@ void handleSet(void){
   if(server.hasArg("twinkleSpeed"))
   {
     uint16_t value = String(server.arg("twinkleSpeed")).toInt();
-    sendInt(value);
+    sendInt("Twinkle Speed", value);
     broadcastInt("twinkleSpeed", value);
     strip->getSegments()[0].twinkleSpeed = value;
   }
@@ -1309,7 +1356,7 @@ void handleSet(void){
   if(server.hasArg("twinkleDensity"))
   {
     uint16_t value = String(server.arg("twinkleDensity")).toInt();
-    sendInt(value);
+    sendInt("Twinkle Density", value);
     broadcastInt("twinkleDensity", value);
     strip->getSegments()[0].cooling = value;
   }
@@ -1317,18 +1364,22 @@ void handleSet(void){
   if(server.hasArg("blendType"))
   {
     uint16_t value = String(server.arg("blendType")).toInt();
-    sendInt(value);
+    
     broadcastInt("blendType", value);
-    if(value)
+    if(value) {
       strip->getSegments()[0].blendType = LINEARBLEND;
-    else
+      sendString("BlendType", "LINEARBLEND");
+    }
+    else {
       strip->getSegments()[0].blendType = NOBLEND;
+      sendString("BlendType", "NOBLEND");
+    }
   }
 
   if(server.hasArg("reverse"))
   {
     uint16_t value = String(server.arg("reverse")).toInt();
-    sendInt(value);
+    sendInt("Reverse", value);
     broadcastInt("reverse", value);
     strip->getSegments()[0].reverse = value;
   }
@@ -1336,7 +1387,7 @@ void handleSet(void){
   if(server.hasArg("current"))
   {
     uint16_t value = String(server.arg("current")).toInt();
-    sendInt(value);
+    sendInt("Lamp Max Current", value);
     broadcastInt("current", value);
     strip->setMilliamps(value);
   }
@@ -1344,13 +1395,13 @@ void handleSet(void){
   if(server.hasArg("LEDblur"))
   {
     uint8_t value = String(server.arg("LEDblur")).toInt();
-    sendInt(value);
+    sendInt("LEDblur", value);
     broadcastInt("LEDblur", value);
     strip->setBlurValue(value);
   }
 
 
-  handleStatus();
+  //handleStatus();
   shouldSaveRuntime = true;
 }
 
@@ -1417,11 +1468,10 @@ void handleGetPals(void){
 }
 
 void handleStatus(void){
-  #ifdef DEBUG
-  uint32_t delta_time = millis();
-  #endif
+  uint32_t answer_time = millis();
 
-  String message = "";
+  String message;
+  message.reserve(1500);
   uint16_t num_leds_on = 0;
   // if brightness = 0, no LED can be lid.
   if(strip->getBrightness()) {
@@ -1612,7 +1662,12 @@ void handleStatus(void){
   }
   message += F("\n  }");
   #endif
-
+  message += F(",\n  \"Stats\": {\n    \"Answer_Time\": ");
+  answer_time = millis() - answer_time;
+  message += answer_time;
+  message += F(",\n    \"FPS\": ");
+  message += FastLED.getFPS();
+  message += F("\n  }");
   message += F("\n}");
 
   #ifdef DEBUG
@@ -1620,9 +1675,6 @@ void handleStatus(void){
   #endif
   
   server.send(200, "application/json", message);
-  #ifdef DEBUG
-  Serial.printf("\n\n\tAnswer preparation and sending took %d milliseconds.\n\n", millis() - delta_time);
-  #endif
 }
 
 
@@ -1892,15 +1944,11 @@ void setup() {
   delay(INITDELAY);
   #ifdef DEBUG
   Serial.println("Init finished.. Read runtime data");
-  Serial.print("\tcurrent Effect = ");
-  Serial.println(currentEffect);
   #endif
   readRuntimeDataEEPROM();
   #ifdef DEBUG
   Serial.println("Runtime Data loaded");
-  Serial.print("\tcurrent Effect = ");
-  Serial.println(currentEffect);
-  
+  FastLED.countFPS(60);
   #endif
 
   set_max_power_indicator_LED(BUILTIN_LED);
@@ -1922,7 +1970,7 @@ void loop() {
     // Debug Watchdog. to be removed for "production".
   if(now - last_status_msg > 10000) {
     last_status_msg = now;
-    Serial.print("\ncurrentEffect\t");
+    Serial.print("\n\t");
      switch (currentEffect) {
       case FX_NO_FX :
         Serial.println("No FX");
@@ -1934,19 +1982,21 @@ void loop() {
         Serial.println("Sunset");
         break;
       case FX_WS2812 :
-        Serial.println("WS2812FX");
-        Serial.print("\t\tEffect Number\t");
-        Serial.println(strip->getMode());
-        Serial.print("\t\tEffect Name\t");
+        Serial.print("WS2812FX");
+        Serial.print("\t");
+        Serial.print(strip->getMode());
+        Serial.print("\t");
         Serial.println(strip->getModeName(strip->getMode()));
         break;
       default:
         Serial.println("This is a problem!!!");
     }
-    Serial.print("Current Palette:\t");
-    Serial.println(strip->getCurrentPaletteName());
-    Serial.print("Target Palette:\t\t");
+    Serial.print("\tC:\t");
+    Serial.print(strip->getCurrentPaletteName());
+    Serial.print("\tT:\t");
     Serial.println(strip->getTargetPaletteName());
+    Serial.print("\tFPS:\t");
+    Serial.println(FastLED.getFPS());
   }
   #endif
   // Checking WiFi state every WIFI_TIMEOUT

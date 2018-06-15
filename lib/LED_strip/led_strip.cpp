@@ -212,7 +212,7 @@ String getBlurValue(void) {
 }
 
 FieldList fields = {
-  { "power",            "LED Schalter",                     SectionFieldType                                                                        },
+  { "power",            LED_NAME,                           SectionFieldType                                                                        },
   { "power",            "LED Schalter",                     BooleanFieldType,   0,              1,                      getPower                    },
   { "basicControl",     "Basic control",                    SectionFieldType                                                                        },
   { "br",               "Helligkeit",                       NumberFieldType,    BRIGHTNESS_MIN, BRIGHTNESS_MAX,         getBrightness               },
@@ -255,7 +255,7 @@ void stripe_setup(  const uint16_t LEDCount,
                     const uint8_t volt = 5, 
                     const uint16_t milliamps = 500, 
                     const CRGBPalette16 pal = Rainbow_gp, 
-                    const String Name = "Custom",
+                    const String Name = "Rainbow Colors",
                     const LEDColorCorrection colc = TypicalLEDStrip ){
   strip = new WS2812FX(LEDCount, FPS, volt, milliamps, pal, Name, colc);
   //initialize the stripe
@@ -367,6 +367,7 @@ void setEffect(uint8_t Effect){
   //previousEffect = currentEffect;
   currentEffect = Effect;
   strip_On_Off(true);
+  stripWasOff = false;
   if(strip->getBrightness()<1)
   {
     strip->setBrightness(10);
