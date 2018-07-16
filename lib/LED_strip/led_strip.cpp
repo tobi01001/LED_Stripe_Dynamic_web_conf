@@ -9,141 +9,328 @@
    ... many others ( see includes)
 
  **************************************************************/
+//#define DEBUG
+
 #ifndef led_strip_h
 #include "led_strip.h"
 #endif
 
-#include <pahcolor.h>
+//#include <pahcolor.h>
 
-
-//globals... here or in the ccp file? - use it here for the moment
-/* Globals */
-// ToDo: Redefine for effectiveness (static etc)
-uint16_t fx_blinker_start_pixel;
-uint16_t fx_blinker_end_pixel;
-uint8_t fx_blinker_red;
-uint8_t fx_blinker_green;
-uint8_t fx_blinker_blue;
-uint16_t fx_blinker_time_on;
-uint16_t fx_blinker_time_off;
-
-// control special effects
-bool sunrise_running = false;
 bool stripWasOff = true;
 bool stripIsOn = true;
+extern bool shouldSaveRuntime;
 
-unsigned long last_delay_trigger = 0;
 
 uint8_t currentEffect = FX_NO_FX;
 uint8_t previousEffect = FX_NO_FX;
 
-uint16_t rainbowColor=0;
+mysunriseParam sunriseParam;
 
-uint16_t delay_interval = 50;
+WS2812FX *strip;  
 
-struct sunriseParam {
-  bool isRunning;
-  bool isSunrise;
-  uint16_t steps;
-  uint16_t step;
-  uint32_t deltaTime;
-  uint32_t lastChange;
-} sunriseParam;
+const String NumberFieldType = "Number";
+const String BooleanFieldType = "Boolean";
+const String SelectFieldType = "Select";
+const String ColorFieldType = "Color";
+const String SectionFieldType = "Section";
 
-// Parameter 1 = number of pixels in strip
-// Parameter 2 = Arduino pin number (most are valid)
-// Parameter 3 = pixel type flags, add together as needed:
-//   NEO_KHZ800  800 KHz bitstream (most NeoPixel products w/WS2812 LEDs)
-//   NEO_KHZ400  400 KHz (classic 'v1' (not v2) FLORA pixels, WS2811 drivers)
-//   NEO_GRB     Pixels are wired for GRB bitstream (most NeoPixel products)
-//   NEO_RGB     Pixels are wired for RGB bitstream (v1 FLORA pixels, not v2)
-WS2812FX strip = WS2812FX(300, 1, DEFAULT_PIXEL_TYPE); // WS2812FX(strip.getLength(), LEDPIN, NEO_GRB + NEO_KHZ800);
-
-
-void stripe_setDelayInterval(uint16_t delay)
-{
-  // new speed in ws2812fx library is 10 to 65535
-  // we use the old "delay" but may multiply to get a new speed for ws2812fx
-  uint16_t speed = (delay*257);
-  if(delay > 255) delay = 255;
-  //if(delay < 1) delay = 1;
-  if(speed > SPEED_MAX) speed = SPEED_MAX;
-  if(speed < SPEED_MIN) speed = SPEED_MIN;
-  strip.setSpeed(speed);
-  delay_interval = delay;
+Field getField(String name, FieldList fields, uint8_t count) {
+  for (uint8_t i = 0; i < count; i++) {
+    Field field = fields[i];
+    if (field.name == name) {
+      return field;
+    }
+  }
+  return Field();
 }
 
-uint16_t stripe_getDelayInterval()
-{
-  return delay_interval;
+String getFieldValue(String name, FieldList fields, uint8_t count) {
+  Field field = getField(name, fields, count);
+  if (field.getValue) {
+    return field.getValue();
+  }
+  return String();
 }
+
+String setFieldValue(String name, String value, FieldList fields, uint8_t count) {
+  Field field = getField(name, fields, count);
+  if (field.setValue) {
+    return field.setValue(value);
+  }
+  return String();
+}
+
+String getFieldsJson(FieldList fields, uint8_t count) {
+  String json = "[";
+
+  for (uint8_t i = 0; i < count; i++) {
+    Field field = fields[i];
+
+    json += "{\"name\":\"" + field.name + "\",\"label\":\"" + field.label + "\",\"type\":\"" + field.type + "\"";
+
+    if(field.getValue) {
+      if (field.type == ColorFieldType || field.type == "String") {
+        json += ",\"value\":\"" + field.getValue() + "\"";
+      }
+      else {
+        json += ",\"value\":" + field.getValue();
+      }
+    }
+
+    if (field.type == NumberFieldType) {
+      json += ",\"min\":" + String(field.min);
+      json += ",\"max\":" + String(field.max);
+    }
+
+    if (field.getOptions) {
+      json += ",\"options\":[";
+      json += field.getOptions();
+      json += "]";
+    }
+
+    json += "}";
+
+    if (i < count - 1)
+      json += ",";
+  }
+
+  json += "]";
+
+  return json;
+}
+
+String getPower() {
+  return String(stripIsOn);
+}
+
+
+String getBrightness() {
+  return String(strip->getBrightness());
+}
+
+String getPattern() {
+  return String(strip->getMode());
+}
+
+String getPatterns() {
+  String json = "";
+
+  for (uint8_t i = 0; i < strip->getModeCount(); i++) {
+    json += "\"" + String(strip->getModeName(i)) + "\"";
+    if (i < strip->getModeCount() - 1)
+      json += ",";
+  }
+
+  return json;
+}
+
+String getPalette() {
+  return String(strip->getTargetPaletteNumber());
+}
+
+String getPalettes() {
+  String json = "";
+
+  for (uint8_t i = 0; i < strip->getPalCount(); i++) {
+    json += "\"" + String(strip->getPalName(i)) + "\"";
+    //if (i < strip->getPalCount() - 1)
+      json += ",";
+  }
+  json += "\"Custom\"";
+
+  return json;
+}
+
+String getAutoplay() {
+  return String(strip->getSegments()[0].autoplay);
+}
+
+String getAutoplayDuration() {
+  return String(strip->getSegments()[0].autoplayDuration);
+}
+
+String getAutopal() {
+  return String(strip->getSegments()[0].autoPal);
+}
+
+String getAutopalDuration() {
+  return String(strip->getSegments()[0].autoPalDuration);
+}
+
+String getSolidColor() {
+  CRGB solidColor = strip->getTargetPalette().entries[0];
+  return String(solidColor.r) + "," + String(solidColor.g) + "," + String(solidColor.b);
+}
+
+String getCooling() {
+  return String(strip->getCooling());
+}
+
+String getSparking() {
+  return String(strip->getSparking());
+}
+
+String getSpeed() {
+  return String(strip->getBeat88());
+}
+
+String getTwinkleSpeed() {
+  return String(strip->getTwinkleSpeed());
+}
+
+String getTwinkleDensity() {
+  return String(strip->getTwinkleDensity());
+}
+
+String getHueTime() {
+  return String(strip->getSegments()[0].hueTime);
+}
+
+String getDeltaHue() {
+  return String(strip->getSegments()[0].deltaHue);
+}
+
+String getBlendType() {
+  return String(strip->getSegments()[0].blendType);
+}
+
+String getBlendTypes() {
+  return "\"NoBlend\",\"LinearBlend\"";
+}
+
+String getReverse() {
+  return String(strip->getSegments()[0].reverse);
+}
+
+String getMilliamps(void) {
+  return String(strip->getMilliamps());
+}
+
+String getBlurValue(void) {
+  return String(strip->getBlurValue());
+}
+
+FieldList fields = {
+  { "power",            LED_NAME,                           SectionFieldType                                                                        },
+  { "power",            "LED Schalter",                     BooleanFieldType,   0,              1,                      getPower                    },
+  { "basicControl",     "Basic control",                    SectionFieldType                                                                        },
+  { "br",               "Helligkeit",                       NumberFieldType,    BRIGHTNESS_MIN, BRIGHTNESS_MAX,         getBrightness               },
+  { "mo",               "Lichteffekt",                      SelectFieldType,    0,              strip->getModeCount(),  getPattern, getPatterns     },
+  { "pa",               "Farbpalette",                      SelectFieldType,    0,   (uint16_t)(strip->getPalCount()+1),getPalette, getPalettes     },
+  { "sp",               "Geschwindigkeit",                  NumberFieldType,    BEAT88_MIN,     BEAT88_MAX,             getSpeed                    },
+  { "blendType",        "Blendmodus",                       SelectFieldType,    NOBLEND,        LINEARBLEND,            getBlendType, getBlendTypes },
+  { "LEDblur",          "LED / Effect Blending",            NumberFieldType,    0,              255,                    getBlurValue                },
+  { "reverse",          "Rückwärts",                        BooleanFieldType,   0,              1,                      getReverse                  },
+  { "hue",              "Farbwechsel",                      SectionFieldType                                                                        },
+  { "huetime",          "Hue Wechselintervall",             NumberFieldType,    10,             10000,                  getHueTime                  },
+  { "deltahue",         "Hue Wechselschritt",               NumberFieldType,    0,              255,                    getDeltaHue                 },
+  { "autoplay",         "Mode Autoplay",                    SectionFieldType                                                                        },
+  { "autoplay",         "Mode Automatisch wechseln",        BooleanFieldType,   0,              1,                      getAutoplay                 },
+  { "autoplayDuration", "Mode Wechselzeit",                 NumberFieldType,    5,              1000,                   getAutoplayDuration         },
+  { "autopal",          "Farbpalette Autoplay",             SectionFieldType                                                                        },
+  { "autopal",          "Farbpalette Automatisch wechseln", BooleanFieldType,   0,              1,                      getAutopal                  },
+  { "autopalDuration",  "Farbpalette Wechselzeit",          NumberFieldType,    5,              1000,                   getAutopalDuration          },
+  { "solidColor",       "Feste Farbe",                      SectionFieldType                                                                        },
+  { "solidColor",       "Farbe",                            ColorFieldType,     0,              255,                    getSolidColor               },
+  { "fire",             "Feuer und Wasser",                 SectionFieldType                                                                        },
+  { "cooling",          "Kühlung",                          NumberFieldType,    0,              255,                    getCooling                  },
+  { "sparking",         "Funken",                           NumberFieldType,    0,              255,                    getSparking                 },
+  { "twinkles",         "Funkeln",                          SectionFieldType                                                                        },
+  { "twinkleSpeed",     "Funkelgeschwindigkeit",            NumberFieldType,    0,              8,                      getTwinkleSpeed             },
+  { "twinkleDensity",   "Wieviel Funkellichter",            NumberFieldType,    0,              8,                      getTwinkleDensity           },
+  { "Settings",         "Einstellungen",                    SectionFieldType                                                                        },
+  { "current",          "max Strom",                        NumberFieldType,    100,            20000,                  getMilliamps                },
+};
+
+#ifndef ARRAY_SIZE
+  #define ARRAY_SIZE(A) (sizeof(A) / sizeof((A)[0]))
+#endif
+
+uint8_t fieldCount = ARRAY_SIZE(fields);
 
 // set all pixels to 'off'
-void stripe_setup(uint16_t LEDCount, uint8_t dataPin, neoPixelType pixelType)
-{
+void stripe_setup(  const uint16_t LEDCount, 
+                    const uint8_t FPS = 60, 
+                    const uint8_t volt = 5, 
+                    const uint16_t milliamps = 500, 
+                    const CRGBPalette16 pal = Rainbow_gp, 
+                    const String Name = "Rainbow Colors",
+                    const LEDColorCorrection colc = TypicalLEDStrip ){
+  strip = new WS2812FX(LEDCount, FPS, volt, milliamps, pal, Name, colc);
   //initialize the stripe
+  //strip->setLength(LEDCount);
 
-  strip.setLength(LEDCount);
+  //strip->setPin(dataPin);
 
-  strip.setPin(dataPin);
+  //strip->updateType(pixelType);
 
-  strip.updateType(pixelType);
-
-
-  strip.begin();
-  strip.clear();
-  strip.init();
-  strip.setBrightness(150);
-  strip.setSpeed(1000);
-  strip.setColor(0xff9900);
-  strip.start();
-  strip.show();
+  //strip->begin();
+  //strip->clear();
+  strip->init();
+  strip->setBrightness(DEFAULT_BRIGHTNESS);
+  strip->setSpeed(DEFAULT_BEAT88);
+  //strip->setColor(0xff9900);
+  strip->start();
+  strip->show();
 }
 
-void strip_On_Off(bool onOff)
-{
+void strip_On_Off(bool onOff){
     stripIsOn = onOff;
-    stripWasOff = false;
+    //stripWasOff = false;
 }
 
-
-
-void stripe_setBrightness(uint8_t brightness)
-{
-  strip.setBrightness(brightness);
-  strip.show();
-}
-
-void set_Range(uint16_t start, uint16_t stop, uint8_t r, uint8_t g, uint8_t b)
-{
+void set_Range(uint16_t start, uint16_t stop, uint8_t r, uint8_t g, uint8_t b) {
+  if(start >= strip->getLength() || stop >= strip->getLength()) return;
   strip_On_Off(true);
   setEffect(FX_NO_FX);
   for(uint16_t i=start; i<=stop; i++) {
-    strip.setPixelColor(i, r, g, b);
+    strip->leds[i] = CRGB(((uint32_t)r << 16) | ((uint32_t)g << 8) | b);
   }
-  strip.show();
-  strip.setColor(r, g, b);
+  //strip->setColor(r, g, b);
+  strip->show();
 }
 
-void strip_setpixelcolor(uint16_t pixel, uint8_t r, uint8_t g, uint8_t b)
-{
+void set_Range(uint16_t start, uint16_t stop, uint32_t color) {
+  if(start >= strip->getLength() || stop >= strip->getLength()) return;
   strip_On_Off(true);
   setEffect(FX_NO_FX);
-  strip.setPixelColor(pixel, r, g, b);
-  strip.setColor(r, g, b);
-  strip.show();
+  for(uint16_t i=start; i<=stop; i++) {
+    strip->leds[i] = CRGB(color);
+  }
+  //strip->setColor(color);
+  strip->show();
+}
+
+void strip_setpixelcolor(uint16_t pixel, uint8_t r, uint8_t g, uint8_t b) {
+  if(pixel >= strip->getLength()) return;
+  strip_On_Off(true);
+  setEffect(FX_NO_FX);
+  //strip->setPixelColor(pixel, r, g, b);
+  strip->leds[pixel] = CRGB(((uint32_t)r << 16) | ((uint32_t)g << 8) | b);
+  //strip->setColor(r, g, b);
+  strip->show();
+}
+
+void strip_setpixelcolor(uint16_t pixel, uint32_t color) {
+  if(pixel >= strip->getLength()) return;
+  strip_On_Off(true);
+  setEffect(FX_NO_FX);
+  strip->leds[pixel] = CRGB(color);
+  //strip->setPixelColor(pixel, color);
+  //strip->setColor(color);
+  strip->show();
 }
 
 // just calls the right effec routine according to the current Effect
-void effectHandler(void)
-{
+void effectHandler(void){
   //switching on or OFF
 
   if(stripIsOn && stripWasOff)
   {
-
     setEffect(getPreviousEffect());
     stripWasOff = false;
+    strip->start();
   }
   else if (!stripIsOn && !stripWasOff)
   {
@@ -158,103 +345,84 @@ void effectHandler(void)
   switch (currentEffect) {
     case FX_NO_FX :
       break;
-    case FX_FIRE :
-      fireEffect();
-      break;
-    case FX_RAINBOW :
-      rainbowCycle();
-      break;
-    case FX_BLINKER :
-      blinkerEffect();
-      break;
-    case FX_SPARKS :
-      sparksEffect();
-      break;
-    case FX_WHITESPARKS :
-      white_sparksEffect();
-      break;
-    case FX_KNIGHTRIDER :
-      knightriderEffect();
-      break;
     case FX_SUNRISE :
     case FX_SUNSET :
       if(sunriseParam.isRunning)
       {
-        mySunriseTrigger();
+        EVERY_N_MILLISECONDS(20);
+        {
+          mySunriseTrigger();
+        }
       }
       break;
     case FX_WS2812 :
-      strip.service();
+      strip->service();
       break;
     default:
-      reset();
+      break;
+      //reset();
   }
 }
 
 // Sets a new Effect to be called
-void setEffect(uint8_t Effect)
-{
-  reset();
+void setEffect(uint8_t Effect){
+  //if(Effect != FX_WS2812) reset(); // Only reset (with fade) for non-WS2812FX as we have the fading build-in
   //previousEffect = currentEffect;
   currentEffect = Effect;
   strip_On_Off(true);
-  if(strip.getBrightness()==0)
+  stripWasOff = false;
+  if(strip->getBrightness()<1)
   {
-    strip.setBrightness(128);
+    strip->setBrightness(10);
+  }
+  if(Effect == FX_WS2812) {
+    strip->start();
+    //strip->trigger();
   }
 }
 
-
 // returns the current Effect
-uint8_t getEffect(void)
-{
+uint8_t getEffect(void){
   return currentEffect;
 }
 
 // return the previous effect
-uint8_t getPreviousEffect(void)
-{
+uint8_t getPreviousEffect(void){
   return previousEffect;
 }
 
-
-
-uint32_t strip_color32(uint8_t r, uint8_t g, uint8_t b)
-{
+uint32_t strip_color32(uint8_t r, uint8_t g, uint8_t b){
   return ((uint32_t)r << 16) | ((uint32_t)g <<  8) | b;
 }
 
-uint8_t Red(uint32_t color)
-{
+uint8_t Red(uint32_t color){
   return (color >> 16) & 0xFF;
 }
 
 // Returns the Green component of a 32-bit color
-uint8_t Green(uint32_t color)
-{
+uint8_t Green(uint32_t color){
   return (color >> 8) & 0xFF;
 }
 
 // Returns the Blue component of a 32-bit color
-uint8_t Blue(uint32_t color)
-{
+uint8_t Blue(uint32_t color){
   return color & 0xFF;
 }
 // Dims a strip by rightshift
-uint32_t DimColor(uint32_t color)
-{
-  uint32_t dimColor = strip.Color(Red(color) >> 1, Green(color) >> 1, Blue(color) >> 1);
+uint32_t DimColor(uint32_t color){
+  uint32_t dimColor = strip_color32(Red(color) >> 1, Green(color) >> 1, Blue(color) >> 1);
   return dimColor;
 }
 
 // Dim the Pixel to DimColor
-void strip_dimPixel(uint16_t pixel, bool dim_default, uint8_t byValue)
-{
+void strip_dimPixel(uint16_t pixel, bool dim_default, uint8_t byValue){
   if(dim_default)
-    strip.setPixelColor(pixel, DimColor(strip.getPixelColor(pixel)));
+    strip->leds[pixel].fadeToBlackBy(2);
   else
   {
-    uint32_t color = strip.getPixelColor(pixel);
+    strip->leds[pixel].subtractFromRGB(byValue);
+    /*
+    uint32_t color = strip->leds[pixel].raw;
     uint8_t r = Red(color);
     uint8_t g = Green(color);
     uint8_t b = Blue(color);
@@ -264,55 +432,53 @@ void strip_dimPixel(uint16_t pixel, bool dim_default, uint8_t byValue)
     else g -= byValue;
     if(b < byValue) b=0;
     else b -= byValue;
-    strip.setPixelColor(pixel, r, g, b);
+    strip->setPixelColor(pixel, r, g, b);
+    */
   }
 }
 
 // helper for long delays (prevents watchdog reboot)
-void delaymicro(unsigned int mics)
-{
+void delaymicro(unsigned int mics){
   delayMicroseconds(mics);
   yield();
 }
 
-pah_color myColor(0,   500, 1000,
-                  0,   0, 0,
-                  67,  4,  0,
-                  127,  31, 0,
-                  191, 63, 3,
-                  255, 200,  128);
-
 // sunrise funtionality... may need to do thata bit  different finally
 // both for color as for logic and start/stop/running
-void mySunriseStart(uint32_t  mytime, uint16_t steps, bool up)
-{
+void mySunriseStart(uint32_t  mytime, uint16_t steps, bool up) {
   sunriseParam.isRunning = true;
   sunriseParam.steps = steps;
+  strip->setBrightness(BRIGHTNESS_MAX);
   if(up)
   {
     sunriseParam.step = 0;
     sunriseParam.isSunrise = true;
+    fill_solid(strip->leds, strip->getLength(), CRGB::Black);
   }
   else
   {
     sunriseParam.step = steps;
     sunriseParam.isSunrise = false;
+    fill_solid(strip->leds, strip->getLength(), HeatColor(255)); //ColorFromPalette(HeatColors_p, 240, BRIGHTNESS_MAX, LINEARBLEND));
   }
   sunriseParam.deltaTime = (mytime/steps);
-  sunriseParam.lastChange = millis();
+  sunriseParam.lastChange = millis() - sunriseParam.deltaTime;
   //reset the stripe
-  strip.clear();
-  strip.show();
+  //strip->clear();
+  //strip->show();
+  shouldSaveRuntime = true;
+  #ifdef DEBUG
   Serial.printf("\nStarted Sunrise with %.3u steps in %u ms which are %u minutes.\n", steps, mytime, (mytime/60000));
+  #endif
 }
 
-void mySunriseTrigger(void)
-{
+void mySunriseTrigger(void) {
   if(!sunriseParam.isRunning) return;
+  
   uint32_t now = (uint32_t)millis();
+
   if(now > (uint32_t)(sunriseParam.lastChange + sunriseParam.deltaTime))
   {
-    uint32_t cColor = myColor.calcColorValue(sunriseParam.step);
     if(sunriseParam.isSunrise)
     {
       sunriseParam.step++;
@@ -321,17 +487,56 @@ void mySunriseTrigger(void)
     {
       sunriseParam.step--;
     }
-    for(uint16_t i = 0; i<strip.getLength();i++)
-    {
-      strip.setPixelColor(i, cColor);
-    }
-    strip.show();
     sunriseParam.lastChange = (uint32_t)millis();
-    if((sunriseParam.step >= sunriseParam.steps) || (sunriseParam.step == 0))
+    
+    if((sunriseParam.step >= sunriseParam.steps))
     {
       sunriseParam.isRunning = false;
+      strip->setColor(CRGBPalette16(HeatColor(255)));
+      strip->setMode(0);
+      setEffect(FX_WS2812);
+      strip_On_Off(true);
+      return;
+    }
+    else if (sunriseParam.step == 0)
+    {
+      sunriseParam.isRunning = false;
+      strip->setTargetPalette(0);
+      strip->setMode(FX_MODE_TWINKLE_FOX);
+      setEffect(FX_WS2812);
+      //reset();
+      strip_On_Off(false);
+      return;
     }
   }
+  uint8_t step = (uint8_t)map(sunriseParam.step, 0, sunriseParam.steps, 0, 255);
+
+  fill_solid(strip->leds, strip->getLength(), HeatColor(step));
+  
+  uint8_t br = step<64?(uint8_t)map(step, 0, 64, BRIGHTNESS_MIN+1, BRIGHTNESS_MAX):BRIGHTNESS_MAX;
+  nscale8_video(strip->leds, strip->getLength(), br);
+
+  if(step>20)
+  {
+    CRGB nc = 0x0;
+    for(uint16_t i=0; i<strip->getLength(); i++)
+    {
+      nc = strip->leds[i];
+      if(step < 192)
+      {
+        nc.nscale8_video(random8(step/2));
+      }
+      else
+      {
+        nc.nscale8_video(random8(270-step));
+      }
+      strip->leds[i] = nblend(strip->leds[i], nc, 192);
+    }
+  }
+  nblend(strip->_bleds, strip->leds, strip->getLength(), 48);
+  //strip->show();
+  FastLED.show();
+  //FastLED.delay(1);
 }
 
 
@@ -339,157 +544,42 @@ void mySunriseTrigger(void)
 void reset() {
   previousEffect = currentEffect;
   currentEffect = FX_NO_FX;
-  if(strip.getBrightness() < 150)
-  {
-    strip.setBrightness(150);
+  /*uint8_t max = 0;
+  uint32_t color = 0;
+  for(uint8_t i = 0; i<strip->getLength(); i++) {
+    if(strip->leds[i].r >max ) max = strip->leds[i].r;
+    if(strip->leds[i].g >max ) max = strip->leds[i].g;
+    if(strip->leds[i].b >max ) max = strip->leds[i].b;
   }
-  strip.stop();
-}
+  uint8_t r,g,b;
 
-// LED flicker fire effect
-void fireEffect() {
-  for(int x = 0; x <strip.getLength(); x++) {
-    int flicker = random(0,55);
-    int r1 = 226-flicker;
-    int g1 = 121-flicker;
-    int b1 = 35-flicker;
-    if(g1<0) g1=0;
-    if(r1<0) r1=0;
-    if(b1<0) b1=0;
-    strip.setPixelColor(x, r1, g1, b1);
-  }
-  strip.show();
-  delay(random(10,113));
-}
+  // ToDo: Fade To Black!
 
-// Slightly different, this makes the rainbow equally distributed throughout
-void rainbowCycle() {
-  uint16_t i;
-  if((millis() - last_delay_trigger) < delay_interval) return;
-  last_delay_trigger = millis();
-  if (rainbowColor++>255) rainbowColor=0;
-  for(i=0; i< strip.getLength(); i++) {
-    strip.setPixelColor(i, Wheel(((i * 256 / strip.getLength()) + rainbowColor) & 255));
-  }
-  strip.show();
-  //delay(delay_interval);
-}
-
-void blinkerEffect() {
- for(int i=fx_blinker_start_pixel; i<=fx_blinker_end_pixel; i++) {
-    strip.setPixelColor(i, fx_blinker_red, fx_blinker_green, fx_blinker_blue);
-  }
-  strip.show();
- delay(fx_blinker_time_on);
- for(int i=fx_blinker_start_pixel; i<= fx_blinker_end_pixel; i++) {
-    strip.setPixelColor(i, 0, 0, 0);
-  }
-  strip.show();
-delay(fx_blinker_time_off);
-}
-
-void sparksEffect() {
-  uint16_t i = random(strip.getLength());
-  if((millis() - last_delay_trigger) < delay_interval) return;
-  last_delay_trigger = millis();
-  if (strip.getPixelColor(i)==0) {
-    strip.setPixelColor(i,random(256*256*256));
-  }
-
-  for(i = 0; i < strip.getLength(); i++) {
-    strip_dimPixel(i, true, 0);
-  }
-
-  strip.show();
-}
-
-void white_sparksEffect() {
-  uint16_t i = random(strip.getLength());
-  uint16_t rand = random(256);
-  if((millis() - last_delay_trigger) < delay_interval) return;
-  last_delay_trigger = millis();
-  if (strip.getPixelColor(i)==0) {
-    strip.setPixelColor(i,rand*256*256+rand*256+rand);
-  }
-
-  for(i = 0; i < strip.getLength(); i++) {
-    strip_dimPixel(i, true, (uint8_t)(strip.getLength()*3/4));
-  }
-
-  strip.show();
-  //delay(delay_interval);
-}
-
-void knightriderEffect() {
-
-  if((millis() - last_delay_trigger) < delay_interval) return;
-
-  uint16_t i;
-  static uint16_t cur_step = 0;
-
-  uint8_t dim_byValue = 0;
-  bool dim_default = true;
-
-  if(strip.getLength() > 16)
-  {
-    dim_default = false;
-    dim_byValue = (uint8_t) (128/(strip.getLength()/2));
-    if(dim_byValue < 2) dim_byValue = 2;
-  }
-
-  dim_default = true;
-
-  last_delay_trigger = millis();
-
-  cur_step+=1;
-
-  if(cur_step>=((strip.getLength())*2)){
-    cur_step=0;
-  }
-
-  if(cur_step<(strip.getLength())){
-    strip.setPixelColor(cur_step, 0x808080);
-    for(i=1;i<=(uint8_t)(strip.getLength()/4);i++){
-      if((cur_step-i>-1)) {
-        strip_dimPixel(cur_step-i, dim_default, dim_byValue);
-      }
-      if((cur_step+i-1)<strip.getLength()) {
-        strip_dimPixel(cur_step+i-1, dim_default, dim_byValue);
-      }
-
+  for(uint8_t i = 0; i<max; i++) {
+    for(uint16_t p=0; p<strip->getLength(); p++)
+    {
+        r = Red(strip->getPixelColor(p));
+        g = Green(strip->getPixelColor(p));
+        b = Blue(strip->getPixelColor(p));
+        if(r>0) r--;
+        if(g>0) g--;
+        if(b>0) b--;
+        strip->leds[p].subtractFromRGB(2);
+        //strip->setPixelColor(p, r, g, b);
     }
-  } else {
-    strip.setPixelColor((strip.getLength())*2-cur_step-1, 0x808080);
-    for(i=1;i<=(uint8_t)(strip.getLength()/4);i++){
-      if(((strip.getLength())*2-cur_step-1+i<strip.getLength())) {
-        strip_dimPixel((strip.getLength())*2-cur_step-1+i, dim_default, dim_byValue);
-      }
-      if(((strip.getLength())*2-cur_step-1-i)>-1) {
-        strip_dimPixel((strip.getLength())*2-cur_step-1-i, dim_default, dim_byValue);
-      }
+    strip->show();
+    //delay(1);
+  }
+  */
+  bool isBlack = true;
+  do {
+    isBlack = true;
+    fadeToBlackBy(strip->leds, strip->getLength(), 16);
+    for(uint16_t i = 0; i < strip->getLength(); i++)
+    {
+      if(strip->leds[i]) isBlack = false;
     }
-  }
-
-  strip.show();
-  //delay(delay_interval);
-}
-
-// Input a value 0 to 255 to get a color value.
-// The colours are a transition r - g - b - back to r.
-uint32_t Wheel(byte WheelPos) {
-  WheelPos = 255 - WheelPos;
-  if(WheelPos < 85) {
-    return strip_color32(255 - WheelPos * 3, 0, WheelPos * 3);
-  }
-  if(WheelPos < 170) {
-    WheelPos -= 85;
-    return strip_color32(0, WheelPos * 3, 255 - WheelPos * 3);
-  }
-  WheelPos -= 170;
-  return strip_color32(WheelPos * 3, 255 - WheelPos * 3, 0);
-}
-
-int colorVal(char c) {
-  int i = (c>='0' && c<='9') ? (c-'0') : (c - 'A' + 10);
-  return i*i + i*2;
+    strip->show();
+  } while (!isBlack);
+  //strip->stop();
 }

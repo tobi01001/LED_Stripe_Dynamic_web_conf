@@ -1,48 +1,49 @@
-/**************************************************************
+/*************************************************************************************
    This work is based on many others.
    If published then under whatever licence free to be used,
    distibuted, changed and whatsoever.
-   Work is based on:
-   WS2812BFX library by  - see:
-   fhem esp8266 implementation by   - see:
-   WiFiManager library by - - see:
-   ... many others ( see includes)
+   This Work is based on many others 
+   and heavily modified for my personal use.
+   It is basically based on the following great developments:
+   - Adafruit Neopixel https://github.com/adafruit/Adafruit_NeoPixel
+   - WS2812FX library https://github.com/kitesurfer1404/WS2812FX
+   - fhem esp8266 implementation - Idea from https://github.com/sw-home/FHEM-LEDStripe 
+   - FastLED library - see http://www.fastLed.io
+   - ESPWebserver - see https://github.com/jasoncoon/esp8266-fastled-webserver
+  
+  My GIT source code storage
+  https://github.com/tobi01001/LED_Stripe_Dynamic_web_conf
+
 
    ToDo: Make this a class (encapsulation)
 
- **************************************************************/
+ **************************************************************************************/
 
 #ifndef led_strip_h
 #define led_strip_h
 
-#include <WS2812FX.h>
-#include <Adafruit_NeoPixel.h>
+// we gonna need our own adoption from the library. 
+// Maybe its worth renaming and separating...
+#include "WS2812FX.h"
 
-/* should be in library now....
-// QUICKFIX...See https://github.com/esp8266/Arduino/issues/263
-#define min(a,b) ((a)<(b)?(a):(b))
-#define max(a,b) ((a)>(b)?(a):(b))
-*/
-
-#define DEFAULT_PIXEL_TYPE (NEO_GRB + NEO_KHZ800)
-
+// These define modes besides the fx library
 #define FX_NO_FX        0
-#define FX_FIRE         1
-#define FX_RAINBOW      2
-#define FX_BLINKER      3
-#define FX_SPARKS       4
-#define FX_WHITESPARKS  5
-#define FX_KNIGHTRIDER  6
-#define FX_SUNRISE      7
-#define FX_SUNSET       8
-#define FX_WS2812       9
+#define FX_SUNRISE      1
+#define FX_SUNSET       2
+#define FX_WS2812       3
 
-
+extern WS2812FX *strip; 
 
 // initialize the strip during boot (or at changes)
 // strip can be any neopixel arrangement
 // but is currently limited to NEO_GRB
-void stripe_setup(uint16_t LEDCount, uint8_t dataPin, neoPixelType pixelType);
+void stripe_setup(  const uint16_t LEDCount, 
+                    const uint8_t FPS, 
+                    const uint8_t volt , 
+                    const uint16_t milliamps , 
+                    const CRGBPalette16 pal , 
+                    const String Name ,
+                    const LEDColorCorrection colc);
 
 // resets the current effects and stops the strip
 void reset(void);
@@ -58,31 +59,6 @@ uint8_t getEffect(void);
 
 // return the previous effect
 uint8_t getPreviousEffect(void);
-
-
-// fire Effect (not WS2812BFX)
-void fireEffect(void) ;
-// Rainbow  (not WS2812BFX)
-void rainbowCycle(void);
-// Blinker Effect (not WS2812BFX)
-void blinkerEffect(void);
-// Sparks Effect (not WS2812BFX)
-void sparksEffect(void);
-// WhiteSparks(not WS2812BFX)
-void white_sparksEffect(void);
-// Knightrider (not WS2812BFX)
-void knightriderEffect(void);
-
-// Input a value 0 to 255 to get a color value.
-// The colours are a transition r - g - b - back to r.
-uint32_t Wheel(byte WheelPos);
-
-//noch benutzt?
-int colorVal(char c);
-
-// dims a single pixel either by right shift (division by 2)
-//  or by a certain value (enables smoother but also slower dims)
-void strip_dimPixel(uint16_t pixel, bool dim_default, uint8_t byValue);
 
 // 32 Bit Color out of 3 Color values....
 uint32_t strip_color32(uint8_t r, uint8_t g, uint8_t b);
@@ -102,6 +78,10 @@ void delaymicro(unsigned int mics);
 // set color for a single pixel (deactivates effects)
 // but also sets the color for the effect library
 void strip_setpixelcolor(uint16_t pixel, uint8_t r, uint8_t g, uint8_t b);
+void strip_setpixelcolor(uint16_t pixel, uint32_t color);
+
+void set_Range(uint16_t start, uint16_t stop, uint8_t r, uint8_t g, uint8_t b);
+void set_Range(uint16_t start, uint16_t stop, uint32_t color);
 
 void stripe_setDelayInterval(uint16_t delay);
 
@@ -113,47 +93,124 @@ void strip_On_Off(bool onOff);
 
 void stripe_setBrightness(uint8_t brightness);
 
-void set_Range(uint16_t start, uint16_t stop, uint8_t r, uint8_t g, uint8_t b);
-
 void mySunriseStart(uint32_t  mytime, uint16_t steps, bool up);
 
 void mySunriseTrigger(void);
 
+// ToDo: To be reqorked for the FastLED approach
+typedef struct sunriseParam {
+  bool isRunning;
+  bool isSunrise;
+  uint16_t steps;
+  uint16_t step;
+  uint32_t deltaTime;
+  uint32_t lastChange;
+} mysunriseParam;
 
-//globals... here or in the ccp file? - use it here for the moment
-/* Globals */
-// ToDo: Redefine for effectiveness (static etc)
-extern uint16_t fx_blinker_start_pixel;
-extern uint16_t fx_blinker_end_pixel;
-extern uint8_t fx_blinker_red;
-extern uint8_t fx_blinker_green;
-extern uint8_t fx_blinker_blue;
-extern uint16_t fx_blinker_time_on;
-extern uint16_t fx_blinker_time_off;
 
-// control special effects
 extern bool sunrise_running;
 extern bool stripWasOff;
 extern bool stripIsOn;
 
 
-extern unsigned long last_delay_trigger;
+//extern unsigned long last_delay_trigger;
 
 extern uint8_t currentEffect;
 extern uint8_t previousEffect;
 
-extern uint16_t rainbowColor;
+extern mysunriseParam sunriseParam;
 
-extern uint16_t delay_interval;
+// Field.h
+/*
+   ESP8266 + FastLED + IR Remote: https://github.com/jasoncoon/esp8266-fastled-webserver
+   Copyright (C) 2016 Jason Coon
 
-// Parameter 1 = number of pixels in strip
-// Parameter 2 = Arduino pin number (most are valid)
-// Parameter 3 = pixel type flags, add together as needed:
-//   NEO_KHZ800  800 KHz bitstream (most NeoPixel products w/WS2812 LEDs)
-//   NEO_KHZ400  400 KHz (classic 'v1' (not v2) FLORA pixels, WS2811 drivers)
-//   NEO_GRB     Pixels are wired for GRB bitstream (most NeoPixel products)
-//   NEO_RGB     Pixels are wired for RGB bitstream (v1 FLORA pixels, not v2)
-extern WS2812FX strip; // = WS2812FX(1, 1, DEFAULT_PIXEL_TYPE); // WS2812FX(strip.getLength(), LEDPIN, NEO_GRB + NEO_KHZ800);
+   This program is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+
+typedef String (*FieldSetter)(String);
+typedef String (*FieldGetter)();
+
+
+
+struct Field {
+  String name;
+  String label;
+  String type;
+  uint16_t min;
+  uint16_t max;
+  FieldGetter getValue;
+  FieldGetter getOptions;
+  FieldSetter setValue;
+};
+
+typedef Field FieldList[];
+
+
+// /End Field.h
+
+// Fields.h
+/*
+   ESP8266 + FastLED + IR Remote: https://github.com/jasoncoon/esp8266-fastled-webserver
+   Copyright (C) 2016 Jason Coon
+
+   This program is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+Field getField(String name, FieldList fields, uint8_t count);
+String getFieldValue(String name, FieldList fields, uint8_t count);
+String setFieldValue(String name, String value, FieldList fields, uint8_t count);
+String getFieldsJson(FieldList fields, uint8_t count); 
+String getPower(void);
+String getMilliamps(void);
+String getBrightness(void);
+String getPattern(void);
+String getPatterns(void);
+String getPalette(void);
+String getPalettes(void);
+String getAutoplay(void); 
+String getAutoplayDuration(void);
+String getAutopal(void);
+String getAutopalDuration(void);
+String getSolidColor(void);
+String getCooling(void);
+String getSparking(void);
+String getSpeed(void);
+String getTwinkleSpeed(void);
+String getTwinkleDensity(void);
+String getBlendType(void);
+String getBlendTypes(void);
+String getReverse(void);
+String getHueTime(void);
+String getDeltaHue(void);
+
+extern FieldList fields;
+extern uint8_t fieldCount;
+
+// /End Fields.h
 
 
 #endif
