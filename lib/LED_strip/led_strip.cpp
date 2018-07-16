@@ -223,7 +223,7 @@ FieldList fields = {
   { "LEDblur",          "LED / Effect Blending",            NumberFieldType,    0,              255,                    getBlurValue                },
   { "reverse",          "Rückwärts",                        BooleanFieldType,   0,              1,                      getReverse                  },
   { "hue",              "Farbwechsel",                      SectionFieldType                                                                        },
-  { "huetime",          "Hue Wechselintervall",             NumberFieldType,    1,              10000,                  getHueTime                  },
+  { "huetime",          "Hue Wechselintervall",             NumberFieldType,    10,             10000,                  getHueTime                  },
   { "deltahue",         "Hue Wechselschritt",               NumberFieldType,    0,              255,                    getDeltaHue                 },
   { "autoplay",         "Mode Autoplay",                    SectionFieldType                                                                        },
   { "autoplay",         "Mode Automatisch wechseln",        BooleanFieldType,   0,              1,                      getAutoplay                 },
@@ -349,7 +349,10 @@ void effectHandler(void){
     case FX_SUNSET :
       if(sunriseParam.isRunning)
       {
-        mySunriseTrigger();
+        EVERY_N_MILLISECONDS(20);
+        {
+          mySunriseTrigger();
+        }
       }
       break;
     case FX_WS2812 :
@@ -374,7 +377,7 @@ void setEffect(uint8_t Effect){
   }
   if(Effect == FX_WS2812) {
     strip->start();
-    strip->trigger();
+    //strip->trigger();
   }
 }
 
@@ -445,22 +448,24 @@ void delaymicro(unsigned int mics){
 void mySunriseStart(uint32_t  mytime, uint16_t steps, bool up) {
   sunriseParam.isRunning = true;
   sunriseParam.steps = steps;
+  strip->setBrightness(BRIGHTNESS_MAX);
   if(up)
   {
     sunriseParam.step = 0;
     sunriseParam.isSunrise = true;
+    fill_solid(strip->leds, strip->getLength(), CRGB::Black);
   }
   else
   {
     sunriseParam.step = steps;
     sunriseParam.isSunrise = false;
+    fill_solid(strip->leds, strip->getLength(), HeatColor(255)); //ColorFromPalette(HeatColors_p, 240, BRIGHTNESS_MAX, LINEARBLEND));
   }
   sunriseParam.deltaTime = (mytime/steps);
-  sunriseParam.lastChange = millis();
+  sunriseParam.lastChange = millis() - sunriseParam.deltaTime;
   //reset the stripe
   //strip->clear();
-  strip->setBrightness(BRIGHTNESS_MAX);
-  strip->show();
+  //strip->show();
   shouldSaveRuntime = true;
   #ifdef DEBUG
   Serial.printf("\nStarted Sunrise with %.3u steps in %u ms which are %u minutes.\n", steps, mytime, (mytime/60000));
@@ -469,7 +474,9 @@ void mySunriseStart(uint32_t  mytime, uint16_t steps, bool up) {
 
 void mySunriseTrigger(void) {
   if(!sunriseParam.isRunning) return;
+  
   uint32_t now = (uint32_t)millis();
+
   if(now > (uint32_t)(sunriseParam.lastChange + sunriseParam.deltaTime))
   {
     if(sunriseParam.isSunrise)
@@ -480,64 +487,56 @@ void mySunriseTrigger(void) {
     {
       sunriseParam.step--;
     }
-    // ToDo: We change to palette and move along the palette...
-    uint8_t brightness_steps = (uint16_t)(sunriseParam.steps / 2.5);
-    uint8_t br = 0;
-    if(sunriseParam.step <= brightness_steps)
-    {
-      br = (uint8_t)map(sunriseParam.step,
-                        BRIGHTNESS_MIN+1,
-                        brightness_steps,
-                        0,
-                        BRIGHTNESS_MAX);
-    }
-    else
-    {
-      br = BRIGHTNESS_MAX;
-    }
-    fill_solid(strip->leds, strip->getLength(), 
-               ColorFromPalette( HeatColors_p, 
-                                (uint8_t)map(sunriseParam.step, 
-                                             0, 
-                                             sunriseParam.steps, 
-                                             0, 
-                                             240), 
-                                 br,
-                                 LINEARBLEND));
-    /*
-    for(uint16_t i = 0; i < strip->getLength(); i++)
-    {
-      uint8_t delt = random8(16);
-      uint8_t doit = random8(3);
-      switch (doit) {
-        case 0 :
-          strip->leds[i].addToRGB(delt);
-        break;
-        case 1 :
-          strip->leds[i].subtractFromRGB(delt);
-        break;
-        default : 
-        break;
-      }
-    }
-    */
-    /*
-    uint32_t cColor = myColor.calcColorValue(sunriseParam.step);
-    for(uint16_t i = 0; i<strip->getLength();i++)
-    {
-      //strip->setPixelColor(i, cColor);
-      strip->leds[i] = CRGB(cColor);
-    }
-    */
-
-    //strip->setColor(cColor);
-    strip->show();
     sunriseParam.lastChange = (uint32_t)millis();
-    if((sunriseParam.step >= sunriseParam.steps) || (sunriseParam.step == 0))
+    
+    if((sunriseParam.step >= sunriseParam.steps))
     {
       sunriseParam.isRunning = false;
+      strip->setColor(CRGBPalette16(HeatColor(255)));
+      strip->setMode(0);
+      setEffect(FX_WS2812);
+      strip_On_Off(true);
+      return;
+    }
+    else if (sunriseParam.step == 0)
+    {
+      sunriseParam.isRunning = false;
+      strip->setTargetPalette(0);
+      strip->setMode(FX_MODE_TWINKLE_FOX);
+      setEffect(FX_WS2812);
+      //reset();
+      strip_On_Off(false);
+      return;
     }
   }
+  uint8_t step = (uint8_t)map(sunriseParam.step, 0, sunriseParam.steps, 0, 255);
+
+  fill_solid(strip->leds, strip->getLength(), HeatColor(step));
+  
+  uint8_t br = step<64?(uint8_t)map(step, 0, 64, BRIGHTNESS_MIN+1, BRIGHTNESS_MAX):BRIGHTNESS_MAX;
+  nscale8_video(strip->leds, strip->getLength(), br);
+
+  if(step>20)
+  {
+    CRGB nc = 0x0;
+    for(uint16_t i=0; i<strip->getLength(); i++)
+    {
+      nc = strip->leds[i];
+      if(step < 192)
+      {
+        nc.nscale8_video(random8(step/2));
+      }
+      else
+      {
+        nc.nscale8_video(random8(270-step));
+      }
+      strip->leds[i] = nblend(strip->leds[i], nc, 192);
+    }
+  }
+  nblend(strip->_bleds, strip->leds, strip->getLength(), 48);
+  //strip->show();
+  FastLED.show();
+  //FastLED.delay(1);
 }
 
 

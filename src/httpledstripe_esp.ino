@@ -17,6 +17,8 @@
  **************************************************************/
 #include <FS.h>
 
+
+
 #define FASTLED_ESP8266_RAW_PIN_ORDER
 #define FASTLED_ESP8266_DMA
 #define FASTLED_USE_PROGMEM 1
@@ -25,13 +27,9 @@
 #ifndef LED_NAME
   #error "You need to give your LED a Name (build flag e.g. '-DLED_NAME=\"My LED\"')!"
 #endif
-//#define LED_NAME "\"LED Dev-Board\""
-//#define LED_NAME "\"LED Papa Nachttisch\""
-//#define LED_NAME "\"LED Hannah Norah\""
-//#define LED_NAME "\"LED Wohnzimmer\""
-//#define LED_NAME "\"LED Flurbeleuchtung\""
 
-/* use build flags to define these */
+//#pragma error "We need a SW Version and Build Version!"
+#define BUILD_VERSION "0.5.0_180716"
 
 //#define DEBUG
 #ifndef LED_COUNT
@@ -45,7 +43,11 @@
 #define STRIP_MILLIAMPS 2500  // can be changed during runtime
 
 // The delay being used for several init phases.
-#define INITDELAY 200
+#ifdef DEBUG
+  #define INITDELAY 500
+#else
+  #define INITDELAY 10
+#endif
 
 // For the Webserver Answers..
 #define ANSWERSTATE 0
@@ -138,10 +140,7 @@ unsigned long last_wifi_check_time = 0;
 // function Definitions
 void  saveConfigCallback    (void),
       saveEEPROMData        (void),
-      readConfigurationFS   (void),
       initOverTheAirUpdate  (void),
-      //setupResetButton      (uint8_t buttonPin),
-      updateConfiguration   (void),
       setupWiFi             (void),
       handleRoot            (void),
       srv_handle_main_js    (void),      
@@ -154,6 +153,7 @@ void  saveConfigCallback    (void),
       factoryReset          (void),
       handleResetRequest    (void),
       setupWebServer        (void),
+      showInitColor         (CRGB Color),
       sendInt               (String name, uint16_t value),
       sendString            (String name, String value),
       sendAnswer            (String jsonAnswer),
@@ -441,96 +441,13 @@ void readRuntimeDataEEPROM(void) {
   shouldSaveRuntime = false;
 }
 
-
-void readConfigurationFS(void) {}
-
-/*
-void readConfigurationFS(void) {
-  //read configuration from FS json
-
-
-  #ifdef DEBUG
-    Serial.println("mounting FS...");
-  #endif
-  if (SPIFFS.begin()) {
-    #ifdef DEBUG
-    Serial.println("mounted file system");
-    #endif
-    if (SPIFFS.exists("/config.json")) {
-      //file exists, reading and loading
-      #ifdef DEBUG
-      Serial.println("reading config file");
-      #endif
-      File configFile = SPIFFS.open("/config.json", "r");
-      if (configFile) {
-        #ifdef DEBUG
-        Serial.println("opened config file");
-        #endif
-        size_t size = configFile.size();
-        // Allocate a buffer to store contents of the file.
-        std::unique_ptr<char[]> buf(new char[size]);
-
-        configFile.readBytes(buf.get(), size);
-        DynamicJsonBuffer jsonBuffer;
-        JsonObject& json = jsonBuffer.parseObject(buf.get());
-        json.printTo(Serial);
-        if (json.success()) {
-          #ifdef DEBUG
-          Serial.println("\nparsed json");
-          #endif
-          //strcpy(chrResetButtonPin, json["chrResetButtonPin"]);
-          //strcpy(chrLEDCount, json["chrLEDCount"]);
-          //strcpy(chrLEDPin, json["chrLEDPin"]);
-          // This checks if a IP is contained in the file
-          // currently not used as no IP will be written
-          if(json["ip"]) {
-            #ifdef DEBUG
-            Serial.println("setting custom ip from config");
-            #endif
-            strcpy(static_ip, json["ip"]);
-            strcpy(static_gw, json["gateway"]);
-            strcpy(static_sn, json["subnet"]);
-            #ifdef DEBUG
-            Serial.println(static_ip);
-            #endif
-          } else {
-            #ifdef DEBUG
-            Serial.println("no custom ip in config");
-            #endif
-          }
-        } else {
-          #ifdef DEBUG
-          Serial.println("failed to load json config");
-          #endif
-        }
-      }
-    }
-  } else {
-    #ifdef DEBUG
-    Serial.println("failed to mount FS");
-    #endif
-  }
-  //end read
-  #ifdef DEBUG
-  Serial.print("Static IP: \t");
-  Serial.println(static_ip);
-  //Serial.print("LED Count: \t");
-  //Serial.println(chrLEDCount);
-  //Serial.print("LED Pin: \t");
-  //Serial.println(chrLEDPin);
-  //Serial.print("Rst Btn Pin: \t");
-  //Serial.println(chrResetButtonPin);
-  #endif
-}
-*/
-
 bool OTAisRunning = false;
 
 void initOverTheAirUpdate(void) {
   #ifdef DEBUG
   Serial.println("\nInitializing OTA capabilities....");
   #endif
-  FastLED.showColor(CRGB::Blue);
+  showInitColor(CRGB::Blue);
   delay(INITDELAY);
   /* init OTA */
   // Port defaults to 8266
@@ -561,13 +478,13 @@ void initOverTheAirUpdate(void) {
         strip->leds[i] = CRGB(strip_color32(r,g,0));
       }
       strip->show();
-      delay(INITDELAY);
+      delay(250);
       for(uint16_t i=0; i<strip->getLength(); i++) {
         strip->leds[i] = CRGB::Black;
         //strip.setPixelColor(i, 0x000000);
       }
       strip->show();
-      delay(INITDELAY);
+      delay(500);
     }
     webSocketsServer.disconnect();
     server.stop();
@@ -638,135 +555,25 @@ void initOverTheAirUpdate(void) {
   #ifdef DEBUG
   Serial.println("OTA capabilities initialized....");
   #endif
-  FastLED.showColor(CRGB::Green);
+  showInitColor(CRGB::Green);
   delay(INITDELAY);
-  FastLED.showColor(CRGB::Black);
+  showInitColor(CRGB::Black);
   delay(INITDELAY);
 }
 
-/*
-void setupResetButton(uint8_t buttonPin){
-    pinMode(buttonPin,INPUT_PULLUP);
-    // After setting up the button, setup the Bounce instance :
-    debouncer.attach(buttonPin);
-    debouncer.interval(50); // interval in ms
+void showInitColor(CRGB Color)
+{
+  #ifdef DEBUG
+  FastLED.showColor(Color);
+  #endif
 }
-*/
-
-void updateConfiguration(void){}
-// void updateConfiguration(void){
-//   #ifdef DEBUG
-//   Serial.println("Updating configuration just received");
-//   #endif
-//   // only copy the values in case the Parameter wa sset in config!
-//   if(shouldSaveConfig) {
-//   //  strcpy(chrResetButtonPin, ResetButtonPin.getValue());
-//   //  strcpy(chrLEDCount, LedCountConf.getValue());
-//   //  strcpy(chrLEDPin, LedPinConf.getValue());
-//   }
-//   /*
-//   String sLedCount = chrLEDCount;
-//   String sLedPin   = chrLEDPin;
-
-//   uint16_t ledCount = sLedCount.toInt();
-//   uint8_t ledPin = sLedPin.toInt();
-//   */
-
-//   /*
-//   uint16_t ledCount = (uint16_t) strtoul(chrLEDCount, NULL, 10);
-//   uint8_t ledPin = (uint8_t) strtoul(chrLEDPin, NULL, 10);
-//   // if something went wrong here (GPIO = 0 or LEDs = 0)
-//   // we reset and start allover again
-//   if(ledCount == 0 || ledPin == 0) {
-//     #ifdef DEBUG
-//     Serial.println("\n\tSomething went wrong! Config will be deleted and ESP Reset!");
-//     #endif
-//     SPIFFS.format();
-//     wifiManager.resetSettings();
-//     #ifdef DEBUG
-//     Serial.println("\nCountdown to Reset:");
-//     #endif
-//     for(uint8_t i = 0; i<10; i++) {
-//       #ifdef DEBUG
-//       Serial.println(10-i);
-//       #endif
-//     }
-//     ESP.reset();
-//   }
-//   #ifdef DEBUG
-//   Serial.print("LEDCount: ");
-//   Serial.println(ledCount);
-
-//   Serial.print("LED datapin: ");
-//   Serial.println(ledPin);
-//   #endif
-//   if(chrResetButtonPin[0] == 'x' || chrResetButtonPin[0] == 'X') {
-//       hasResetButton = false;
-//       #ifdef DEBUG
-//       Serial.println("No Reset Button specified.");
-//       #endif
-//   } else {
-//       String srstPin = chrResetButtonPin;
-//       uint8_t rstPin =  srstPin.toInt();
-//       #ifdef DEBUG
-//       Serial.print("Reset Button Pin: ");
-//       Serial.println(rstPin);
-//       #endif
-//       hasResetButton = true;
-//       setupResetButton(rstPin);
-//   }
-//   */
-
-//   /*
-//   if (shouldSaveConfig) {
-//     #ifdef DEBUG
-//     Serial.println("saving config");
-//     #endif
-//     DynamicJsonBuffer jsonBuffer;
-//     JsonObject& json = jsonBuffer.createObject();
-//     json["chrResetButtonPin"] = chrResetButtonPin;
-//     json["chrLEDCount"] = chrLEDCount;
-//     json["chrLEDPin"] = chrLEDPin;
-//   */
-//     /*  Maybe we deal with static IP later.
-//         For now we just don't save it....
-//         json["ip"] = WiFi.localIP().toString();
-//         json["gateway"] = WiFi.gatewayIP().toString();
-//         json["subnet"] = WiFi.subnetMask().toString();
-//     */
-//   /*
-//     File configFile = SPIFFS.open("/config.json", "w");
-//     if (!configFile) {
-//       #ifdef DEBUG
-//       Serial.println("failed to open config file for writing");
-//       #endif
-//     }
-//     #ifdef DEBUG
-//     json.prettyPrintTo(Serial);
-//     #endif
-//     json.printTo(configFile);
-//     configFile.close();
-//     //end save
-//   }
-//   */
-//   #ifdef DEBUG
-//   Serial.println("\nEverything in place... setting up stripe.");
-//   #endif
-//   //stripe_setup( LED_COUNT, STRIP_FPS, STRIP_VOLTAGE, STRIP_MILLIAMPS, RainbowColors_p, F("Rainbow Colors"), TypicalLEDStrip);
-// }
 
 void setupWiFi(void){
 
-  
-  FastLED.showColor(CRGB::Blue);
+  showInitColor(CRGB::Blue);
   delay(INITDELAY);
   wifiManager.setSaveConfigCallback(saveConfigCallback);
 
-/*
-  wifiManager.addParameter(&ResetButtonPin);
-  wifiManager.addParameter(&LedCountConf);
-  wifiManager.addParameter(&LedPinConf);
-*/
   // 4 Minutes should be sufficient.
   // Especially in case of WiFi loss...
   wifiManager.setConfigPortalTimeout(240);
@@ -782,9 +589,9 @@ void setupWiFi(void){
     #ifdef DEBUG
     Serial.println("failed to connect, we should reset as see if it connects");
     #endif
-    FastLED.showColor(CRGB::Yellow);
+    showInitColor(CRGB::Yellow);
     delay(3000);
-    FastLED.showColor(CRGB::Red);
+    showInitColor(CRGB::Red);
     ESP.reset();
     delay(5000);
   }
@@ -804,24 +611,10 @@ void setupWiFi(void){
   Serial.println(WiFi.localIP());
   #endif
 
-  FastLED.showColor(CRGB::Green);
+  showInitColor(CRGB::Green);
   delay(INITDELAY);
-  FastLED.showColor(CRGB::Black);
+  showInitColor(CRGB::Black);
 }
-
-/*
-void handleRoot(void){
-    server.send_P(200,"text/html", index_html);
-    #ifdef DEBUG
-    Serial.println("\t/ called from server...\n");
-    #endif
-}
-*/
-/*
-void srv_handle_main_js(void) {
-  server.send_P(200,"application/javascript", main_js);
-}
-*/
 
 const String modes_setup(void) {
   String modes = "";
@@ -1488,7 +1281,9 @@ void handleStatus(void){
   } else {
     message += F("\"off\"");
   }
-  message += F(",\n    \"Lampenname\": \"");
+  message += F(",\n    \"Buildversion\": \"");
+  message += String(BUILD_VERSION);
+  message += F("\",\n    \"Lampenname\": \"");
   message += String(LED_NAME);
   message += F("\",\n    \"Anzahl Leds\": ");
   message += String(strip->getLength());
@@ -1507,20 +1302,20 @@ void handleStatus(void){
   message += F(",\n    \"modename\": ");
   switch (currentEffect) {
     case FX_NO_FX :
-      message += F("\"No FX\"");
+      message += F("\"No FX");
       break;
     case FX_SUNRISE :
-      message += F("\"Sunrise Effect\"");
+      message += F("\"Sunrise Effect");
       break;
     case FX_SUNSET :
-      message += F("\"Sunset Effect\"");
+      message += F("\"Sunset Effect");
       break;
     case FX_WS2812 :
       message += F("\"WS2812fx "); 
       message += String(strip->getModeName(strip->getMode()));
       break;
     default :
-      message += F("\"UNKNOWN\"");
+      message += F("\"UNKNOWN");
       break;
   }
   message += F("\", \n    \"wsfxmode\": "); 
@@ -1690,17 +1485,11 @@ void factoryReset(void){
     delay(2);
   }
   strip->show();
-  // formatting File system
-  #ifdef DEBUG
-  Serial.println("Format File System");
-  #endif
-  delay(INITDELAY);
-  //SPIFFS.format();
   delay(INITDELAY);
   #ifdef DEBUG
   Serial.println("Reset WiFi Settings");
   #endif
-  //wifiManager.resetSettings();
+  wifiManager.resetSettings();
   delay(INITDELAY);
   clearEEPROM();
   //reset and try again
@@ -1748,7 +1537,7 @@ void handleResetRequest(void){
 void setupWebServer(void){
   //modes.reserve(5000);
   //modes_setup();
-  FastLED.showColor(CRGB::Blue);
+  showInitColor(CRGB::Blue);
   delay(INITDELAY);
   SPIFFS.begin();
   {
@@ -1819,7 +1608,7 @@ void setupWebServer(void){
   delay(10);
   server.begin();
 
-  FastLED.showColor(CRGB::Yellow);
+  showInitColor(CRGB::Yellow);
   delay(INITDELAY);
   #ifdef DEBUG
   Serial.println("HTTP server started.\n");
@@ -1828,12 +1617,12 @@ void setupWebServer(void){
   webSocketsServer.begin();
   webSocketsServer.onEvent(webSocketEvent);
 
-  FastLED.showColor(CRGB::Green);
+  showInitColor(CRGB::Green);
   delay(INITDELAY);
   #ifdef DEBUG
   Serial.println("webSocketServer started.\n");
   #endif
-  FastLED.showColor(CRGB::Black);
+  showInitColor(CRGB::Black);
   delay(INITDELAY);
 }
 
@@ -1892,8 +1681,6 @@ void setup() {
   Serial.println("\n\n\n");
   Serial.println(F("Booting"));
   #endif
-  
-  readConfigurationFS();
 
   stripe_setup( LED_COUNT, 
                 STRIP_FPS, 
@@ -1906,8 +1693,6 @@ void setup() {
   setupWiFi();
 
   setupWebServer();
-
-  updateConfiguration();
 
   initOverTheAirUpdate();
 
@@ -1950,9 +1735,7 @@ void setup() {
   Serial.println("Runtime Data loaded");
   FastLED.countFPS(60);
   #endif
-
-  set_max_power_indicator_LED(BUILTIN_LED);
-  //if(stripIsOn) strip_On_Off(true);
+  //setEffect(FX_NO_FX);
 }
 
 // request receive loop
