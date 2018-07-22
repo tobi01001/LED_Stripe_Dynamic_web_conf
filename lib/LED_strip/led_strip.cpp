@@ -223,8 +223,8 @@ FieldList fields = {
   { "LEDblur",          "LED / Effect Blending",            NumberFieldType,    0,              255,                    getBlurValue                },
   { "reverse",          "Rückwärts",                        BooleanFieldType,   0,              1,                      getReverse                  },
   { "hue",              "Farbwechsel",                      SectionFieldType                                                                        },
-  { "huetime",          "Hue Wechselintervall",             NumberFieldType,    10,             10000,                  getHueTime                  },
-  { "deltahue",         "Hue Wechselschritt",               NumberFieldType,    0,              255,                    getDeltaHue                 },
+  { "huetime",          "Hue Wechselintervall",             NumberFieldType,    0,              10000,                  getHueTime                  },
+  { "deltahue",         "Hue Offset",                       NumberFieldType,    0,              255,                    getDeltaHue                 },
   { "autoplay",         "Mode Autoplay",                    SectionFieldType                                                                        },
   { "autoplay",         "Mode Automatisch wechseln",        BooleanFieldType,   0,              1,                      getAutoplay                 },
   { "autoplayDuration", "Mode Wechselzeit",                 NumberFieldType,    5,              1000,                   getAutoplayDuration         },
@@ -463,13 +463,15 @@ void mySunriseStart(uint32_t  mytime, uint16_t steps, bool up) {
   }
   sunriseParam.deltaTime = (mytime/steps);
   sunriseParam.lastChange = millis() - sunriseParam.deltaTime;
-  //reset the stripe
-  //strip->clear();
-  //strip->show();
+
   shouldSaveRuntime = true;
+  
+  setEffect(FX_SUNRISE);
+  
   #ifdef DEBUG
   Serial.printf("\nStarted Sunrise with %.3u steps in %u ms which are %u minutes.\n", steps, mytime, (mytime/60000));
   #endif
+
 }
 
 void mySunriseTrigger(void) {
