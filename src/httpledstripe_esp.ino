@@ -29,13 +29,15 @@
 #endif
 
 
-#define BUILD_VERSION ("0.5.2 ") // + __DATE__ + " " + __TIME__ ) //String("0.5.2 ") +String(__DATE__) + String(" ") + String(__TIME__));
+#define BUILD_VERSION ("0.5.3 ") 
 #ifndef BUILD_VERSION
   #error "We need a SW Version and Build Version!"
 #endif
 
 
-String build_version = BUILD_VERSION;
+String build_version = BUILD_VERSION + String(__TIMESTAMP__);
+
+
 
 //#define DEBUG
 #ifndef LED_COUNT
@@ -52,7 +54,7 @@ String build_version = BUILD_VERSION;
 #ifdef DEBUG
   #define INITDELAY 500
 #else
-  #define INITDELAY 10
+  #define INITDELAY 2
 #endif
 
 // For the Webserver Answers..
@@ -1585,7 +1587,7 @@ void setupWebServer(void){
   server.onNotFound(handleNotFound);
   
   server.serveStatic("/", SPIFFS, "/", "max-age=86400");
-  delay(10);
+  delay(INITDELAY);
   server.begin();
 
   showInitColor(CRGB::Yellow);
@@ -1655,12 +1657,6 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
 void setup() {
   // Sanity delay to get everything settled....
   delay(500);
-
-  // set the Build Version
-  build_version += String(" ");
-  build_version += String(__TIMESTAMP__);
-  
-
 
   #ifdef DEBUG
   // Open serial communications and wait for port to open:
