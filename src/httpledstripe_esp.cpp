@@ -15,8 +15,16 @@
   https://github.com/tobi01001/LED_Stripe_Dynamic_web_conf
 
  **************************************************************/
-#include <FS.h>
 
+#include <FS.h>
+#include <Arduino.h>
+#include <ArduinoJson.h>
+#include <ESP8266WiFi.h>
+#include <ESP8266WebServer.h>
+#include <WebSocketsServer.h>
+#include <WiFiManager.h>
+#include <ArduinoOTA.h>
+#include <EEPROM.h>
 
 
 #define FASTLED_ESP8266_RAW_PIN_ORDER
@@ -29,14 +37,16 @@
 #endif
 
 
-#define BUILD_VERSION ("0.5.3 ") 
+#define BUILD_VERSION ("0.5.5 ") 
 #ifndef BUILD_VERSION
   #error "We need a SW Version and Build Version!"
 #endif
 
-
-String build_version = BUILD_VERSION + String(__TIMESTAMP__);
-
+#ifdef DEBUG
+  String build_version = BUILD_VERSION + String("DEBUG ") + String(__TIMESTAMP__);
+#else
+  String build_version = BUILD_VERSION + String(__TIMESTAMP__);
+#endif
 
 
 //#define DEBUG
@@ -57,31 +67,6 @@ String build_version = BUILD_VERSION + String(__TIMESTAMP__);
   #define INITDELAY 2
 #endif
 
-// For the Webserver Answers..
-#define ANSWERSTATE 0
-#define ANSWERSUNRISE 1
-
-
-// to count the ARRAY SIZE - not used?
-// #define ARRAY_SIZE(A) (sizeof(A) / sizeof((A)[0]))
-
-/*
-extern "C" {
-#include "user_interface.h"
-}
-*/
-
-#include "Arduino.h"
-#include <ArduinoJson.h>
-#include <ESP8266WiFi.h>
-#include <ESP8266WebServer.h>
-#include <WebSocketsServer.h>
-#include <WiFiManager.h>
-//#include <Bounce2.h>
-#include <ArduinoOTA.h>
-#include <EEPROM.h>
-
-
 // new approach starts here:
 #include "led_strip.h"
 
@@ -101,7 +86,7 @@ String AP_SSID = LED_NAME + String(ESP.getChipId());
 bool shouldSaveConfig = false;
 bool shouldSaveRuntime = false;
 
-typedef struct {
+typedef struct strEEPROMSaveData {
     uint16_t CRC = 0;
     WS2812FX::segment seg;
     uint8_t brightness = DEFAULT_BRIGHTNESS;
@@ -109,7 +94,7 @@ typedef struct {
     uint8_t currentEffect = FX_NO_FX;
     uint8_t pal_num;
     CRGBPalette16 pal;
-    //String pal_name = "Red Green White Colors";
+
     bool stripIsOn = false;
 } EEPROMSaveData;
 
@@ -496,7 +481,7 @@ void initOverTheAirUpdate(void) {
     #endif
     // OTA finished.
     // We fade out the green Leds being activated during OTA.
-    for(uint8_t i = strip->leds[i].green; i>0; i--)
+    for(uint8_t i = strip->leds[0].green; i>0; i--)
     {
       for(uint16_t p=0; p<strip->getLength(); p++)
       {
@@ -515,9 +500,8 @@ void initOverTheAirUpdate(void) {
     #ifdef DEBUG
     Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
     #endif
-    // OTA Update will show increasing green LEDs during progress:
-    uint8_t color = 0;
 
+    // OTA Update will show increasing green LEDs during progress:
     uint16_t progress_value = progress*100 / (total / strip->getLength());
     uint16_t pixel = (uint16_t) (progress_value / 100);
     uint16_t temp_color = progress_value - (pixel*100);
@@ -1495,7 +1479,7 @@ void clearEEPROM(void) {
   Serial.println("Clearing EEPROM");
   #endif
   EEPROM.begin(sizeof(myEEPROMSaveData)+10);
-  for(int i = 0; i< EEPROM.length(); i++)
+  for(uint i = 0; i< EEPROM.length(); i++)
   {
     EEPROM.write(i,0);
   }
@@ -1528,16 +1512,15 @@ void setupWebServer(void){
   delay(INITDELAY);
   SPIFFS.begin();
   {
-   
+    #ifdef DEBUG
     Dir dir = SPIFFS.openDir("/");
     while (dir.next()) {
       String fileName = dir.fileName();
       size_t fileSize = dir.fileSize();
-      #ifdef DEBUG
+     
       Serial.printf("FS File: %s, size: %s\n", fileName.c_str(), String(fileSize).c_str());
-      #endif
     }
-    #ifdef DEBUG
+    
     Serial.printf("\n");
     #endif
   }
@@ -1609,20 +1592,17 @@ void setupWebServer(void){
 }
 
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
-
+  #ifdef DEBUG
   switch (type) {
     case WStype_DISCONNECTED:
-      #ifdef DEBUG
+      
       Serial.printf("[%u] Disconnected!\n", num);
-      #endif
       break;
 
     case WStype_CONNECTED:
       {
         IPAddress ip = webSocketsServer->remoteIP(num);
-        #ifdef DEBUG
         Serial.printf("[%u] Connected from %d.%d.%d.%d url: %s\n", num, ip[0], ip[1], ip[2], ip[3], payload);
-        #endif
 
         // send message to client
         // webSocketsServer.sendTXT(num, "Connected");
@@ -1630,9 +1610,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
       break;
 
     case WStype_TEXT:
-      #ifdef DEBUG
       Serial.printf("[%u] get Text: %s\n", num, payload);
-      #endif
 
       // send message to client
       // webSocketsServer.sendTXT(num, "message here");
@@ -1642,15 +1620,15 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
       break;
 
     case WStype_BIN:
-      #ifdef DEBUG
       Serial.printf("[%u] get binary length: %u\n", num, length);
-      #endif
       hexdump(payload, length);
 
-      // send message to client
-      // webSocketsServer.sendBIN(num, payload, lenght);
       break;
+    
+    default:
+    break;
   }
+  #endif
 }
 
 // setup network and output pins
