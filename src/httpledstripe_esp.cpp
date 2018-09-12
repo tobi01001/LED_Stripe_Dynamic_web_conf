@@ -1703,7 +1703,6 @@ void setup() {
 void loop() {
   unsigned long now = millis();
   #ifdef DEBUG
-  static uint8_t life_sign = 0;
   static unsigned long last_status_msg = 0;
   #endif
   if (OTAisRunning) return;
