@@ -495,9 +495,10 @@ void mySunriseTrigger(void) {
     {
       sunriseParam.isRunning = false;
       strip->setColor(CRGBPalette16(HeatColor(255)));
-      strip->setMode(0);
+      strip->setMode(FX_MODE_STATIC);
       setEffect(FX_WS2812);
       strip_On_Off(true);
+      shouldSaveRuntime = true;
       return;
     }
     else if (sunriseParam.step == 0)
@@ -508,6 +509,7 @@ void mySunriseTrigger(void) {
       setEffect(FX_WS2812);
       //reset();
       strip_On_Off(false);
+      shouldSaveRuntime = true;
       return;
     }
   }
