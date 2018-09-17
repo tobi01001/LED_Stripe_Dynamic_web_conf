@@ -37,7 +37,7 @@
 #endif
 
 
-#define BUILD_VERSION ("0.5.5 ") 
+#define BUILD_VERSION ("0.5.6 ") 
 #ifndef BUILD_VERSION
   #error "We need a SW Version and Build Version!"
 #endif
