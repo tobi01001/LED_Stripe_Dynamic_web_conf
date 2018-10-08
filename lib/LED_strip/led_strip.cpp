@@ -232,6 +232,10 @@ String getBlurValue(void) {
   return String(strip->getBlurValue());
 }
 
+String getFPSValue(void) {
+  return String(strip->getMaxFPS());
+}
+
 FieldList fields = {
   { "power",            LED_NAME,                           SectionFieldType                                                                        },
   { "power",            "LED Schalter",                     BooleanFieldType,   0,              1,                      getPower                    },
@@ -265,6 +269,7 @@ FieldList fields = {
   { "numBars",          "Anzahl LED Balken",                NumberFieldType,    1,              max(LED_COUNT/10,2),    getNumBars                  },
   { "Settings",         "Einstellungen",                    SectionFieldType                                                                        },
   { "current",          "max Strom",                        NumberFieldType,    100,            10000,                  getMilliamps                },
+  { "fps",              "Wiederholrate (FPS)",              NumberFieldType,    5,              255,                    getFPSValue                 },
 };
 
 #ifndef ARRAY_SIZE

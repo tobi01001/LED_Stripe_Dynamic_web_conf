@@ -37,7 +37,7 @@
 #endif
 
 
-#define BUILD_VERSION ("0.6.0 ") 
+#define BUILD_VERSION ("0.6.1 ") 
 #ifndef BUILD_VERSION
   #error "We need a SW Version and Build Version!"
 #endif
@@ -1193,6 +1193,16 @@ void handleSet(void) {
     broadcastInt("LEDblur", value);
     strip->setBlurValue(value);
   }
+
+  // parameter for the frames per second (FPS)
+  if(server.hasArg("fps"))
+  {
+    uint8_t value = String(server.arg("fps")).toInt();
+    sendInt("fps", value);
+    broadcastInt("fps", value);
+    strip->setMaxFPS(value);
+  }
+
   // new parameters, it's time to save
   shouldSaveRuntime = true;
   strip->setTransition();
