@@ -183,6 +183,10 @@ String getTwinkleDensity() {
   return String(strip->getTwinkleDensity());
 }
 
+String getNumBars() {
+  return String(strip->getNumBars());
+}
+
 String getHueTime() {
   return String(strip->getSegments()[0].hueTime);
 }
@@ -197,6 +201,23 @@ String getBlendType() {
 
 String getBlendTypes() {
   return "\"NoBlend\",\"LinearBlend\"";
+}
+
+String getColorTemp() {
+  return String(strip->getColorTemp());
+}
+
+String getColorTemps() {
+  String json = "";
+
+  for (uint8_t i = 0; i < 19; i++) {
+    json += "\"" + String(strip->getColorTempName(i)) + "\"";
+    json += ",";
+  }
+  json += "\"" + String(strip->getColorTempName(19)) + "\"";
+
+  return json;
+  //return "\"Candle\",\"Kelvin\",\"Tungsten40W\",\"Tungsten100W\",\"Halogen\",\"CarbonArc\",\"HighNoonSun\",\"DirectSunlight\",\"OvercastSky\",\"ClearBlueSky\",\"WarmFluorescent\",\"StandardFluorescent\",\"CoolWhiteFluorescent\",\"FullSpectrumFluorescent\",\"GrowLightFluorescent\",\"BlackLightFluorescent\",\"MercuryVapor\",\"SodiumVapor\",\"MetalHalide\",\"HighPressureSodium\",\"UncorrectedTemperature\"";
 }
 
 String getReverse() {
@@ -220,6 +241,7 @@ FieldList fields = {
   { "pa",               "Farbpalette",                      SelectFieldType,    0,   (uint16_t)(strip->getPalCount()+1),getPalette, getPalettes     },
   { "sp",               "Geschwindigkeit",                  NumberFieldType,    BEAT88_MIN,     BEAT88_MAX,             getSpeed                    },
   { "blendType",        "Blendmodus",                       SelectFieldType,    NOBLEND,        LINEARBLEND,            getBlendType, getBlendTypes },
+  { "ColorTemperature", "Farbtemperatur",                   SelectFieldType,    0,              20,                     getColorTemp, getColorTemps },
   { "LEDblur",          "LED / Effect Blending",            NumberFieldType,    0,              255,                    getBlurValue                },
   { "reverse",          "Rückwärts",                        BooleanFieldType,   0,              1,                      getReverse                  },
   { "hue",              "Farbwechsel",                      SectionFieldType                                                                        },
@@ -239,8 +261,10 @@ FieldList fields = {
   { "twinkles",         "Funkeln",                          SectionFieldType                                                                        },
   { "twinkleSpeed",     "Funkelgeschwindigkeit",            NumberFieldType,    0,              8,                      getTwinkleSpeed             },
   { "twinkleDensity",   "Wieviel Funkellichter",            NumberFieldType,    0,              8,                      getTwinkleDensity           },
+  { "ledBars",          "LED Balken für Effekte",           SectionFieldType,                                                                       },
+  { "numBars",          "Anzahl LED Balken",                NumberFieldType,    1,              max(LED_COUNT/10,2),    getNumBars                  },
   { "Settings",         "Einstellungen",                    SectionFieldType                                                                        },
-  { "current",          "max Strom",                        NumberFieldType,    100,            20000,                  getMilliamps                },
+  { "current",          "max Strom",                        NumberFieldType,    100,            10000,                  getMilliamps                },
 };
 
 #ifndef ARRAY_SIZE
@@ -256,21 +280,13 @@ void stripe_setup(  const uint16_t LEDCount,
                     const uint16_t milliamps = 500, 
                     const CRGBPalette16 pal = Rainbow_gp, 
                     const String Name = "Rainbow Colors",
-                    const LEDColorCorrection colc = TypicalLEDStrip ){
+                    const LEDColorCorrection colc = UncorrectedColor /*TypicalLEDStrip*/ ){
   strip = new WS2812FX(LEDCount, FPS, volt, milliamps, pal, Name, colc);
-  //initialize the stripe
-  //strip->setLength(LEDCount);
-
-  //strip->setPin(dataPin);
-
-  //strip->updateType(pixelType);
-
-  //strip->begin();
-  //strip->clear();
+  strip->setColorTemperature(19);
   strip->init();
   strip->setBrightness(DEFAULT_BRIGHTNESS);
   strip->setSpeed(DEFAULT_BEAT88);
-  //strip->setColor(0xff9900);
+
   strip->start();
   strip->show();
 }
@@ -461,6 +477,8 @@ void mySunriseStart(uint32_t  mytime, uint16_t steps, bool up) {
     sunriseParam.isSunrise = false;
     fill_solid(strip->leds, strip->getLength(), HeatColor(255)); //ColorFromPalette(HeatColors_p, 240, BRIGHTNESS_MAX, LINEARBLEND));
   }
+  strip->setColor(CRGBPalette16(HeatColor(255)));
+  strip->setCurrentPalette(CRGBPalette16(HeatColor(255)), "Custom");
   sunriseParam.deltaTime = (mytime/steps);
   sunriseParam.lastChange = millis() - sunriseParam.deltaTime;
 
@@ -469,7 +487,7 @@ void mySunriseStart(uint32_t  mytime, uint16_t steps, bool up) {
   setEffect(FX_SUNRISE);
   
   #ifdef DEBUG
-  Serial.printf("\nStarted Sunrise with %.3u steps in %u ms which are %u minutes.\n", steps, mytime, (mytime/60000));
+  Serial.printf("\nStarted Sunrise/Sunset with %.3u steps in %u ms which are %u minutes.\n", steps, mytime, (mytime/60000));
   #endif
 
 }
@@ -478,9 +496,18 @@ void mySunriseTrigger(void) {
   if(!sunriseParam.isRunning) return;
   
   uint32_t now = (uint32_t)millis();
-
+  static uint8_t step = 0;
   if(now > (uint32_t)(sunriseParam.lastChange + sunriseParam.deltaTime))
-  {
+  {  
+    
+    #ifdef DEBUG
+    if(sunriseParam.isSunrise)
+      Serial.printf("\nSunrise running at step %u of %.3u steps in %u s of %u seconds.\n", 
+                  sunriseParam.step, sunriseParam.steps, (sunriseParam.step*sunriseParam.deltaTime)/1000, (sunriseParam.deltaTime*sunriseParam.steps)/1000);
+    else
+      Serial.printf("\nSunset running at step %u of %.3u steps in %u s of %u seconds.\n", 
+                  sunriseParam.step, sunriseParam.steps, (sunriseParam.step*sunriseParam.deltaTime)/1000, (sunriseParam.deltaTime*sunriseParam.steps)/1000);
+    #endif
     if(sunriseParam.isSunrise)
     {
       sunriseParam.step++;
@@ -489,55 +516,67 @@ void mySunriseTrigger(void) {
     {
       sunriseParam.step--;
     }
-    sunriseParam.lastChange = (uint32_t)millis();
-    
+    step = (uint8_t)map(sunriseParam.step, 0, sunriseParam.steps, 20, 255);
     if((sunriseParam.step >= sunriseParam.steps))
     {
       sunriseParam.isRunning = false;
-      strip->setColor(CRGBPalette16(HeatColor(255)));
+      
+      CRGB co = CRGB::Black;
+
+      for(uint8_t i = 0; i<strip->getLength() / 4; i++)
+      {
+        if(strip->leds[i]>co)
+        {
+          co = strip->leds[i];
+        }
+      }
+      strip->setColor(CRGBPalette16(co));
+      strip->setCurrentPalette(CRGBPalette16(co), "Custom");
       strip->setMode(FX_MODE_STATIC);
       setEffect(FX_WS2812);
       strip_On_Off(true);
+      strip->setTransition();
       shouldSaveRuntime = true;
-      return;
+      #ifdef DEBUG
+      Serial.println("\nSunrise finished!");
+      #endif
+      //return;
     }
     else if (sunriseParam.step == 0)
     {
       sunriseParam.isRunning = false;
+      
       strip->setTargetPalette(0);
       strip->setMode(FX_MODE_TWINKLE_FOX);
       setEffect(FX_WS2812);
       //reset();
       strip_On_Off(false);
+      strip->setTransition();
       shouldSaveRuntime = true;
-      return;
+      #ifdef DEBUG
+      Serial.println("\nSunset finished!");
+      #endif
+      //return;
     }
+    
+    sunriseParam.lastChange = (uint32_t)millis();
   }
-  uint8_t step = (uint8_t)map(sunriseParam.step, 0, sunriseParam.steps, 0, 255);
 
   fill_solid(strip->leds, strip->getLength(), HeatColor(step));
   
-  uint8_t br = step<64?(uint8_t)map(step, 0, 64, BRIGHTNESS_MIN+1, BRIGHTNESS_MAX):BRIGHTNESS_MAX;
+  uint8_t br = (step<96)?(uint8_t)map(step, 0, 96, 15, BRIGHTNESS_MAX):BRIGHTNESS_MAX;
   nscale8_video(strip->leds, strip->getLength(), br);
 
-  if(step>20)
+  CRGB nc = 0x0;
+  for(uint16_t i=0; i<strip->getLength(); i++)
   {
-    CRGB nc = 0x0;
-    for(uint16_t i=0; i<strip->getLength(); i++)
-    {
-      nc = strip->leds[i];
-      if(step < 192)
-      {
-        nc.nscale8_video(random8(step/2));
-      }
-      else
-      {
-        nc.nscale8_video(random8(270-step));
-      }
-      strip->leds[i] = nblend(strip->leds[i], nc, 192);
-    }
+    nc = strip->leds[i];
+    nc.nscale8_video(random8(step<172?(step/2):(255-step)));
+    strip->leds[i] = nblend(strip->leds[i], nc, 222);
   }
+  
   nblend(strip->_bleds, strip->leds, strip->getLength(), 48);
+  
   //strip->show();
   FastLED.show();
   //FastLED.delay(1);
