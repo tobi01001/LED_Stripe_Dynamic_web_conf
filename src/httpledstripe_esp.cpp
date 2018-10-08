@@ -37,7 +37,7 @@
 #endif
 
 
-#define BUILD_VERSION ("0.5.7 ") 
+#define BUILD_VERSION ("0.6.0 ") 
 #ifndef BUILD_VERSION
   #error "We need a SW Version and Build Version!"
 #endif
@@ -646,14 +646,18 @@ void handleSet(void) {
     bool isWS2812FX = false;
     // current library effect number
     uint8_t effect = strip->getMode();
+    
     #ifdef DEBUG
     Serial.println("got Argument mo....");
     #endif
+    
     // just switch to the next if we get an "u" for up
     if (server.arg("mo")[0] == 'u') {
-    #ifdef DEBUG
-    Serial.println("got Argument mode up....");
-    #endif
+    
+      #ifdef DEBUG
+      Serial.println("got Argument mode up....");
+      #endif
+   
       effect = effect + 1;
       isWS2812FX = true;
     }
@@ -671,9 +675,9 @@ void handleSet(void) {
       Serial.println("got Argument mode Off....");
       #endif
       sendString("state", "off");
-      reset();
+      //reset();
       strip_On_Off(false);
-      strip->stop();
+      //strip->stop();
       broadcastInt("power", stripIsOn);
     }
     // for backward compatibility and FHEM:
@@ -1125,6 +1129,15 @@ void handleSet(void) {
     strip->getSegments()[0].cooling = value;
   }
 
+  // parameter for number of bars (beat sine glows etc...)
+  if(server.hasArg("numBars"))
+  {
+    uint16_t value = String(server.arg("numBars")).toInt();
+    sendInt("Number of Bars", value);
+    broadcastInt("numBars", value);
+    strip->setNumBars(value);
+  }
+
   // parameter to change the palette blend type for cetain effects
   if(server.hasArg("blendType"))
   {
@@ -1139,6 +1152,18 @@ void handleSet(void) {
       strip->getSegments()[0].blendType = NOBLEND;
       sendString("BlendType", "NOBLEND");
     }
+    strip->setTransition();
+  }
+
+  // parameter to change the Color Temperature of the Strip
+  if(server.hasArg("ColorTemperature"))
+  {
+    uint8_t value = String(server.arg("ColorTemperature")).toInt();
+    
+    broadcastInt("ColorTemperature", value);
+    sendString("ColorTemperature", strip->getColorTempName(value));
+    strip->setColorTemperature(value);
+    strip->setTransition();
   }
 
   // parameter to change direction of certain effects..
@@ -1148,6 +1173,7 @@ void handleSet(void) {
     sendInt("Reverse", value);
     broadcastInt("reverse", value);
     strip->getSegments()[0].reverse = value;
+    strip->setTransition();
   }
 
   // parameter so set the max current the leds will draw
@@ -1169,6 +1195,7 @@ void handleSet(void) {
   }
   // new parameters, it's time to save
   shouldSaveRuntime = true;
+  strip->setTransition();
 }
 
 // if something unknown was called...
