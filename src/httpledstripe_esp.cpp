@@ -225,8 +225,8 @@ void saveEEPROMData(void) {
   
     Serial.println("\tget segments");
   #endif
-  // we will stroe the complete segment data 
-  myEEPROMSaveData.seg = strip->getSegments()[0];
+  // we will store the complete segment data 
+  myEEPROMSaveData.seg = *strip->getSegment();
   #ifdef DEBUG
     Serial.print("\t\tautoPal ");
     Serial.println(myEEPROMSaveData.seg.autoPal);
@@ -347,14 +347,14 @@ void readRuntimeDataEEPROM(void) {
     strip->setBrightness(myEEPROMSaveData.brightness);
 
     // sanity checks ( defensive, I know... but just in case)
-    if(strip->getSegments()[0].stop != myEEPROMSaveData.seg.stop)
+    if(strip->getSegment()->stop != myEEPROMSaveData.seg.stop)
     {
-      myEEPROMSaveData.seg.stop = strip->getSegments()[0].stop;
+      myEEPROMSaveData.seg.stop = strip->getSegment()->stop;
     }
     if(myEEPROMSaveData.currentEffect > 3) myEEPROMSaveData.currentEffect = 0;
     if(myEEPROMSaveData.seg.fps < 10) myEEPROMSaveData.seg.fps = 60;
 
-    strip->getSegments()[0] = myEEPROMSaveData.seg;
+    *(strip->getSegment()) = myEEPROMSaveData.seg;
 
 
     sunriseParam = myEEPROMSaveData.sParam;
@@ -1056,7 +1056,7 @@ void handleSet(void) {
   if(server.hasArg("autoplay"))
   {
     uint16_t value = String(server.arg("autoplay")).toInt();
-    strip->getSegments()[0].autoplay = value;
+    strip->getSegment()->autoplay = value;
     sendInt("Autoplay Mode", value);
     broadcastInt("autoplay", value);
   }
@@ -1074,7 +1074,7 @@ void handleSet(void) {
   if(server.hasArg("autopal"))
   {
     uint16_t value = String(server.arg("autopal")).toInt();
-    strip->getSegments()[0].autoPal = value;
+    strip->getSegment()->autoPal = value;
     sendInt("Autoplay Palette", value);
     broadcastInt("autopal", value);
   }
@@ -1105,7 +1105,7 @@ void handleSet(void) {
     uint16_t value = constrain(String(server.arg("deltahue")).toInt(), 0, 255);
     sendInt("Delta hue per change", value);
     broadcastInt("deltahue", value);
-    strip->getSegments()[0].deltaHue = value;
+    strip->getSegment()->deltaHue = value;
   }
 
   // parameter for teh "fire" - flame cooldown
@@ -1114,7 +1114,7 @@ void handleSet(void) {
     uint16_t value = String(server.arg("cooling")).toInt();
     sendInt("Fire Cooling", value);
     broadcastInt("cooling", value);
-    strip->getSegments()[0].cooling = value;
+    strip->getSegment()->cooling = value;
   }
 
   // parameter for the sparking - new flames
@@ -1123,7 +1123,7 @@ void handleSet(void) {
     uint16_t value = String(server.arg("sparking")).toInt();
     sendInt("Fire sparking", value);
     broadcastInt("sparking", value);
-    strip->getSegments()[0].sparking = value;
+    strip->getSegment()->sparking = value;
   }
 
   // parameter for twinkle fox (speed)
@@ -1132,7 +1132,7 @@ void handleSet(void) {
     uint16_t value = String(server.arg("twinkleSpeed")).toInt();
     sendInt("Twinkle Speed", value);
     broadcastInt("twinkleSpeed", value);
-    strip->getSegments()[0].twinkleSpeed = value;
+    strip->getSegment()->twinkleSpeed = value;
   }
 
    // parameter for twinkle fox (density)
@@ -1141,7 +1141,7 @@ void handleSet(void) {
     uint16_t value = String(server.arg("twinkleDensity")).toInt();
     sendInt("Twinkle Density", value);
     broadcastInt("twinkleDensity", value);
-    strip->getSegments()[0].cooling = value;
+    strip->getSegment()->cooling = value;
   }
 
   // parameter for number of bars (beat sine glows etc...)
@@ -1160,11 +1160,11 @@ void handleSet(void) {
     
     broadcastInt("blendType", value);
     if(value) {
-      strip->getSegments()[0].blendType = LINEARBLEND;
+      strip->getSegment()->blendType = LINEARBLEND;
       sendString("BlendType", "LINEARBLEND");
     }
     else {
-      strip->getSegments()[0].blendType = NOBLEND;
+      strip->getSegment()->blendType = NOBLEND;
       sendString("BlendType", "NOBLEND");
     }
     strip->setTransition();
@@ -1187,7 +1187,7 @@ void handleSet(void) {
     uint16_t value = String(server.arg("reverse")).toInt();
     sendInt("Reverse", value);
     broadcastInt("reverse", value);
-    strip->getSegments()[0].reverse = value;
+    strip->getSegment()->reverse = value;
     strip->setTransition();
   }
 
@@ -1384,11 +1384,11 @@ void handleStatus(void){
   message += String(col.blue);
 
   message += F(", \n    \"BlendType\": ");
-  if(strip->getSegments()[0].blendType == NOBLEND)
+  if(strip->getSegment()->blendType == NOBLEND)
   {
     message += "\"No Blend\"";
   }
-  else if (strip->getSegments()[0].blendType == LINEARBLEND)
+  else if (strip->getSegment()->blendType == LINEARBLEND)
   {
     message += "\"Linear Blend\"";
   }
@@ -1547,11 +1547,9 @@ void handleResetRequest(void){
     server.send(200, "text/plain", "Will now Reset to factory settings. You need to connect to the WLAN AP afterwards....");
     factoryReset();
   } else if(server.arg("rst") == "Defaults") {
-    uint32_t colors[3];
-    colors[0] = 0xff0000;
-    colors[1] = 0x00ff00;
-    colors[2] = 0x0000ff;
-    strip->setSegment(0, 0, strip->getLength()-1, FX_MODE_STATIC, colors, DEFAULT_BEAT88, false);
+    //strip->setSegment(0, 0, strip->getLength()-1, FX_MODE_STATIC, colors, DEFAULT_BEAT88, false);
+    strip->setTargetPalette(0);
+    strip->setMode(0);
     setEffect(FX_NO_FX);
     strip->stop();
     strip_On_Off(false);

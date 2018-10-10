@@ -143,19 +143,19 @@ String getPalettes() {
 }
 
 String getAutoplay() {
-  return String(strip->getSegments()[0].autoplay);
+  return String(strip->getSegment()->autoplay);
 }
 
 String getAutoplayDuration() {
-  return String(strip->getSegments()[0].autoplayDuration);
+  return String(strip->getSegment()->autoplayDuration);
 }
 
 String getAutopal() {
-  return String(strip->getSegments()[0].autoPal);
+  return String(strip->getSegment()->autoPal);
 }
 
 String getAutopalDuration() {
-  return String(strip->getSegments()[0].autoPalDuration);
+  return String(strip->getSegment()->autoPalDuration);
 }
 
 String getSolidColor() {
@@ -188,15 +188,15 @@ String getNumBars() {
 }
 
 String getHueTime() {
-  return String(strip->getSegments()[0].hueTime);
+  return String(strip->getSegment()->hueTime);
 }
 
 String getDeltaHue() {
-  return String(strip->getSegments()[0].deltaHue);
+  return String(strip->getSegment()->deltaHue);
 }
 
 String getBlendType() {
-  return String(strip->getSegments()[0].blendType);
+  return String(strip->getSegment()->blendType);
 }
 
 String getBlendTypes() {
@@ -221,7 +221,7 @@ String getColorTemps() {
 }
 
 String getReverse() {
-  return String(strip->getSegments()[0].reverse);
+  return String(strip->getSegment()->reverse);
 }
 
 String getMilliamps(void) {
