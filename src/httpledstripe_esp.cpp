@@ -76,7 +76,7 @@
 #define WIFI_TIMEOUT 5000
 ESP8266WebServer server(80);
 WebSocketsServer *webSocketsServer; // webSocketsServer = WebSocketsServer(81);
-WiFiManager wifiManager;
+
 
 String AP_SSID = LED_NAME + String(ESP.getChipId());
 
@@ -341,14 +341,21 @@ void readRuntimeDataEEPROM(void) {
   // we have a matching CRC, so we update the runtime data.
   if( myEEPROMSaveData.CRC == mCRC) 
   {
+    #ifdef DEBUG
+    Serial.println("\n\tWe got a CRC match!...");
+    #endif
     strip->setBrightness(myEEPROMSaveData.brightness);
 
+    // sanity checks ( defensive, I know... but just in case)
     if(strip->getSegments()[0].stop != myEEPROMSaveData.seg.stop)
     {
       myEEPROMSaveData.seg.stop = strip->getSegments()[0].stop;
     }
+    if(myEEPROMSaveData.currentEffect > 3) myEEPROMSaveData.currentEffect = 0;
+    if(myEEPROMSaveData.seg.fps < 10) myEEPROMSaveData.seg.fps = 60;
 
     strip->getSegments()[0] = myEEPROMSaveData.seg;
+
 
     sunriseParam = myEEPROMSaveData.sParam;
     currentEffect = myEEPROMSaveData.currentEffect;
@@ -366,7 +373,9 @@ void readRuntimeDataEEPROM(void) {
   }
   else // load defaults
   {
-
+    #ifdef DEBUG
+    Serial.println("\n\tWe got NO NO NO CRC match!...");
+    #endif
   }
 
   #ifdef DEBUG
@@ -562,6 +571,11 @@ void setupWiFi(void){
 
   showInitColor(CRGB::Blue);
   delay(INITDELAY);
+
+  WiFi.hostname(LED_NAME + String(ESP.getChipId()));
+
+  WiFiManager wifiManager;
+
   wifiManager.setSaveConfigCallback(saveConfigCallback);
 
   // 4 Minutes should be sufficient.
@@ -824,6 +838,7 @@ void handleSet(void) {
                   "\", \"wsfxmode\": " + String(effect));
       // let anyone connected know what we just did
       broadcastInt("mo", effect);
+      broadcastInt("power", stripIsOn);
     }
   }
   // global on/off
@@ -1496,11 +1511,12 @@ void factoryReset(void){
   }
   strip->show();
   delay(INITDELAY);
-  #ifdef DEBUG
+  /*#ifdef DEBUG
   Serial.println("Reset WiFi Settings");
   #endif
   wifiManager.resetSettings();
   delay(INITDELAY);
+  */
   clearEEPROM();
   //reset and try again
   #ifdef DEBUG
