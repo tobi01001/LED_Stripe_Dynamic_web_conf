@@ -4,16 +4,7 @@
   Harm Aldick - 2016
   www.aldick.org
 
-
-  FEATURES
-    * A lot of blinken modes and counting
-    * WS2812FX can be used as drop-in replacement for Adafruit Neopixel Library
-
-  NOTES
-    * Uses the Adafruit Neopixel library. Get it here:
-      https://github.com/adafruit/Adafruit_NeoPixel
-
-
+  Initially done by Harm Aldick - heavily adopted for personal use by tobi01001
 
   LICENSE
 
@@ -39,23 +30,11 @@
   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
   THE SOFTWARE.
 
-
-  CHANGELOG
-
-  2016-05-28   Initial beta release
-  2016-06-03   Code cleanup, minor improvements, new modes
-  2016-06-04   2 new fx, fixed setColor (now also resets _mode_color)
-  2017-02-02   added external trigger functionality (e.g. for sound-to-light)
-  2017-02-02   removed "blackout" on mode, speed or color-change
-  2017-09-26   implemented segment and reverse features
-  2017-11-16   changed speed calc, reduced memory footprint
-  2018-02-24   added hooks for user created custom effects
 */
 
 #include "WS2812FX.h"
 
 uint16_t (*customMode)(void) = NULL;
-
 
 /*
  * ColorPalettes
