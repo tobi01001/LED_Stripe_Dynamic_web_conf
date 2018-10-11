@@ -713,12 +713,11 @@ uint16_t WS2812FX::pride(bool glitter = false) {
   }
  
 
-  //uint8_t sat8 = beatsin88(SEGMENT.beat88/12 + 1, 220, 250);// beatsin88( 87, 220, 250);
-  uint8_t brightdepth = beatsin88( SEGMENT.beat88/3 + 1, 96, 224); //beatsin88( 341, 96, 224);
-  uint16_t brightnessthetainc16 = beatsin88( SEGMENT.beat88/5+1, (25 * 256), (40 * 256)); //beatsin88( 203, (25 * 256), (40 * 256));
-  uint8_t msmultiplier = beatsin88(SEGMENT.beat88/7+1, 23, 60);//beatsin88(147, 23, 60);
+  uint8_t brightdepth = beatsin88( SEGMENT.beat88/3 + 1, 96, 224); 
+  uint16_t brightnessthetainc16 = beatsin88( SEGMENT.beat88/5+1, (25 * 256), (40 * 256)); 
+  uint8_t msmultiplier = beatsin88(SEGMENT.beat88/7+1, 23, 60);
 
-  uint16_t hue16 = SEGMENT_RUNTIME.b16.p.sHue16;//gHue * 256;
+  uint16_t hue16 = SEGMENT_RUNTIME.b16.p.sHue16;
   uint16_t hueinc16 = beatsin88(SEGMENT.beat88/9+1, 1, 3000);
 
   uint16_t ms = millis();
@@ -1176,7 +1175,8 @@ uint16_t WS2812FX::mode_plasma(void) {
  * Move 3 dots / small bars (antialised) at different speeds
  */
 uint16_t WS2812FX::mode_juggle_pal(void) {
-  const uint8_t numdots = 3;
+  //const uint8_t numdots = 3;
+  
   const uint8_t width = max(LED_COUNT/15,2);
   uint8_t curhue = 0;
   if(SEGMENT_RUNTIME.modeinit)
@@ -1192,9 +1192,9 @@ uint16_t WS2812FX::mode_juggle_pal(void) {
 
   fade_out(96);
   
-  for( int i = 0; i < numdots; i++) {
+  for( int i = 0; i < SEGMENT.numBars; i++) {
     uint16_t pos = beatsin88(max(SEGMENT.beat88/2,1)+i*256+762,SEGMENT.start*16, SEGMENT.stop*16-width*16, SEGMENT_RUNTIME.tb.timebase);
-    drawFractionalBar(pos, width, _currentPalette, curhue, _brightness);
+    drawFractionalBar(pos, width, _currentPalette, curhue+(255/SEGMENT.numBars)*i, _brightness);
     uint8_t delta = random8(9);
     if(delta < 5)
     {
@@ -2049,7 +2049,7 @@ uint16_t WS2812FX::mode_shooting_star() {
   }
 
   fadeToBlackBy(leds, LED_COUNT>8?LED_COUNT-8:LED_COUNT, (SEGMENT.beat88>>8)|0x80);
-  if(LED_COUNT > 8) blur1d(&leds[SEGMENT.stop-8], 8, 120);
+  if(LED_COUNT > 8) blur1d(&leds[SEGMENT.stop-7], 8, 120);
 
   for(uint8_t i = 0; i<numBars; i++)
   {
@@ -2064,7 +2064,7 @@ uint16_t WS2812FX::mode_shooting_star() {
     
     if(pos/16 > (SEGMENT.stop - 4))
     {
-      leds[pos/16] += CRGB(96,96,96);
+      leds[pos/16] += CRGB(128, 128, 128);
       new_cind[i] = true;
     }
     else

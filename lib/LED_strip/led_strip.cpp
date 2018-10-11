@@ -2,20 +2,50 @@
    This work is based on many others.
    If published then under whatever licence free to be used,
    distibuted, changed and whatsoever.
-   Work is based on:
-   WS2812BFX library by  - see:
-   fhem esp8266 implementation by   - see:
-   WiFiManager library by - - see:
-   ... many others ( see includes)
+   This Work is based on many others 
+   and heavily modified for my personal use.
+   It is basically based on the following great developments:
+   - Adafruit Neopixel https://github.com/adafruit/Adafruit_NeoPixel
+   - WS2812FX library https://github.com/kitesurfer1404/WS2812FX
+   - fhem esp8266 implementation - Idea from https://github.com/sw-home/FHEM-LEDStripe 
+   - FastLED library - see http://www.fastLed.io
+   - ESPWebserver - see https://github.com/jasoncoon/esp8266-fastled-webserver
+  
+  My GIT source code storage
+  https://github.com/tobi01001/LED_Stripe_Dynamic_web_conf
+
+  Done by tobi01001
+
+  **************************************************************
+
+  MIT License
+
+  Copyright (c) 2018 tobi01001
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
+
 
  **************************************************************/
-//#define DEBUG
 
 #ifndef led_strip_h
-#include "led_strip.h"
-#endif
-
-//#include <pahcolor.h>
+  #include "led_strip.h"
+#endif 
 
 bool stripWasOff = true;
 bool stripIsOn = true;
