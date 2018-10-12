@@ -548,7 +548,7 @@ void WS2812FX::drawFractionalBar(int pos16, int width, const CRGBPalette16 &pal,
     CRGB newColor;
     if(i<=SEGMENT.stop && i >= SEGMENT.start)
     {
-      if(mixColors)
+      if(mixColors || mix)
       {
         newColor = leds[i] | ColorFromPalette(pal, cindex, bright, SEGMENT.blendType); 
          // we blend based on the "baseBeat"
@@ -556,16 +556,7 @@ void WS2812FX::drawFractionalBar(int pos16, int width, const CRGBPalette16 &pal,
       }
       else
       {
-        if(mix)
-        {
-          newColor = leds[i] | ColorFromPalette(pal, cindex, max_bright, SEGMENT.blendType); 
-          nblend(leds[i], newColor, qadd8(SEGMENT.beat88>>8, 24));
-        }
-        else
-        {
-          leds[i] = ColorFromPalette(pal, cindex, max_bright, SEGMENT.blendType); 
-        }
-        
+        leds[i] = ColorFromPalette(pal, cindex, max_bright, SEGMENT.blendType); 
       }
     }
     i++;
@@ -2048,7 +2039,7 @@ uint16_t WS2812FX::mode_shooting_star() {
     }
   }
 
-  fadeToBlackBy(leds, LED_COUNT>8?LED_COUNT-8:LED_COUNT, (SEGMENT.beat88>>8)|0x80);
+  fadeToBlackBy(leds, LED_COUNT>8?LED_COUNT-8:LED_COUNT, (SEGMENT.beat88>>8)|0x60);
   if(LED_COUNT > 8) blur1d(&leds[SEGMENT.stop-7], 8, 120);
 
   for(uint8_t i = 0; i<numBars; i++)
@@ -2059,10 +2050,10 @@ uint16_t WS2812FX::mode_shooting_star() {
     pos = map(pos, 0, 65535, SEGMENT.start*16, SEGMENT.stop*16);
 
     //we use the fractional bar and 16 brghtness values per pixel 
-    drawFractionalBar(pos, 2, _currentPalette, cind[i], _brightness); 
+    drawFractionalBar(pos, 1, _currentPalette, cind[i], _brightness); 
 
     
-    if(pos/16 > (SEGMENT.stop - 4))
+    if(pos/16 > (SEGMENT.stop - 6))
     {
       leds[pos/16] += CRGB(128, 128, 128);
       new_cind[i] = true;
