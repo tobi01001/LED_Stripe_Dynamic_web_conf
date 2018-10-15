@@ -206,6 +206,7 @@ class WS2812FX {
   public:
     typedef struct segment {
       bool             reverse;
+      bool             inverse;
       bool             autoplay;
       bool             autoPal;
       uint16_t         beat88;
@@ -438,6 +439,8 @@ class WS2812FX {
       _segment.autoplayDuration = 55;
       _segment.autoPal = false;
       _segment.autoPalDuration = 30;
+      _segment.reverse = false;
+      _segment.inverse = false;
       _segment.cooling = 50;
       _segment.sparking = 125;
       _segment.twinkleSpeed = 4;
@@ -571,7 +574,8 @@ class WS2812FX {
       _blend = 0;
     }
 
-    
+    inline bool getInverse(void) { return _segment.inverse; }
+    inline void setInverse(bool inverse) { _segment.inverse = inverse; }
 
     inline uint8_t getTwinkleDensity(void) { return _segment.twinkleDensity; }
     inline uint8_t getMaxFPS(void) { return _segment.fps; }

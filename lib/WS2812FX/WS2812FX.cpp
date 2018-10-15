@@ -200,15 +200,34 @@ void WS2812FX::service() {
       SEGMENT_RUNTIME.next_time = now + (int)delay; //STRIP_MIN_DELAY;
     }
     // check if we fade to a new FX mode.
+    #define MAXINVERSE 32
     if(_transition)
     {
       EVERY_N_MILLISECONDS(8)
       {
+        CRGB tmp = CRGB::Black;
         if(!SEGMENT.reverse) {
-          nblend(_bleds, leds, LED_COUNT, _blend);
+          for(uint16_t i=0; i < LED_COUNT; i++) {
+            if(!SEGMENT.inverse) {
+              nblend(_bleds[i],  leds[i], _blend);
+            } else {
+              tmp.r = qsub8(MAXINVERSE, leds[i].r);
+              tmp.g = qsub8(MAXINVERSE, leds[i].g);
+              tmp.b = qsub8(MAXINVERSE, leds[i].b);
+              nblend(_bleds[i], tmp, _blend);
+            }
+          }
         } else {
           for(uint16_t i=0; i < LED_COUNT; i++) {
-            nblend(_bleds[i], leds[LED_COUNT-1-i], _blend);
+            if(!SEGMENT.inverse) {
+              nblend(_bleds[i],  leds[LED_COUNT-1-i], _blend);
+            } else {
+              tmp.r = qsub8(MAXINVERSE, leds[i].r);
+              tmp.g = qsub8(MAXINVERSE, leds[i].g);
+              tmp.b = qsub8(MAXINVERSE, leds[i].b);
+              nblend(_bleds[i], tmp, _blend);
+              //nblend(_bleds[i], -leds[LED_COUNT-1-i], _blend);
+            }
           }
         }
         _blend = qadd8(_blend, 1);
@@ -225,11 +244,31 @@ void WS2812FX::service() {
       {
         fadeToBlackBy(_bleds, LED_COUNT, 1);
       }
+      CRGB tmp = CRGB::Black;
       if(!SEGMENT.reverse) {
-        nblend(_bleds, leds, LED_COUNT, SEGMENT.blur);
+        
+        for(uint16_t i=0; i < LED_COUNT; i++) {
+          if(!SEGMENT.inverse) {
+            nblend(_bleds[i],  leds[i], _segment.blur);
+          } else {
+            tmp.r = qsub8(MAXINVERSE, leds[i].r);
+            tmp.g = qsub8(MAXINVERSE, leds[i].g);
+            tmp.b = qsub8(MAXINVERSE, leds[i].b);
+            nblend(_bleds[i], tmp, _segment.blur);
+            //nblend(_bleds[i], -leds[i], _segment.blur);
+          }
+        }
       } else {
-        for(uint16_t i=0; i<LED_COUNT; i++) {
-          nblend(_bleds[i], leds[LED_COUNT-1-i], SEGMENT.blur);
+        for(uint16_t i=0; i < LED_COUNT; i++) {
+          if(!SEGMENT.inverse) {
+            nblend(_bleds[i],  leds[LED_COUNT-1-i], _segment.blur);
+          } else {
+            tmp.r = qsub8(MAXINVERSE, leds[i].r);
+            tmp.g = qsub8(MAXINVERSE, leds[i].g);
+            tmp.b = qsub8(MAXINVERSE, leds[i].b);
+            nblend(_bleds[i], tmp, _segment.blur);
+            //nblend(_bleds[i], -leds[LED_COUNT-1-i], _segment.blur);
+          }
         }
       }
     }
@@ -1998,13 +2037,6 @@ uint16_t WS2812FX::mode_softtwinkles(void) {
   return STRIP_MIN_DELAY;
 } 
 
-
-uint16_t WS2812FX::quadbeat(uint16_t in) {
-  in = in & 0x3FFF;
-  in = map(in, 0, 0x3FFF, 0, 65535);
-  return (in>>8)*(in>>8);
-}
-
 /*
  * Shooting Star...
  * 
@@ -2045,24 +2077,36 @@ uint16_t WS2812FX::mode_shooting_star() {
   for(uint8_t i = 0; i<numBars; i++)
   {
     uint16_t beat = beat88(SEGMENT.beat88) + delta_b[i];
-    beat = map(beat, 0, 65535, 0, 16383);
-    pos = quadbeat(beat);
-    pos = map(pos, 0, 65535, SEGMENT.start*16, SEGMENT.stop*16);
-
+    
+    double_t q_beat = (beat/100) * (beat/100);
+    pos = map(static_cast<uint32_t>(q_beat + 0.5), 0, 429484, SEGMENT.start*16, SEGMENT.stop*16);
+    
     //we use the fractional bar and 16 brghtness values per pixel 
     drawFractionalBar(pos, 1, _currentPalette, cind[i], _brightness); 
 
     
     if(pos/16 > (SEGMENT.stop - 6))
     {
-      leds[pos/16] += CRGB(128, 128, 128);
+      uint8_t tmp = 0;
+      CRGB led = ColorFromPalette(_currentPalette, cind[i], _brightness, _segment.blendType); //leds[pos/16];
+      if(led)
+      {
+        tmp = led.r | led.g | led.b;
+        leds[pos/16].addToRGB(tmp%128);
+      }
+
+
       new_cind[i] = true;
     }
     else
     {
       if(new_cind[i]) 
       {
-        cind[i] = get_random_wheel_index(cind[i], 32);
+        if(i>0)
+          cind[i] = get_random_wheel_index(cind[i-1], 16);
+        else
+          cind[i] = get_random_wheel_index(cind[numBars-1], 16);
+
       }
       new_cind[i] = false;
     }
