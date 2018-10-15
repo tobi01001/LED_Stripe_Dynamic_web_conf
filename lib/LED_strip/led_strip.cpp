@@ -176,6 +176,10 @@ String getAutoplay() {
   return String(strip->getSegment()->autoplay);
 }
 
+String getInverse() {
+  return String(strip->getInverse());
+}
+
 String getAutoplayDuration() {
   return String(strip->getSegment()->autoplayDuration);
 }
@@ -278,6 +282,7 @@ FieldList fields = {
   { "ColorTemperature", "Farbtemperatur",                   SelectFieldType,    0,              20,                     getColorTemp, getColorTemps },
   { "LEDblur",          "LED / Effect Blending",            NumberFieldType,    0,              255,                    getBlurValue                },
   { "reverse",          "Rückwärts",                        BooleanFieldType,   0,              1,                      getReverse                  },
+  { "inverse",          "Invertiert",                       BooleanFieldType,   0,              1,                      getInverse                  },
   { "hue",              "Farbwechsel",                      SectionFieldType                                                                        },
   { "huetime",          "Hue Wechselintervall",             NumberFieldType,    0,              10000,                  getHueTime                  },
   { "deltahue",         "Hue Offset",                       NumberFieldType,    0,              255,                    getDeltaHue                 },

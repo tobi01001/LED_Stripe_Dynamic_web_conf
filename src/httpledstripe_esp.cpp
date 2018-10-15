@@ -1218,6 +1218,16 @@ void handleSet(void) {
     strip->setTransition();
   }
 
+  // parameter to change direction of certain effects..
+  if(server.hasArg("inverse"))
+  {
+    uint16_t value = String(server.arg("inverse")).toInt();
+    sendInt("Inverse", value);
+    broadcastInt("inverse", value);
+    strip->setInverse(value);
+    strip->setTransition();
+  }
+
   // parameter so set the max current the leds will draw
   if(server.hasArg("current"))
   {
