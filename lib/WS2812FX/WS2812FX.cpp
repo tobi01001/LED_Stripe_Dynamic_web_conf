@@ -606,15 +606,8 @@ void WS2812FX::drawFractionalBar(int pos16, int width, const CRGBPalette16 &pal,
  * Returns a new, random wheel index with a minimum distance of 42 from pos.
  */
 uint8_t WS2812FX::get_random_wheel_index(uint8_t pos, uint8_t dist = 42) {
-  uint8_t r = 0;
-  uint8_t d = 0;
-
-  while(d < 42) {
-    r = random8(255);
-    d = min(abs(pos - r), 255 - abs(pos - r));
-  }
-
-  return r;
+  
+  return (pos + dist + random(255-dist));
 }
 
 /*
@@ -2065,8 +2058,12 @@ uint16_t WS2812FX::mode_shooting_star() {
     new_cind  = new boolean  [numBars];
     for(uint8_t i = 0; i<numBars; i++)
     {
-      delta_b[i]    = (65535 / numBars) * i;
-      cind[i]     = (255 / numBars) * i;
+      delta_b[i]  = (65535 / numBars) * i;
+      if(i>0)
+          cind[i] = get_random_wheel_index(cind[i-1], 16);
+        else
+          cind[i] = get_random_wheel_index(cind[numBars-1], 16);
+
       new_cind[i] = false;
     }
   }
