@@ -24,7 +24,7 @@ ws.onmessage = function(evt) {
 }
 
 $(document).ready(function() {
-  $("#status").html("Verbinde, bitte wartent...");
+  $("#status").html("Verbinde, bitte warten...");
 
   $.get(urlBase + "all", function(data) {
       $("#status").html("Lade, bitte warten...");
