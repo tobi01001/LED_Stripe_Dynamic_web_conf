@@ -59,10 +59,11 @@ mysunriseParam sunriseParam;
 
 WS2812FX *strip;  
 
-const String NumberFieldType = "Number";
+const String TitleFieldType   = "Title";
+const String NumberFieldType  = "Number";
 const String BooleanFieldType = "Boolean";
-const String SelectFieldType = "Select";
-const String ColorFieldType = "Color";
+const String SelectFieldType  = "Select";
+const String ColorFieldType   = "Color";
 const String SectionFieldType = "Section";
 
 Field getField(String name, FieldList fields, uint8_t count) {
@@ -275,6 +276,7 @@ String getFPSValue(void) {
 }
 
 FieldList fields = {
+  { "title",            LED_NAME,                           TitleFieldType                                                                          },
   { "power",            LED_NAME,                           SectionFieldType                                                                        },
   { "power",            "LED Schalter",                     BooleanFieldType,   0,              1,                      getPower                    },
   { "basicControl",     "Basic control",                    SectionFieldType                                                                        },

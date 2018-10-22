@@ -32,6 +32,10 @@ $(document).ready(function() {
       $.each(data, function(index, field) {
         if (field.type == "Number") {
           addNumberField(field);
+        } else if (field.type == "Title") {
+          if (document.title != field.label) {
+            document.title = field.label;
+          }
         } else if (field.type == "Boolean") {
           addBooleanField(field);
         } else if (field.type == "Select") {
