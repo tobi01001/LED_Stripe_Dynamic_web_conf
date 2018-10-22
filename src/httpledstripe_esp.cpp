@@ -1212,19 +1212,29 @@ void handleSet(void) {
   if(server.hasArg("reverse"))
   {
     uint16_t value = String(server.arg("reverse")).toInt();
-    sendInt("Reverse", value);
+    sendInt("reverse", value);
     broadcastInt("reverse", value);
     strip->getSegment()->reverse = value;
     strip->setTransition();
   }
 
-  // parameter to change direction of certain effects..
+  // parameter to invert colors of all effects..
   if(server.hasArg("inverse"))
   {
     uint16_t value = String(server.arg("inverse")).toInt();
-    sendInt("Inverse", value);
+    sendInt("inverse", value);
     broadcastInt("inverse", value);
     strip->setInverse(value);
+    strip->setTransition();
+  }
+
+  // parameter to divide LEDS into two equal halfs...
+  if(server.hasArg("mirror"))
+  {
+    uint16_t value = String(server.arg("mirror")).toInt();
+    sendInt("mirror", value);
+    broadcastInt("mirror", value);
+    strip->setMirror(value);
     strip->setTransition();
   }
 
@@ -1737,7 +1747,7 @@ void setup() {
                 STRIP_MILLIAMPS, 
                 RainbowColors_p, 
                 F("Rainbow Colors"), 
-                TypicalLEDStrip);
+                UncorrectedColor);//TypicalLEDStrip);
 
   setupWiFi();
 

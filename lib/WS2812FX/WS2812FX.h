@@ -207,6 +207,7 @@ class WS2812FX {
     typedef struct segment {
       bool             reverse;
       bool             inverse;
+      bool             mirror;
       bool             autoplay;
       bool             autoPal;
       uint16_t         beat88;
@@ -299,7 +300,7 @@ class WS2812FX {
 
       FastLED.addLeds<WS2812,LED_PIN, GRB>(_bleds, num_leds);//NUM_LEDS);
       FastLED.setCorrection(colc); //TypicalLEDStrip);
-      FastLED.setDither(1);
+      FastLED.setDither(0);
       _currentPalette = CRGBPalette16(CRGB::Black);
       
       setTargetPalette(pal, Name);
@@ -441,6 +442,7 @@ class WS2812FX {
       _segment.autoPalDuration = 30;
       _segment.reverse = false;
       _segment.inverse = false;
+      _segment.mirror = false;
       _segment.cooling = 50;
       _segment.sparking = 125;
       _segment.twinkleSpeed = 4;
@@ -574,8 +576,14 @@ class WS2812FX {
       _blend = 0;
     }
 
+
+
+
+
     inline bool getInverse(void) { return _segment.inverse; }
     inline void setInverse(bool inverse) { _segment.inverse = inverse; }
+    inline bool getMirror(void) { return _segment.mirror; }
+    inline void setMirror(bool mirror) { _segment.mirror = mirror; }
 
     inline uint8_t getTwinkleDensity(void) { return _segment.twinkleDensity; }
     inline uint8_t getMaxFPS(void) { return _segment.fps; }
@@ -589,7 +597,8 @@ class WS2812FX {
       getBrightness(void),
       getModeCount(void),
       getPalCount(void),
-      getColorTemp(void);
+      getColorTemp(void),
+      qadd8_lim(uint8_t i, uint8_t j, uint8_t lim);
 
     inline uint8_t getCurrentPaletteNumber(void) { return _currentPaletteNum; }
     inline uint8_t getTargetPaletteNumber(void) { return _targetPaletteNum; }

@@ -200,78 +200,111 @@ void WS2812FX::service() {
       SEGMENT_RUNTIME.next_time = now + (int)delay; //STRIP_MIN_DELAY;
     }
     // check if we fade to a new FX mode.
-    #define MAXINVERSE 32
+    #define MAXINVERSE 24
+    uint8_t l_blend = _segment.blur; // to not overshoot during transitions we fade at max to "_segment.blur" parameter.
     if(_transition)
     {
+      l_blend = _blend < _segment.blur ? _blend : _segment.blur;
       EVERY_N_MILLISECONDS(8)
       {
-        CRGB tmp = CRGB::Black;
-        if(!SEGMENT.reverse) {
-          for(uint16_t i=0; i < LED_COUNT; i++) {
-            if(!SEGMENT.inverse) {
-              nblend(_bleds[i],  leds[i], _blend);
-            } else {
-              tmp.r = qsub8(MAXINVERSE, leds[i].r);
-              tmp.g = qsub8(MAXINVERSE, leds[i].g);
-              tmp.b = qsub8(MAXINVERSE, leds[i].b);
-              nblend(_bleds[i], tmp, _blend);
-            }
-          }
-        } else {
-          for(uint16_t i=0; i < LED_COUNT; i++) {
-            if(!SEGMENT.inverse) {
-              nblend(_bleds[i],  leds[LED_COUNT-1-i], _blend);
-            } else {
-              tmp.r = qsub8(MAXINVERSE, leds[i].r);
-              tmp.g = qsub8(MAXINVERSE, leds[i].g);
-              tmp.b = qsub8(MAXINVERSE, leds[i].b);
-              nblend(_bleds[i], tmp, _blend);
-              //nblend(_bleds[i], -leds[LED_COUNT-1-i], _blend);
-            }
-          }
-        }
+        // quickly blend from "old" to "new"
         _blend = qadd8(_blend, 1);
       }
+      
+      // reset once at max... 
+      // we could reset at _segment.blur as well 
+      // but 255 will always work and transition will be constant
       if(_blend == 255)
       {
         _transition = false;
-        _blend = 0;
+        //_blend = 0;
       }
     }
-    else
+   
+    EVERY_N_MILLISECONDS(10)
     {
-      EVERY_N_MILLISECONDS(10)
-      {
-        fadeToBlackBy(_bleds, LED_COUNT, 1);
-      }
-      CRGB tmp = CRGB::Black;
-      if(!SEGMENT.reverse) {
-        
-        for(uint16_t i=0; i < LED_COUNT; i++) {
-          if(!SEGMENT.inverse) {
-            nblend(_bleds[i],  leds[i], _segment.blur);
-          } else {
+      fadeToBlackBy(_bleds, LED_COUNT, 1);
+    }
+    CRGB tmp = CRGB::Black;
+    
+    // the following constuct looks a bit weired and contains many loops
+    // but I preferred to not have multiple if - else conditions within a loop
+    // so depending on the logical combination only one looop is run.
+    // the inverse loop could be separated but this may affect performance
+    // so we loop only once.
+    
+    // Shall we divide the strip into two equal ones (preferably strips with even length)?
+    if(!_segment.mirror) { // not divided i.e. no mirror
+      // shall we reverse the strip?
+      if(!_segment.reverse) { // no mirror, effect is not reversed
+        // shall we invert the leds (and not capped at MAXINVERSE)?
+        if(!_segment.inverse) { // no mirror, not reversed, leds are not inverted
+          // Everything pretty normal
+          for(uint16_t i=0; i < LED_COUNT; i++) {
+            nblend(_bleds[i],  leds[i], l_blend);
+          }
+        } else { // no mirror, not reversed, leds inverted
+          for(uint16_t i=0; i < LED_COUNT; i++) {
             tmp.r = qsub8(MAXINVERSE, leds[i].r);
             tmp.g = qsub8(MAXINVERSE, leds[i].g);
             tmp.b = qsub8(MAXINVERSE, leds[i].b);
-            nblend(_bleds[i], tmp, _segment.blur);
-            //nblend(_bleds[i], -leds[i], _segment.blur);
+            nblend(_bleds[i], tmp, l_blend);
           }
         }
-      } else {
-        for(uint16_t i=0; i < LED_COUNT; i++) {
-          if(!SEGMENT.inverse) {
-            nblend(_bleds[i],  leds[LED_COUNT-1-i], _segment.blur);
-          } else {
+      } else { // no mirror, effect is reversed
+        if(!_segment.inverse) { // no mirror, reversed, leds not inverted
+          for(uint16_t i=0; i < LED_COUNT; i++) {
+            nblend(_bleds[i],  leds[LED_COUNT-1-i], l_blend);
+          }
+        } else { // no mirror, reversed, inverted
+          for(uint16_t i=0; i < LED_COUNT; i++) {
+            tmp.r = qsub8(MAXINVERSE, leds[LED_COUNT-1-i].r);
+            tmp.g = qsub8(MAXINVERSE, leds[LED_COUNT-1-i].g);
+            tmp.b = qsub8(MAXINVERSE, leds[LED_COUNT-1-i].b);
+            nblend(_bleds[i], tmp, l_blend);
+          }
+        }
+      }
+    } else { // mirrored
+      if(!_segment.reverse) { // mirrored, not reversed 
+        if(!_segment.inverse) { // mirrored, not reversed, not inverted
+          for(uint16_t i=0; i < LED_COUNT; i++) {
+            nblend(_bleds[i/2],                     leds[i], qadd8_lim(l_blend, 0, 192));
+            
+            // the mirror just needs to copy over...
+            _bleds[LED_COUNT - 1 - i/2]     = _bleds[i/2];
+          }  
+        } else { // mirrored, not reversed, inverted
+          for(uint16_t i=0; i < LED_COUNT; i++) {
             tmp.r = qsub8(MAXINVERSE, leds[i].r);
             tmp.g = qsub8(MAXINVERSE, leds[i].g);
             tmp.b = qsub8(MAXINVERSE, leds[i].b);
-            nblend(_bleds[i], tmp, _segment.blur);
-            //nblend(_bleds[i], -leds[LED_COUNT-1-i], _segment.blur);
+            nblend(_bleds[i/2],                     tmp, qadd8_lim(l_blend, 0, 192));
+                        
+            _bleds[LED_COUNT - 1 - i/2]     = _bleds[i/2];
           }
+        }
+      } else { // mirrored, reversed
+        #pragma message "The mirrored part needs some special treatment during tansition. currently only copied from the opposite which leads to flicker effects"
+        if(!_segment.inverse) { // mirrored, reversed, not inverted
+          for(uint16_t i=0; i < LED_COUNT; i++) {
+            nblend(_bleds[i/2],                     leds[LED_COUNT - 1 - i], qadd8_lim(l_blend, 0, 192));
+            
+            _bleds[LED_COUNT - 1 - i/2]     = _bleds[i/2];
+          }
+        } else { // mirrored, reversed,  inverted
+          for(uint16_t i=0; i < LED_COUNT; i++) {
+            tmp.r = qsub8(MAXINVERSE, leds[LED_COUNT - 1 - i].r);
+            tmp.g = qsub8(MAXINVERSE, leds[LED_COUNT - 1 - i].g);
+            tmp.b = qsub8(MAXINVERSE, leds[LED_COUNT - 1 - i].b);
+            nblend(_bleds[i/2],                      tmp, qadd8_lim(l_blend, 0, 192));
+            
+            _bleds[LED_COUNT - 1 - i/2]     = _bleds[i/2];
+          }  
         }
       }
     }
+
     // Write the data
     FastLED.show();
 
@@ -366,6 +399,17 @@ void WS2812FX::show() {
 /* 
  * <Begin> Helper Functions
  */
+
+
+/*
+ * saturating add variant with limit at lim
+ */
+uint8_t WS2812FX::qadd8_lim(uint8_t i, uint8_t j, uint8_t lim = 255)
+{
+  unsigned int t = i + j;
+  if(t > lim) t = lim;
+  return t;
+}
 
 
 /*
@@ -606,8 +650,8 @@ void WS2812FX::drawFractionalBar(int pos16, int width, const CRGBPalette16 &pal,
  * Returns a new, random wheel index with a minimum distance of 42 from pos.
  */
 uint8_t WS2812FX::get_random_wheel_index(uint8_t pos, uint8_t dist = 42) {
-  
-  return (pos + dist + random(255-dist));
+  dist = (dist & 0x55); // dist shouldn't be too high (not higher than 85 actually)
+  return (pos + random8(dist, 255-(2*dist)));
 }
 
 /*
@@ -1216,7 +1260,7 @@ uint16_t WS2812FX::mode_juggle_pal(void) {
   fade_out(96);
   
   for( int i = 0; i < SEGMENT.numBars; i++) {
-    uint16_t pos = beatsin88(max(SEGMENT.beat88/2,1)+i*256+762,SEGMENT.start*16, SEGMENT.stop*16-width*16, SEGMENT_RUNTIME.tb.timebase);
+    uint16_t pos = beatsin88(max(SEGMENT.beat88/2,1)+i*(_segment.beat88/_segment.numBars),SEGMENT.start*16, SEGMENT.stop*16-width*16, SEGMENT_RUNTIME.tb.timebase);
     drawFractionalBar(pos, width, _currentPalette, curhue+(255/SEGMENT.numBars)*i, _brightness);
     uint8_t delta = random8(9);
     if(delta < 5)
@@ -2079,10 +2123,10 @@ uint16_t WS2812FX::mode_shooting_star() {
     pos = map(static_cast<uint32_t>(q_beat + 0.5), 0, 429484, SEGMENT.start*16, SEGMENT.stop*16);
     
     //we use the fractional bar and 16 brghtness values per pixel 
-    drawFractionalBar(pos, 1, _currentPalette, cind[i], _brightness); 
+    drawFractionalBar(pos, 2, _currentPalette, cind[i], _brightness); 
 
     
-    if(pos/16 > (SEGMENT.stop - 6))
+    if(pos/16 > (SEGMENT.stop - 4)) // 6
     {
       uint8_t tmp = 0;
       CRGB led = ColorFromPalette(_currentPalette, cind[i], _brightness, _segment.blendType); //leds[pos/16];

@@ -180,6 +180,10 @@ String getInverse() {
   return String(strip->getInverse());
 }
 
+String getMirror() {
+  return String(strip->getMirror());
+}
+
 String getAutoplayDuration() {
   return String(strip->getSegment()->autoplayDuration);
 }
@@ -282,6 +286,7 @@ FieldList fields = {
   { "ColorTemperature", "Farbtemperatur",                   SelectFieldType,    0,              20,                     getColorTemp, getColorTemps },
   { "LEDblur",          "LED / Effect Blending",            NumberFieldType,    0,              255,                    getBlurValue                },
   { "reverse",          "Rückwärts",                        BooleanFieldType,   0,              1,                      getReverse                  },
+  { "mirror",           "gespiegelt",                       BooleanFieldType,   0,              1,                      getMirror                   },
   { "inverse",          "Invertiert",                       BooleanFieldType,   0,              1,                      getInverse                  },
   { "hue",              "Farbwechsel",                      SectionFieldType                                                                        },
   { "huetime",          "Hue Wechselintervall",             NumberFieldType,    0,              10000,                  getHueTime                  },
@@ -315,9 +320,9 @@ uint8_t fieldCount = ARRAY_SIZE(fields);
 
 // set all pixels to 'off'
 void stripe_setup(  const uint16_t LEDCount, 
-                    const uint8_t FPS = 60, 
-                    const uint8_t volt = 5, 
-                    const uint16_t milliamps = 500, 
+                    const uint8_t FPS = (uint8_t) 60, 
+                    const uint8_t volt = (uint8_t) 5, 
+                    const uint16_t milliamps = (uint16_t) 500, 
                     const CRGBPalette16 pal = Rainbow_gp, 
                     const String Name = "Rainbow Colors",
                     const LEDColorCorrection colc = UncorrectedColor /*TypicalLEDStrip*/ ){
