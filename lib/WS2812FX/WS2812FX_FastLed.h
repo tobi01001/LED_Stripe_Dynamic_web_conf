@@ -32,8 +32,8 @@
 
 */
 
-#ifndef WS2812FX_h
-#define WS2812FX_h
+#ifndef WS2812FX_FastLED_h
+#define WS2812FX_FastLED_h
 
 /* <FastLED implementation> */
 #define FASTLED_ESP8266_RAW_PIN_ORDER
@@ -142,6 +142,7 @@ enum MODES {
   FX_MODE_BUBBLE_SORT,
   FX_MODE_SHOOTING_STAR,
   FX_MODE_BEATSIN_GLOW,
+  FX_MODE_PIXEL_STACK,
   FX_MODE_CUSTOM,
 
   // has to be the final entry!
@@ -161,7 +162,8 @@ extern const TProgmemRGBPalette16
       RedGreenWhite_p,
       Shades_Of_Red_p,
       Shades_Of_Green_p,
-      Shades_Of_Blue_p;
+      Shades_Of_Blue_p,
+      Random_P;
 
 
 
@@ -296,13 +298,15 @@ class WS2812FX {
 
       setBlurValue(255);
 
-      
+      FastLED.setBrightness(255);
+      _brightness = 255;
 
       FastLED.addLeds<WS2812,LED_PIN, GRB>(_bleds, num_leds);//NUM_LEDS);
       FastLED.setCorrection(colc); //TypicalLEDStrip);
-      FastLED.setDither(0);
+      FastLED.setDither(1);
       _currentPalette = CRGBPalette16(CRGB::Black);
       
+
       setTargetPalette(pal, Name);
 
       FastLED.clear(true);
@@ -354,6 +358,7 @@ class WS2812FX {
       _mode[FX_MODE_BUBBLE_SORT]             = &WS2812FX::mode_bubble_sort;
       _mode[FX_MODE_SHOOTING_STAR]           = &WS2812FX::mode_shooting_star;
       _mode[FX_MODE_BEATSIN_GLOW]            = &WS2812FX::mode_beatsin_glow;
+      _mode[FX_MODE_PIXEL_STACK]             = &WS2812FX::mode_pixel_stack;
       _mode[FX_MODE_CUSTOM]                  = &WS2812FX::mode_custom;
       
       _name[FX_MODE_STATIC]                     = F("Static");
@@ -400,6 +405,7 @@ class WS2812FX {
       _name[FX_MODE_BUBBLE_SORT]                = F("Bubble Sort");
       _name[FX_MODE_SHOOTING_STAR]              = F("Shooting Star");
       _name[FX_MODE_BEATSIN_GLOW]               = F("Beat sine glows");
+      _name[FX_MODE_PIXEL_STACK]                = F("Pixel Stack");
       _name[FX_MODE_CUSTOM]                     = F("Custom");
 
       _pal_name[RAINBOW_PAL]        = F("Rainbow Colors");
@@ -422,7 +428,6 @@ class WS2812FX {
       _pal_name[SHADES_OF_RED_PAL]  = F("Shades of Red");
       _pal_name[SHADES_OF_GREEN_PAL]= F("Shades of Green");
       _pal_name[SHADES_OF_BLUE_PAL] = F("Shades of Blue");
-
       
 
       _brightness = DEFAULT_BRIGHTNESS;
@@ -462,6 +467,7 @@ class WS2812FX {
 
       SEGMENT_RUNTIME.tb.timebase= millis();
       SEGMENT_RUNTIME.baseHue += DEFAULT_DELTAHUE;
+      SEGMENT_RUNTIME.modeinit = true;
     }
   
 
@@ -607,7 +613,8 @@ class WS2812FX {
     uint16_t
       getBeat88(void),
       getLength(void);
-      
+    
+
     inline uint16_t getMilliamps(void) { return _segment.milliamps; }
     inline uint32_t getCurrentPower(void) { return calculate_unscaled_power_mW(leds, LED_COUNT); }
 
@@ -704,6 +711,7 @@ class WS2812FX {
       mode_softtwinkles(void),
       mode_shooting_star(void),
       mode_beatsin_glow(void),
+      mode_pixel_stack(void),
       quadbeat(uint16_t in),
       mode_custom(void);
 
@@ -715,8 +723,6 @@ class WS2812FX {
       cubicwave16(uint16_t in),
       ease16InOutQuad( uint16_t i),
       ease16InOutCubic( uint16_t i);
-
-
 
     
     CRGBPalette16 _currentPalette;
@@ -783,4 +789,4 @@ class WS2812FX {
     segment_runtime _segment_runtime; // SRAM footprint: 14 bytes per element
 };
 
-#endif
+#endif // WS2812FX_FastLED_h

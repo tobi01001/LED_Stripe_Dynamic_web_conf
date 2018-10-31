@@ -32,7 +32,7 @@
 
 */
 
-#include "WS2812FX.h"
+#include "WS2812FX_FastLED.h"
 
 uint16_t (*customMode)(void) = NULL;
 
@@ -179,7 +179,7 @@ const TProgmemRGBPalette16 Shades_Of_Blue_p FL_PROGMEM = {
 
 // Not much to be initialized...
 void WS2812FX::init() {
-  RESET_RUNTIME;            // this should be the only occurrence of RESET_RUNTIME now... 
+  //RESET_RUNTIME;            // this should be the only occurrence of RESET_RUNTIME now... 
   fill_solid(_bleds, LED_COUNT, CRGB::Black);
   fill_solid(  leds, LED_COUNT, CRGB::Black);
   FastLED.clear(true);      // During init, all pixels should be black.
@@ -199,6 +199,7 @@ void WS2812FX::service() {
       uint16_t delay = (this->*_mode[SEGMENT.mode])();
       SEGMENT_RUNTIME.next_time = now + (int)delay; //STRIP_MIN_DELAY;
     }
+    
     // check if we fade to a new FX mode.
     #define MAXINVERSE 24
     uint8_t l_blend = _segment.blur; // to not overshoot during transitions we fade at max to "_segment.blur" parameter.
@@ -220,13 +221,9 @@ void WS2812FX::service() {
         //_blend = 0;
       }
     }
-   
-    EVERY_N_MILLISECONDS(10)
-    {
-      fadeToBlackBy(_bleds, LED_COUNT, 1);
-    }
-    CRGB tmp = CRGB::Black;
     
+    CRGB tmp = CRGB::Black;
+   
     // the following constuct looks a bit weired and contains many loops
     // but I preferred to not have multiple if - else conditions within a loop
     // so depending on the logical combination only one looop is run.
@@ -303,11 +300,16 @@ void WS2812FX::service() {
           }  
         }
       }
+
     }
 
     // Write the data
     FastLED.show();
 
+    EVERY_N_MILLISECONDS(10)
+    {
+      fadeToBlackBy(_bleds, LED_COUNT, 1);
+    }
 
     // Every huetime we increase the baseHue by the respective deltaHue.
     // set deltahue to 0, to turn this off.
@@ -399,6 +401,7 @@ void WS2812FX::show() {
 /* 
  * <Begin> Helper Functions
  */
+
 
 
 /*
@@ -962,19 +965,19 @@ void WS2812FX::setColor(uint32_t c) {
 }
 
 void WS2812FX::setBrightness(uint8_t b) {
-  _brightness = constrain(b, BRIGHTNESS_MIN, BRIGHTNESS_MAX);
- 
-  FastLED.setBrightness(_brightness);
-  FastLED.show();
+  //_brightness = constrain(b, BRIGHTNESS_MIN, BRIGHTNESS_MAX);
+  b = constrain(b, BRIGHTNESS_MIN, BRIGHTNESS_MAX);
+  FastLED.setBrightness(b);
+  //FastLED.show();
 }
 
 void WS2812FX::increaseBrightness(uint8_t s) {
-  s = constrain(_brightness + s, BRIGHTNESS_MIN, BRIGHTNESS_MAX);
+  s = constrain(getBrightness() + s, BRIGHTNESS_MIN, BRIGHTNESS_MAX);
   setBrightness(s);
 }
 
 void WS2812FX::decreaseBrightness(uint8_t s) {
-  s = constrain(_brightness - s, BRIGHTNESS_MIN, BRIGHTNESS_MAX);
+  s = constrain(getBrightness() - s, BRIGHTNESS_MIN, BRIGHTNESS_MAX);
   setBrightness(s);
 }
 
@@ -1003,7 +1006,7 @@ uint16_t WS2812FX::getBeat88(void) {
 }
 
 uint8_t WS2812FX::getBrightness(void) {
-  return _brightness;
+  return FastLED.getBrightness();//_brightness;
 }
 
 uint16_t WS2812FX::getLength(void) {
@@ -1877,6 +1880,7 @@ uint16_t WS2812FX::mode_bubble_sort(void) {
   static uint16_t cd = 0;
   if(init) {
     init = false;
+    delete hues;
     hues = new uint8_t[LED_COUNT];
     for(uint8_t i=0; i<LED_COUNT; i++)
     {
@@ -1916,9 +1920,8 @@ uint16_t WS2812FX::mode_bubble_sort(void) {
     }
     else
     {
-      delete hues;
-      init = true;
-      return 5000;
+      if(_transition) init = true;
+      return STRIP_MIN_DELAY;
     }
     map_pixels_palette(hues, 32, SEGMENT.blendType);
     leds[ci + SEGMENT.start] = ColorFromPalette(_currentPalette, hues[ci], _brightness, SEGMENT.blendType); //CRGB::Green;
@@ -2262,7 +2265,93 @@ uint16_t WS2812FX::mode_beatsin_glow(void) {
   return STRIP_MIN_DELAY;
 }
 
+uint16_t WS2812FX::mode_pixel_stack(void) {
 
+  #pragma message "not too bad for the first shot. need to adjust speed and pixel width (move more than one at a time) and color (palette)"
+  static uint16_t pos = LED_COUNT/2-1;
+  static uint16_t end_pos = LED_COUNT/2;
+  static uint16_t start_pos = 0;
+  static bool up = false;
+  static CRGB cur_color = CRGB::Black;
+
+  if(_segment_runtime.modeinit)
+  {
+    _segment_runtime.modeinit = false;
+
+    pos = LED_COUNT/2-1;
+    end_pos = LED_COUNT/2;
+    start_pos = 0;
+    up = false;
+
+    fill_solid(leds, LED_COUNT, CRGB::Black);
+    fill_palette( &leds[LED_COUNT/2], 
+                  LED_COUNT/2-1, 0, 
+                  ((LED_COUNT/2) > 255 ? 1 : (255/(LED_COUNT/2))+1), 
+                  _currentPalette, 
+                  _brightness, 
+                  _segment.blendType );
+    cur_color = leds[pos+1];
+  }
+  fadeToBlackBy(&leds[start_pos], LED_COUNT/2-1, 128);
+  if(up)
+  {
+    leds[pos] = cur_color;
+
+    if(pos == end_pos)
+    {
+      start_pos--;
+      end_pos--;
+      pos = start_pos + 1;
+      cur_color = leds[pos-1];
+      if(start_pos == 0)
+      {
+        up = false;
+        end_pos = LED_COUNT/2;
+        start_pos = 0;
+        pos = end_pos - 1;
+        cur_color = leds[end_pos];
+        fill_palette( &leds[LED_COUNT/2], 
+                      LED_COUNT/2-1, 0, 
+                      (LED_COUNT > 255 ? 1 : (255/LED_COUNT)+1), 
+                      _currentPalette, 
+                      _brightness, 
+                      _segment.blendType );
+      }
+    }
+    pos++;
+  }
+  else
+  {
+    leds[pos] = cur_color;
+
+    if(pos == start_pos)
+    {
+      start_pos++;
+      end_pos++;
+      pos = end_pos - 1;
+      cur_color = leds[pos+1];
+      if(end_pos == LED_COUNT)
+      {
+        up = true;
+        end_pos = LED_COUNT-1;
+        start_pos = LED_COUNT/2;
+        pos = start_pos + 1;
+        cur_color = leds[start_pos];
+        fill_palette( leds, 
+                      LED_COUNT/2-1, 0, 
+                      (LED_COUNT > 255 ? 1 : (255/LED_COUNT)+1), 
+                      _currentPalette, 
+                      _brightness, 
+                      _segment.blendType );
+      }
+    }
+    pos--;
+  }
+  return 0;
+
+
+
+}
 
 /*
  * Custom mode

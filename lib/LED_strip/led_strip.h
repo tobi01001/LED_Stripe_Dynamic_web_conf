@@ -48,7 +48,7 @@
 
 // we gonna need our own adoption from the library. 
 // Maybe its worth renaming and separating...
-#include "WS2812FX.h"
+#include "WS2812FX_FastLED.h"
 
 // These define modes besides the fx library
 #define FX_NO_FX        0
