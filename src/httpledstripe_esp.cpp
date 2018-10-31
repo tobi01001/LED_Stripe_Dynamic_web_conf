@@ -882,6 +882,12 @@ void handleSet(void) {
     {
       strip_On_Off(true);
     }
+    if(currentEffect == FX_WS2812)
+    {
+      strip->start();
+      strip->setMode(strip->getMode());
+    }
+
     sendString("state", stripIsOn?"on":"off");
     broadcastInt("power", stripIsOn);
   }
@@ -941,6 +947,7 @@ void handleSet(void) {
     strip->show();
     sendAnswer( "\"speed\": " + String(speed) + ", \"beat88\": \"" + String(speed));
     broadcastInt("sp", strip->getBeat88());
+    strip->setTransition();
   }
 
   // if we got a speed value (as beat88)
@@ -964,6 +971,7 @@ void handleSet(void) {
     strip->show();
     sendAnswer( "\"speed\": " + String(speed) + ", \"beat88\": \"" + String(speed));
     broadcastInt("sp", strip->getBeat88());
+    strip->setTransition();
   }
 
   // color handling
@@ -1133,6 +1141,7 @@ void handleSet(void) {
     sendInt("Delta hue per change", value);
     broadcastInt("deltahue", value);
     strip->getSegment()->deltaHue = value;
+    strip->setTransition();
   }
 
   // parameter for teh "fire" - flame cooldown
@@ -1142,6 +1151,7 @@ void handleSet(void) {
     sendInt("Fire Cooling", value);
     broadcastInt("cooling", value);
     strip->getSegment()->cooling = value;
+    strip->setTransition();
   }
 
   // parameter for the sparking - new flames
@@ -1151,6 +1161,7 @@ void handleSet(void) {
     sendInt("Fire sparking", value);
     broadcastInt("sparking", value);
     strip->getSegment()->sparking = value;
+    strip->setTransition();
   }
 
   // parameter for twinkle fox (speed)
@@ -1160,6 +1171,7 @@ void handleSet(void) {
     sendInt("Twinkle Speed", value);
     broadcastInt("twinkleSpeed", value);
     strip->getSegment()->twinkleSpeed = value;
+    strip->setTransition();
   }
 
    // parameter for twinkle fox (density)
@@ -1169,6 +1181,7 @@ void handleSet(void) {
     sendInt("Twinkle Density", value);
     broadcastInt("twinkleDensity", value);
     strip->getSegment()->cooling = value;
+    strip->setTransition();
   }
 
   // parameter for number of bars (beat sine glows etc...)
@@ -1178,6 +1191,7 @@ void handleSet(void) {
     sendInt("Number of Bars", value);
     broadcastInt("numBars", value);
     strip->setNumBars(value);
+    strip->setTransition();
   }
 
   // parameter to change the palette blend type for cetain effects
@@ -1254,6 +1268,7 @@ void handleSet(void) {
     sendInt("LEDblur", value);
     broadcastInt("LEDblur", value);
     strip->setBlurValue(value);
+    strip->setTransition();
   }
 
   // parameter for the frames per second (FPS)
@@ -1263,11 +1278,12 @@ void handleSet(void) {
     sendInt("fps", value);
     broadcastInt("fps", value);
     strip->setMaxFPS(value);
+    strip->setTransition();
   }
 
   // new parameters, it's time to save
   shouldSaveRuntime = true;
-  strip->setTransition();
+  /// strip->setTransition();  <-- this is not wise as it removes the smooth fading for colors. So we need to set it case by case
 }
 
 // if something unknown was called...
@@ -1333,7 +1349,7 @@ void handleGetPals(void){
 }
 
 void handleStatus(void){
-  uint32_t answer_time = millis();
+  uint32_t answer_time = micros();
 
   String message;
   message.reserve(1500);
@@ -1530,7 +1546,7 @@ void handleStatus(void){
   message += F("\n  }");
   #endif
   message += F(",\n  \"Stats\": {\n    \"Answer_Time\": ");
-  answer_time = millis() - answer_time;
+  answer_time = micros() - answer_time;
   message += answer_time;
   message += F(",\n    \"FPS\": ");
   message += FastLED.getFPS();
