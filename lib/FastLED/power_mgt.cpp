@@ -22,9 +22,9 @@ FASTLED_NAMESPACE_BEGIN
 // for changing these on the fly, but it saves codespace and RAM to have them
 // be compile-time constants.
 
-static const uint8_t gRed_mW   = 16 * 5; // 16mA @ 5v = 80mW
-static const uint8_t gGreen_mW = 11 * 5; // 11mA @ 5v = 55mW
-static const uint8_t gBlue_mW  = 15 * 5; // 15mA @ 5v = 75mW
+static const uint8_t gRed_mW   = 12 * 5; // 16 * 5; // 16mA @ 5v = 80mW
+static const uint8_t gGreen_mW = 12 * 5; // 11 * 5; // 11mA @ 5v = 55mW
+static const uint8_t gBlue_mW  = 12 * 5; // 15 * 5; // 15mA @ 5v = 75mW
 static const uint8_t gDark_mW  =  1 * 5; //  1mA @ 5v =  5mW
 
 // Alternate calibration by RAtkins via pre-PSU wattage measurments;
@@ -44,7 +44,7 @@ static const uint8_t gDark_mW  =  1 * 5; //  1mA @ 5v =  5mW
 // Power consumed by the MCU
 static const uint8_t gMCU_mW  =  25 * 5; // 25mA @ 5v = 125 mW
 
-static uint8_t  gMaxPowerIndicatorLEDPinNumber = 0; // default = Arduino onboard LED pin.  set to zero to skip this.
+static uint8_t  gMaxPowerIndicatorLEDPinNumber = 2; // default = Arduino onboard LED pin.  set to zero to skip this.
 
 
 uint32_t calculate_unscaled_power_mW( const CRGB* ledbuffer, uint16_t numLeds ) //25354
