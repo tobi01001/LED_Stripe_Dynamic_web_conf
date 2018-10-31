@@ -383,6 +383,10 @@ void readRuntimeDataEEPROM(void) {
 
     *(strip->getSegment()) = myEEPROMSaveData.seg;
 
+    strip->setMaxFPS(myEEPROMSaveData.seg.fps); 
+    FastLED.setTemperature(myEEPROMSaveData.seg.colorTemp);
+    strip->setMilliamps(myEEPROMSaveData.seg.milliamps);
+    
 
     sunriseParam = myEEPROMSaveData.sParam;
     currentEffect = myEEPROMSaveData.currentEffect;
