@@ -196,7 +196,18 @@ void WS2812FX::service() {
     unsigned long now = millis(); // Be aware, millis() rolls over every 49 days
     
     if(now > SEGMENT_RUNTIME.next_time || _triggered) {
+      #ifdef DEBUG
+        static uint32_t max_frametime = 0;
+        uint32_t now = micros();
+      #endif
       uint16_t delay = (this->*_mode[SEGMENT.mode])();
+      #ifdef DEBUG
+        if((micros()-now) > max_frametime)
+        {
+          max_frametime = (micros()-now);
+          Serial.printf("\n\t\t\tMax frame time is %d microseconds.\n", max_frametime);
+        }
+      #endif
       SEGMENT_RUNTIME.next_time = now + (int)delay; //STRIP_MIN_DELAY;
     }
     
@@ -2051,31 +2062,90 @@ uint16_t WS2812FX::mode_twinkle_fox( void) {
 /*
  * SoftTwinkles
  */
-uint16_t WS2812FX::mode_softtwinkles(void) {
-  CRGB lightcolor = CRGB (8,7,1);
-  
 
-  for( int i = 0; i < LED_COUNT; i++) {
-    if( !leds[i+SEGMENT.start]) continue; // skip black pixels
-    if( leds[i+SEGMENT.start].r & 1) { // is red odd?
-      leds[i+SEGMENT.start] -= lightcolor; // darken if red is odd
+CRGB WS2812FX::makeBrighter( const CRGB& color, fract8 howMuchBrighter)
+{
+  CRGB incrementalColor = color;
+  incrementalColor.nscale8_video( howMuchBrighter);
+  return color + incrementalColor;
+}
+
+CRGB WS2812FX::makeDarker( const CRGB& color, fract8 howMuchDarker)
+{
+  CRGB newcolor = color;
+  newcolor.nscale8( 255 - howMuchDarker);
+  return newcolor;
+}
+
+bool WS2812FX::getPixelDirection( uint16_t i, uint8 *directionFlags )
+{
+  uint16_t index = i / 8;
+  uint8_t  bitNum = i & 0x07;
+
+  uint8_t  andMask = 1 << bitNum;
+  return (directionFlags[index] & andMask) != 0;
+}
+
+void WS2812FX::setPixelDirection( uint16_t i, bool dir, uint8 *directionFlags)
+{
+  uint16_t index = i / 8;
+  uint8_t  bitNum = i & 0x07;
+
+  uint8_t  orMask = 1 << bitNum;
+  uint8_t andMask = 255 - orMask;
+  uint8_t value = directionFlags[index] & andMask;
+  if ( dir ) {
+    value += orMask;
+  }
+  directionFlags[index] = value;
+}
+
+void WS2812FX::brightenOrDarkenEachPixel( fract8 fadeUpAmount, fract8 fadeDownAmount, uint8_t * directionFlags)
+{
+  
+  enum { GETTING_DARKER = 0, GETTING_BRIGHTER = 1 };
+  for ( uint16_t i = 0; i < LED_COUNT; i++) {
+    if ( getPixelDirection(i, directionFlags) == 0) {
+      // This pixel is getting darker
+      leds[i] = makeDarker( leds[i], fadeDownAmount);
     } else {
-      leds[i+SEGMENT.start] += lightcolor; // brighten if red is even
+      // This pixel is getting brighter
+      leds[i] = makeBrighter( leds[i], fadeUpAmount);
+      // now check to see if we've maxxed out the brightness
+      if ( leds[i].r == 255 || leds[i].g == 255 || leds[i].b == 255) {
+        // if so, turn around and start getting darker
+        setPixelDirection(i, 0, directionFlags);
+      }
     }
   }
+}
+
+uint16_t WS2812FX::mode_softtwinkles(void) {
+  // Compact implementation of
+  // the directionFlags array, using just one BIT of RAM
+  // per pixel.  This requires a bunch of bit wrangling,
+  // but conserves precious RAM.  The cost is a few
+  // cycles and about 100 bytes of flash program memory.
+  static uint8_t  directionFlags[ (LED_COUNT + 7) / 8];
+  uint16_t speed = (10001 - _segment.beat88%10000)/250+1;
+  EVERY_N_MILLIS(speed)
+  {
+    // Make each pixel brighter or darker, depending on
+    // its 'direction' flag.
+    brightenOrDarkenEachPixel( _segment.twinkleSpeed*8+2, _segment.twinkleSpeed*5+1, directionFlags);
   
-  // Randomly choose a pixel, and if it's black, 'bump' it up a little.
-  // Since it will now have an EVEN red component, it will start getting
-  // brighter over time.
-  if( random8() < 200 && !_transition) {
-    int j = random16(SEGMENT.start, SEGMENT.stop);
-    if( !leds[j] ) // && !leds[j+1] && !leds[j-1]) 
-    {
-      leds[j] = lightcolor;
+    // Now consider adding a new random twinkle
+    if ( random8() < _segment.twinkleDensity*32 ) {
+      int pos = random16(LED_COUNT);
+      if ( !leds[pos]) {
+        leds[pos] = ColorFromPalette( _currentPalette, random8(), _segment.sparking/2, _segment.blendType);
+        setPixelDirection(pos, 1, directionFlags);
+      }
     }
   }
   return STRIP_MIN_DELAY;
-} 
+}
+
 
 /*
  * Shooting Star...

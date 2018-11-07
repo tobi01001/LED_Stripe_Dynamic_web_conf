@@ -53,12 +53,12 @@ FASTLED_USING_NAMESPACE
 
 /* </FastLED implementation> */
 
-#define DEFAULT_BRIGHTNESS 240
-#define DEFAULT_MODE 1
+#define DEFAULT_BRIGHTNESS 255
+#define DEFAULT_MODE 42
 #define DEFAULT_BEAT88 1000
 #define DEFAULT_COLOR 0xFF0000
-#define DEFAULT_DELTAHUE 1
-#define DEFAULT_HUETIME 500;
+#define DEFAULT_DELTAHUE 0
+#define DEFAULT_HUETIME 0
 
 #ifdef SPEED_MAX
   #error "SPEED_MAX define is no longer used!"
@@ -298,7 +298,7 @@ class WS2812FX {
 
       setBlurValue(255);
 
-      FastLED.setBrightness(255);
+      FastLED.setBrightness(DEFAULT_BRIGHTNESS);
       _brightness = 255;
 
       FastLED.addLeds<WS2812,LED_PIN, GRB>(_bleds, num_leds);//NUM_LEDS);
@@ -643,6 +643,8 @@ class WS2812FX {
       fade_out(uint8_t fadeB),
       drawFractionalBar(int pos16, int width, const CRGBPalette16 &pal, uint8_t cindex, uint8_t max_bright, bool mixColor),
       coolLikeIncandescent( CRGB& c, uint8_t phase),
+      setPixelDirection( uint16_t i, bool dir, uint8 *directionFlags),
+      brightenOrDarkenEachPixel( fract8 fadeUpAmount, fract8 fadeDownAmount, uint8_t * directionFlags),
       addSparks(uint8_t probability, bool onBlackOnly, bool white);
     
     uint8_t attackDecayWave8( uint8_t i);
@@ -715,7 +717,13 @@ class WS2812FX {
       quadbeat(uint16_t in),
       mode_custom(void);
 
-    CRGB computeOneTwinkle( uint32_t ms, uint8_t salt);
+    CRGB 
+      computeOneTwinkle( uint32_t ms, uint8_t salt),
+      makeBrighter( const CRGB& color, fract8 howMuchBrighter),
+      makeDarker( const CRGB& color, fract8 howMuchDarker);
+
+    bool
+      getPixelDirection( uint16_t i, uint8 *directionFlags );
 
     static inline uint16_t 
       triwave16(uint16_t in),
