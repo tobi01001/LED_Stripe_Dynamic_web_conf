@@ -47,7 +47,6 @@
 #define led_strip_h
 
 // we gonna need our own adoption from the library. 
-// Maybe its worth renaming and separating...
 #include "WS2812FX_FastLED.h"
 
 // These define modes besides the fx library
