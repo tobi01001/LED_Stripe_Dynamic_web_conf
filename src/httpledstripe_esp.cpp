@@ -75,8 +75,6 @@
   String build_version = BUILD_VERSION + String(__TIMESTAMP__);
 #endif
 
-
-//#define DEBUG
 #ifndef LED_COUNT
   #error "You need to define the number of Leds by LED_COUNT (build flag e.g. -DLED_COUNT=50)"
 #endif
@@ -1184,7 +1182,7 @@ void handleSet(void) {
     uint16_t value = String(server.arg("twinkleDensity")).toInt();
     sendInt("Twinkle Density", value);
     broadcastInt("twinkleDensity", value);
-    strip->getSegment()->cooling = value;
+    strip->getSegment()->twinkleDensity = value;
     strip->setTransition();
   }
 
