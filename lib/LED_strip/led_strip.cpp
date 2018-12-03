@@ -275,6 +275,10 @@ String getFPSValue(void) {
   return String(strip->getMaxFPS());
 }
 
+String getSegments(void) {
+  return String(strip->getSegment()->segments);
+}
+
 FieldList fields = {
   { "title",            LED_NAME,                           TitleFieldType                                                                          },
   { "power",            LED_NAME,                           SectionFieldType                                                                        },
@@ -288,6 +292,7 @@ FieldList fields = {
   { "ColorTemperature", "Farbtemperatur",                   SelectFieldType,    0,              20,                     getColorTemp, getColorTemps },
   { "LEDblur",          "LED / Effect Blending",            NumberFieldType,    0,              255,                    getBlurValue                },
   { "reverse",          "Rückwärts",                        BooleanFieldType,   0,              1,                      getReverse                  },
+  { "segments",         "Segmente",                         NumberFieldType,    1,              max(LED_COUNT/30,2),    getSegments                 },
   { "mirror",           "gespiegelt",                       BooleanFieldType,   0,              1,                      getMirror                   },
   { "inverse",          "Invertiert",                       BooleanFieldType,   0,              1,                      getInverse                  },
   { "hue",              "Farbwechsel",                      SectionFieldType                                                                        },
@@ -344,7 +349,7 @@ void strip_On_Off(bool onOff){
 }
 
 void set_Range(uint16_t start, uint16_t stop, uint8_t r, uint8_t g, uint8_t b) {
-  if(start >= strip->getLength() || stop >= strip->getLength()) return;
+  if(start >= strip->getStripLength() || stop >= strip->getStripLength()) return;
   strip_On_Off(true);
   setEffect(FX_NO_FX);
   for(uint16_t i=start; i<=stop; i++) {
@@ -355,7 +360,7 @@ void set_Range(uint16_t start, uint16_t stop, uint8_t r, uint8_t g, uint8_t b) {
 }
 
 void set_Range(uint16_t start, uint16_t stop, uint32_t color) {
-  if(start >= strip->getLength() || stop >= strip->getLength()) return;
+  if(start >= strip->getStripLength() || stop >= strip->getStripLength()) return;
   strip_On_Off(true);
   setEffect(FX_NO_FX);
   for(uint16_t i=start; i<=stop; i++) {
@@ -366,7 +371,7 @@ void set_Range(uint16_t start, uint16_t stop, uint32_t color) {
 }
 
 void strip_setpixelcolor(uint16_t pixel, uint8_t r, uint8_t g, uint8_t b) {
-  if(pixel >= strip->getLength()) return;
+  if(pixel >= strip->getStripLength()) return;
   strip_On_Off(true);
   setEffect(FX_NO_FX);
   //strip->setPixelColor(pixel, r, g, b);
@@ -376,7 +381,7 @@ void strip_setpixelcolor(uint16_t pixel, uint8_t r, uint8_t g, uint8_t b) {
 }
 
 void strip_setpixelcolor(uint16_t pixel, uint32_t color) {
-  if(pixel >= strip->getLength()) return;
+  if(pixel >= strip->getStripLength()) return;
   strip_On_Off(true);
   setEffect(FX_NO_FX);
   strip->leds[pixel] = CRGB(color);
@@ -516,13 +521,13 @@ void mySunriseStart(uint32_t  mytime, uint16_t steps, bool up) {
   {
     sunriseParam.step = 0;
     sunriseParam.isSunrise = true;
-    fill_solid(strip->leds, strip->getLength(), CRGB::Black);
+    fill_solid(strip->leds, strip->getStripLength(), CRGB::Black);
   }
   else
   {
     sunriseParam.step = steps;
     sunriseParam.isSunrise = false;
-    fill_solid(strip->leds, strip->getLength(), HeatColor(255)); //ColorFromPalette(HeatColors_p, 240, BRIGHTNESS_MAX, LINEARBLEND));
+    fill_solid(strip->leds, strip->getStripLength(), HeatColor(255)); //ColorFromPalette(HeatColors_p, 240, BRIGHTNESS_MAX, LINEARBLEND));
   }
   strip->setColor(CRGBPalette16(HeatColor(255)));
   strip->setCurrentPalette(CRGBPalette16(HeatColor(255)), "Custom");
@@ -570,7 +575,7 @@ void mySunriseTrigger(void) {
       
       CRGB co = CRGB::Black;
 
-      for(uint8_t i = 0; i<strip->getLength() / 4; i++)
+      for(uint8_t i = 0; i<strip->getStripLength() / 4; i++)
       {
         if(strip->leds[i]>co)
         {
@@ -609,20 +614,20 @@ void mySunriseTrigger(void) {
     sunriseParam.lastChange = (uint32_t)millis();
   }
 
-  fill_solid(strip->leds, strip->getLength(), HeatColor(step));
+  fill_solid(strip->leds, strip->getStripLength(), HeatColor(step));
   
   uint8_t br = (step<96)?(uint8_t)map(step, 0, 96, 15, BRIGHTNESS_MAX):BRIGHTNESS_MAX;
-  nscale8_video(strip->leds, strip->getLength(), br);
+  nscale8_video(strip->leds, strip->getStripLength(), br);
 
   CRGB nc = 0x0;
-  for(uint16_t i=0; i<strip->getLength(); i++)
+  for(uint16_t i=0; i<strip->getStripLength(); i++)
   {
     nc = strip->leds[i];
     nc.nscale8_video(random8(step<172?(step/2):(255-step)));
     strip->leds[i] = nblend(strip->leds[i], nc, 222);
   }
   
-  nblend(strip->_bleds, strip->leds, strip->getLength(), 48);
+  nblend(strip->_bleds, strip->leds, strip->getStripLength(), 48);
   
   //strip->show();
   FastLED.show();
@@ -636,7 +641,7 @@ void reset() {
   currentEffect = FX_NO_FX;
   /*uint8_t max = 0;
   uint32_t color = 0;
-  for(uint8_t i = 0; i<strip->getLength(); i++) {
+  for(uint8_t i = 0; i<strip->getStripLength(); i++) {
     if(strip->leds[i].r >max ) max = strip->leds[i].r;
     if(strip->leds[i].g >max ) max = strip->leds[i].g;
     if(strip->leds[i].b >max ) max = strip->leds[i].b;
@@ -646,7 +651,7 @@ void reset() {
   // ToDo: Fade To Black!
 
   for(uint8_t i = 0; i<max; i++) {
-    for(uint16_t p=0; p<strip->getLength(); p++)
+    for(uint16_t p=0; p<strip->getStripLength(); p++)
     {
         r = Red(strip->getPixelColor(p));
         g = Green(strip->getPixelColor(p));
@@ -664,8 +669,8 @@ void reset() {
   bool isBlack = true;
   do {
     isBlack = true;
-    fadeToBlackBy(strip->leds, strip->getLength(), 16);
-    for(uint16_t i = 0; i < strip->getLength(); i++)
+    fadeToBlackBy(strip->leds, strip->getStripLength(), 16);
+    for(uint16_t i = 0; i < strip->getStripLength(); i++)
     {
       if(strip->leds[i]) isBlack = false;
     }

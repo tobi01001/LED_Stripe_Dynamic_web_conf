@@ -398,7 +398,8 @@ void readRuntimeDataEEPROM(void) {
     }
     stripIsOn = myEEPROMSaveData.stripIsOn;
     stripWasOff = stripIsOn;
-    previousEffect = currentEffect;    
+    previousEffect = currentEffect;   
+    strip->setTransition();
   }
   else // load defaults
   {
@@ -490,7 +491,7 @@ void initOverTheAirUpdate(void) {
     uint8_t factor = 85;
     for(uint8_t c = 0; c < 4; c++) {
 
-      for(uint16_t i=0; i<strip->getLength(); i++) {
+      for(uint16_t i=0; i<strip->getStripLength(); i++) {
         uint8_t r = 256 - (c*factor);
         uint8_t g = c > 0 ? (c*factor-1) : (c*factor);
         //strip.setPixelColor(i, r, g, 0);
@@ -498,7 +499,7 @@ void initOverTheAirUpdate(void) {
       }
       strip->show();
       delay(250);
-      for(uint16_t i=0; i<strip->getLength(); i++) {
+      for(uint16_t i=0; i<strip->getStripLength(); i++) {
         strip->leds[i] = CRGB::Black;
       }
       strip->show();
@@ -521,7 +522,7 @@ void initOverTheAirUpdate(void) {
     // We fade out the green Leds being activated during OTA.
     for(uint8_t i = strip->leds[0].green; i>0; i--)
     {
-      for(uint16_t p=0; p<strip->getLength(); p++)
+      for(uint16_t p=0; p<strip->getStripLength(); p++)
       {
         strip->leds[p].subtractFromRGB(2);
         //strip.setPixelColor(p, 0, i-1 ,0);
@@ -540,7 +541,7 @@ void initOverTheAirUpdate(void) {
     #endif
 
     // OTA Update will show increasing green LEDs during progress:
-    uint16_t progress_value = progress*100 / (total / strip->getLength());
+    uint16_t progress_value = progress*100 / (total / strip->getStripLength());
     uint16_t pixel = (uint16_t) (progress_value / 100);
     uint16_t temp_color = progress_value - (pixel*100);
     if(temp_color > 255) temp_color = 255;
@@ -563,7 +564,7 @@ void initOverTheAirUpdate(void) {
     // We will fade in to red...
     for(uint16_t c = 0; c<256; c++)
     {
-      for(uint16_t i = 0; i<strip->getLength(); i++)
+      for(uint16_t i = 0; i<strip->getStripLength(); i++)
       {
         //strip.setPixelColor(i,(uint8_t)c,0,0);
         strip->leds[i] = strip_color32((uint8_t)c,0,0);
@@ -1060,7 +1061,7 @@ void handleSet(void) {
       Serial.println("got Argument pixel....");
       #endif
     //setEffect(FX_NO_FX);
-    uint16_t pixel = constrain((uint16_t)strtoul(&server.arg("pi")[0], NULL, 10), 0, strip->getLength()-1);
+    uint16_t pixel = constrain((uint16_t)strtoul(&server.arg("pi")[0], NULL, 10), 0, strip->getStripLength()-1);
     strip_setpixelcolor(pixel, color);
     handleStatus();  
   // a range of pixels from start rnS to end rnE
@@ -1068,8 +1069,8 @@ void handleSet(void) {
     #ifdef DEBUG
       Serial.println("got Argument range start / range end....");
       #endif
-    uint16_t start = constrain((uint16_t)strtoul(&server.arg("rnS")[0], NULL, 10), 0, strip->getLength());
-    uint16_t end = constrain((uint16_t)strtoul(&server.arg("rnE")[0], NULL, 10), start, strip->getLength());
+    uint16_t start = constrain((uint16_t)strtoul(&server.arg("rnS")[0], NULL, 10), 0, strip->getStripLength());
+    uint16_t end = constrain((uint16_t)strtoul(&server.arg("rnE")[0], NULL, 10), start, strip->getStripLength());
     set_Range(start, end, color);
     handleStatus();
   // one color for the complete strip
@@ -1190,6 +1191,7 @@ void handleSet(void) {
   if(server.hasArg("numBars"))
   {
     uint16_t value = String(server.arg("numBars")).toInt();
+    if(value >= (LED_COUNT/strip->getSegment()->segments/10)) value = max((LED_COUNT/strip->getSegment()->segments/10),2);
     sendInt("Number of Bars", value);
     broadcastInt("numBars", value);
     strip->setNumBars(value);
@@ -1283,6 +1285,16 @@ void handleSet(void) {
     strip->setTransition();
   }
 
+  // parameter for number of segemts
+  if(server.hasArg("segments"))
+  {
+    uint16_t value = String(server.arg("segments")).toInt();
+    sendInt("segments", value);
+    broadcastInt("segments", value);
+    strip->getSegment()->segments = constrain(value, 1, LED_COUNT/10);
+    strip->setTransition();
+  }
+
   // new parameters, it's time to save
   shouldSaveRuntime = true;
   /// strip->setTransition();  <-- this is not wise as it removes the smooth fading for colors. So we need to set it case by case
@@ -1360,7 +1372,7 @@ void handleStatus(void){
   if(strip->getBrightness()) {
     // count the number of active LEDs
     // in rare occassions, this can still be 0, depending on the effect.
-    for(uint16_t i=0; i<strip->getLength(); i++) {
+    for(uint16_t i=0; i<strip->getStripLength(); i++) {
       if(strip->leds[i]) num_leds_on++;
     }
   }
@@ -1376,7 +1388,7 @@ void handleStatus(void){
   message += F("\",\n    \"Lampenname\": \"");
   message += String(LED_NAME);
   message += F("\",\n    \"Anzahl Leds\": ");
-  message += String(strip->getLength());
+  message += String(strip->getStripLength());
   message += F(",\n    \"Lamp Voltage\": ");
   message += String(strip->getVoltage());
   message += F(",\n    \"Lamp Max Current\": ");
@@ -1429,7 +1441,7 @@ void handleStatus(void){
   CRGB col = CRGB::Black;
   // We return either black (strip effectively off)
   // or the color of the first pixel....
-  for(uint16_t i = 0; i<strip->getLength(); i++)
+  for(uint16_t i = 0; i<strip->getStripLength(); i++)
   {
     if(strip->leds[i])
     {
@@ -1569,7 +1581,7 @@ void factoryReset(void){
   #endif
   // on factory reset, each led will be red
   // increasing from led 0 to max.
-  for(uint16_t i = 0; i<strip->getLength(); i++) {
+  for(uint16_t i = 0; i<strip->getStripLength(); i++) {
     strip->leds[i] = 0xa00000;
     strip->show();
     delay(2);
@@ -1612,7 +1624,7 @@ void handleResetRequest(void){
     server.send(200, "text/plain", "Will now Reset to factory settings. You need to connect to the WLAN AP afterwards....");
     factoryReset();
   } else if(server.arg("rst") == "Defaults") {
-    //strip->setSegment(0, 0, strip->getLength()-1, FX_MODE_STATIC, colors, DEFAULT_BEAT88, false);
+    //strip->setSegment(0, 0, strip->getStripLength()-1, FX_MODE_STATIC, colors, DEFAULT_BEAT88, false);
     strip->setTargetPalette(0);
     strip->setMode(0);
     setEffect(FX_NO_FX);
@@ -1782,7 +1794,7 @@ void setup() {
   #endif
   for(uint8_t a = 0; a < 1; a++) {
     for(uint16_t c = 0; c<256; c+=3) {
-      for(uint16_t i = 0; i<strip->getLength(); i++) {
+      for(uint16_t i = 0; i<strip->getStripLength(); i++) {
         strip->leds[i].green = c;
       }
       strip->show();
@@ -1795,7 +1807,7 @@ void setup() {
   #endif
     delay(2);
     for(uint8_t c = 255; c>0; c-=3) {
-      for(uint16_t i = 0; i<strip->getLength(); i++) {
+      for(uint16_t i = 0; i<strip->getStripLength(); i++) {
         strip->leds[i].subtractFromRGB(4);
       }
       strip->show();
@@ -1869,7 +1881,7 @@ void loop() {
       #endif
       // Show the WiFi loss with yellow LEDs.
       // Whole strip lid finally.
-      for(uint16_t i = 0; i<strip->getLength(); i++)
+      for(uint16_t i = 0; i<strip->getStripLength(); i++)
       {
         strip->leds[i] = 0xa0a000;
         strip->show();
