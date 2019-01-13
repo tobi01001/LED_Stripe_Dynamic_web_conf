@@ -58,13 +58,20 @@
 #define FASTLED_ESP8266_DMA
 #define FASTLED_USE_PROGMEM 1
 
+extern "C" {
+#include "user_interface.h"
+}
+
+// TODO: Implement and use a "defaults.h" to enable specific defaults?
+// TODO: At least we should define most of the "defaults" and use them in a "ResetDefaults" function.
+
 /* use build flags to define these */
 #ifndef LED_NAME
   #error "You need to give your LED a Name (build flag e.g. '-DLED_NAME=\"My LED\"')!"
 #endif
 
 
-#define BUILD_VERSION ("0.6.1 ") 
+#define BUILD_VERSION ("0.8_Segs_") 
 #ifndef BUILD_VERSION
   #error "We need a SW Version and Build Version!"
 #endif
@@ -81,7 +88,7 @@
 
 #define LED_PIN 3  // Needs to be 3 (raw value) for ESP8266 because of DMA
 
-#define STRIP_FPS 60          // 60 FPS seems to be a good value
+#define STRIP_FPS 120         // 60 FPS seems to be a good value
 #define STRIP_VOLTAGE 5       // fixed to 5 volts
 #define STRIP_MILLIAMPS 2500  // can be changed during runtime
 
@@ -148,16 +155,36 @@ void  saveConfigCallback    (void),
       broadcastInt          (String name, uint16_t value),
       broadcastString       (String name, String value),
       webSocketEvent        (uint8_t num, WStype_t type, uint8_t * payload, size_t length),
+      targetPaletteChanged  (uint8_t num),
+      modeChanged           (uint8_t num),
       clearEEPROM           (void);
 
       
 const String 
       pals_setup            (void);
 
+uint32 
+      getResetReason        (void);
 
+
+void targetPaletteChanged(uint8_t pal)
+{
+  sendAnswer(   "\"palette\": " + String(pal) + ", \"palette name\": \"" + 
+                  (String)strip->getPalName(pal) + "\"");
+  broadcastInt("pa", pal);
+}
+
+void modeChanged(uint8_t num)
+{
+    sendAnswer(  "\"mode\": 3, \"modename\": \"" + 
+                  (String)strip->getModeName(num) + 
+                  "\", \"wsfxmode\": " + String(num));
+      // let anyone connected know what we just did
+    broadcastInt("mo", num);
+}
 
 // used to send an answer as INT to the calling http request
-// ToDo: Use one answer function with parameters being overloaded
+// TODO: Use one answer function with parameters being overloaded
 void sendInt(String name, uint16_t value)
 {
   String answer = F("{ ");
@@ -174,7 +201,7 @@ void sendInt(String name, uint16_t value)
 }
 
 // used to send an answer as String to the calling http request
-// ToDo: Use one answer function with parameters being overloaded
+// TODO: Use one answer function with parameters being overloaded
 void sendString(String name, String value)
 {
   String answer = F("{ ");
@@ -211,7 +238,7 @@ void broadcastInt(String name, uint16_t value)
 }
 
 // broadcasts the name and value to all websocket clients
-// ToDo: One function with parameters being overloaded.
+// TODO: One function with parameters being overloaded.
 void broadcastString(String name, String value)
 {
   String json = "{\"name\":\"" + name + "\",\"value\":\"" + String(value) + "\"}";
@@ -451,6 +478,7 @@ void readRuntimeDataEEPROM(void) {
 
   // no need to save right now. next save should be after /set?....
   shouldSaveRuntime = false;
+  strip->setTransition();
 }
 
 // we do not want anything to distrub the OTA
@@ -471,7 +499,7 @@ void initOverTheAirUpdate(void) {
 
   ArduinoOTA.setRebootOnSuccess(true);
 
-  // ToDo: Implement Hostname in config and WIFI Settings?
+  // TODO: Implement Hostname in config and WIFI Settings?
 
   // Hostname defaults to esp8266-[ChipID]
   // ArduinoOTA.setHostname("esp8266Toby01");
@@ -572,9 +600,9 @@ void initOverTheAirUpdate(void) {
       strip->show();
       delay(2);
     }
-    // We wait 10 seconds and then reset the ESP...
+    // We wait 10 seconds and then restart the ESP...
     delay(10000);
-    ESP.reset();
+    ESP.restart();
   });
   // start the service
   ArduinoOTA.begin();
@@ -626,7 +654,7 @@ void setupWiFi(void){
     showInitColor(CRGB::Yellow);
     delay(3000);
     showInitColor(CRGB::Red);
-    ESP.reset();
+    ESP.restart();
     delay(5000);
   }
   //if we get here we have connected to the WiFi
@@ -641,7 +669,7 @@ void setupWiFi(void){
 }
 
 // helper function to change an 8bit value by the given percentage
-// ToDo: we could use 8bit fractions for performance
+// TODO: we could use 8bit fractions for performance
 uint8_t changebypercentage (uint8_t value, uint8_t percentage) {
   uint16_t ret = max((value*percentage)/100, 10);
   if (ret > 255) ret = 255;
@@ -665,7 +693,7 @@ void handleSet(void) {
   Serial.println("<End> Server Args");
   #endif
   // to be completed in general
-  // ToDo: question: is there enough memory to store color and "timing" per pixel?
+  // TODO: question: is there enough memory to store color and "timing" per pixel?
   // i.e. uint32_t onColor, OffColor, uint16_t ontime, offtime
   // = 12 * 300 = 3600 byte...???
   // this will be a new branch possibly....
@@ -863,11 +891,11 @@ void handleSet(void) {
       Serial.println("gonna send mo response....");
       #endif
       // let the caller know what we just did
-      sendAnswer(  "\"mode\": 3, \"modename\": \"" + 
-                  (String)strip->getModeName(effect) + 
-                  "\", \"wsfxmode\": " + String(effect));
+    //  sendAnswer(  "\"mode\": 3, \"modename\": \"" + 
+    //              (String)strip->getModeName(effect) + 
+    //              "\", \"wsfxmode\": " + String(effect));
       // let anyone connected know what we just did
-      broadcastInt("mo", effect);
+    //  broadcastInt("mo", effect);
       broadcastInt("power", stripIsOn);
     }
   }
@@ -897,16 +925,16 @@ void handleSet(void) {
     
   // if we got a palette change
   if(server.hasArg("pa")) {
-    // ToDo: Possibility to setColors and new Palettes...
+    // TODO: Possibility to setColors and new Palettes...
     uint8_t pal = (uint8_t)strtoul(&server.arg("pa")[0], NULL, 10);
     #ifdef DEBUG
     Serial.print("New palette with value: ");
     Serial.println(pal);
     #endif
     strip->setTargetPalette(pal);
-    sendAnswer(   "\"palette\": " + String(pal) + ", \"palette name\": \"" + 
-                  (String)strip->getPalName(pal) + "\"");
-    broadcastInt("pa", pal);
+  //  sendAnswer(   "\"palette\": " + String(pal) + ", \"palette name\": \"" + 
+  //                (String)strip->getPalName(pal) + "\"");
+  //  broadcastInt("pa", pal);
   }
 
   // if we got a new brightness value
@@ -1285,6 +1313,36 @@ void handleSet(void) {
     strip->setTransition();
   }
 
+  #ifdef DEBUG
+  // Testing different Resets
+  // can then be triggered via web interface (at the very bottom)
+  if(server.hasArg("resets"))
+  {
+    uint8_t value = String(server.arg("resets")).toInt();
+    switch (value) {
+      case 0:
+      break;
+      case 1: // 
+        ESP.reset();
+      break;
+      case 2:
+        ESP.restart();
+      break;
+      case 3:
+        ESP.wdtDisable();
+      break;
+      case 4:
+        while(1) {}
+      break;
+      case 5:
+        volatile uint8_t a = 0;
+        volatile uint8_t b = 5;
+        volatile uint8_t c = b / a;
+      break;
+    }
+  }
+  #endif
+
   // parameter for number of segemts
   if(server.hasArg("segments"))
   {
@@ -1600,7 +1658,36 @@ void factoryReset(void){
   Serial.println("Reset ESP and start all over...");
   #endif
   delay(3000);
-  ESP.reset();
+  ESP.restart();
+}
+
+uint32 getResetReason(void)
+{
+   return ESP.getResetInfoPtr()->reason;
+}
+
+/*
+ * Clear the CRC to startup Fresh....
+ * Used in case we end up in a WDT reset (either SW or HW)
+ */
+void clearCRC(void)
+{
+  // invalidating the CRC - in case somthing goes terribly wrong...
+  #ifdef DEBUG
+  Serial.println("Clearing CRC in EEPRom");
+  #endif
+  EEPROM.begin(sizeof(myEEPROMSaveData.CRC));
+  for(uint i = 0; i< EEPROM.length(); i++)
+  {
+    EEPROM.write(i,0);
+  }
+  EEPROM.commit();
+  EEPROM.end();
+  #ifdef DEBUG
+  Serial.println("Reset ESP and start all over with default values...");
+  #endif
+  delay(1000);
+  ESP.restart();
 }
 
 void clearEEPROM(void) {
@@ -1608,7 +1695,7 @@ void clearEEPROM(void) {
   #ifdef DEBUG
   Serial.println("Clearing EEPROM");
   #endif
-  EEPROM.begin(sizeof(myEEPROMSaveData)+10);
+  EEPROM.begin(sizeof(myEEPROMSaveData));
   for(uint i = 0; i< EEPROM.length(); i++)
   {
     EEPROM.write(i,0);
@@ -1624,7 +1711,10 @@ void handleResetRequest(void){
     server.send(200, "text/plain", "Will now Reset to factory settings. You need to connect to the WLAN AP afterwards....");
     factoryReset();
   } else if(server.arg("rst") == "Defaults") {
-    //strip->setSegment(0, 0, strip->getStripLength()-1, FX_MODE_STATIC, colors, DEFAULT_BEAT88, false);
+    /*
+     * TODO: Implement real 'reset to defaults funktion' for every relevant parameter.
+     */
+    #pragma message "TODO: Implement real 'reset to defaults funktion' for every relevant parameter."
     strip->setTargetPalette(0);
     strip->setMode(0);
     setEffect(FX_NO_FX);
@@ -1763,13 +1853,68 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
 void setup() {
   // Sanity delay to get everything settled....
   delay(500);
-
+  
   #ifdef DEBUG
   // Open serial communications and wait for port to open:
   Serial.begin(115200);
   Serial.println("\n\n\n");
   Serial.println(F("Booting"));
   #endif
+
+  #ifdef DEBUG
+  Serial.println("\n");
+  Serial.println(F("Checking boot cause:"));
+  #endif
+
+  switch (getResetReason()) {
+    case REASON_DEFAULT_RST :
+      #ifdef DEBUG
+      Serial.println(F("\tREASON_DEFAULT_RST: Normal boot"));
+      #endif
+    break;
+    case REASON_WDT_RST :
+      #ifdef DEBUG
+      Serial.println(F("\tREASON_WDT_RST"));
+      #endif
+      clearCRC(); // should enable default start in case of
+    break;
+    case REASON_EXCEPTION_RST :
+      #ifdef DEBUG
+      Serial.println(F("\tREASON_EXCEPTION_RST"));
+      #endif
+      clearCRC();
+    break;
+    case REASON_SOFT_WDT_RST :
+      #ifdef DEBUG
+      Serial.println(F("\tREASON_SOFT_WDT_RST"));
+      #endif
+      clearCRC();
+    break;
+    case REASON_SOFT_RESTART :
+      #ifdef DEBUG
+      Serial.println(F("\tREASON_SOFT_RESTART"));
+      #endif
+    break;
+    case REASON_DEEP_SLEEP_AWAKE :
+      #ifdef DEBUG
+      Serial.println(F("\tREASON_DEEP_SLEEP_AWAKE"));
+      #endif
+    break;
+    case REASON_EXT_SYS_RST :
+      #ifdef DEBUG
+      Serial.println(F("\tREASON_EXT_SYS_RST: External trigger..."));
+      #endif
+    break;
+
+    default :
+      #ifdef DEBUG
+      Serial.println(F("\tUnknown cause..."));
+      #endif
+    break;
+
+  }
+
+  #undef DEBUG
 
   stripe_setup( LED_COUNT, 
                 STRIP_FPS, 
@@ -1778,6 +1923,11 @@ void setup() {
                 RainbowColors_p, 
                 F("Rainbow Colors"), 
                 UncorrectedColor);//TypicalLEDStrip);
+
+  // callbacks for "untraced changes". Can feed the websocket.
+  strip->setTargetPaletteCallback(&targetPaletteChanged);
+  strip->setModeCallback(&modeChanged);
+
 
   setupWiFi();
 
@@ -1822,7 +1972,7 @@ void setup() {
   readRuntimeDataEEPROM();
   #ifdef DEBUG
   Serial.println("Runtime Data loaded");
-  FastLED.countFPS(60);
+  FastLED.countFPS();
   #endif
   //setEffect(FX_NO_FX);
 }
@@ -1892,7 +2042,7 @@ void loop() {
       Serial.println("Resetting ESP....");
       #endif
       delay(3000);
-      ESP.reset();
+      ESP.restart();
     }
     last_wifi_check_time = now;
   }

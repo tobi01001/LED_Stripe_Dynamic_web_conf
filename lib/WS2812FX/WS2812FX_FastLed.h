@@ -144,6 +144,7 @@ enum MODES {
   FX_MODE_BEATSIN_GLOW,
   FX_MODE_PIXEL_STACK,
   FX_MODE_POPCORN,
+  FX_MODE_FIREWORKROCKETS,
   FX_MODE_CUSTOM,
 
   // has to be the final entry!
@@ -229,9 +230,9 @@ class WS2812FX {
       uint8_t          twinkleDensity;
       uint8_t          numBars;
       uint8_t          mode;
+      uint8_t          fps;
       uint8_t          deltaHue;
       uint8_t          blur;
-      uint8_t          fps;
       TBlendType       blendType;
       ColorTemperature colorTemp;
 
@@ -305,6 +306,8 @@ class WS2812FX {
       _segment.start  = 0;
       _segment.stop   = _length - 1;
       _segment.length = _length;
+      _segment.segments = 1;
+      old_segs = 0;
 
       setBlurValue(255);
 
@@ -350,7 +353,6 @@ class WS2812FX {
       _mode[FX_MODE_NOISEMOVER]              = &WS2812FX::mode_inoise8_mover;
       _mode[FX_MODE_PLASMA]                  = &WS2812FX::mode_plasma;
       _mode[FX_MODE_JUGGLE_PAL]              = &WS2812FX::mode_juggle_pal;
-    //  _mode[FX_MODE_CONFETTI]                = &WS2812FX::mode_confetti;
       _mode[FX_MODE_FILL_BEAT]               = &WS2812FX::mode_fill_beat;
       _mode[FX_MODE_DOT_BEAT]                = &WS2812FX::mode_dot_beat;
       _mode[FX_MODE_DOT_COL_WIPE]            = &WS2812FX::mode_dot_col_move;
@@ -358,8 +360,6 @@ class WS2812FX {
       _mode[FX_MODE_COLOR_WIPE_SINE]         = &WS2812FX::mode_col_wipe_sine;
       _mode[FX_MODE_COLOR_WIPE_QUAD]         = &WS2812FX::mode_col_wipe_quad;
       _mode[FX_MODE_COLOR_WIPE_TRIWAVE]      = &WS2812FX::mode_col_wipe_triwave;
-      
-
       _mode[FX_MODE_TO_INNER]                = &WS2812FX::mode_to_inner;
       _mode[FX_MODE_FILL_BRIGHT]             = &WS2812FX::mode_fill_bright;
       _mode[FX_MODE_FIREWORK]                = &WS2812FX::mode_firework;
@@ -370,6 +370,7 @@ class WS2812FX {
       _mode[FX_MODE_BEATSIN_GLOW]            = &WS2812FX::mode_beatsin_glow;
       _mode[FX_MODE_PIXEL_STACK]             = &WS2812FX::mode_pixel_stack;
       _mode[FX_MODE_POPCORN]                 = &WS2812FX::mode_popcorn;
+      _mode[FX_MODE_FIREWORKROCKETS]         = &WS2812FX::mode_firework2;
       _mode[FX_MODE_CUSTOM]                  = &WS2812FX::mode_custom;
       
       _name[FX_MODE_STATIC]                     = F("Static");
@@ -380,7 +381,6 @@ class WS2812FX {
       _name[FX_MODE_TWINKLE_NOISEMOVER]         = F("Twinkle iNoise8 Mover");
       _name[FX_MODE_PLASMA ]                    = F("Plasma Effect");
       _name[FX_MODE_JUGGLE_PAL]                 = F("Juggle Moving Pixels");
-    //  _name[FX_MODE_CONFETTI]                   = F("Random Confetti");
       _name[FX_MODE_FILL_BEAT]                  = F("Color Fill Beat");
       _name[FX_MODE_DOT_BEAT]                   = F("Moving Dots");
       _name[FX_MODE_DOT_COL_WIPE]               = F("Moving Dots Color Wipe");
@@ -418,6 +418,7 @@ class WS2812FX {
       _name[FX_MODE_BEATSIN_GLOW]               = F("Beat sine glows");
       _name[FX_MODE_PIXEL_STACK]                = F("Pixel Stack");
       _name[FX_MODE_POPCORN]                    = F("Popcorn");
+      _name[FX_MODE_FIREWORKROCKETS]            = F("Firework with Rockets");
       _name[FX_MODE_CUSTOM]                     = F("Custom");
 
       _pal_name[RAINBOW_PAL]        = F("Rainbow Colors");
@@ -620,6 +621,8 @@ class WS2812FX {
       getColorTemp(void),
       qadd8_lim(uint8_t i, uint8_t j, uint8_t lim);
 
+    uint16_t old_segs;
+
     inline uint8_t getCurrentPaletteNumber(void) { return _currentPaletteNum; }
     inline uint8_t getTargetPaletteNumber(void) { return _targetPaletteNum; }
     inline uint8_t getVoltage(void) { return _volts; }
@@ -629,6 +632,16 @@ class WS2812FX {
       getStripLength(void),
       getLength(void);
     
+    void (*targetPaletteCallback)(uint8_t pal) = NULL;
+    void (*modeCallBack)(uint8_t mode) = NULL;
+
+    inline void setTargetPaletteCallback(void (*p)(uint8_t pal)) {
+      targetPaletteCallback = p;
+    }
+
+    inline void setModeCallback(void (*p)(uint8_t mode)) {
+      modeCallBack = p;
+    }
 
     inline uint16_t getMilliamps(void) { return _segment.milliamps; }
     inline uint32_t getCurrentPower(void) { return calculate_unscaled_power_mW(leds, _length); }
@@ -665,73 +678,67 @@ class WS2812FX {
     uint8_t attackDecayWave8( uint8_t i);
 
     uint16_t
-      //mode_off(void),
-      mode_ease(void),
-      mode_twinkle_ease(void),
-      mode_ease_func(bool sparks),
-      mode_plasma(void),
-      mode_fill_wave(void),
-      mode_fill_bright(void),
-      mode_to_inner(void),
-      mode_dot_beat(void),
-      mode_dot_beat_base(uint8_t fade),
-      mode_dot_col_move(void),
-      mode_col_wipe_sawtooth(void),
-      mode_col_wipe_sine(void),
-      mode_col_wipe_quad(void),
-      mode_col_wipe_triwave(void),
-      mode_col_wipe_func(uint8_t mode),
-      mode_fill_beat(void),
-      mode_confetti(void),
-      mode_juggle_pal(void),
-      mode_inoise8_mover_func(bool sparks),
-      mode_inoise8_mover(void),
-      mode_inoise8_mover_twinkle(void),
-      mode_firework(void),
+      mode_ease               (void),
+      mode_twinkle_ease       (void),
+      mode_ease_func          (bool sparks),
+      mode_plasma             (void),
+      mode_fill_wave          (void),
+      mode_fill_bright        (void),
+      mode_to_inner           (void),
+      mode_dot_beat           (void),
+      mode_dot_beat_base      (uint8_t fade),
+      mode_dot_col_move       (void),
+      mode_col_wipe_sawtooth  (void),
+      mode_col_wipe_sine      (void),
+      mode_col_wipe_quad      (void),
+      mode_col_wipe_triwave   (void),
+      mode_col_wipe_func      (uint8_t mode),
+      mode_fill_beat          (void),
+      mode_confetti           (void),
+      mode_juggle_pal         (void),
+      mode_inoise8_mover_func (bool sparks),
+      mode_inoise8_mover      (void),
+      mode_inoise8_mover_twinkle  (void),
+      mode_firework               (void),
 
-      mode_bubble_sort(void),
+      mode_bubble_sort            (void),
 
-      mode_static(void),
-      blink(uint32_t, uint32_t, bool strobe),
-      mode_blink(void),
-      mode_blink_rainbow(void),
-      color_wipe(uint32_t, uint32_t, bool),
-      mode_multi_dynamic(void),
-      mode_breath(void),
-      mode_fade(void),
-      mode_scan(void),
-      mode_dual_scan(void),
-      theater_chase(CRGBPalette16 color1, CRGBPalette16 color2),
-      //theater_chase(uint32_t, uint32_t),
-      mode_theater_chase(void),
-      mode_theater_chase_dual_pal(void),
-      mode_theater_chase_rainbow(void),
-      mode_rainbow(void),
-      mode_rainbow_cycle(void),
-      pride(bool glitter),
-      mode_pride(void),
-      mode_pride_glitter(void),
-      mode_running_lights(void),
-      //twinkle(uint32_t),
-      //twinkle_fade(bool),
-      mode_twinkle_fade(void),
-      mode_sparkle(void),
-      mode_larson_scanner(void),
-      mode_comet(void),
-      fireworks(uint32_t),
-      mode_fire_flicker(void),
-      mode_fire_flicker_soft(void),
-      mode_fire_flicker_intense(void),
-      fire_flicker(int),
-      mode_fire2012WithPalette(void),
-      mode_twinkle_fox( void),
-      mode_softtwinkles(void),
-      mode_shooting_star(void),
-      mode_beatsin_glow(void),
-      mode_pixel_stack(void),
-      mode_popcorn(void),
-      quadbeat(uint16_t in),
-      mode_custom(void);
+      mode_static                 (void),
+      color_wipe                  (uint32_t, uint32_t, bool),
+      mode_multi_dynamic          (void),
+      mode_breath                 (void),
+      mode_fade                   (void),
+      mode_scan                   (void),
+      mode_dual_scan              (void),
+      theater_chase               (CRGBPalette16 color1, CRGBPalette16 color2),
+      mode_theater_chase          (void),
+      mode_theater_chase_dual_pal (void),
+      mode_theater_chase_rainbow  (void),
+      mode_rainbow                (void),
+      mode_rainbow_cycle          (void),
+      pride                       (bool glitter),
+      mode_pride                  (void),
+      mode_pride_glitter          (void),
+      mode_running_lights         (void),
+      mode_twinkle_fade           (void),
+      mode_sparkle                (void),
+      mode_larson_scanner         (void),
+      mode_comet                  (void),
+      fireworks                   (uint32_t),
+      mode_fire_flicker           (void),
+      mode_fire_flicker_soft      (void),
+      mode_fire_flicker_intense   (void),
+      fire_flicker                (int),
+      mode_fire2012WithPalette    (void),
+      mode_twinkle_fox            (void),
+      mode_softtwinkles           (void),
+      mode_shooting_star          (void),
+      mode_beatsin_glow           (void),
+      mode_pixel_stack            (void),
+      mode_popcorn                (void),
+      mode_firework2              (void),
+      quadbeat                    (uint16_t in),
+      mode_custom                 (void);
 
     CRGB 
       computeOneTwinkle( uint32_t ms, uint8_t salt),

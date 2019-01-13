@@ -203,7 +203,7 @@ void WS2812FX::init() {
 void WS2812FX::service() {
 
   #pragma message "This does not yet work (memory overflow?). We need to look at that later..."
-  static uint16_t old_segs = 0;
+  
 
   if((_segment.segments != old_segs) || _segment_runtime.modeinit)
   {
@@ -213,6 +213,7 @@ void WS2812FX::service() {
     setTransition();
     old_segs = _segment.segments;
     fill_solid(leds, _length, CRGB::Black);
+    /*
     #ifdef DEBUG
     Serial.printf("\n\nWe now have %d segments distributed like this:\n", old_segs);
     for(uint8_t i=0; i<_segment.segments; i++)
@@ -220,17 +221,21 @@ void WS2812FX::service() {
       Serial.printf("\tSegment %d: \tstart: %d \tstop: %d\n", i, i*_segment.length, i*_segment.length+_segment.length-1);
     }
     #endif
+    */
   }
 
   if(_running || _triggered) {
     unsigned long now = millis(); // Be aware, millis() rolls over every 49 days
     
     if(now > SEGMENT_RUNTIME.next_time || _triggered) {
+      /*
       #ifdef DEBUG
         static uint32_t max_frametime = 0;
         uint32_t now = micros();
       #endif
+      */
       uint16_t delay = (this->*_mode[SEGMENT.mode])();
+      /*
       #ifdef DEBUG
         if((micros()-now) > max_frametime)
         {
@@ -238,6 +243,7 @@ void WS2812FX::service() {
           Serial.printf("\n\t\t\tMax frame time is %d microseconds.\n", max_frametime);
         }
       #endif
+      */
       SEGMENT_RUNTIME.next_time = now + (int)delay; //STRIP_MIN_DELAY;
     }
     
@@ -263,8 +269,6 @@ void WS2812FX::service() {
       }
     }
     
-    CRGB tmp = CRGB::Black;
-   
     // the following constuct looks a bit weired and contains many loops
     // but I preferred to not have multiple if - else conditions within a loop
     // so depending on the logical combination only one loop is run.
@@ -276,13 +280,9 @@ void WS2812FX::service() {
       CRGB temp;
       for(uint16_t i = 0; i<=_segment.length/2; i++)
       {
-        if(i < (_segment.stop-i))
-        {
-          temp = leds[i];
-          leds[i] = leds[_segment.stop-i];
-          leds[_segment.stop-i] = temp;
-        }
-
+        temp = leds[i];
+        leds[i] = leds[_segment.stop-i];
+        leds[_segment.stop-i] = temp;
       }
     }
     
@@ -308,97 +308,14 @@ void WS2812FX::service() {
     if(_segment.reverse)
     {
       CRGB temp;
-      for(uint16_t i = 0; i<_segment.length; i++)
+      for(uint16_t i = 0; i<=_segment.length/2; i++)
       {
-        if(i != (_segment.stop-i))
-        {
-          temp = leds[i];
-          leds[i] = leds[_segment.stop-i];
-          leds[_segment.stop-i] = temp;
-        }
-        else
-        {
-          break;
-        }
+        temp = leds[i];
+        leds[i] = leds[_segment.stop-i];
+        leds[_segment.stop-i] = temp;
       }
     }
-
-    /*
-
-
-    // Shall we divide the strip into two equal ones (preferably strips with even length)?
-    if(!_segment.mirror) { // not divided i.e. no mirror
-      // shall we reverse the strip?
-      if(!_segment.reverse) { // no mirror, effect is not reversed
-        // shall we invert the leds (and not capped at MAXINVERSE)?
-        if(!_segment.inverse) { // no mirror, not reversed, leds are not inverted
-          // Everything pretty normal
-          for(uint16_t i=0; i < _segment.length; i++) {
-            nblend(_bleds[i],  leds[i], l_blend);
-          }
-        } else { // no mirror, not reversed, leds inverted
-          for(uint16_t i=0; i < _segment.length; i++) {
-            tmp.r = qsub8(MAXINVERSE, leds[i].r);
-            tmp.g = qsub8(MAXINVERSE, leds[i].g);
-            tmp.b = qsub8(MAXINVERSE, leds[i].b);
-            nblend(_bleds[i], tmp, l_blend);
-          }
-        }
-      } else { // no mirror, effect is reversed
-        if(!_segment.inverse) { // no mirror, reversed, leds not inverted
-          for(uint16_t i=0; i < _segment.length; i++) {
-            nblend(_bleds[i],  leds[_segment.length-1-i], l_blend);
-          }
-        } else { // no mirror, reversed, inverted
-          for(uint16_t i=0; i < _segment.length; i++) {
-            tmp.r = qsub8(MAXINVERSE, leds[_segment.length-1-i].r);
-            tmp.g = qsub8(MAXINVERSE, leds[_segment.length-1-i].g);
-            tmp.b = qsub8(MAXINVERSE, leds[_segment.length-1-i].b);
-            nblend(_bleds[i], tmp, l_blend);
-          }
-        }
-      }
-    } else { // mirrored
-      if(!_segment.reverse) { // mirrored, not reversed 
-        if(!_segment.inverse) { // mirrored, not reversed, not inverted
-          for(uint16_t i=0; i < _segment.length; i++) {
-            nblend(_bleds[i/2],                     leds[i], qadd8_lim(l_blend, 0, 192));
-            
-            // the mirror just needs to copy over...
-            _bleds[_segment.length - 1 - i/2]     = _bleds[i/2];
-          }  
-        } else { // mirrored, not reversed, inverted
-          for(uint16_t i=0; i < _segment.length; i++) {
-            tmp.r = qsub8(MAXINVERSE, leds[i].r);
-            tmp.g = qsub8(MAXINVERSE, leds[i].g);
-            tmp.b = qsub8(MAXINVERSE, leds[i].b);
-            nblend(_bleds[i/2],                     tmp, qadd8_lim(l_blend, 0, 192));
-                        
-            _bleds[_segment.length - 1 - i/2]     = _bleds[i/2];
-          }
-        }
-      } else { // mirrored, reversed
-        #pragma message "The mirrored part needs some special treatment during tansition. currently only copied from the opposite which leads to flicker effects"
-        if(!_segment.inverse) { // mirrored, reversed, not inverted
-          for(uint16_t i=0; i < _segment.length; i++) {
-            nblend(_bleds[i/2],                     leds[_segment.length - 1 - i], qadd8_lim(l_blend, 0, 192));
-            
-            _bleds[_segment.length - 1 - i/2]     = _bleds[i/2];
-          }
-        } else { // mirrored, reversed,  inverted
-          for(uint16_t i=0; i < _segment.length; i++) {
-            tmp.r = qsub8(MAXINVERSE, leds[_segment.length - 1 - i].r);
-            tmp.g = qsub8(MAXINVERSE, leds[_segment.length - 1 - i].g);
-            tmp.b = qsub8(MAXINVERSE, leds[_segment.length - 1 - i].b);
-            nblend(_bleds[i/2],                      tmp, qadd8_lim(l_blend, 0, 192));
-            
-            _bleds[_segment.length - 1 - i/2]     = _bleds[i/2];
-          }  
-        }
-      }
-      
-    }
-    */
+   
     // Write the data
     FastLED.show();
 
@@ -407,9 +324,8 @@ void WS2812FX::service() {
       fadeToBlackBy(_bleds, _length, 1);
     }
 
-    // Every huetime we increase the baseHue by the respective deltaHue.
-    // set deltahue to 0, to turn this off.
-    //EVERY_N_MILLISECONDS(SEGMENT.hueTime)
+    // every "hueTime" we set either the deltaHue (fixed offset)
+    // or we increase the offset...
     if(now > SEGMENT_RUNTIME.nextHue)
     {
       if(!SEGMENT.hueTime)
@@ -1016,6 +932,8 @@ void WS2812FX::setTargetPalette(CRGBPalette16 p, String Name = "Custom") {
   _targetPalette = p;
   _targetPaletteName = Name;
   _targetPaletteNum = NUM_PALETTES;
+
+  if(targetPaletteCallback != NULL) targetPaletteCallback(_targetPaletteNum);
 }
 
 /*
@@ -1028,11 +946,13 @@ void WS2812FX::setTargetPalette(uint8_t n=0) {
     _targetPalette = getRandomPalette();
     _targetPaletteName = _pal_name[n % NUM_PALETTES];
     _targetPaletteNum = n % NUM_PALETTES;
+    if(targetPaletteCallback != NULL) targetPaletteCallback(_targetPaletteNum);
     return;
   }
   _targetPalette = *(_palettes[n % NUM_PALETTES]);
   _targetPaletteName = _pal_name[n % NUM_PALETTES];
   _targetPaletteNum = n % NUM_PALETTES;
+  if(targetPaletteCallback != NULL) targetPaletteCallback(_targetPaletteNum);
 }
 
 /*
@@ -1059,6 +979,8 @@ void WS2812FX::setMode(uint8_t m) {
   _blend = 0;
   SEGMENT_RUNTIME.modeinit = true;
   setBlurValue(_pblur);
+
+  if(modeCallBack != NULL) modeCallBack(SEGMENT.mode);
 
   //setBrightness(_brightness);
 }
@@ -1422,43 +1344,6 @@ uint16_t WS2812FX::mode_juggle_pal(void) {
 }
 
 /*
- * Confetti, yeah
- */
-/*
-uint16_t WS2812FX::mode_confetti(void) {
-
-  EVERY_N_MILLIS(50)
-  {
-    fade_out(8);
-  }
-  
-  
-  if(random8(3) != 0) return STRIP_MIN_DELAY;
-
-  uint16_t pos;
-  uint8_t index = (uint8_t)beatsin88(SEGMENT.beat88, 0, 255, SEGMENT_RUNTIME.tb.timebase) + SEGMENT_RUNTIME.baseHue;
-  uint8_t bright = random8(192 % _brightness, _brightness);
-  const uint8_t space = 1;
-  bool newSpark = true;
-  
-  pos = random16((SEGMENT.start + 1)*16, (SEGMENT.stop - 2)*16-32);   
-  for(int_fast8_t i = 0 - space; i<=space; i++)
-  {
-    if((pos/16+i) >=SEGMENT.start && (pos/16+i) < SEGMENT.stop)
-    {
-      if(leds[(pos/16+i)]) newSpark = false;
-    }
-  }
-
-  if(!newSpark) return STRIP_MIN_DELAY;
-
-  drawFractionalBar(pos, 1, _currentPalette, index, bright);
-  
-  return STRIP_MIN_DELAY;
-}
-*/
-
-/*
  * Fills the strip with waving color and brightness
  */
 uint16_t WS2812FX::mode_fill_beat(void) {
@@ -1470,7 +1355,7 @@ uint16_t WS2812FX::mode_fill_beat(void) {
   for(uint8_t k=SEGMENT.start; k<SEGMENT.stop; k++)
   {
     
-    br = beatsin88(SEGMENT.beat88, _brightness/10, _brightness, SEGMENT_RUNTIME.tb.timebase, k*2);//= quadwave8(v1);
+    br = beatsin88(SEGMENT.beat88, 20, 255, SEGMENT_RUNTIME.tb.timebase, k*2);//= quadwave8(v1);
     index = (uint8_t)((uint8_t)triwave8(beat8(SEGMENT.beat88>>8) + 
                       (uint8_t)beatsin8(SEGMENT.beat88>>8,0,20) + 
                       (uint8_t)map(k, SEGMENT.start, SEGMENT.stop, 0, 255)));
@@ -1726,7 +1611,7 @@ uint16_t WS2812FX::mode_breath(void) {
   if(_segment_runtime.modeinit) {
     _segment_runtime.modeinit = false;
   }
-  fill_palette(&leds[SEGMENT.start], _segment.length, 0 + SEGMENT_RUNTIME.baseHue, 5, _currentPalette, beatsin88(SEGMENT.beat88 * 2, 15, 255, SEGMENT_RUNTIME.tb.timebase), SEGMENT.blendType);
+  fill_palette(&leds[SEGMENT.start], _segment.length, 0 + SEGMENT_RUNTIME.baseHue, 5, _currentPalette, beatsin88(SEGMENT.beat88 * 2, 10, 255, SEGMENT_RUNTIME.tb.timebase), SEGMENT.blendType);
   return STRIP_MIN_DELAY;
 }
 
@@ -2498,11 +2383,13 @@ uint16_t WS2812FX::mode_beatsin_glow(void) {
       times[i] = millis() + random8();
       prev[i] = 0;
       newval[i] = false;
+      /*
       #ifdef DEBUG
       Serial.printf("\n\tWe at init for bar number %d of %d\n", i+1, num_bars);
       Serial.println("\tWe randomly selected new values:");
       Serial.printf("\t\ti = \t%d \n\t\tbeat = \t%d \n\t\ttheta = \t%d\n\t\tcinds = \t%d\n\t\ttime = %d\n", i, beats[i], theta[i], cinds[i], times[i]);
       #endif
+      */
     }
   }
 
@@ -2517,6 +2404,7 @@ uint16_t WS2812FX::mode_beatsin_glow(void) {
     
     if(si > -2 && si < 2 && prev[i] < si) //si >= 32640 || si <= -32640)
     {
+      /*
       #ifdef DEBUG
       int32_t deltaB, deltaT;
       int16_t deltaC;
@@ -2524,6 +2412,7 @@ uint16_t WS2812FX::mode_beatsin_glow(void) {
       deltaT = theta[i];
       deltaC = cinds[i];
       #endif
+      */
       const uint8_t rand_delta = 64;
       beats[i] = beats[i] + (SEGMENT.beat88*10)/50 - random16((SEGMENT.beat88*10)/25);  //+= (random8(128)%2)?1:-1; // = beats[i] + (SEGMENT.beat88*10)/200 - random16((SEGMENT.beat88*10)/100); //
       if(beats[i] < (SEGMENT.beat88/2)) beats[i] = SEGMENT.beat88/2;
@@ -2531,6 +2420,7 @@ uint16_t WS2812FX::mode_beatsin_glow(void) {
       theta[i] = theta[i] + (rand_delta/2)-random8(rand_delta);                                               //+= (random8(128)%2)?1:-1; // = theta[i] + 8-random8(16);  //
       cinds[i] = cinds[i] + (rand_delta/2)-random8(rand_delta); //+= (random8(128)%2)?1:-1;  
       times[i] = millis() - theta[i];
+      /*
       #ifdef DEBUG
       deltaB-=beats[i];
       deltaT-=theta[i];
@@ -2540,7 +2430,7 @@ uint16_t WS2812FX::mode_beatsin_glow(void) {
       Serial.printf("\t\ti = \t%d \n\t\tbeat = \t%d \n\t\ttheta = \t%d\n\t\tcinds = \t%d\n\t\ttime = %d\n", i, beats[i], theta[i], cinds[i], times[i]);
       Serial.printf("\tdelta Values: \n\t\tbeat = \t%d \n\t\ttheta = \t%d\n\t\tcinds = \t%d\n", deltaB, deltaT, deltaC);
       #endif
-      
+      */
       newval[i] = false;
       
     }
@@ -2616,11 +2506,17 @@ uint16_t WS2812FX::mode_pixel_stack(void) {
 }
 
 typedef struct pKernel {
+  #define BLENDWIDTH 20
   uint32_t timebase;
   uint16_t prev_pos;
   double pos;
   double v0;
+  double v;
   uint8_t  color_index;
+  bool ignite;
+  uint16_t P_ignite;
+  uint16_t explodeTime;
+  CRGB dist[BLENDWIDTH];
 } pKernel;
 
 uint16_t WS2812FX::mode_popcorn(void) {
@@ -2659,7 +2555,7 @@ uint16_t WS2812FX::mode_popcorn(void) {
       if(pops[i].v0 <= 0.01)
       {
         if(random8() < 2) {
-          pops[i].v0 = (double)random((long)(v0_max * 750), (long)(v0_max*1000))/1000.0;   //v0_max - random(v0_max*100)/400;
+          pops[i].v0 = (double)random((long)(v0_max * 850), (long)(v0_max*1000))/1000.0;   //v0_max - random(v0_max*100)/400;
           pops[i].pos = 0.00001;
           pops[i].prev_pos = 0;
           pops[i].timebase = now;
@@ -2708,70 +2604,190 @@ uint16_t WS2812FX::mode_popcorn(void) {
       {
         drawFractionalBar(pos, 1, _currentPalette, pops[i].color_index, _brightness, true);
       }
+
       pops[i].prev_pos = pos;
       
-      double mtime = now - pops[i].timebase+0.1; //beat88(_segment.beat88, pops[i].timebase) & max_time; //max(beat8(max(_segment.beat88/255,1), pops[i].timebase), (uint8_t)1); //((now/1000-pops[i].timebase/1000)&0xff);
-      pops[i].pos = (gravity/2.0f)*(mtime*mtime) + pops[i].v0 * mtime;
+      double mtime = now - pops[i].timebase; //beat88(_segment.beat88, pops[i].timebase) & max_time; //max(beat8(max(_segment.beat88/255,1), pops[i].timebase), (uint8_t)1); //((now/1000-pops[i].timebase/1000)&0xff);
       
+      
+      
+      if(mtime != 0)
+      {
+        pops[i].pos = (gravity/2.0f)*(mtime*mtime) + pops[i].v0 * mtime;
+      }
+      else
+      {
+        pops[i].pos = 0.00001;
+      }
     }
   }
 
   return STRIP_MIN_DELAY;
 }
-  /*
 
-  const double gravity = -0.00981f; // m/s²
-  const uint32_t max_time = 0x1fff;
-  const double max_V0   = (gravity/-2.0f)*(max_time);
-  const double max_dist = (gravity/2.0f)*((max_time/2)*(max_time/2)) + max_V0 * (max_time/2);
+uint16_t WS2812FX::mode_firework2(void) {
   
-  const uint16_t maxPops = 10;
 
-  static pKernel pops[maxPops];
-  
-  fade_out(96);
+  const double segmentLength = (_segment.length / LEDS_PER_METER) * 1000; // physical length in mm
+  const double gravity = _segment.beat88 / -11019367.9918;// -0.00981; // gravity in mm per ms²
+  const double v0_max = sqrt(-2 * gravity * segmentLength);
+
+  static pKernel* pops;
+
 
   uint32_t now = millis();
-
-
-
 
   if(_segment_runtime.modeinit)
   {
     _segment_runtime.modeinit = false;
 
-    for(uint16_t i=0; i<maxPops; i++)
-    {
-      pops[i].timebase = now;
-      pops[i].color_index = get_random_wheel_index(pops[i].color_index);
-      pops[i].pos = 0;
-      pops[i].v0 = 0;
-    }
-  }
-  
-  for(uint16_t i=0; i<maxPops; i++)
-  {
-    if(pops[i].pos <= 0 && random8() < 1)
-    {
-      pops[i].v0 = random((long)(max_V0-max_V0/4),(long)(max_V0)); //random16(maxV/2, maxV);
-      pops[i].pos = 0.1;
-      pops[i].timebase = now;
-      pops[i].color_index = get_random_wheel_index(pops[i].color_index);
-    }
-    else if(pops[i].pos > 0)
-    {
-      uint16_t mtime = beat88(_segment.beat88, pops[i].timebase) & max_time; //max(beat8(max(_segment.beat88/255,1), pops[i].timebase), (uint8_t)1); //((now/1000-pops[i].timebase/1000)&0xff);
-      pops[i].pos = (gravity/2.0f)*((double)mtime*(double)mtime) + pops[i].v0 * (double)mtime;
-      uint16_t pos = map((long)pops[i].pos, 0, (long)max_dist, _segment.start*16, _segment.stop*16);
-      drawFractionalBar(pos, 1, _currentPalette, pops[i].color_index, _brightness, true);
-    }
-  }
-  
+    delete [] pops;
+    pops = new pKernel[_segment.numBars];
 
+    for(uint16_t i=0; i < _segment.numBars; i++)
+    {
+      fill_solid(pops[i].dist, BLENDWIDTH, CRGB::Black);
+      pops[i].timebase = now;
+      pops[i].color_index =  256/_segment.numBars*i; //get_random_wheel_index(pops[i].color_index);
+      pops[i].pos = 0;
+      pops[i].prev_pos = 0;
+      pops[i].v0 = 0;
+      pops[i].v = 0;
+      pops[i].ignite = false;
+      pops[i].P_ignite = random(100,500);
+    }
+  }
+
+
+
+  for(uint16_t i=0; i < _segment.numBars; i++)
+  {
+    if(pops[i].pos <= 0)
+    {
+      if(pops[i].v0 <= 0.01)
+      {
+        if(random8() < 2) {
+          pops[i].v0 = (double)random((long)(v0_max * 750), (long)(v0_max*990))/1000.0;   
+          pops[i].v = pops[i].v0;
+          pops[i].pos = 0.00001;
+          pops[i].prev_pos = 0;
+          pops[i].timebase = now;
+          pops[i].color_index = get_random_wheel_index(pops[i].color_index);
+          pops[i].ignite = false;
+          pops[i].P_ignite = random(100,500);
+          uint16_t t_max = pops[i].v0 / (-1*gravity);
+          pops[i].explodeTime = random(t_max / 2, t_max*4/5);
+          fill_solid(pops[i].dist, 20, CRGB::Black);
+        }
+      }
+      else
+      {
+        float damping = 0.1f/100.0f;
+        if(_segment.cooling)
+        {
+          if(_segment.cooling <= 100)
+          {
+            damping = ((float)_segment.cooling/100.0f);
+          }
+          else
+          {
+            damping = 1.0f;
+          }
+        }
+
+        pops[i].v0 = 0.001;//pops[i].v0 * damping;
+        
+        if(damping<1.0f) pops[i].v0 -= 0.01;
+
+        pops[i].v = pops[i].v0;
+        pops[i].pos = 0.00001;
+        pops[i].prev_pos = 0;
+        pops[i].timebase = now;
+      }
+    }
+    else
+    {
+      uint16_t pos = map((long)pops[i].pos, 0, (long)segmentLength, _segment.start*16, _segment.stop*16);
+      if(pops[i].v > 0)
+      {
+        fade_out(96);
+        if(pos != pops[i].prev_pos)
+        {
+          if(pos > pops[i].prev_pos)
+          {
+            uint16_t width = max((pos - pops[i].prev_pos)/16,1);
+            drawFractionalBar(pops[i].prev_pos, width, _currentPalette, pops[i].color_index, _brightness, true);  
+          }
+          else
+          {
+            uint16_t width = max((pops[i].prev_pos - pos)/16,1);
+            drawFractionalBar(pos, width, _currentPalette, pops[i].color_index, _brightness, true);  
+          }
+        }
+        else
+        {
+          drawFractionalBar(pos, 1, _currentPalette, pops[i].color_index, _brightness, true);
+        }
+      }
+      else
+      {
+        fade_out(8);
+        blur1d(pops[i].dist, BLENDWIDTH, 172);
+        if((pos/16+1) >= (_segment.start + BLENDWIDTH/2) && (pos/16+1) <= (_segment.stop - BLENDWIDTH/2))
+        {
+          nblend(&leds[pos/16+1-BLENDWIDTH/2], pops[i].dist, BLENDWIDTH, 64);
+        }
+        else if ((pos/16+1) > (_segment.stop - BLENDWIDTH/2))
+        {
+          nblend(&leds[pos/16+1-BLENDWIDTH/2], pops[i].dist, _segment.stop-pos/16+1, 64);
+        }
+        else
+        {
+          nblend(&leds[_segment.start], &pops[i].dist[BLENDWIDTH/2 - pos/16+1], BLENDWIDTH/2 + (BLENDWIDTH/2 - pos/16+1), 64);
+        }
+        if(!leds[pos/16] && !leds[pos/16+1])
+        {
+          pops[i].v0 = 0.001;   
+          pops[i].pos = 0;
+          return STRIP_MIN_DELAY;
+        }
+      }
+      if(pops[i].ignite)
+      {
+        pops[i].dist[BLENDWIDTH/2] = ColorFromPalette(_currentPalette, pops[i].color_index);
+      }
+
+      pops[i].prev_pos = pos;
+      
+      double mtime = now - pops[i].timebase; 
+      
+      if(mtime != 0)
+      {
+        pops[i].pos = (gravity/2.0f)*(mtime*mtime) + pops[i].v0 * mtime;
+        pops[i].v = gravity * mtime + pops[i].v0;
+      }
+      else
+      {
+        pops[i].v = 1000;
+        pops[i].pos = 0.00001;
+      }
+
+      
+
+      if(pops[i].explodeTime > STRIP_MIN_DELAY) 
+      {
+        pops[i].explodeTime -= STRIP_MIN_DELAY;
+        pops[i].ignite = true;
+      }
+      else
+      {
+        pops[i].ignite = false;
+      }
+    }
+  }
 
   return STRIP_MIN_DELAY;
 }
-*/
 
 /*
  * Custom mode

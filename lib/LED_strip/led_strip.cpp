@@ -160,6 +160,23 @@ String getPalette() {
   return String(strip->getTargetPaletteNumber());
 }
 
+#ifdef DEBUG
+String getReset() {
+  return String(0);
+}
+String getResets() {
+  String json = "";
+  json +="\"No Reset\",";
+  json +="\"Reset Function\",";
+  json +="\"Restart Function\",";
+  json +="\"HW Watchdog\",";
+  json +="\"SW Watchdog\",";
+  json +="\"Exception\"";
+  return json;
+}
+#endif
+
+
 String getPalettes() {
   String json = "";
 
@@ -317,6 +334,10 @@ FieldList fields = {
   { "Settings",         "Einstellungen",                    SectionFieldType                                                                        },
   { "current",          "max Strom",                        NumberFieldType,    100,            10000,                  getMilliamps                },
   { "fps",              "Wiederholrate (FPS)",              NumberFieldType,    5,              255,                    getFPSValue                 },
+  #ifdef DEBUG
+  { "Debug",            "DEBUG only - not for production",  SectionFieldType                                                                        },
+  { "resets",           "Resets (DEV Debug)",               SelectFieldType,    0,              5,                      getReset, getResets         },
+  #endif
 };
 
 #ifndef ARRAY_SIZE
