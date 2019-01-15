@@ -130,7 +130,7 @@ enum MODES {
   FX_MODE_RUNNING_LIGHTS,
   FX_MODE_TWINKLE_FADE ,
   FX_MODE_TWINKLE_FOX ,
-  FX_MODE_SOFTTWINKLES,
+//  FX_MODE_SOFTTWINKLES,   // FIXME: This one is broken and leads to random exceptions / resets -> to be checked...
   FX_MODE_FILL_BRIGHT ,
   FX_MODE_FIREWORK,
   FX_MODE_FIRE2012,
@@ -233,9 +233,10 @@ class WS2812FX {
       uint8_t          fps;
       uint8_t          deltaHue;
       uint8_t          blur;
+      uint8_t          damping;
+      uint8_t          dithering;
       TBlendType       blendType;
       ColorTemperature colorTemp;
-
     } segment;
 
   
@@ -308,6 +309,7 @@ class WS2812FX {
       _segment.length = _length;
       _segment.segments = 1;
       old_segs = 0;
+      _segment.damping = 50;
 
       setBlurValue(255);
 
@@ -316,7 +318,7 @@ class WS2812FX {
 
       FastLED.addLeds<WS2812,LED_PIN, GRB>(_bleds, num_leds);
       FastLED.setCorrection(colc); //TypicalLEDStrip);
-      FastLED.setDither(1);
+      setDithering(1);
       _currentPalette = Rainbow_gp; //CRGBPalette16(CRGB::Black);
       
 
@@ -341,7 +343,7 @@ class WS2812FX {
       _mode[FX_MODE_THEATER_CHASE_RAINBOW]   = &WS2812FX::mode_theater_chase_rainbow;
       _mode[FX_MODE_TWINKLE_FADE]            = &WS2812FX::mode_twinkle_fade;
       _mode[FX_MODE_TWINKLE_FOX]             = &WS2812FX::mode_twinkle_fox;
-      _mode[FX_MODE_SOFTTWINKLES]            = &WS2812FX::mode_softtwinkles;
+//      _mode[FX_MODE_SOFTTWINKLES]            = &WS2812FX::mode_softtwinkles; // FIXME: Broken
       _mode[FX_MODE_LARSON_SCANNER]          = &WS2812FX::mode_larson_scanner;
       _mode[FX_MODE_COMET]                   = &WS2812FX::mode_comet;
       _mode[FX_MODE_FIRE_FLICKER]            = &WS2812FX::mode_fire_flicker;
@@ -404,7 +406,7 @@ class WS2812FX {
       _name[FX_MODE_FILL_BRIGHT]                = F("Fill waving Brightness");
       _name[FX_MODE_TWINKLE_FADE]               = F("Twinkle Fade");
       _name[FX_MODE_TWINKLE_FOX]                = F("Twinkle Fox");
-      _name[FX_MODE_SOFTTWINKLES]               = F("Soft Twinkles");
+//      _name[FX_MODE_SOFTTWINKLES]               = F("Soft Twinkles"); // FIXME: Broken...
       _name[FX_MODE_FIREWORK]                   = F("The Firework");
       _name[FX_MODE_FIRE2012]                   = F("Fire 2012");
       _name[FX_MODE_FILL_WAVE]                  = F("FILL Wave");
@@ -466,7 +468,7 @@ class WS2812FX {
       _segment.sparking = 125;
       _segment.twinkleSpeed = 4;
       _segment.twinkleDensity = 4;
-      _segment.numBars = 6;
+      setNumBars(255);
       _segment.milliamps = milliamps;
       _segment.fps = fps;
 
@@ -553,7 +555,7 @@ class WS2812FX {
 
     inline void setNumBars(uint8_t numBars)
     {
-      _segment.numBars = constrain(numBars, 1, max(_length/10, 1));
+      _segment.numBars = constrain(numBars, 1, max(_length/20, 1));
     }
 
     inline uint8_t getNumBars(void) { return _segment.numBars; }
@@ -605,6 +607,7 @@ class WS2812FX {
     inline void setInverse(bool inverse) { _segment.inverse = inverse; }
     inline bool getMirror(void) { return _segment.mirror; }
     inline void setMirror(bool mirror) { _segment.mirror = mirror; }
+    inline void setDithering(uint8_t dither) { _segment.dithering = dither; FastLED.setDither(dither); }
 
     inline uint8_t getTwinkleDensity(void) { return _segment.twinkleDensity; }
     inline uint8_t getMaxFPS(void) { return _segment.fps; }

@@ -62,8 +62,48 @@ extern "C" {
 #include "user_interface.h"
 }
 
+#ifdef USE_DEFAULTS_H
+  #include defaults.h
+#else
+  #define LED_PIN 3  // Needs to be 3 (raw value) for ESP8266 because of DMA
+  #define STRIP_FPS 120                                            // where it runs best at... 120 FPS seems to be a good value
+  #define STRIP_VOLTAGE 5                                          // fixed to 5 volts
+  #define STRIP_MILLIAMPS     ((LED_COUNT*60)<3000?LED_COUNT*60:3000)  // can be changed during runtime
+
+  #define DEFAULT_POWER       0     // starts being switched off
+  #define DEFAULT_BRIGHTNESS  255   // 0 to 255
+  #define DEFAULT_EFFECT      0     // 0 to modecount
+  #define DEFAULT_PALETTE     0     // 0 is rainbow colors
+  #define DEFAULT_SPEED       1000  // fair value
+  #define DEFAULT_BLEND       1     // equals LinearBlend - would need Fastled.h included to have access to the enum
+  #define DEFAULT_COLOR_TEMP  19    // no color temperatur correction
+  #define DEFAULT_BLENDING    255   // no blend 
+  #define DEFAULT_REVERSE     0     
+  #define DEFAULT_NUM_SEGS    1     // one segment only
+  #define DEFAULT_MIRRORED    1     // mirrored - effect with more than one seg only...
+  #define DEFAULT_INVERTED    0     // invert all the colors (makes it pretty bright) FIXME: reconsider this option
+  #define DEFAULT_HUE_INT     0     // Hue does not change over time
+  #define DEFAULT_HUE_OFFSET  0     // Hue default value. No offset
+  #define DEFAULT_AUTOMODE    0     // auto mode change off
+  #define DEFAULT_T_AUTOMODE  60    // auto mode change every 60 seconds
+                                    // TODO: Random Mode change? / Selectable list?
+  #define DEFAULT_AUTOCOLOR   0     // auto palette change off
+  #define DEFAULT_T_AUTOCOLOR 60    // auto palette change every 60 seconds
+  #define DEFAULT_COOLING     128   // 
+  #define DEFAULT_SPAKRS      128
+  #define DEFAULT_TWINKLE_S   4
+  #define DEFAULT_TWINKLE_NUM 4
+  #define DEFAULT_LED_BARS    ((LED_COUNT/40)>0?LED_COUNT/40:1)   // half of the possible bars will be used
+  #define DEFAULT_DAMPING     90
+#endif
+
+// The delay being used for several init phases.
+#ifdef DEBUG
+  #define INITDELAY 500
+#else
+  #define INITDELAY 2
+#endif
 // TODO: Implement and use a "defaults.h" to enable specific defaults?
-// TODO: At least we should define most of the "defaults" and use them in a "ResetDefaults" function.
 
 /* use build flags to define these */
 #ifndef LED_NAME
@@ -84,19 +124,6 @@ extern "C" {
 
 #ifndef LED_COUNT
   #error "You need to define the number of Leds by LED_COUNT (build flag e.g. -DLED_COUNT=50)"
-#endif
-
-#define LED_PIN 3  // Needs to be 3 (raw value) for ESP8266 because of DMA
-
-#define STRIP_FPS 120         // 60 FPS seems to be a good value
-#define STRIP_VOLTAGE 5       // fixed to 5 volts
-#define STRIP_MILLIAMPS 2500  // can be changed during runtime
-
-// The delay being used for several init phases.
-#ifdef DEBUG
-  #define INITDELAY 500
-#else
-  #define INITDELAY 2
 #endif
 
 // new approach starts here:
@@ -157,6 +184,7 @@ void  saveConfigCallback    (void),
       webSocketEvent        (uint8_t num, WStype_t type, uint8_t * payload, size_t length),
       targetPaletteChanged  (uint8_t num),
       modeChanged           (uint8_t num),
+      resetDefaults         (void),
       clearEEPROM           (void);
 
       
@@ -181,6 +209,52 @@ void modeChanged(uint8_t num)
                   "\", \"wsfxmode\": " + String(num));
       // let anyone connected know what we just did
     broadcastInt("mo", num);
+}
+
+void resetDefaults(void) {
+  // resetting to default values...
+  
+  strip->setMaxFPS(STRIP_FPS);
+  strip->setMilliamps(STRIP_MILLIAMPS);
+  strip->setBrightness(DEFAULT_BRIGHTNESS);
+  strip->setMode(DEFAULT_EFFECT);
+  strip->setTargetPalette(DEFAULT_PALETTE);
+  strip->setSpeed(DEFAULT_SPEED);
+  strip->setBlendType((TBlendType)DEFAULT_BLEND);
+  strip->setColorTemperature(DEFAULT_COLOR_TEMP);
+  strip->setBlurValue(DEFAULT_BLENDING);
+  strip->getSegment()->reverse = DEFAULT_REVERSE;
+  strip->getSegment()->segments = constrain(DEFAULT_NUM_SEGS, 1, LED_COUNT/10);
+  strip->setMirror(DEFAULT_MIRRORED);
+  strip->setInverse(DEFAULT_INVERTED);
+  strip->sethueTime(DEFAULT_HUE_INT);
+  strip->getSegment()->deltaHue = DEFAULT_HUE_OFFSET;
+  strip->getSegment()->autoplay = DEFAULT_AUTOMODE;
+  strip->setAutoplayDuration(DEFAULT_T_AUTOMODE);
+  strip->getSegment()->autoPal = DEFAULT_AUTOCOLOR;
+  strip->setAutoPalDuration(DEFAULT_AUTOCOLOR);
+  strip->setCooling(DEFAULT_COOLING);
+  strip->setSparking(DEFAULT_SPAKRS);
+  strip->setTwinkleSpeed(DEFAULT_TWINKLE_S);
+  strip->setTwinkleDensity(DEFAULT_TWINKLE_NUM);
+  strip->setNumBars(DEFAULT_LED_BARS);
+  strip->getSegment()->damping = DEFAULT_DAMPING;
+
+  if(!DEFAULT_POWER)
+  {
+    strip_On_Off(false);
+  }
+  else
+  {
+    strip_On_Off(true);
+  }
+  if(currentEffect == FX_WS2812)
+  {
+    strip->start();
+    strip->setMode(strip->getMode());
+  }
+  shouldSaveRuntime = true;
+  saveEEPROMData();
 }
 
 // used to send an answer as INT to the calling http request
@@ -425,14 +499,17 @@ void readRuntimeDataEEPROM(void) {
     }
     stripIsOn = myEEPROMSaveData.stripIsOn;
     stripWasOff = stripIsOn;
-    previousEffect = currentEffect;   
+    previousEffect = currentEffect;
+    strip->setDithering(myEEPROMSaveData.seg.dithering);
     strip->setTransition();
   }
   else // load defaults
   {
     #ifdef DEBUG
-    Serial.println("\n\tWe got NO NO NO CRC match!...");
+    Serial.println("\n\tWe got NO NO NO CRC match!!!");
+    Serial.println("loading default Data!");
     #endif
+    resetDefaults();
   }
 
   #ifdef DEBUG
@@ -1311,6 +1388,34 @@ void handleSet(void) {
     broadcastInt("fps", value);
     strip->setMaxFPS(value);
     strip->setTransition();
+  }
+
+  if (server.hasArg("dithering"))
+  {
+    uint8_t value = String(server.arg("dithering")).toInt();
+    sendInt("dithering", value);
+    broadcastInt("dithering", value);
+    strip->setDithering(value);
+  }
+
+  // reset to default values
+  if(server.hasArg("resetdefaults"))
+  {
+    uint8_t value = String(server.arg("resetdefaults")).toInt();
+    if(value) resetDefaults();
+    sendInt("resetdefaults", 0);
+    broadcastInt("resetdefaults", 0);
+    handleStatus();
+    strip->setTransition();
+  }
+
+  if(server.hasArg("damping"))
+  {
+    uint8_t value = constrain(String(server.arg("damping")).toInt(), 0, 100);
+    sendInt("damping", value);
+    broadcastInt("damping", value);
+    strip->getSegment()->damping = value;
+    
   }
 
   #ifdef DEBUG

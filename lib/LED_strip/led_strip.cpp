@@ -255,6 +255,10 @@ String getBlendType() {
   return String(strip->getSegment()->blendType);
 }
 
+String getDamping() {
+  return String(strip->getSegment()->damping);
+}
+
 String getBlendTypes() {
   return "\"NoBlend\",\"LinearBlend\"";
 }
@@ -296,48 +300,63 @@ String getSegments(void) {
   return String(strip->getSegment()->segments);
 }
 
-FieldList fields = {
-  { "title",            LED_NAME,                           TitleFieldType                                                                          },
-  { "power",            LED_NAME,                           SectionFieldType                                                                        },
-  { "power",            "LED Schalter",                     BooleanFieldType,   0,              1,                      getPower                    },
-  { "basicControl",     "Basic control",                    SectionFieldType                                                                        },
-  { "br",               "Helligkeit",                       NumberFieldType,    BRIGHTNESS_MIN, BRIGHTNESS_MAX,         getBrightness               },
-  { "mo",               "Lichteffekt",                      SelectFieldType,    0,              strip->getModeCount(),  getPattern, getPatterns     },
-  { "pa",               "Farbpalette",                      SelectFieldType,    0,   (uint16_t)(strip->getPalCount()+1),getPalette, getPalettes     },
-  { "sp",               "Geschwindigkeit",                  NumberFieldType,    BEAT88_MIN,     BEAT88_MAX,             getSpeed                    },
-  { "blendType",        "Blendmodus",                       SelectFieldType,    NOBLEND,        LINEARBLEND,            getBlendType, getBlendTypes },
-  { "ColorTemperature", "Farbtemperatur",                   SelectFieldType,    0,              20,                     getColorTemp, getColorTemps },
-  { "LEDblur",          "LED / Effect Blending",            NumberFieldType,    0,              255,                    getBlurValue                },
-  { "reverse",          "Rückwärts",                        BooleanFieldType,   0,              1,                      getReverse                  },
-  { "segments",         "Segmente",                         NumberFieldType,    1,              max(LED_COUNT/50,1),    getSegments                 },
-  { "mirror",           "gespiegelt",                       BooleanFieldType,   0,              1,                      getMirror                   },
-  { "inverse",          "Invertiert",                       BooleanFieldType,   0,              1,                      getInverse                  },
-  { "hue",              "Farbwechsel",                      SectionFieldType                                                                        },
-  { "huetime",          "Hue Wechselintervall",             NumberFieldType,    0,              10000,                  getHueTime                  },
-  { "deltahue",         "Hue Offset",                       NumberFieldType,    0,              255,                    getDeltaHue                 },
-  { "autoplay",         "Mode Autoplay",                    SectionFieldType                                                                        },
-  { "autoplay",         "Mode Automatisch wechseln",        BooleanFieldType,   0,              1,                      getAutoplay                 },
-  { "autoplayDuration", "Mode Wechselzeit",                 NumberFieldType,    5,              1000,                   getAutoplayDuration         },
-  { "autopal",          "Farbpalette Autoplay",             SectionFieldType                                                                        },
-  { "autopal",          "Farbpalette Automatisch wechseln", BooleanFieldType,   0,              1,                      getAutopal                  },
-  { "autopalDuration",  "Farbpalette Wechselzeit",          NumberFieldType,    5,              1000,                   getAutopalDuration          },
-  { "solidColor",       "Feste Farbe",                      SectionFieldType                                                                        },
-  { "solidColor",       "Farbe",                            ColorFieldType,     0,              255,                    getSolidColor               },
-  { "fire",             "Feuer und Wasser",                 SectionFieldType                                                                        },
-  { "cooling",          "Kühlung",                          NumberFieldType,    0,              255,                    getCooling                  },
-  { "sparking",         "Funken",                           NumberFieldType,    0,              255,                    getSparking                 },
-  { "twinkles",         "Funkeln",                          SectionFieldType                                                                        },
-  { "twinkleSpeed",     "Funkelgeschwindigkeit",            NumberFieldType,    0,              8,                      getTwinkleSpeed             },
-  { "twinkleDensity",   "Wieviel Funkellichter",            NumberFieldType,    0,              8,                      getTwinkleDensity           },
-  { "ledBars",          "LED Balken für Effekte",           SectionFieldType,                                                                       },
-  { "numBars",          "Anzahl LED Balken",                NumberFieldType,    1,              max(LED_COUNT/20,1),    getNumBars                  },
-  { "Settings",         "Einstellungen",                    SectionFieldType                                                                        },
-  { "current",          "max Strom",                        NumberFieldType,    100,            10000,                  getMilliamps                },
-  { "fps",              "Wiederholrate (FPS)",              NumberFieldType,    5,              255,                    getFPSValue                 },
-  #ifdef DEBUG
-  { "Debug",            "DEBUG only - not for production",  SectionFieldType                                                                        },
-  { "resets",           "Resets (DEV Debug)",               SelectFieldType,    0,              5,                      getReset, getResets         },
-  #endif
+String getResetDefaults(void) {
+  return String(0);
+}
+
+String getDithering(void) {
+  return String(strip->getSegment()->dithering);
+}
+
+    FieldList fields = {
+        {"title", LED_NAME, TitleFieldType},
+        {"power", LED_NAME, SectionFieldType},
+        {"power", "LED Schalter", BooleanFieldType, 0, 1, getPower},
+        {"basicControl", "Basic control", SectionFieldType},
+        {"br", "Helligkeit", NumberFieldType, BRIGHTNESS_MIN, BRIGHTNESS_MAX, getBrightness},
+        {"mo", "Lichteffekt", SelectFieldType, 0, strip->getModeCount(), getPattern, getPatterns},
+        {"pa", "Farbpalette", SelectFieldType, 0, (uint16_t)(strip->getPalCount() + 1), getPalette, getPalettes},
+        {"sp", "Geschwindigkeit", NumberFieldType, BEAT88_MIN, BEAT88_MAX, getSpeed},
+        {"blendType", "Blendmodus", SelectFieldType, NOBLEND, LINEARBLEND, getBlendType, getBlendTypes},
+        {"ColorTemperature", "Farbtemperatur", SelectFieldType, 0, 20, getColorTemp, getColorTemps},
+        {"LEDblur", "LED / Effect Blending", NumberFieldType, 0, 255, getBlurValue},
+        {"reverse", "Rückwärts", BooleanFieldType, 0, 1, getReverse},
+        {"segments", "Segmente", NumberFieldType, 1, max(LED_COUNT / 50, 1), getSegments},
+        {"mirror", "gespiegelt", BooleanFieldType, 0, 1, getMirror},
+        {"inverse", "Invertiert", BooleanFieldType, 0, 1, getInverse},
+        {"hue", "Farbwechsel", SectionFieldType},
+        {"huetime", "Hue Wechselintervall", NumberFieldType, 0, 10000, getHueTime},
+        {"deltahue", "Hue Offset", NumberFieldType, 0, 255, getDeltaHue},
+        {"autoplay", "Mode Autoplay", SectionFieldType},
+        {"autoplay", "Mode Automatisch wechseln", BooleanFieldType, 0, 1, getAutoplay},
+        {"autoplayDuration", "Mode Wechselzeit", NumberFieldType, 5, 1000, getAutoplayDuration},
+        {"autopal", "Farbpalette Autoplay", SectionFieldType},
+        {"autopal", "Farbpalette Automatisch wechseln", BooleanFieldType, 0, 1, getAutopal},
+        {"autopalDuration", "Farbpalette Wechselzeit", NumberFieldType, 5, 1000, getAutopalDuration},
+        {"solidColor", "Feste Farbe", SectionFieldType},
+        {"solidColor", "Farbe", ColorFieldType, 0, 255, getSolidColor},
+        {"fire", "Feuer und Wasser", SectionFieldType},
+        {"cooling", "Kühlung", NumberFieldType, 0, 255, getCooling},
+        {"sparking", "Funken", NumberFieldType, 0, 255, getSparking},
+        {"twinkles", "Funkeln", SectionFieldType},
+        {"twinkleSpeed", "Funkelgeschwindigkeit", NumberFieldType, 0, 8, getTwinkleSpeed},
+        {"twinkleDensity", "Wieviel Funkellichter", NumberFieldType, 0, 8, getTwinkleDensity},
+        {
+            "ledBars",
+            "LED Balken für Effekte",
+            SectionFieldType,
+        },
+        {"numBars", "Anzahl LED Balken", NumberFieldType, 1, max(LED_COUNT / 20, 1), getNumBars},
+        {"damping", "Dämpfung bei Popcorn", NumberFieldType, 0, 100, getDamping},
+        {"Settings", "Einstellungen", SectionFieldType},
+        {"current", "max Strom", NumberFieldType, 100, 10000, getMilliamps},
+        {"fps", "Wiederholrate (FPS)", NumberFieldType, 5, 255, getFPSValue},
+        {"dithering", "Dithering", BooleanFieldType, 0, 1, getDithering},
+        {"resetdefaults", "Standardwerte laden", BooleanFieldType, 0, 1, getResetDefaults},
+#ifdef DEBUG
+        {"Debug", "DEBUG only - not for production", SectionFieldType},
+        {"resets", "Resets (DEV Debug)", SelectFieldType, 0, 5, getReset, getResets},
+#endif
 };
 
 #ifndef ARRAY_SIZE
