@@ -32,9 +32,10 @@
 
 */
 
-#include "WS2812FX_FastLED.h"
+// FIXME: Need set/get methods. Especially for the "segments" but also more...
+// TODO: Probably make _segments more private?
 
-uint16_t (*customMode)(void) = NULL;
+#include "WS2812FX_FastLED.h"
 
 /*
  * ColorPalettes
@@ -187,8 +188,6 @@ void WS2812FX::init()
 void WS2812FX::service()
 {
 
-#pragma message "This does not yet work (memory overflow?). We need to look at that later..."
-
   if ((_segment.segments != old_segs) || _segment_runtime.modeinit)
   {
     _segment.start = 0;
@@ -196,16 +195,7 @@ void WS2812FX::service()
     _segment.stop = _segment.start + _segment.length - 1;
     setTransition();
     old_segs = _segment.segments;
-    fill_solid(leds, _length, CRGB::Black);
-    /*
-    #ifdef DEBUG
-    Serial.printf("\n\nWe now have %d segments distributed like this:\n", old_segs);
-    for(uint8_t i=0; i<_segment.segments; i++)
-    {
-      Serial.printf("\tSegment %d: \tstart: %d \tstop: %d\n", i, i*_segment.length, i*_segment.length+_segment.length-1);
-    }
-    #endif
-    */
+    //fill_solid(leds, _length, CRGB::Black);
   }
   unsigned long now = millis(); // Be aware, millis() rolls over every 49 days
   if (_running || _triggered)
@@ -213,22 +203,9 @@ void WS2812FX::service()
 
     if (now > SEGMENT_RUNTIME.next_time || _triggered)
     {
-      /*
-      #ifdef DEBUG
-        static uint32_t max_frametime = 0;
-        uint32_t now = micros();
-      #endif
-      */
+
       uint16_t delay = (this->*_mode[SEGMENT.mode])();
-      /*
-      #ifdef DEBUG
-        if((micros()-now) > max_frametime)
-        {
-          max_frametime = (micros()-now);
-          Serial.printf("\n\t\t\tMax frame time is %d microseconds.\n", max_frametime);
-        }
-      #endif
-      */
+
       SEGMENT_RUNTIME.next_time = now + (int)delay; //STRIP_MIN_DELAY;
     }
 
@@ -254,6 +231,20 @@ void WS2812FX::service()
     {
       _transition = false;
       //_blend = 0;
+    }
+  }
+
+  // Smooth brightness change?
+  EVERY_N_MILLISECONDS(3)
+  {
+    uint8_t b = FastLED.getBrightness();
+    if (_targetBrightness > b)
+    {
+      FastLED.setBrightness(b + 1);
+    }
+    else if (_targetBrightness < b)
+    {
+      FastLED.setBrightness(b - 1);
     }
   }
 
@@ -331,18 +322,8 @@ void WS2812FX::service()
   // Palette fading / blending
   EVERY_N_MILLISECONDS(24)
   { // Blend towards the target palette
-    /*
-      static uint8_t count = 0;
-      count++;
-      
-      if(getTargetPaletteNumber() == RANDOM_PAL && (count == 16))
-      {
-        count = 0;
-        setTargetPalette(RANDOM_PAL);
-      }
-      */
     uint8_t maxChanges = 8;
-    if(getTargetPaletteNumber() == RANDOM_PAL)
+    if (getTargetPaletteNumber() == RANDOM_PAL)
     {
       maxChanges = 48;
     }
@@ -350,7 +331,7 @@ void WS2812FX::service()
     {
       maxChanges = 8;
     }
-    
+
     nblendPaletteTowardPalette(_currentPalette, _targetPalette, maxChanges);
 
     if (_currentPalette == _targetPalette)
@@ -367,24 +348,19 @@ void WS2812FX::service()
   //EVERY_N_SECONDS(SEGMENT.autoplayDuration)
   if (now > SEGMENT_RUNTIME.nextAuto)
   {
-    if (SEGMENT.autoplay && !_transition)
+    if (!_transition)
     {
-      if (SEGMENT.mode == (getModeCount() - 1))
-      {
-        setMode(0);
-      }
-      else
-      {
-        setMode(SEGMENT.mode + 1);
-      }
+      nextMode(_segment.autoplay);
       SEGMENT_RUNTIME.nextAuto = now + SEGMENT.autoplayDuration * 1000;
     }
   }
 
   if (now > SEGMENT_RUNTIME.nextPalette)
   {
-    if (SEGMENT.autoPal && !_transition)
+    if (!_transition)
     {
+      nextPalette(_segment.autoPal);
+      /*
       if (getTargetPaletteNumber() >= getPalCount() - 1)
       {
         setTargetPalette(0);
@@ -393,11 +369,10 @@ void WS2812FX::service()
       {
         setTargetPalette(getTargetPaletteNumber() + 1);
       }
+      */
       SEGMENT_RUNTIME.nextPalette = now + SEGMENT.autoPalDuration * 1000;
     }
   }
-
-  //}
 }
 
 void WS2812FX::start()
@@ -1035,6 +1010,10 @@ void WS2812FX::setTargetPalette(CRGBPalette16 p, String Name = "Custom")
  */
 void WS2812FX::setTargetPalette(uint8_t n = 0)
 {
+  if (n >= getPalCount())
+  {
+    n = 0;
+  }
   if (n == RANDOM_PAL)
   {
     _targetPalette = getRandomPalette();
@@ -1057,21 +1036,29 @@ void WS2812FX::setTargetPalette(uint8_t n = 0)
  */
 void WS2812FX::setMode(uint8_t m)
 {
-
+  static uint8_t segs = _segment.segments;
   _segment_runtime.modeinit = true;
 
   if (m == SEGMENT.mode)
     return; // not really a new mode...
 
   // make sure its a valid mode
-  SEGMENT.mode = constrain(m, 0, MODE_COUNT - 1);
-  if (!_transition)
+  m = constrain(m, 0, MODE_COUNT - 1);
+
+  if (_segment.mode == FX_MODE_VOID && m != FX_MODE_VOID)
+  {
+    _segment.segments = segs; // restore previous "segments";
+  }
+
+  if (!_transition && SEGMENT.mode != FX_MODE_VOID)
   {
     // if we are not currently in a transition phase
     // we clear the led array (the one holding the effect
     // the real LEDs are drawn from _bleds and blended to the leds)
+    // we also clear only if we are outside the "void" mode where we do not touch the LED array.
     fill_solid(leds, _segment.length, CRGB::Black);
   }
+  SEGMENT.mode = m;
   // start the transition phase
   _transition = true;
   _blend = 0;
@@ -1081,7 +1068,91 @@ void WS2812FX::setMode(uint8_t m)
   if (modeCallBack != NULL)
     modeCallBack(SEGMENT.mode);
 
-  //setBrightness(_brightness);
+  if (m == FX_MODE_VOID)
+  {
+    segs = _segment.segments;
+    _segment.segments = 1;
+  }
+}
+
+uint8_t WS2812FX::nextPalette(AUTOPLAYMODES mode)
+{
+  const uint8_t current = getTargetPaletteNumber();
+  uint8_t newModefx = current;
+  switch (mode)
+  {
+  case AUTO_MODE_OFF:
+    break;
+  case AUTO_MODE_UP:
+    if (current < getPalCount())
+    {
+      setTargetPalette(current + 1);
+    }
+    else
+    {
+      setTargetPalette(0);
+    }
+    break;
+  case AUTO_MODE_DOWN:
+    if (current > 0)
+    {
+      setTargetPalette(getTargetPaletteNumber() - 1);
+    }
+    else
+    {
+      setTargetPalette(getPalCount() - 1);
+    }
+    break;
+  case AUTO_MODE_RANDOM:
+    while (newModefx == current)
+    {
+      newModefx = random8(getPalCount() - 1);
+    }
+    setTargetPalette(newModefx);
+    break;
+  default:
+    break;
+  }
+}
+
+uint8_t WS2812FX::nextMode(AUTOPLAYMODES mode)
+{
+  uint8_t newModefx = _segment.mode;
+  switch (mode)
+  {
+  case AUTO_MODE_OFF:
+    break;
+  case AUTO_MODE_UP:
+    if (_segment.mode >= FX_MODE_VOID)
+    {
+      setMode(FX_MODE_STATIC);
+    }
+    else
+    {
+      setMode(_segment.mode + 1);
+    }
+    break;
+  case AUTO_MODE_DOWN:
+    if (_segment.mode == FX_MODE_STATIC)
+    {
+      setMode(FX_MODE_VOID - 1);
+    }
+    else
+    {
+      setMode(_segment.mode - 1);
+    }
+    break;
+  case AUTO_MODE_RANDOM:
+    while (newModefx == _segment.mode)
+    {
+      newModefx = random8(FX_MODE_VOID);
+    }
+    setMode(newModefx);
+    break;
+  default:
+    break;
+  }
+  return getMode();
 }
 
 void WS2812FX::setSpeed(uint16_t s)
@@ -1127,7 +1198,8 @@ void WS2812FX::setBrightness(uint8_t b)
 {
   //_brightness = constrain(b, BRIGHTNESS_MIN, BRIGHTNESS_MAX);
   b = constrain(b, BRIGHTNESS_MIN, BRIGHTNESS_MAX);
-  FastLED.setBrightness(b);
+  _targetBrightness = b;
+  //FastLED.setBrightness(b);
   //FastLED.show();
 }
 
@@ -1173,7 +1245,7 @@ uint16_t WS2812FX::getBeat88(void)
 
 uint8_t WS2812FX::getBrightness(void)
 {
-  return FastLED.getBrightness(); //_brightness;
+  return _targetBrightness; // FastLED.getBrightness(); //_brightness;
 }
 
 uint16_t WS2812FX::getLength(void)
@@ -1223,15 +1295,6 @@ const __FlashStringHelper *WS2812FX::getPalName(uint8_t p)
   {
     return F("");
   }
-}
-
-/*
- * Custom mode helper
- */
-void WS2812FX::setCustomMode(uint16_t (*p)())
-{
-  setMode(FX_MODE_CUSTOM);
-  customMode = p;
 }
 
 /* 
@@ -1653,8 +1716,6 @@ uint16_t WS2812FX::mode_col_wipe_triwave(void)
 
 uint16_t WS2812FX::mode_col_wipe_func(uint8_t mode)
 {
-#pragma message "Not perfect, but pretty close..."
-
   static uint8_t npos = 0;
   static uint16_t prev = SEGMENT.start;
   uint16_t i = 0;
@@ -2107,17 +2168,20 @@ uint16_t WS2812FX::fire_flicker(int rev_intensity)
   {
     _segment_runtime.modeinit = false;
   }
-#pragma message "FixMe --> We shold really work with nblend or something like that"
   byte lum = 255 / rev_intensity;
 
   for (uint16_t i = SEGMENT.start; i <= SEGMENT.stop; i++)
   {
-    int flicker = random8(0, lum);
     leds[i] = ColorFromPalette(_currentPalette, map(i, SEGMENT.start, SEGMENT.stop, 0, 255) + SEGMENT_RUNTIME.baseHue, _brightness, SEGMENT.blendType);
-    leds[i] -= CRGB(random8(flicker), random8(flicker), random8(flicker));
+    if (random8(3))
+    {
+      int flicker = random8(0, lum);
+      CRGB temp = leds[i];
+      temp -= CRGB(random8(flicker), random8(flicker), random8(flicker));
+      nblend(leds[i], temp, 96);
+    }
   }
-#pragma message "needs to be seen how this behaves - strip min delay would have been expected"
-  return STRIP_MIN_DELAY; //(BEAT88_MAX - SEGMENT.beat88) / 256; // SEGMENT.beat * 100 / _segment.length; //return (SEGMENT.speed / _segment.length);
+  return STRIP_MIN_DELAY;
 }
 
 /*
@@ -2125,7 +2189,7 @@ uint16_t WS2812FX::fire_flicker(int rev_intensity)
  */
 uint16_t WS2812FX::mode_fire_flicker(void)
 {
-  return fire_flicker(4);
+  return fire_flicker(2);
 }
 
 /*
@@ -2133,7 +2197,7 @@ uint16_t WS2812FX::mode_fire_flicker(void)
  */
 uint16_t WS2812FX::mode_fire_flicker_soft(void)
 {
-  return fire_flicker(6);
+  return fire_flicker(3);
 }
 
 /*
@@ -2141,7 +2205,7 @@ uint16_t WS2812FX::mode_fire_flicker_soft(void)
  */
 uint16_t WS2812FX::mode_fire_flicker_intense(void)
 {
-  return fire_flicker(2);
+  return fire_flicker(1);
 }
 
 uint16_t WS2812FX::mode_bubble_sort(void)
@@ -2664,6 +2728,7 @@ uint16_t WS2812FX::mode_beatsin_glow(void)
 
 uint16_t WS2812FX::mode_pixel_stack(void)
 {
+  const uint16_t framedelay = map(_segment.beat88, 10000, 0, 0, 50) + map(_segment.length, 300, 0, 0, 25);
 
   static bool up = true;
   static int16_t leds_moved = 0;
@@ -2723,7 +2788,7 @@ uint16_t WS2812FX::mode_pixel_stack(void)
     pos--;
   }
 
-  return 0;
+  return framedelay;
 }
 
 typedef struct pKernel
@@ -2734,6 +2799,7 @@ typedef struct pKernel
   double pos;
   double v0;
   double v;
+  double v_explode;
   uint8_t color_index;
   bool ignite;
   uint16_t P_ignite;
@@ -2744,8 +2810,8 @@ typedef struct pKernel
 uint16_t WS2812FX::mode_popcorn(void)
 {
 #define LEDS_PER_METER 60
-  const double segmentLength = (_segment.length / LEDS_PER_METER) * 1000; // physical length in mm
-  const double gravity = _segment.beat88 / -11019367.9918;                // -0.00981; // gravity in mm per ms²
+  const double segmentLength = ((double)_segment.length / (double)LEDS_PER_METER) * (double)1000.0; // physical length in mm
+  const double gravity = _segment.beat88 / -11019367.9918;                                          // -0.00981; // gravity in mm per ms²
   const double v0_max = sqrt(-2 * gravity * segmentLength);
 
   static pKernel *pops;
@@ -2851,8 +2917,8 @@ uint16_t WS2812FX::mode_popcorn(void)
 uint16_t WS2812FX::mode_firework2(void)
 {
 
-  const double segmentLength = (_segment.length / LEDS_PER_METER) * 1000; // physical length in mm
-  const double gravity = _segment.beat88 / -11019367.9918;                // -0.00981; // gravity in mm per ms²
+  const double segmentLength = ((double)_segment.length / (double)LEDS_PER_METER) * (double)1000.0; // physical length in mm
+  const double gravity = _segment.beat88 / -11019367.9918;                                          // -0.00981; // gravity in mm per ms²
   const double v0_max = sqrt(-2 * gravity * segmentLength);
 
   static pKernel *pops;
@@ -2877,6 +2943,7 @@ uint16_t WS2812FX::mode_firework2(void)
       pops[i].v = 0;
       pops[i].ignite = false;
       pops[i].P_ignite = random(100, 500);
+      pops[i].v_explode = pops[i].v0 * ((double)random8(0, 10) / 100.0);
     }
   }
 
@@ -2898,17 +2965,18 @@ uint16_t WS2812FX::mode_firework2(void)
           pops[i].P_ignite = random(100, 500);
           uint16_t t_max = pops[i].v0 / (-1 * gravity);
           pops[i].explodeTime = random(t_max / 2, t_max * 4 / 5);
+          pops[i].v_explode = pops[i].v0 * ((double)random8(0, 10) / 100.0);
           fill_solid(pops[i].dist, 20, CRGB::Black);
         }
       }
       else
       {
         float damping = 0.1f / 100.0f;
-        if (_segment.cooling)
+        if (_segment.damping)
         {
-          if (_segment.cooling <= 100)
+          if (_segment.damping <= 100)
           {
-            damping = ((float)_segment.cooling / 100.0f);
+            damping = ((float)_segment.damping / 100.0f);
           }
           else
           {
@@ -2930,7 +2998,7 @@ uint16_t WS2812FX::mode_firework2(void)
     else
     {
       uint16_t pos = map((long)pops[i].pos, 0, (long)segmentLength, _segment.start * 16, _segment.stop * 16);
-      if (pops[i].v > 0)
+      if (pops[i].v > pops[i].v_explode) //0)
       {
         fade_out(96);
         if (pos != pops[i].prev_pos)
@@ -3009,18 +3077,86 @@ uint16_t WS2812FX::mode_firework2(void)
   return STRIP_MIN_DELAY;
 }
 
-/*
- * Custom mode
- */
-
-uint16_t WS2812FX::mode_custom()
+uint16_t WS2812FX::mode_void(void)
 {
-  if (customMode == NULL)
+  if (_segment_runtime.modeinit)
   {
-    return mode_static(); // if custom mode not set, we just do "static"
+    _segment_runtime.modeinit = false;
+    _segment.autoplay = AUTO_MODE_OFF;
+    /* for (uint16_t i = 0; i < _length; i++)
+    {
+      if (leds[i])
+      {
+        leds[i] = CRGB::Black;
+      }
+      leds[random16(_length - 1)].setHue(random8());
+    } */
   }
-  else
+  return STRIP_MIN_DELAY;
+}
+
+void WS2812FX::draw_sunrise_step(uint16_t sunriseStep)
+{
+  EVERY_N_MILLISECONDS(20)
   {
-    return customMode();
+    uint8_t step = (uint8_t)map(sunriseStep, 0, 1000, 0, 255);
+    fill_solid(leds, getStripLength(), HeatColor(step));
+
+    uint8_t br = (step < 96) ? (uint8_t)map(step, 0, 96, 0, getBrightness()) : getBrightness(); //BRIGHTNESS_MAX):BRIGHTNESS_MAX;
+    nscale8_video(leds, getStripLength(), br);
+
+    CRGB nc = 0x0;
+    for (uint16_t i = 0; i < getStripLength(); i++)
+    {
+      nc = leds[i];
+      nc.nscale8_video(random8(step < 172 ? (step / 2) : (255 - step)));
+      leds[i] = nblend(leds[i], nc, 96);
+    }
   }
+}
+
+void WS2812FX::m_sunrise_sunset(bool isSunrise)
+{
+  static uint16_t sunriseStep = 0;
+  const uint16_t sunriseSteps = 1000;
+  static uint32_t next = 0;
+  uint16_t stepInterval = _segment.sunrisetime * 60; // equals  (uint16_t)((_segment.sunrisetime * 60 * 1000) / sunriseSteps);
+  if (_segment_runtime.modeinit)
+  {
+    _segment_runtime.modeinit = false;
+    _segment.autoplay = AUTO_MODE_OFF;
+    if (isSunrise)
+    {
+      _targetBrightness = 255;
+      sunriseStep = 0;
+    }
+    else
+    {
+      sunriseStep = 1000;
+    }
+  }
+  draw_sunrise_step(sunriseStep);
+  if (millis() > next)
+  {
+    next = millis() + stepInterval;
+    if (isSunrise)
+    {
+      sunriseStep < sunriseSteps ? sunriseStep++ : sunriseStep;
+    }
+    else
+    {
+      sunriseStep > 0 ? sunriseStep-- : sunriseStep;
+    }
+  }
+}
+
+uint16_t WS2812FX::mode_sunrise(void)
+{
+  m_sunrise_sunset(true);
+  return STRIP_MIN_DELAY;
+}
+uint16_t WS2812FX::mode_sunset(void)
+{
+  m_sunrise_sunset(false);
+  return STRIP_MIN_DELAY;
 }
