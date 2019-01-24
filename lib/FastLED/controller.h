@@ -246,8 +246,8 @@ struct PixelController {
             // statements -- no division required.  At this point,
             // the division is done at compile time, so there's no runtime
             // cost, but the values are still hard-coded.
-#define MAX_LIKELY_UPDATE_RATE_HZ     400
-#define MIN_ACCEPTABLE_DITHER_RATE_HZ  50
+#define MAX_LIKELY_UPDATE_RATE_HZ     800 //400
+#define MIN_ACCEPTABLE_DITHER_RATE_HZ  60 // 50
 #define UPDATES_PER_FULL_DITHER_CYCLE (MAX_LIKELY_UPDATE_RATE_HZ / MIN_ACCEPTABLE_DITHER_RATE_HZ)
 #define RECOMMENDED_VIRTUAL_BITS ((UPDATES_PER_FULL_DITHER_CYCLE>1) + \
                                   (UPDATES_PER_FULL_DITHER_CYCLE>2) + \
