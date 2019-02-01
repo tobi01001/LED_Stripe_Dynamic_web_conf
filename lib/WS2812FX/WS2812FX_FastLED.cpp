@@ -173,11 +173,110 @@ const TProgmemRGBPalette16 Shades_Of_Blue_p FL_PROGMEM = {
 // Not much to be initialized...
 void WS2812FX::init()
 {
+  DEBUGPRNT("Initialising existing values...");
   //RESET_RUNTIME;            // this should be the only occurrence of RESET_RUNTIME now...
-  fill_solid(_bleds, _segment.length, CRGB::Black);
-  fill_solid(leds, _segment.length, CRGB::Black);
+  fill_solid(_bleds, LED_COUNT, CRGB::Black);
+  fill_solid(leds, LED_COUNT, CRGB::Black);
   FastLED.clear(true); // During init, all pixels should be black.
   FastLED.show();      // We show once to write the Led data.
+
+  RESET_RUNTIME;
+
+  _segment_runtime.start = 0;
+  _segment_runtime.stop = LED_COUNT - 1;
+  _segment_runtime.length = LED_COUNT;
+
+  _brightness = 255;
+
+  // initialising segment
+  setIsRunning(_segment.isRunning );
+  setPower(_segment.power);
+  setReverse(_segment.reverse );
+  setInverse(_segment.inverse );
+  setMirror(_segment.mirror );
+  setAutoplay(_segment.autoplay );
+  setAutopal(_segment.autoPal );
+  setBeat88(_segment.beat88 );
+  setHuetime(_segment.hueTime );
+  setMilliamps(_segment.milliamps );
+  setAutoplayDuration(_segment.autoplayDuration );
+  setAutopalDuration(_segment.autoPalDuration );
+  setSegments(_segment.segments );
+  setCooling(_segment.cooling );
+  setSparking(_segment.sparking );
+  setTwinkleSpeed(_segment.twinkleSpeed );
+  setTwinkleDensity(_segment.twinkleDensity );
+  setNumBars(_segment.numBars );
+  setMode(_segment.mode );
+  setMaxFPS(_segment.fps );
+  setDeltaHue(_segment.deltaHue );
+  setBlur(_segment.blur );
+  setDamping(_segment.damping );
+  setDithering(_segment.dithering );
+  setSunriseTime          (_segment.sunrisetime);
+  setTargetBrightness     (_segment.targetBrightness);
+  setBlendType            (_segment.blendType);
+  setColorTemp            (_segment.colorTemp);
+  setTargetPaletteNumber(_segment.targetPaletteNum );
+  setCurrentPaletteNumber(_segment.currentPaletteNum );
+
+  old_segs = 0;
+
+  // should start with tranistion after init
+  setTransition();
+
+}
+
+void WS2812FX::resetDefaults(void)
+{
+  DEBUGPRNT("Resetting to Default values");
+  RESET_RUNTIME;
+
+  _segment_runtime.start = 0;
+  _segment_runtime.stop = LED_COUNT - 1;
+  _segment_runtime.length = LED_COUNT;
+
+  fill_solid(_bleds, LED_COUNT, CRGB::Black);
+  fill_solid(leds, LED_COUNT, CRGB::Black);
+  FastLED.clear(true); // During init, all pixels should be black.
+  FastLED.show();      // We show once to write the Led data.
+
+  _brightness = 255;
+
+  setIsRunning(DEFAULT_RUNNING );
+  setPower(DEFAULT_POWER);
+  setReverse(DEFAULT_REVERSE );
+  setInverse(DEFAULT_INVERTED );
+  setMirror(DEFAULT_MIRRORED );
+  setAutoplay(DEFAULT_AUTOMODE );
+  setAutopal(DEFAULT_AUTOCOLOR );
+  setBeat88(DEFAULT_SPEED );
+  setHuetime(DEFAULT_HUE_INT );
+  setMilliamps(DEFAULT_MAX_CURRENT );
+  setAutoplayDuration(DEFAULT_T_AUTOMODE);
+  setAutopalDuration(DEFAULT_T_AUTOCOLOR);
+  setSegments(DEFAULT_NUM_SEGS);
+  setCooling(DEFAULT_COOLING );
+  setSparking(DEFAULT_SPAKRS );
+  setTwinkleSpeed(DEFAULT_TWINKLE_S);
+  setTwinkleDensity(DEFAULT_TWINKLE_NUM);
+  setNumBars(DEFAULT_LED_BARS);
+  setMode(DEFAULT_MODE);
+  setMaxFPS(STRIP_FPS);
+  setDeltaHue(DEFAULT_HUE_OFFSET );
+  setBlur(DEFAULT_BLENDING );
+  setDamping(DEFAULT_DAMPING);
+  setDithering(DEFAULT_DITHER);
+  setTargetPaletteNumber(DEFAULT_PALETTE);
+  setCurrentPaletteNumber(DEFAULT_PALETTE);
+  setSunriseTime          (DEFAULT_SUNRISETIME);
+  setTargetBrightness     (DEFAULT_BRIGHTNESS);
+  setBlendType            (DEFAULT_BLEND);
+  setColorTemp            (DEFAULT_COLOR_TEMP);
+
+  FastLED.setBrightness(DEFAULT_BRIGHTNESS);
+
+  setTransition();
 }
 
 /*
@@ -190,28 +289,38 @@ void WS2812FX::service()
 
   if ((_segment.segments != old_segs) || _segment_runtime.modeinit)
   {
-    _segment.start = 0;
-    _segment.length = (_length / _segment.segments);
-    _segment.stop = _segment.start + _segment.length - 1;
+    _segment_runtime.start = 0;
+    _segment_runtime.length = (LED_COUNT / _segment.segments);
+    _segment_runtime.stop = _segment_runtime.start + _segment_runtime.length - 1;
     setTransition();
     old_segs = _segment.segments;
-    //fill_solid(leds, _length, CRGB::Black);
   }
   unsigned long now = millis(); // Be aware, millis() rolls over every 49 days
-  if (_running || _triggered)
+  if (_segment.power)
   {
-
-    if (now > SEGMENT_RUNTIME.next_time || _triggered)
+    if (_segment.isRunning || _triggered)
     {
 
-      uint16_t delay = (this->*_mode[SEGMENT.mode])();
+      if (now > SEGMENT_RUNTIME.next_time || _triggered)
+      {
 
-      SEGMENT_RUNTIME.next_time = now + (int)delay; //STRIP_MIN_DELAY;
+        uint16_t delay = (this->*_mode[SEGMENT.mode])();
+
+        SEGMENT_RUNTIME.next_time = now + (int)delay; //STRIP_MIN_DELAY;
+      }
+
+      // reset trigger...
+      _triggered = false;
     }
-
-    // reset trigger...
-    _triggered = false;
   }
+  else
+  {
+    fadeToBlackBy(_bleds, LED_COUNT, 8);
+    FastLED.show();
+    return;
+  }
+  
+  
 // check if we fade to a new FX mode.
 #define MAXINVERSE 24
   uint8_t l_blend = _segment.blur; // to not overshoot during transitions we fade at max to "_segment.blur" parameter.
@@ -238,11 +347,11 @@ void WS2812FX::service()
   EVERY_N_MILLISECONDS(3)
   {
     uint8_t b = FastLED.getBrightness();
-    if (_targetBrightness > b)
+    if (_segment.targetBrightness > b)
     {
       FastLED.setBrightness(b + 1);
     }
-    else if (_targetBrightness < b)
+    else if (_segment.targetBrightness < b)
     {
       FastLED.setBrightness(b - 1);
     }
@@ -257,30 +366,30 @@ void WS2812FX::service()
   if (_segment.reverse)
   {
     CRGB temp;
-    for (uint16_t i = 0; i <= _segment.length / 2; i++)
+    for (uint16_t i = 0; i <= _segment_runtime.length / 2; i++)
     {
       temp = leds[i];
-      leds[i] = leds[_segment.stop - i];
-      leds[_segment.stop - i] = temp;
+      leds[i] = leds[_segment_runtime.stop - i];
+      leds[_segment_runtime.stop - i] = temp;
     }
   }
 
   for (uint16_t j = 1; j < _segment.segments; j++)
   {
-    for (uint16_t i = 0; i < _segment.length; i++)
+    for (uint16_t i = 0; i < _segment_runtime.length; i++)
     {
       if (_segment.mirror && (j & 0x01))
       {
-        leds[j * _segment.length + i] = leds[_segment.stop - i];
+        leds[j * _segment_runtime.length + i] = leds[_segment_runtime.stop - i];
       }
       else
       {
-        leds[j * _segment.length + i] = leds[i];
+        leds[j * _segment_runtime.length + i] = leds[i];
       }
     }
   }
 
-  for (uint16_t i = 0; i < _length; i++)
+  for (uint16_t i = 0; i < LED_COUNT; i++)
   {
     nblend(_bleds[i], leds[i], l_blend);
   }
@@ -288,11 +397,11 @@ void WS2812FX::service()
   if (_segment.reverse)
   {
     CRGB temp;
-    for (uint16_t i = 0; i <= _segment.length / 2; i++)
+    for (uint16_t i = 0; i <= _segment_runtime.length / 2; i++)
     {
       temp = leds[i];
-      leds[i] = leds[_segment.stop - i];
-      leds[_segment.stop - i] = temp;
+      leds[i] = leds[_segment_runtime.stop - i];
+      leds[_segment_runtime.stop - i] = temp;
     }
   }
 
@@ -301,7 +410,7 @@ void WS2812FX::service()
 
   EVERY_N_MILLISECONDS(STRIP_MIN_DELAY) //(10)
   {
-    fadeToBlackBy(_bleds, _length, 1);
+    fadeToBlackBy(_bleds, LED_COUNT, 1);
   }
 
   // every "hueTime" we set either the deltaHue (fixed offset)
@@ -377,12 +486,13 @@ void WS2812FX::service()
 
 void WS2812FX::start()
 {
-  _running = true;
+  _segment.isRunning = true;
+  _segment.power = true;
 }
 
 void WS2812FX::stop()
 {
-  _running = false;
+  _segment.isRunning = false;
   strip_off();
 }
 
@@ -393,7 +503,7 @@ void WS2812FX::trigger()
 
 void WS2812FX::show()
 {
-  nblend(_bleds, leds, _length, SEGMENT.blur);
+  nblend(_bleds, leds, LED_COUNT, SEGMENT.blur);
   FastLED.show();
 }
 
@@ -715,7 +825,7 @@ void WS2812FX::drawFractionalBar(int pos16, int width, const CRGBPalette16 &pal,
     }
 
     CRGB newColor;
-    if (i <= SEGMENT.stop && i >= SEGMENT.start)
+    if (i <= _segment_runtime.stop && i >= _segment_runtime.start)
     {
       if (mixColors || mix)
       {
@@ -746,7 +856,7 @@ uint8_t WS2812FX::get_random_wheel_index(uint8_t pos, uint8_t dist = 42)
  */
 void WS2812FX::strip_off()
 {
-  _running = false;
+  _segment.isRunning = false;
   FastLED.clear();
 }
 
@@ -758,7 +868,7 @@ void WS2812FX::addSparks(uint8_t probability = 10, bool onBlackOnly = true, bool
   if (random8(probability) != 0)
     return;
 
-  uint16_t pos = random16(SEGMENT.start, SEGMENT.stop); // Pick an LED at random.
+  uint16_t pos = random16(_segment_runtime.start, _segment_runtime.stop); // Pick an LED at random.
 
   if (leds[pos] && onBlackOnly)
     return;
@@ -776,9 +886,9 @@ void WS2812FX::addSparks(uint8_t probability = 10, bool onBlackOnly = true, bool
 
 void WS2812FX::map_pixels_palette(uint8_t *hues, uint8_t bright = 255, TBlendType blend = LINEARBLEND)
 {
-  for (uint16_t i = 0; i < _segment.length; i++)
+  for (uint16_t i = 0; i < _segment_runtime.length; i++)
   {
-    leds[i + SEGMENT.start] = ColorFromPalette(_currentPalette, hues[i], bright, blend);
+    leds[i + _segment_runtime.start] = ColorFromPalette(_currentPalette, hues[i], bright, blend);
   }
   return;
 }
@@ -895,7 +1005,7 @@ uint16_t WS2812FX::pride(bool glitter = false)
   SEGMENT_RUNTIME.b16.p.sHue16 += deltams * beatsin88((SEGMENT.beat88 / 5) * 2 + 1, 5, 9);
   uint16_t brightnesstheta16 = SEGMENT_RUNTIME.b16.p.sPseudotime;
 
-  for (uint16_t i = _segment.start; i < _segment.stop; i++)
+  for (uint16_t i = _segment_runtime.start; i < _segment_runtime.stop; i++)
   {
     hue16 += hueinc16;
     uint8_t hue8 = hue16 / 256;
@@ -910,7 +1020,7 @@ uint16_t WS2812FX::pride(bool glitter = false)
     CRGB newcolor = ColorFromPalette(_currentPalette, hue8, bri8, SEGMENT.blendType); //CHSV( hue8, sat8, bri8);
 
     uint16_t pixelnumber = i;
-    pixelnumber = (SEGMENT.stop) - pixelnumber;
+    pixelnumber = (_segment_runtime.stop) - pixelnumber;
 
     nblend(leds[pixelnumber], newcolor, 64);
   }
@@ -929,7 +1039,7 @@ uint16_t WS2812FX::pride(bool glitter = false)
  */
 void WS2812FX::fade_out(uint8_t fadeB = 32)
 {
-  fadeToBlackBy(&leds[SEGMENT.start], _segment.length, fadeB);
+  fadeToBlackBy(&leds[_segment_runtime.start], _segment_runtime.length, fadeB);
 }
 
 /* 
@@ -965,7 +1075,7 @@ void WS2812FX::setCurrentPalette(CRGBPalette16 p, String Name = "Custom")
 {
   _currentPalette = p;
   _currentPaletteName = Name;
-  _currentPaletteNum = NUM_PALETTES;
+  _segment.currentPaletteNum = NUM_PALETTES;
 }
 
 /* 
@@ -977,7 +1087,7 @@ void WS2812FX::setCurrentPalette(uint8_t n = 0)
 {
   _currentPalette = *(_palettes[n % NUM_PALETTES]);
   _currentPaletteName = _pal_name[n % NUM_PALETTES];
-  _currentPaletteNum = n % NUM_PALETTES;
+  _segment.currentPaletteNum = n % NUM_PALETTES;
 }
 
 /*
@@ -998,10 +1108,10 @@ void WS2812FX::setTargetPalette(CRGBPalette16 p, String Name = "Custom")
   }
   _targetPalette = p;
   _targetPaletteName = Name;
-  _targetPaletteNum = NUM_PALETTES;
+  _segment.targetPaletteNum = NUM_PALETTES;
 
   if (targetPaletteCallback != NULL)
-    targetPaletteCallback(_targetPaletteNum);
+    targetPaletteCallback(_segment.targetPaletteNum);
 }
 
 /*
@@ -1018,16 +1128,16 @@ void WS2812FX::setTargetPalette(uint8_t n = 0)
   {
     _targetPalette = getRandomPalette();
     _targetPaletteName = _pal_name[n % NUM_PALETTES];
-    _targetPaletteNum = n % NUM_PALETTES;
+    _segment.targetPaletteNum = n % NUM_PALETTES;
     if (targetPaletteCallback != NULL)
-      targetPaletteCallback(_targetPaletteNum);
+      targetPaletteCallback(_segment.targetPaletteNum);
     return;
   }
   _targetPalette = *(_palettes[n % NUM_PALETTES]);
   _targetPaletteName = _pal_name[n % NUM_PALETTES];
-  _targetPaletteNum = n % NUM_PALETTES;
+  _segment.targetPaletteNum = n % NUM_PALETTES;
   if (targetPaletteCallback != NULL)
-    targetPaletteCallback(_targetPaletteNum);
+    targetPaletteCallback(_segment.targetPaletteNum);
 }
 
 /*
@@ -1056,14 +1166,14 @@ void WS2812FX::setMode(uint8_t m)
     // we clear the led array (the one holding the effect
     // the real LEDs are drawn from _bleds and blended to the leds)
     // we also clear only if we are outside the "void" mode where we do not touch the LED array.
-    fill_solid(leds, _segment.length, CRGB::Black);
+    fill_solid(leds, _segment_runtime.length, CRGB::Black);
   }
   SEGMENT.mode = m;
   // start the transition phase
   _transition = true;
   _blend = 0;
   SEGMENT_RUNTIME.modeinit = true;
-  setBlurValue(_pblur);
+  setBlur(_pblur);
 
   if (modeCallBack != NULL)
     modeCallBack(SEGMENT.mode);
@@ -1113,17 +1223,23 @@ uint8_t WS2812FX::nextPalette(AUTOPLAYMODES mode)
   default:
     break;
   }
+  return getTargetPaletteNumber();
 }
 
 uint8_t WS2812FX::nextMode(AUTOPLAYMODES mode)
 {
+
+  if(_segment.mode >= FX_MODE_VOID)
+  {
+    return _segment.mode;
+  }
   uint8_t newModefx = _segment.mode;
   switch (mode)
   {
   case AUTO_MODE_OFF:
     break;
   case AUTO_MODE_UP:
-    if (_segment.mode >= FX_MODE_VOID)
+    if ((_segment.mode + 1) == (FX_MODE_VOID))
     {
       setMode(FX_MODE_STATIC);
     }
@@ -1155,12 +1271,6 @@ uint8_t WS2812FX::nextMode(AUTOPLAYMODES mode)
   return getMode();
 }
 
-void WS2812FX::setSpeed(uint16_t s)
-{
-  //This - now actually sets a "beat"
-  SEGMENT.beat88 = constrain(s, BEAT88_MIN, BEAT88_MAX);
-  SEGMENT_RUNTIME.tb.timebase = millis();
-}
 
 void WS2812FX::increaseSpeed(uint8_t s)
 {
@@ -1198,7 +1308,7 @@ void WS2812FX::setBrightness(uint8_t b)
 {
   //_brightness = constrain(b, BRIGHTNESS_MIN, BRIGHTNESS_MAX);
   b = constrain(b, BRIGHTNESS_MIN, BRIGHTNESS_MAX);
-  _targetBrightness = b;
+  _segment.targetBrightness = b;
   //FastLED.setBrightness(b);
   //FastLED.show();
 }
@@ -1215,17 +1325,6 @@ void WS2812FX::decreaseBrightness(uint8_t s)
   setBrightness(s);
 }
 
-void WS2812FX::setLength(uint16_t b) {}
-
-void WS2812FX::increaseLength(uint16_t s) {}
-
-void WS2812FX::decreaseLength(uint16_t s) {}
-
-boolean WS2812FX::isRunning()
-{
-  return _running;
-}
-
 uint8_t WS2812FX::getMode(void)
 {
   if (_new_mode != 255)
@@ -1238,24 +1337,14 @@ uint8_t WS2812FX::getMode(void)
   }
 }
 
-uint16_t WS2812FX::getBeat88(void)
-{
-  return SEGMENT.beat88;
-}
-
-uint8_t WS2812FX::getBrightness(void)
-{
-  return _targetBrightness; // FastLED.getBrightness(); //_brightness;
-}
-
 uint16_t WS2812FX::getLength(void)
 {
-  return SEGMENT.stop - SEGMENT.start + 1;
+  return _segment_runtime.stop - _segment_runtime.start + 1;
 }
 
 uint16_t WS2812FX::getStripLength(void)
 {
-  return _length;
+  return LED_COUNT;
 }
 
 uint8_t WS2812FX::getModeCount(void)
@@ -1326,8 +1415,9 @@ uint16_t WS2812FX::mode_static(void)
   if (_segment_runtime.modeinit)
   {
     _segment_runtime.modeinit = false;
+
   }
-  fill_palette(&leds[SEGMENT.start], _segment.length, SEGMENT_RUNTIME.baseHue, (_segment.length > 255 ? 1 : (256 / _segment.length)), _currentPalette, _brightness, SEGMENT.blendType);
+  fill_palette(&leds[_segment_runtime.start], _segment_runtime.length, SEGMENT_RUNTIME.baseHue, (_segment_runtime.length > 255 ? 1 : (256 / _segment_runtime.length)), _currentPalette, _brightness, SEGMENT.blendType);
   return STRIP_MIN_DELAY;
 }
 
@@ -1385,11 +1475,11 @@ uint16_t WS2812FX::mode_ease_func(bool sparks = true)
 
   // now e calculate a sine curve for the led position
   // factor 16 is used for the fractional bar
-  lerpVal = beatsin88(SEGMENT_RUNTIME.b16.e.beat, SEGMENT.start * 16, SEGMENT.stop * 16 - (width * 16), SEGMENT_RUNTIME.tb.timebase);
+  lerpVal = beatsin88(SEGMENT_RUNTIME.b16.e.beat, _segment_runtime.start * 16, _segment_runtime.stop * 16 - (width * 16), SEGMENT_RUNTIME.tb.timebase);
 
   // once we are in the middle
   // we can modify the speed a bit
-  if (lerpVal == ((_segment.length * 16) / 2))
+  if (lerpVal == ((_segment_runtime.length * 16) / 2))
   {
     // the trigger is used because we are more frames in the middle
     // but only one should trigger
@@ -1431,8 +1521,8 @@ uint16_t WS2812FX::mode_ease_func(bool sparks = true)
 
   SEGMENT_RUNTIME.b16.e.p_lerp = lerpVal;
   // we draw two fractional bars here. for the color mapping we need the overflow and therefore cast to uint8_t
-  drawFractionalBar(lerpVal, width, _currentPalette, (uint8_t)((uint8_t)(lerpVal / 16 - SEGMENT.start) + colorMove), _brightness);
-  drawFractionalBar((SEGMENT.stop * 16) - lerpVal, width, _currentPalette, (uint8_t)((uint8_t)(lerpVal / 16 - SEGMENT.start) + colorMove), _brightness);
+  drawFractionalBar(lerpVal, width, _currentPalette, (uint8_t)((uint8_t)(lerpVal / 16 - _segment_runtime.start) + colorMove), _brightness);
+  drawFractionalBar((_segment_runtime.stop * 16) - lerpVal, width, _currentPalette, (uint8_t)((uint8_t)(lerpVal / 16 - _segment_runtime.start) + colorMove), _brightness);
 
   if (sparks)
     addSparks(10, true, false);
@@ -1455,7 +1545,7 @@ uint16_t WS2812FX::mode_inoise8_mover_twinkle(void)
 
 uint16_t WS2812FX::mode_inoise8_mover_func(bool sparks)
 {
-  uint16_t xscale = _segment.length; //30;
+  uint16_t xscale = _segment_runtime.length; //30;
   uint16_t yscale = 30;
   const uint16_t width = 6; //max(SEGMENT.beat88/256,1);
   if (SEGMENT_RUNTIME.modeinit)
@@ -1465,7 +1555,7 @@ uint16_t WS2812FX::mode_inoise8_mover_func(bool sparks)
   }
 
   uint8_t locn = inoise8(xscale, SEGMENT_RUNTIME.b16.dist + yscale);
-  uint16_t pixlen = map(locn, 0, 255, SEGMENT.start * 16, SEGMENT.stop * 16 - width * 16);
+  uint16_t pixlen = map(locn, 0, 255, _segment_runtime.start * 16, _segment_runtime.stop * 16 - width * 16);
 
   uint8_t colormove = SEGMENT_RUNTIME.baseHue; // quadwave8(map(beat88(SEGMENT.beat88, SEGMENT_RUNTIME.tb.timebase), 0, 65535, 0, 255)) + SEGMENT_RUNTIME.baseHue;
 
@@ -1494,7 +1584,7 @@ uint16_t WS2812FX::mode_plasma(void)
   uint8_t thisPhase = beatsin88(SEGMENT.beat88, 0, 255, SEGMENT_RUNTIME.tb.timebase);             // Setting phase change for a couple of waves.
   uint8_t thatPhase = beatsin88((SEGMENT.beat88 * 11) / 10, 0, 255, SEGMENT_RUNTIME.tb.timebase); // was int thatPhase = 64 - beatsin88((SEGMENT.beat88*11)/10, 0, 128, SEGMENT_RUNTIME.tb.timebase);
 
-  for (int k = SEGMENT.start; k < SEGMENT.stop; k++)
+  for (int k = _segment_runtime.start; k < _segment_runtime.stop; k++)
   { // For each of the LED's in the strand, set a brightness based on a wave as follows:
 
     uint8_t colorIndex = cubicwave8((k * 15) + thisPhase) / 2 + cos8((k * 8) + thatPhase) / 2 + SEGMENT_RUNTIME.baseHue; // Create a wave and add a phase change and add another wave with its own phase change.. Hey, you can even change the frequencies if you wish.
@@ -1512,7 +1602,7 @@ uint16_t WS2812FX::mode_juggle_pal(void)
 {
   //const uint8_t numdots = 3;
 
-  const uint8_t width = max(_segment.length / 15, 2);
+  const uint8_t width = max(_segment_runtime.length / 15, 2);
   uint8_t curhue = 0;
   if (SEGMENT_RUNTIME.modeinit)
   {
@@ -1529,7 +1619,7 @@ uint16_t WS2812FX::mode_juggle_pal(void)
 
   for (int i = 0; i < SEGMENT.numBars; i++)
   {
-    uint16_t pos = beatsin88(max(SEGMENT.beat88 / 2, 1) + i * (_segment.beat88 / _segment.numBars), SEGMENT.start * 16, SEGMENT.stop * 16 - width * 16, SEGMENT_RUNTIME.tb.timebase);
+    uint16_t pos = beatsin88(max(SEGMENT.beat88 / 2, 1) + i * (_segment.beat88 / _segment.numBars), _segment_runtime.start * 16, _segment_runtime.stop * 16 - width * 16, SEGMENT_RUNTIME.tb.timebase);
     drawFractionalBar(pos, width, _currentPalette, curhue + (255 / SEGMENT.numBars) * i, _brightness);
     uint8_t delta = random8(9);
     if (delta < 5)
@@ -1555,13 +1645,13 @@ uint16_t WS2812FX::mode_fill_beat(void)
   }
   CRGB newColor = CRGB::Black;
   uint8_t br, index;
-  for (uint8_t k = SEGMENT.start; k < SEGMENT.stop; k++)
+  for (uint8_t k = _segment_runtime.start; k < _segment_runtime.stop; k++)
   {
 
     br = beatsin88(SEGMENT.beat88, 20, 255, SEGMENT_RUNTIME.tb.timebase, k * 2); //= quadwave8(v1);
     index = (uint8_t)((uint8_t)triwave8(beat8(SEGMENT.beat88 >> 8) +
                                         (uint8_t)beatsin8(SEGMENT.beat88 >> 8, 0, 20) +
-                                        (uint8_t)map(k, SEGMENT.start, SEGMENT.stop, 0, 255)));
+                                        (uint8_t)map(k, _segment_runtime.start, _segment_runtime.stop, 0, 255)));
     newColor = ColorFromPalette(_currentPalette, index, br, SEGMENT.blendType);
 
     leds[k] = nblend(leds[k], newColor, qadd8(SEGMENT.beat88 >> 8, 24));
@@ -1578,11 +1668,11 @@ uint16_t WS2812FX::mode_fill_wave(void)
   {
     _segment_runtime.modeinit = false;
   }
-  fill_palette(&leds[SEGMENT.start],
-               (_segment.length),
+  fill_palette(&leds[_segment_runtime.start],
+               (_segment_runtime.length),
                SEGMENT_RUNTIME.baseHue + (uint8_t)beatsin88(SEGMENT.beat88 * 2, 0, 255, SEGMENT_RUNTIME.tb.timebase),
                // SEGMENT_RUNTIME.baseHue + triwave8( (uint8_t)map( beat88( max(  SEGMENT.beat88/4, 2), SEGMENT_RUNTIME.tb.timebase), 0,  65535,  0,  255)),
-               max(255 / _segment.length + 1, 1),
+               max(255 / _segment_runtime.length + 1, 1),
                _currentPalette,
                (uint8_t)beatsin88(max(SEGMENT.beat88 * 1, 1),
                                   _brightness / 10, 255,
@@ -1626,7 +1716,7 @@ uint16_t WS2812FX::mode_dot_beat_base(uint8_t fade)
   }
 
   uint16_t cled = 0;
-  const uint8_t width = 2; //max(_segment.length/15, 2);
+  const uint8_t width = 2; //max(_segment_runtime.length/15, 2);
 
   fade_out(fade);
 
@@ -1636,24 +1726,24 @@ uint16_t WS2812FX::mode_dot_beat_base(uint8_t fade)
     switch (i)
     {
     case 0:
-      cled = map(triwave16(beat88(SEGMENT_RUNTIME.b16.beats[i], SEGMENT_RUNTIME.tb.timebases[i])), 0, 65535, SEGMENT.start * 16, SEGMENT.stop * 16 - width * 16);
+      cled = map(triwave16(beat88(SEGMENT_RUNTIME.b16.beats[i], SEGMENT_RUNTIME.tb.timebases[i])), 0, 65535, _segment_runtime.start * 16, _segment_runtime.stop * 16 - width * 16);
 
       break;
     case 1:
-      cled = map(quadwave16(beat88(SEGMENT_RUNTIME.b16.beats[i], SEGMENT_RUNTIME.tb.timebases[i])), 0, 65535, SEGMENT.start * 16, SEGMENT.stop * 16 - width * 16);
+      cled = map(quadwave16(beat88(SEGMENT_RUNTIME.b16.beats[i], SEGMENT_RUNTIME.tb.timebases[i])), 0, 65535, _segment_runtime.start * 16, _segment_runtime.stop * 16 - width * 16);
 
       break;
     case 2:
-      cled = map(cubicwave16(beat88(SEGMENT_RUNTIME.b16.beats[i], SEGMENT_RUNTIME.tb.timebases[i])), 0, 65535, SEGMENT.start * 16, SEGMENT.stop * 16 - width * 16);
+      cled = map(cubicwave16(beat88(SEGMENT_RUNTIME.b16.beats[i], SEGMENT_RUNTIME.tb.timebases[i])), 0, 65535, _segment_runtime.start * 16, _segment_runtime.stop * 16 - width * 16);
 
       break;
     default:
-      cled = map(quadwave16(beat88(SEGMENT_RUNTIME.b16.beats[i], SEGMENT_RUNTIME.tb.timebases[i])), 0, 65535, SEGMENT.start * 16, SEGMENT.stop * 16 - width * 16);
+      cled = map(quadwave16(beat88(SEGMENT_RUNTIME.b16.beats[i], SEGMENT_RUNTIME.tb.timebases[i])), 0, 65535, _segment_runtime.start * 16, _segment_runtime.stop * 16 - width * 16);
 
       break;
     }
 
-    if (cled == SEGMENT.start * 16)
+    if (cled == _segment_runtime.start * 16)
     {
       if (SEGMENT_RUNTIME.nb.newBase[i])
       {
@@ -1674,7 +1764,7 @@ uint16_t WS2812FX::mode_dot_beat_base(uint8_t fade)
       SEGMENT_RUNTIME.nb.newBase[i] = true;
     }
 
-    cind = SEGMENT_RUNTIME.co.coff[i]; // + map(cled/16, SEGMENT.start, SEGMENT.stop , 0, 255);
+    cind = SEGMENT_RUNTIME.co.coff[i]; // + map(cled/16, _segment_runtime.start, _segment_runtime.stop , 0, 255);
 
     drawFractionalBar(cled, width, _currentPalette, cind, _brightness, false);
   }
@@ -1717,7 +1807,7 @@ uint16_t WS2812FX::mode_col_wipe_triwave(void)
 uint16_t WS2812FX::mode_col_wipe_func(uint8_t mode)
 {
   static uint8_t npos = 0;
-  static uint16_t prev = SEGMENT.start;
+  static uint16_t prev = _segment_runtime.start;
   uint16_t i = 0;
 
   if (_segment_runtime.modeinit)
@@ -1730,29 +1820,29 @@ uint16_t WS2812FX::mode_col_wipe_func(uint8_t mode)
   switch (mode)
   {
   case 0:
-    i = beatsin16((SEGMENT.beat88 * 2) % 65535, SEGMENT.start, SEGMENT.stop, SEGMENT_RUNTIME.tb.timebase);
+    i = beatsin16((SEGMENT.beat88 * 2) % 65535, _segment_runtime.start, _segment_runtime.stop, SEGMENT_RUNTIME.tb.timebase);
     break;
   case 1:
     i = triwave16(beat88((SEGMENT.beat88 * 2) % 65535, SEGMENT_RUNTIME.tb.timebase));
-    i = map(i, 0, 65534, SEGMENT.start, SEGMENT.stop + 2);
+    i = map(i, 0, 65534, _segment_runtime.start, _segment_runtime.stop + 2);
     break;
   case 2:
     i = quadwave16(beat88((SEGMENT.beat88 * 2) % 65535, SEGMENT_RUNTIME.tb.timebase));
-    i = map(i, 0, 65535, SEGMENT.start, SEGMENT.stop + 2);
+    i = map(i, 0, 65535, _segment_runtime.start, _segment_runtime.stop + 2);
     break;
   case 3:
     i = beat88((SEGMENT.beat88 * 4) % 65535, SEGMENT_RUNTIME.tb.timebase);
-    i = map(i, 0, 65535, SEGMENT.start, SEGMENT.stop + 2);
+    i = map(i, 0, 65535, _segment_runtime.start, _segment_runtime.stop + 2);
     break;
   default:
-    i = SEGMENT.start;
-    fill_solid(leds, _segment.length, CRGB::Black);
+    i = _segment_runtime.start;
+    fill_solid(leds, _segment_runtime.length, CRGB::Black);
   }
 
-  if (i >= SEGMENT.stop)
-    i = SEGMENT.stop;
+  if (i >= _segment_runtime.stop)
+    i = _segment_runtime.stop;
 
-  if (i == SEGMENT.start || i == SEGMENT.stop)
+  if (i == _segment_runtime.start || i == _segment_runtime.stop)
   {
     SEGMENT_RUNTIME.nb.newcolor = true;
   }
@@ -1791,21 +1881,21 @@ uint16_t WS2812FX::mode_to_inner(void)
   {
     _segment_runtime.modeinit = false;
   }
-  uint16_t led_up_to = (((_segment.length) / 2 + 1) + SEGMENT.start);
+  uint16_t led_up_to = (((_segment_runtime.length) / 2 + 1) + _segment_runtime.start);
   uint8_t fade = SEGMENT.beat88 * 5 <= 16320 ? (SEGMENT.beat88 * 5) >> 6 : 255;
   SEGMENT.blur = max(fade, (uint8_t)16);
   fade_out(max(fade, (uint8_t)16)); //(64);
 
-  fill_palette(&leds[SEGMENT.start],
+  fill_palette(&leds[_segment_runtime.start],
                beatsin88(
                    SEGMENT.beat88 < 13107 ? SEGMENT.beat88 * 5 : 65535,
                    0, led_up_to, SEGMENT_RUNTIME.tb.timebase),
                SEGMENT_RUNTIME.baseHue, 5, _currentPalette, 255, SEGMENT.blendType);
-  for (uint8_t i = (_segment.length) - 1; i >= ((_segment.length) - led_up_to); i--)
+  for (uint8_t i = (_segment_runtime.length) - 1; i >= ((_segment_runtime.length) - led_up_to); i--)
   {
-    if (((_segment.length) - i) >= 0 && ((_segment.length) - i) < (_segment.length))
+    if (((_segment_runtime.length) - i) >= 0 && ((_segment_runtime.length) - i) < (_segment_runtime.length))
     {
-      leds[i] = leds[(_segment.length) - i];
+      leds[i] = leds[(_segment_runtime.length) - i];
     }
   }
   return STRIP_MIN_DELAY;
@@ -1821,7 +1911,7 @@ uint16_t WS2812FX::mode_breath(void)
   {
     _segment_runtime.modeinit = false;
   }
-  fill_palette(&leds[SEGMENT.start], _segment.length, 0 + SEGMENT_RUNTIME.baseHue, 5, _currentPalette, beatsin88(SEGMENT.beat88 * 2, 10, 255, SEGMENT_RUNTIME.tb.timebase), SEGMENT.blendType);
+  fill_palette(&leds[_segment_runtime.start], _segment_runtime.length, 0 + SEGMENT_RUNTIME.baseHue, 5, _currentPalette, beatsin88(SEGMENT.beat88 * 2, 10, 255, SEGMENT_RUNTIME.tb.timebase), SEGMENT.blendType);
   return STRIP_MIN_DELAY;
 }
 
@@ -1839,7 +1929,7 @@ uint16_t WS2812FX::mode_multi_dynamic(void)
   if (millis() > SEGMENT_RUNTIME.tb.last)
   {
 
-    for (uint16_t i = SEGMENT.start; i <= SEGMENT.stop; i++)
+    for (uint16_t i = _segment_runtime.start; i <= _segment_runtime.stop; i++)
     {
 
       SEGMENT_RUNTIME.co.last_index = get_random_wheel_index(SEGMENT_RUNTIME.co.last_index, 32);
@@ -1860,36 +1950,37 @@ uint16_t WS2812FX::mode_fill_bright(void)
   {
     _segment_runtime.modeinit = false;
   }
-  fill_palette(&leds[SEGMENT.start], (_segment.length), beat88(max((SEGMENT.beat88 / 128), 2), SEGMENT_RUNTIME.tb.timebase),
-               max(255 / _segment.length + 1, 1), _currentPalette, beatsin88(max(SEGMENT.beat88 / 32, 1), 10, 255, SEGMENT_RUNTIME.tb.timebase), SEGMENT.blendType);
+  fill_palette(&leds[_segment_runtime.start], (_segment_runtime.length), beat88(max((SEGMENT.beat88 / 128), 2), SEGMENT_RUNTIME.tb.timebase),
+               max(255 / _segment_runtime.length + 1, 1), _currentPalette, beatsin88(max(SEGMENT.beat88 / 32, 1), 10, 255, SEGMENT_RUNTIME.tb.timebase), SEGMENT.blendType);
   return STRIP_MIN_DELAY;
 }
 
 uint16_t WS2812FX::mode_firework(void)
 {
-  const uint8_t dist = max(_segment.length / 20, 2);
+  const uint8_t dist = max(_segment_runtime.length / 20, 2);
 
   static uint8_t *colors = NULL;
   static uint8_t *keeps = NULL;
   if (_segment_runtime.modeinit)
   {
     _segment_runtime.modeinit = false;
+    fill_solid(leds, LED_COUNT, CRGB::Black);
     delete[] colors;
     delete[] keeps;
     colors = NULL;
     keeps = NULL;
-    colors = new uint8_t[_segment.length];
-    keeps = new uint8_t[_segment.length];
-    memset(colors, 0x0, _segment.length * sizeof(uint8_t));
-    memset(keeps, 0x0, _segment.length * sizeof(uint8_t));
+    colors = new uint8_t[_segment_runtime.length];
+    keeps = new uint8_t[_segment_runtime.length];
+    memset(colors, 0x0, _segment_runtime.length * sizeof(uint8_t));
+    memset(keeps, 0x0, _segment_runtime.length * sizeof(uint8_t));
   }
 
   if (colors == NULL || keeps == NULL)
     return STRIP_MIN_DELAY;
 
-  blur1d(&leds[SEGMENT.start], _segment.length, 172); //qadd8(255-(SEGMENT.beat88 >> 8), 32)%172); //was 2 instead of 16 before!
+  blur1d(&leds[_segment_runtime.start], _segment_runtime.length, 172); //qadd8(255-(SEGMENT.beat88 >> 8), 32)%172); //was 2 instead of 16 before!
 
-  for (uint16_t i = SEGMENT.start; i < _segment.length; i++)
+  for (uint16_t i = _segment_runtime.start; i < _segment_runtime.length; i++)
   {
     if (keeps[i])
     {
@@ -1899,13 +1990,13 @@ uint16_t WS2812FX::mode_firework(void)
     }
   }
 
-  if (random8(max(6, _segment.length / 7)) <= max(3, _segment.length / 14))
+  if (random8(max(6, _segment_runtime.length / 7)) <= max(3, _segment_runtime.length / 14))
   {
-    uint8_t lind = random16(dist + SEGMENT.start, SEGMENT.stop - dist);
+    uint8_t lind = random16(dist + _segment_runtime.start, _segment_runtime.stop - dist);
     uint8_t cind = random8() + SEGMENT_RUNTIME.baseHue;
     for (int8_t i = 0 - dist; i <= dist; i++)
     {
-      if (lind + i >= SEGMENT.start && lind + i < SEGMENT.stop)
+      if (lind + i >= _segment_runtime.start && lind + i < _segment_runtime.stop)
       {
         if (!(leds[lind + i] == CRGB(0x0)))
           return STRIP_MIN_DELAY;
@@ -1931,7 +2022,7 @@ uint16_t WS2812FX::mode_fade(void)
     _segment_runtime.modeinit = false;
   }
 
-  fill_palette(&(leds[SEGMENT.start]), _segment.length, 0 + SEGMENT_RUNTIME.baseHue, 5, _currentPalette, map8(triwave8(map(beat88(SEGMENT.beat88 * 10, SEGMENT_RUNTIME.tb.timebase), 0, 65535, 0, 255)), 24, 255), SEGMENT.blendType);
+  fill_palette(&(leds[_segment_runtime.start]), _segment_runtime.length, 0 + SEGMENT_RUNTIME.baseHue, 5, _currentPalette, map8(triwave8(map(beat88(SEGMENT.beat88 * 10, SEGMENT_RUNTIME.tb.timebase), 0, 65535, 0, 255)), 24, 255), SEGMENT.blendType);
 
   return STRIP_MIN_DELAY;
 }
@@ -1945,14 +2036,14 @@ uint16_t WS2812FX::mode_scan(void)
   {
     _segment_runtime.modeinit = false;
   }
-  //uint16_t led_offset = map(triwave8(map(beat88(SEGMENT.beat88, SEGMENT_RUNTIME.tb.timebase), 0, 65535, 0, 255)), 0, 255, SEGMENT.start*16, SEGMENT.stop*16);
-  const uint16_t width = 2; // max(2, _segment.length/50)
-  uint16_t led_offset = map(triwave16(beat88(SEGMENT.beat88, SEGMENT_RUNTIME.tb.timebase)), 0, 65535, SEGMENT.start * 16, SEGMENT.stop * 16 - width * 16);
+  //uint16_t led_offset = map(triwave8(map(beat88(SEGMENT.beat88, SEGMENT_RUNTIME.tb.timebase), 0, 65535, 0, 255)), 0, 255, _segment_runtime.start*16, _segment_runtime.stop*16);
+  const uint16_t width = 2; // max(2, _segment_runtime.length/50)
+  uint16_t led_offset = map(triwave16(beat88(SEGMENT.beat88, SEGMENT_RUNTIME.tb.timebase)), 0, 65535, _segment_runtime.start * 16, _segment_runtime.stop * 16 - width * 16);
 
   // maybe we change this to fade?
-  fill_solid(&(leds[SEGMENT.start]), _segment.length, CRGB(0, 0, 0));
+  fill_solid(&(leds[_segment_runtime.start]), _segment_runtime.length, CRGB(0, 0, 0));
 
-  drawFractionalBar(SEGMENT.start * 16 + led_offset, width, _currentPalette, led_offset / 16 + SEGMENT_RUNTIME.baseHue, _brightness);
+  drawFractionalBar(_segment_runtime.start * 16 + led_offset, width, _currentPalette, led_offset / 16 + SEGMENT_RUNTIME.baseHue, _brightness);
 
   return STRIP_MIN_DELAY;
 }
@@ -1966,14 +2057,14 @@ uint16_t WS2812FX::mode_dual_scan(void)
   {
     _segment_runtime.modeinit = false;
   }
-  //uint16_t led_offset = map(triwave8(map(beat88(SEGMENT.beat88, SEGMENT_RUNTIME.tb.timebase), 0, 65535, 0, 255)), 0, 255, SEGMENT.start*16, SEGMENT.stop*16);
-  const uint16_t width = 2; // max(2, _segment.length/50)
-  uint16_t led_offset = map(triwave16(beat88(SEGMENT.beat88, SEGMENT_RUNTIME.tb.timebase)), 0, 65535, SEGMENT.start * 16, SEGMENT.stop * 16 - width * 16);
+  //uint16_t led_offset = map(triwave8(map(beat88(SEGMENT.beat88, SEGMENT_RUNTIME.tb.timebase), 0, 65535, 0, 255)), 0, 255, _segment_runtime.start*16, _segment_runtime.stop*16);
+  const uint16_t width = 2; // max(2, _segment_runtime.length/50)
+  uint16_t led_offset = map(triwave16(beat88(SEGMENT.beat88, SEGMENT_RUNTIME.tb.timebase)), 0, 65535, _segment_runtime.start * 16, _segment_runtime.stop * 16 - width * 16);
 
-  fill_solid(&(leds[SEGMENT.start]), _segment.length, CRGB(0, 0, 0));
+  fill_solid(&(leds[_segment_runtime.start]), _segment_runtime.length, CRGB(0, 0, 0));
 
-  drawFractionalBar(SEGMENT.stop * 16 - led_offset, width, _currentPalette, 255 - led_offset / 16 + SEGMENT_RUNTIME.baseHue, _brightness);
-  drawFractionalBar(SEGMENT.start * 16 + led_offset, width, _currentPalette, led_offset / 16 + SEGMENT_RUNTIME.baseHue, _brightness);
+  drawFractionalBar(_segment_runtime.stop * 16 - led_offset, width, _currentPalette, 255 - led_offset / 16 + SEGMENT_RUNTIME.baseHue, _brightness);
+  drawFractionalBar(_segment_runtime.start * 16 + led_offset, width, _currentPalette, led_offset / 16 + SEGMENT_RUNTIME.baseHue, _brightness);
 
   return STRIP_MIN_DELAY;
 }
@@ -1988,7 +2079,7 @@ uint16_t WS2812FX::mode_rainbow(void)
     _segment_runtime.modeinit = false;
   }
 
-  fill_solid(&leds[SEGMENT.start], _segment.length, ColorFromPalette(_currentPalette, map(beat88(SEGMENT.beat88, SEGMENT_RUNTIME.tb.timebase), 0, 65535, 0, 255), _brightness, SEGMENT.blendType)); /*CHSV(beat8(max(SEGMENT.beat/2,1), SEGMENT_RUNTIME.tb.timebase)*/ //_brightness));
+  fill_solid(&leds[_segment_runtime.start], _segment_runtime.length, ColorFromPalette(_currentPalette, map(beat88(SEGMENT.beat88, SEGMENT_RUNTIME.tb.timebase), 0, 65535, 0, 255), _brightness, SEGMENT.blendType)); /*CHSV(beat8(max(SEGMENT.beat/2,1), SEGMENT_RUNTIME.tb.timebase)*/ //_brightness));
   //SEGMENT_RUNTIME.counter_mode_step = (SEGMENT_RUNTIME.counter_mode_step + 2) & 0xFF;
   return STRIP_MIN_DELAY;
 }
@@ -2003,12 +2094,12 @@ uint16_t WS2812FX::mode_rainbow_cycle(void)
     _segment_runtime.modeinit = false;
   }
 
-  fill_palette(&leds[SEGMENT.start],
-               _segment.length,
+  fill_palette(&leds[_segment_runtime.start],
+               _segment_runtime.length,
                map(beat88(SEGMENT.beat88,
                           SEGMENT_RUNTIME.tb.timebase),
                    0, 65535, 0, 255),
-               (_segment.length > 255 ? 1 : (256 / _segment.length)),
+               (_segment_runtime.length > 255 ? 1 : (256 / _segment_runtime.length)),
                _currentPalette,
                255, SEGMENT.blendType);
 
@@ -2036,16 +2127,16 @@ uint16_t WS2812FX::theater_chase(CRGBPalette16 color1, CRGBPalette16 color2)
   }
   uint16_t off = map(beat88(SEGMENT.beat88 / 2, SEGMENT_RUNTIME.tb.timebase), 0, 65535, 0, 255) % 3;
 
-  for (uint16_t i = 0; i < _segment.length; i++)
+  for (uint16_t i = 0; i < _segment_runtime.length; i++)
   {
-    uint8_t pal_index = map(i, 0, _segment.length - 1, 0, 255) + SEGMENT_RUNTIME.baseHue;
+    uint8_t pal_index = map(i, 0, _segment_runtime.length - 1, 0, 255) + SEGMENT_RUNTIME.baseHue;
     if ((i % 3) == off)
     {
-      leds[SEGMENT.start + i] = ColorFromPalette(color1, pal_index, _brightness, SEGMENT.blendType);
+      leds[_segment_runtime.start + i] = ColorFromPalette(color1, pal_index, _brightness, SEGMENT.blendType);
     }
     else
     {
-      leds[SEGMENT.start + i] = ColorFromPalette(color2, 128 + pal_index, _brightness / 10, SEGMENT.blendType);
+      leds[_segment_runtime.start + i] = ColorFromPalette(color2, 128 + pal_index, _brightness / 10, SEGMENT.blendType);
     }
   }
   return STRIP_MIN_DELAY;
@@ -2084,16 +2175,16 @@ uint16_t WS2812FX::mode_running_lights(void)
   {
     _segment_runtime.modeinit = false;
   }
-  for (uint16_t i = 0; i < _segment.length; i++)
+  for (uint16_t i = 0; i < _segment_runtime.length; i++)
   {
-    uint8_t lum = qsub8(sin8_C(map(i, 0, _segment.length - 1, 0, 255)), 2);
-    uint16_t offset = map(beat88(SEGMENT.beat88, SEGMENT_RUNTIME.tb.timebase), 0, 65535, 0, _segment.length - 1);
-    offset = (offset + i) % _segment.length;
+    uint8_t lum = qsub8(sin8_C(map(i, 0, _segment_runtime.length - 1, 0, 255)), 2);
+    uint16_t offset = map(beat88(SEGMENT.beat88, SEGMENT_RUNTIME.tb.timebase), 0, 65535, 0, _segment_runtime.length - 1);
+    offset = (offset + i) % _segment_runtime.length;
 
     CRGB newColor = CRGB::Black;
 
-    newColor = ColorFromPalette(_currentPalette, map(offset, 0, _segment.length - 1, 0, 255) + SEGMENT_RUNTIME.baseHue, lum, SEGMENT.blendType);
-    nblend(leds[SEGMENT.start + offset], newColor, qadd8(SEGMENT.beat88 >> 8, 16));
+    newColor = ColorFromPalette(_currentPalette, map(offset, 0, _segment_runtime.length - 1, 0, 255) + SEGMENT_RUNTIME.baseHue, lum, SEGMENT.blendType);
+    nblend(leds[_segment_runtime.start + offset], newColor, qadd8(SEGMENT.beat88 >> 8, 16));
   }
   return STRIP_MIN_DELAY;
 }
@@ -2122,17 +2213,17 @@ uint16_t WS2812FX::mode_larson_scanner(void)
     _segment_runtime.modeinit = false;
   }
 
-  const uint16_t width = max(1, _segment.length / 15);
+  const uint16_t width = max(1, _segment_runtime.length / 15);
   fade_out(96);
 
   uint16_t pos = triwave16(beat88(SEGMENT.beat88 * 4, SEGMENT_RUNTIME.tb.timebase));
 
-  pos = map(pos, 0, 65535, SEGMENT.start * 16, SEGMENT.stop * 16 - width * 16);
+  pos = map(pos, 0, 65535, _segment_runtime.start * 16, _segment_runtime.stop * 16 - width * 16);
 
   drawFractionalBar(pos,
                     width,
                     _currentPalette,
-                    SEGMENT_RUNTIME.baseHue + map(pos, SEGMENT.start * 16, SEGMENT.stop * 16 - width * 16, 0, 255));
+                    SEGMENT_RUNTIME.baseHue + map(pos, _segment_runtime.start * 16, _segment_runtime.stop * 16 - width * 16, 0, 255));
 
   return STRIP_MIN_DELAY;
 }
@@ -2146,15 +2237,15 @@ uint16_t WS2812FX::mode_comet(void)
   {
     _segment_runtime.modeinit = false;
   }
-  const uint16_t width = max(1, _segment.length / 15);
+  const uint16_t width = max(1, _segment_runtime.length / 15);
   fade_out(96);
 
-  uint16_t pos = map(beat88(SEGMENT.beat88 * 4, SEGMENT_RUNTIME.tb.timebase), 0, 65535, 0, _segment.length * 16);
+  uint16_t pos = map(beat88(SEGMENT.beat88 * 4, SEGMENT_RUNTIME.tb.timebase), 0, 65535, 0, _segment_runtime.length * 16);
 
-  drawFractionalBar((SEGMENT.start * 16 + pos),
+  drawFractionalBar((_segment_runtime.start * 16 + pos),
                     width,
                     _currentPalette,
-                    map(SEGMENT.start * 16 + pos, SEGMENT.start * 16, SEGMENT.stop * 16, 0, 255) + SEGMENT_RUNTIME.baseHue);
+                    map(_segment_runtime.start * 16 + pos, _segment_runtime.start * 16, _segment_runtime.stop * 16, 0, 255) + SEGMENT_RUNTIME.baseHue);
 
   return STRIP_MIN_DELAY;
 }
@@ -2170,9 +2261,9 @@ uint16_t WS2812FX::fire_flicker(int rev_intensity)
   }
   byte lum = 255 / rev_intensity;
 
-  for (uint16_t i = SEGMENT.start; i <= SEGMENT.stop; i++)
+  for (uint16_t i = _segment_runtime.start; i <= _segment_runtime.stop; i++)
   {
-    leds[i] = ColorFromPalette(_currentPalette, map(i, SEGMENT.start, SEGMENT.stop, 0, 255) + SEGMENT_RUNTIME.baseHue, _brightness, SEGMENT.blendType);
+    leds[i] = ColorFromPalette(_currentPalette, map(i, _segment_runtime.start, _segment_runtime.stop, 0, 255) + SEGMENT_RUNTIME.baseHue, _brightness, SEGMENT.blendType);
     if (random8(3))
     {
       int flicker = random8(0, lum);
@@ -2221,8 +2312,8 @@ uint16_t WS2812FX::mode_bubble_sort(void)
     movedown = false;
     ci = co = cd = 0;
     delete[] hues;
-    hues = new uint8_t[_segment.length];
-    for (uint8_t i = 0; i < _segment.length; i++)
+    hues = new uint8_t[_segment_runtime.length];
+    for (uint8_t i = 0; i < _segment_runtime.length; i++)
     {
       if (i == 0)
       {
@@ -2240,9 +2331,9 @@ uint16_t WS2812FX::mode_bubble_sort(void)
   }
   if (!movedown)
   {
-    if (co <= _segment.length)
+    if (co <= _segment_runtime.length)
     {
-      if (ci <= _segment.length)
+      if (ci <= _segment_runtime.length)
       {
         if (hues[ci] > hues[co])
         {
@@ -2267,14 +2358,14 @@ uint16_t WS2812FX::mode_bubble_sort(void)
       return STRIP_MIN_DELAY;
     }
     map_pixels_palette(hues, 32, SEGMENT.blendType);
-    leds[ci + SEGMENT.start] = ColorFromPalette(_currentPalette, hues[ci], _brightness, SEGMENT.blendType); //CRGB::Green;
-    leds[co + SEGMENT.start] = ColorFromPalette(_currentPalette, hues[ci], _brightness, SEGMENT.blendType); // CRGB::Red;
+    leds[ci + _segment_runtime.start] = ColorFromPalette(_currentPalette, hues[ci], _brightness, SEGMENT.blendType); //CRGB::Green;
+    leds[co + _segment_runtime.start] = ColorFromPalette(_currentPalette, hues[ci], _brightness, SEGMENT.blendType); // CRGB::Red;
   }
   else
   {
     map_pixels_palette(hues, 32, SEGMENT.blendType);
-    leds[co + SEGMENT.start] = ColorFromPalette(_currentPalette, hues[ci], _brightness, SEGMENT.blendType); // CRGB::Red;
-    leds[cd + SEGMENT.start] = ColorFromPalette(_currentPalette, hues[cd], _brightness, SEGMENT.blendType); // +=CRGB::Green;
+    leds[co + _segment_runtime.start] = ColorFromPalette(_currentPalette, hues[ci], _brightness, SEGMENT.blendType); // CRGB::Red;
+    leds[cd + _segment_runtime.start] = ColorFromPalette(_currentPalette, hues[cd], _brightness, SEGMENT.blendType); // +=CRGB::Green;
     if (cd == co)
     {
       movedown = false;
@@ -2299,18 +2390,18 @@ uint16_t WS2812FX::mode_fire2012WithPalette(void)
     _segment_runtime.modeinit = false;
     delete[] heat;
     heat = NULL;
-    heat = new byte[_segment.length];
-    memset(heat, 0x0, _segment.length * sizeof(byte));
+    heat = new byte[_segment_runtime.length];
+    memset(heat, 0x0, _segment_runtime.length * sizeof(byte));
   }
 
   // Step 1.  Cool down every cell a little
-  for (int i = 0; i < _segment.length; i++)
+  for (int i = 0; i < _segment_runtime.length; i++)
   {
-    heat[i] = qsub8(heat[i], random8(0, ((SEGMENT.cooling * 10) / _segment.length) + 2));
+    heat[i] = qsub8(heat[i], random8(0, ((SEGMENT.cooling * 10) / _segment_runtime.length) + 2));
   }
 
   // Step 2.  Heat from each cell drifts 'up' and diffuses a little
-  for (int k = _segment.length - 1; k >= 2; k--)
+  for (int k = _segment_runtime.length - 1; k >= 2; k--)
   {
     heat[k] = (heat[k - 1] + heat[k - 2] + heat[k - 2]) / 3;
   }
@@ -2323,14 +2414,14 @@ uint16_t WS2812FX::mode_fire2012WithPalette(void)
   }
 
   // Step 4.  Map from heat cells to LED colors
-  for (int j = 0; j < _segment.length; j++)
+  for (int j = 0; j < _segment_runtime.length; j++)
   {
     // Scale the heat value from 0-255 down to 0-240
     // for best results with color palettes.
     byte colorindex = scale8(heat[j], 240);
     CRGB color = ColorFromPalette(_currentPalette, colorindex);
 
-    leds[j + SEGMENT.start] = color;
+    leds[j + _segment_runtime.start] = color;
   }
   return STRIP_MIN_DELAY;
 }
@@ -2375,7 +2466,7 @@ uint16_t WS2812FX::mode_twinkle_fox(void)
 
   uint8_t backgroundBrightness = bg.getAverageLight();
 
-  for (uint16_t i = 0; i < _segment.length; i++)
+  for (uint16_t i = 0; i < _segment_runtime.length; i++)
   {
     PRNG16 = (uint16_t)(PRNG16 * 2053) + 1384; // next 'random' number
     uint16_t myclockoffset16 = PRNG16;         // use that number as clock offset
@@ -2396,19 +2487,19 @@ uint16_t WS2812FX::mode_twinkle_fox(void)
     {
       // If the new pixel is significantly brighter than the background color,
       // use the new color.
-      leds[i + SEGMENT.start] = c;
+      leds[i + _segment_runtime.start] = c;
     }
     else if (deltabright > 0)
     {
       // If the new pixel is just slightly brighter than the background color,
       // mix a blend of the new color and the background color
-      leds[+SEGMENT.start] = blend(bg, c, deltabright * 8);
+      leds[+_segment_runtime.start] = blend(bg, c, deltabright * 8);
     }
     else
     {
       // if the new pixel is not at all brighter than the background color,
       // just use the background color.
-      leds[i + SEGMENT.start] = bg;
+      leds[i + _segment_runtime.start] = bg;
     }
   }
   return STRIP_MIN_DELAY;
@@ -2464,7 +2555,7 @@ void WS2812FX::brightenOrDarkenEachPixel(fract8 fadeUpAmount, fract8 fadeDownAmo
     GETTING_DARKER = 0,
     GETTING_BRIGHTER = 1
   };
-  for (uint16_t i = 0; i < _segment.length; i++)
+  for (uint16_t i = 0; i < _segment_runtime.length; i++)
   {
     if (getPixelDirection(i, directionFlags) == 0)
     {
@@ -2500,8 +2591,8 @@ uint16_t WS2812FX::mode_softtwinkles(void)
     _segment_runtime.modeinit = false;
     delete[] directionFlags;
     directionFlags = NULL;
-    directionFlags = new uint8_t[(_segment.length + 7) / 8];
-    memset(directionFlags, 0x0, _segment.length * sizeof(uint8_t));
+    directionFlags = new uint8_t[(_segment_runtime.length + 7) / 8];
+    memset(directionFlags, 0x0, _segment_runtime.length * sizeof(uint8_t));
   }
   if (directionFlags == NULL)
     return STRIP_MIN_DELAY;
@@ -2516,7 +2607,7 @@ uint16_t WS2812FX::mode_softtwinkles(void)
     // Now consider adding a new random twinkle
     if (random8() < _segment.twinkleDensity * 32)
     {
-      int pos = random16(_segment.length);
+      int pos = random16(_segment_runtime.length);
       if (!leds[pos])
       {
         leds[pos] = ColorFromPalette(_currentPalette, random8(), _segment.sparking / 2, _segment.blendType);
@@ -2545,8 +2636,8 @@ uint16_t WS2812FX::mode_shooting_star()
   if (_segment_runtime.modeinit || SEGMENT.numBars != numBars || basebeat != SEGMENT.beat88)
   {
     _segment_runtime.modeinit = false;
-    if (SEGMENT.numBars >= (_length / SEGMENT.segments / 10))
-      SEGMENT.numBars = max((_length / SEGMENT.segments / 10), 2);
+    if (SEGMENT.numBars >= (LED_COUNT / SEGMENT.segments / 10))
+      SEGMENT.numBars = max((LED_COUNT / SEGMENT.segments / 10), 2);
     numBars = SEGMENT.numBars;
     basebeat = SEGMENT.beat88;
 
@@ -2568,21 +2659,21 @@ uint16_t WS2812FX::mode_shooting_star()
     }
   }
 
-  fadeToBlackBy(leds, _segment.length > 8 ? _segment.length - 8 : _segment.length, (SEGMENT.beat88 >> 8) | 0x60);
-  if (_segment.length > 8)
-    blur1d(&leds[SEGMENT.stop - 7], 8, 120);
+  fadeToBlackBy(leds, _segment_runtime.length > 8 ? _segment_runtime.length - 8 : _segment_runtime.length, (SEGMENT.beat88 >> 8) | 0x60);
+  if (_segment_runtime.length > 8)
+    blur1d(&leds[_segment_runtime.stop - 7], 8, 120);
 
   for (uint8_t i = 0; i < numBars; i++)
   {
     uint16_t beat = beat88(SEGMENT.beat88) + delta_b[i];
 
     double_t q_beat = (beat / 100) * (beat / 100);
-    pos = map(static_cast<uint32_t>(q_beat + 0.5), 0, 429484, SEGMENT.start * 16, SEGMENT.stop * 16);
+    pos = map(static_cast<uint32_t>(q_beat + 0.5), 0, 429484, _segment_runtime.start * 16, _segment_runtime.stop * 16);
 
     //we use the fractional bar and 16 brghtness values per pixel
     drawFractionalBar(pos, 2, _currentPalette, cind[i], _brightness);
 
-    if (pos / 16 > (SEGMENT.stop - 4)) // 6
+    if (pos / 16 > (_segment_runtime.stop - 4)) // 6
     {
       uint8_t tmp = 0;
       CRGB led = ColorFromPalette(_currentPalette, cind[i], _brightness, _segment.blendType); //leds[pos/16];
@@ -2628,8 +2719,8 @@ uint16_t WS2812FX::mode_beatsin_glow(void)
     _segment_runtime.modeinit = false;
     _transition = true;
     _blend = 0;
-    if (SEGMENT.numBars >= (_length / SEGMENT.segments / 10))
-      SEGMENT.numBars = max((_length / SEGMENT.segments / 10), 2);
+    if (SEGMENT.numBars >= (LED_COUNT / SEGMENT.segments / 10))
+      SEGMENT.numBars = max((LED_COUNT / SEGMENT.segments / 10), 2);
     num_bars = SEGMENT.numBars;
     basebeat = SEGMENT.beat88;
     delete[] beats;
@@ -2661,17 +2752,10 @@ uint16_t WS2812FX::mode_beatsin_glow(void)
       times[i] = millis() + random8();
       prev[i] = 0;
       newval[i] = false;
-      /*
-      #ifdef DEBUG
-      Serial.printf("\n\tWe at init for bar number %d of %d\n", i+1, num_bars);
-      Serial.println("\tWe randomly selected new values:");
-      Serial.printf("\t\ti = \t%d \n\t\tbeat = \t%d \n\t\ttheta = \t%d\n\t\tcinds = \t%d\n\t\ttime = %d\n", i, beats[i], theta[i], cinds[i], times[i]);
-      #endif
-      */
     }
   }
 
-  fadeToBlackBy(leds, _segment.length, (SEGMENT.beat88 >> 8) | 32);
+  fadeToBlackBy(leds, _segment_runtime.length, (SEGMENT.beat88 >> 8) | 32);
 
   uint16_t pos = 0;
 
@@ -2682,15 +2766,6 @@ uint16_t WS2812FX::mode_beatsin_glow(void)
 
     if (si > -2 && si < 2 && prev[i] < si) //si >= 32640 || si <= -32640)
     {
-      /*
-      #ifdef DEBUG
-      int32_t deltaB, deltaT;
-      int16_t deltaC;
-      deltaB = beats[i];
-      deltaT = theta[i];
-      deltaC = cinds[i];
-      #endif
-      */
       const uint8_t rand_delta = 64;
       beats[i] = beats[i] + (SEGMENT.beat88 * 10) / 50 - random16((SEGMENT.beat88 * 10) / 25); //+= (random8(128)%2)?1:-1; // = beats[i] + (SEGMENT.beat88*10)/200 - random16((SEGMENT.beat88*10)/100); //
       if (beats[i] < (SEGMENT.beat88 / 2))
@@ -2700,17 +2775,7 @@ uint16_t WS2812FX::mode_beatsin_glow(void)
       theta[i] = theta[i] + (rand_delta / 2) - random8(rand_delta); //+= (random8(128)%2)?1:-1; // = theta[i] + 8-random8(16);  //
       cinds[i] = cinds[i] + (rand_delta / 2) - random8(rand_delta); //+= (random8(128)%2)?1:-1;
       times[i] = millis() - theta[i];
-      /*
-      #ifdef DEBUG
-      deltaB-=beats[i];
-      deltaT-=theta[i];
-      deltaC-=cinds[i];
-      Serial.printf("\n\tWe got stopped at i %d for angle si %d\n", i, si);
-      Serial.println("\tWe came from the bottom and randomly selected new values:");
-      Serial.printf("\t\ti = \t%d \n\t\tbeat = \t%d \n\t\ttheta = \t%d\n\t\tcinds = \t%d\n\t\ttime = %d\n", i, beats[i], theta[i], cinds[i], times[i]);
-      Serial.printf("\tdelta Values: \n\t\tbeat = \t%d \n\t\ttheta = \t%d\n\t\tcinds = \t%d\n", deltaB, deltaT, deltaC);
-      #endif
-      */
+
       newval[i] = false;
     }
     else
@@ -2720,7 +2785,7 @@ uint16_t WS2812FX::mode_beatsin_glow(void)
 
     prev[i] = si;
 
-    pos = map((65535 >> 1) + si, 0, 65535, SEGMENT.start * 16, SEGMENT.stop * 16);
+    pos = map((65535 >> 1) + si, 0, 65535, _segment_runtime.start * 16, _segment_runtime.stop * 16);
     drawFractionalBar(pos, 2, _currentPalette, cinds[i] + i * (255 / num_bars), _brightness, true);
   }
   return STRIP_MIN_DELAY;
@@ -2728,12 +2793,12 @@ uint16_t WS2812FX::mode_beatsin_glow(void)
 
 uint16_t WS2812FX::mode_pixel_stack(void)
 {
-  const uint16_t framedelay = map(_segment.beat88, 10000, 0, 0, 50) + map(_segment.length, 300, 0, 0, 25);
+  const uint16_t framedelay = map(_segment.beat88, 10000, 0, 0, 50) + map(_segment_runtime.length, 300, 0, 0, 25);
 
   static bool up = true;
   static int16_t leds_moved = 0;
   static int16_t pos = 0;
-  const uint16_t cStartPos = _segment.length / 2 - 1;
+  const uint16_t cStartPos = _segment_runtime.length / 2 - 1;
   if (_segment_runtime.modeinit)
   {
     _segment_runtime.modeinit = false;
@@ -2742,12 +2807,12 @@ uint16_t WS2812FX::mode_pixel_stack(void)
     leds_moved = 0;
     pos = cStartPos;
 
-    fill_solid(leds, _segment.length, CRGB::Black);
-    fill_palette(leds, _segment.length / 2, _segment_runtime.baseHue, max(255 / (_segment.length / 2), 1), _currentPalette, 255, _segment.blendType);
+    fill_solid(leds, _segment_runtime.length, CRGB::Black);
+    fill_palette(leds, _segment_runtime.length / 2, _segment_runtime.baseHue, max(255 / (_segment_runtime.length / 2), 1), _currentPalette, 255, _segment.blendType);
   }
   if (up)
   {
-    if (pos == (_segment.stop - leds_moved))
+    if (pos == (_segment_runtime.stop - leds_moved))
     {
       leds_moved++;
       if (leds_moved > cStartPos)
@@ -2759,7 +2824,7 @@ uint16_t WS2812FX::mode_pixel_stack(void)
       }
       pos = cStartPos - leds_moved;
     }
-    if (pos < _segment.stop && pos >= 0 && !leds[pos + 1])
+    if (pos < _segment_runtime.stop && pos >= 0 && !leds[pos + 1])
     {
       leds[pos + 1] = leds[pos];
       leds[pos] = CRGB::Black;
@@ -2768,7 +2833,7 @@ uint16_t WS2812FX::mode_pixel_stack(void)
   }
   else
   {
-    if (pos < _segment.start + leds_moved)
+    if (pos < _segment_runtime.start + leds_moved)
     {
       leds_moved++;
       if (leds_moved > cStartPos + 1)
@@ -2780,7 +2845,7 @@ uint16_t WS2812FX::mode_pixel_stack(void)
       }
       pos = cStartPos + 1 + leds_moved;
     }
-    if (pos <= _segment.stop && pos > 0 && !leds[pos - 1])
+    if (pos <= _segment_runtime.stop && pos > 0 && !leds[pos - 1])
     {
       leds[pos - 1] = leds[pos];
       leds[pos] = CRGB::Black;
@@ -2810,7 +2875,7 @@ typedef struct pKernel
 uint16_t WS2812FX::mode_popcorn(void)
 {
 #define LEDS_PER_METER 60
-  const double segmentLength = ((double)_segment.length / (double)LEDS_PER_METER) * (double)1000.0; // physical length in mm
+  const double segmentLength = ((double)_segment_runtime.length / (double)LEDS_PER_METER) * (double)1000.0; // physical length in mm
   const double gravity = _segment.beat88 / -11019367.9918;                                          // -0.00981; // gravity in mm per ms²
   const double v0_max = sqrt(-2 * gravity * segmentLength);
 
@@ -2877,7 +2942,7 @@ uint16_t WS2812FX::mode_popcorn(void)
     }
     else
     {
-      uint16_t pos = map((long)pops[i].pos, 0, (long)segmentLength, _segment.start * 16, _segment.stop * 16);
+      uint16_t pos = map((long)pops[i].pos, 0, (long)segmentLength, _segment_runtime.start * 16, _segment_runtime.stop * 16);
       if (pos != pops[i].prev_pos)
       {
         if (pos > pops[i].prev_pos)
@@ -2917,7 +2982,7 @@ uint16_t WS2812FX::mode_popcorn(void)
 uint16_t WS2812FX::mode_firework2(void)
 {
 
-  const double segmentLength = ((double)_segment.length / (double)LEDS_PER_METER) * (double)1000.0; // physical length in mm
+  const double segmentLength = ((double)_segment_runtime.length / (double)LEDS_PER_METER) * (double)1000.0; // physical length in mm
   const double gravity = _segment.beat88 / -11019367.9918;                                          // -0.00981; // gravity in mm per ms²
   const double v0_max = sqrt(-2 * gravity * segmentLength);
 
@@ -2997,7 +3062,7 @@ uint16_t WS2812FX::mode_firework2(void)
     }
     else
     {
-      uint16_t pos = map((long)pops[i].pos, 0, (long)segmentLength, _segment.start * 16, _segment.stop * 16);
+      uint16_t pos = map((long)pops[i].pos, 0, (long)segmentLength, _segment_runtime.start * 16, _segment_runtime.stop * 16);
       if (pops[i].v > pops[i].v_explode) //0)
       {
         fade_out(96);
@@ -3023,17 +3088,17 @@ uint16_t WS2812FX::mode_firework2(void)
       {
         fade_out(8);
         blur1d(pops[i].dist, BLENDWIDTH, 172);
-        if ((pos / 16 + 1) >= (_segment.start + BLENDWIDTH / 2) && (pos / 16 + 1) <= (_segment.stop - BLENDWIDTH / 2))
+        if ((pos / 16 + 1) >= (_segment_runtime.start + BLENDWIDTH / 2) && (pos / 16 + 1) <= (_segment_runtime.stop - BLENDWIDTH / 2))
         {
           nblend(&leds[pos / 16 + 1 - BLENDWIDTH / 2], pops[i].dist, BLENDWIDTH, 64);
         }
-        else if ((pos / 16 + 1) > (_segment.stop - BLENDWIDTH / 2))
+        else if ((pos / 16 + 1) > (_segment_runtime.stop - BLENDWIDTH / 2))
         {
-          nblend(&leds[pos / 16 + 1 - BLENDWIDTH / 2], pops[i].dist, _segment.stop - pos / 16 + 1, 64);
+          nblend(&leds[pos / 16 + 1 - BLENDWIDTH / 2], pops[i].dist, _segment_runtime.stop - pos / 16 + 1, 64);
         }
         else
         {
-          nblend(&leds[_segment.start], &pops[i].dist[BLENDWIDTH / 2 - pos / 16 + 1], BLENDWIDTH / 2 + (BLENDWIDTH / 2 - pos / 16 + 1), 64);
+          nblend(&leds[_segment_runtime.start], &pops[i].dist[BLENDWIDTH / 2 - pos / 16 + 1], BLENDWIDTH / 2 + (BLENDWIDTH / 2 - pos / 16 + 1), 64);
         }
         if (!leds[pos / 16] && !leds[pos / 16 + 1])
         {
@@ -3127,7 +3192,7 @@ void WS2812FX::m_sunrise_sunset(bool isSunrise)
     _segment.autoplay = AUTO_MODE_OFF;
     if (isSunrise)
     {
-      _targetBrightness = 255;
+      _segment.targetBrightness = 255;
       sunriseStep = 0;
     }
     else

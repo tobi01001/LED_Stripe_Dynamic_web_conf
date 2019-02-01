@@ -40,25 +40,22 @@
 #define FASTLED_ESP8266_DMA
 #define FASTLED_USE_PROGMEM 1
 
+#include "defaults.h"
+
+#include "debug_help.h"
+
+
 #ifndef LED_PIN
 #define LED_PIN 3
 #endif
 
-#define STRIP_MIN_DELAY max((1000 / (STRIP_MAX_FPS)), ((30 * 300) / 1000))
-#define STRIP_MAX_FPS _segment.fps
+#define STRIP_MIN_DELAY max((1000 / (_segment.fps)), ((30 * 300) / 1000))
 
 #define FASTLED_INTERNAL
 #include "FastLED.h"
 FASTLED_USING_NAMESPACE
 
 /* </FastLED implementation> */
-
-#define DEFAULT_BRIGHTNESS 255
-#define DEFAULT_MODE 42
-#define DEFAULT_BEAT88 1000
-#define DEFAULT_COLOR 0xFF0000
-#define DEFAULT_DELTAHUE 0
-#define DEFAULT_HUETIME 0
 
 #ifdef SPEED_MAX
 #error "SPEED_MAX define is no longer used!"
@@ -67,12 +64,6 @@ FASTLED_USING_NAMESPACE
 #ifdef SPEED_MIN
 #error "SPEED_MIN define is no longer used!"
 #endif
-
-#define BEAT88_MIN 1
-#define BEAT88_MAX 10000
-
-#define BRIGHTNESS_MIN 0
-#define BRIGHTNESS_MAX 255
 
 #define SEGMENT _segment
 #define SEGMENT_RUNTIME _segment_runtime
@@ -215,20 +206,20 @@ class WS2812FX
 public:
   typedef struct segment
   {
+    uint16_t CRC;
+    bool power;
+    bool isRunning;
     bool reverse;
     bool inverse;
     bool mirror;
     AUTOPLAYMODES autoplay;
     AUTOPLAYMODES autoPal;
     uint16_t beat88;
-    uint16_t start;
-    uint16_t stop;
     uint16_t hueTime;
     uint16_t milliamps;
     uint16_t autoplayDuration;
     uint16_t autoPalDuration;
-    uint16_t segments;
-    uint16_t length;
+    uint8_t segments;
     uint8_t cooling;
     uint8_t sparking;
     uint8_t twinkleSpeed;
@@ -241,6 +232,9 @@ public:
     uint8_t damping;
     uint8_t dithering;
     uint8_t sunrisetime;
+    uint8_t targetBrightness;
+    uint8_t targetPaletteNum;
+    uint8_t currentPaletteNum;
     TBlendType blendType;
     ColorTemperature colorTemp;
   } segment;
@@ -295,11 +289,13 @@ public:
     uint32_t nextAuto;
     uint32_t nextPalette;
     uint32_t next_time;
+    uint16_t start;
+    uint16_t stop;
+    uint16_t length;
   } segment_runtime;
 
 public:
-  WS2812FX(const uint16_t num_leds,
-           const uint8_t fps = 60,
+  WS2812FX(const uint8_t fps = 120,
            const uint8_t volt = 5,
            const uint16_t milliamps = 500,
            const CRGBPalette16 pal = Rainbow_gp,
@@ -307,33 +303,13 @@ public:
            const LEDColorCorrection colc = TypicalLEDStrip)
   {
 
-    _length = num_leds;
 
-    _bleds = new CRGB[_length];
-    leds = new CRGB[_length];
+    _bleds = new CRGB[LED_COUNT];
+    leds = new CRGB[LED_COUNT];
 
-    _segment.start = 0;
-    _segment.stop = _length - 1;
-    _segment.length = _length;
-    _segment.segments = 1;
-    old_segs = 0;
-    _segment.damping = 50;
-
-    setBlurValue(255);
-
-    FastLED.setBrightness(DEFAULT_BRIGHTNESS);
-    _brightness = 255;
-    _targetBrightness = 255;
-
-    FastLED.addLeds<WS2812, LED_PIN, GRB>(_bleds, num_leds);
+    FastLED.addLeds<WS2812, LED_PIN, GRB>(_bleds, LED_COUNT);
     FastLED.setCorrection(colc); //TypicalLEDStrip);
-    setDithering(1);
-    _currentPalette = Rainbow_gp; //CRGBPalette16(CRGB::Black);
 
-    setTargetPalette(pal, Name);
-
-    FastLED.clear(true);
-    FastLED.show();
 
     _mode[FX_MODE_STATIC] = &WS2812FX::mode_static;
     _mode[FX_MODE_TWINKLE_EASE] = &WS2812FX::mode_twinkle_ease;
@@ -458,40 +434,11 @@ public:
     _pal_name[RANDOM_PAL] = F("Randomly changing");
 
     _new_mode = 255;
-    _running = false;
-
-    _segment.mode = DEFAULT_MODE;
-    _segment.start = 0;
-    _segment.stop = _length - 1;
-    _segment.beat88 = DEFAULT_BEAT88;
-    _segment.deltaHue = DEFAULT_DELTAHUE;
-    _segment.hueTime = DEFAULT_HUETIME;
-    _segment.blendType = LINEARBLEND;
-    _segment.autoplay = AUTO_MODE_OFF;
-    _segment.autoplayDuration = 88;
-    _segment.autoPal = AUTO_MODE_OFF;
-    _segment.autoPalDuration = 93;
-    _segment.reverse = false;
-    _segment.inverse = false;
-    _segment.mirror = false;
-    _segment.cooling = 50;
-    _segment.sparking = 125;
-    _segment.twinkleSpeed = 4;
-    _segment.twinkleDensity = 4;
-    setNumBars(255);
-    _segment.milliamps = milliamps;
-    _segment.fps = fps;
-
-    FastLED.setMaxRefreshRate(fps);
-
     _volts = volt;
-    FastLED.setMaxPowerInVoltsAndMilliamps(volt, milliamps);
 
-    RESET_RUNTIME;
+    FastLED.setBrightness(DEFAULT_BRIGHTNESS);
 
-    SEGMENT_RUNTIME.tb.timebase = millis();
-    SEGMENT_RUNTIME.baseHue += DEFAULT_DELTAHUE;
-    SEGMENT_RUNTIME.modeinit = true;
+    resetDefaults();
   }
 
   ~WS2812FX()
@@ -504,144 +451,133 @@ public:
   CRGB *_bleds;
 
   void
-  init(void),
-      service(void),
-      start(void),
-      stop(void),
-      show(void),
-      setCurrentPalette(CRGBPalette16 p, String Name),
-      setCurrentPalette(uint8_t n),
-      setTargetPalette(CRGBPalette16 p, String Name),
-      setTargetPalette(uint8_t n),
-      map_pixels_palette(uint8_t *hues, uint8_t bright, TBlendType blend),
-      setMode(uint8_t m),
-      setSpeed(uint16_t s),
-      increaseSpeed(uint8_t s),
-      decreaseSpeed(uint8_t s),
-      setColor(uint8_t r, uint8_t g, uint8_t b),
-      setColor(uint32_t c),
-      setColor(CRGBPalette16 c),
-      setBrightness(uint8_t b),
-      increaseBrightness(uint8_t s),
-      decreaseBrightness(uint8_t s),
-      setLength(uint16_t b),
-      increaseLength(uint16_t s),
-      decreaseLength(uint16_t s),
-      trigger(void),
-      setBlendType(TBlendType t),
-      setColorTemperature(uint8_t index),
-      toggleBlendType(void);
+    init                  (void),
+    resetDefaults         (void),
+    service               (void),
+    start                 (void),
+    stop                  (void),
+    show                  (void),
+    setCurrentPalette     (CRGBPalette16 p, String Name),
+    setCurrentPalette     (uint8_t n),
+    setTargetPalette      (CRGBPalette16 p, String Name),
+    setTargetPalette      (uint8_t n),
+    map_pixels_palette    (uint8_t *hues, uint8_t bright, TBlendType blend),
+    setMode               (uint8_t m),
+    increaseSpeed         (uint8_t s),
+    decreaseSpeed         (uint8_t s),
+    setColor              (uint8_t r, uint8_t g, uint8_t b),
+    setColor              (uint32_t c),
+    setColor              (CRGBPalette16 c),
+    setBrightness         (uint8_t b),
+    increaseBrightness    (uint8_t s),
+    decreaseBrightness    (uint8_t s),
+    trigger               (void),
+    setBlendType          (TBlendType t),
+    setColorTemperature   (uint8_t index),
+    toggleBlendType       (void);
 
-  inline void setMilliamps(uint16_t mA)
-  {
-    _segment.milliamps = mA;
-    FastLED.setMaxPowerInVoltsAndMilliamps(_volts, mA);
-  }
+  /*
+   * _segment set functions
+   * 
+    
+    */
 
-  inline void setCooling(uint8_t cool)
-  {
-    _segment.cooling = constrain(cool, 20, 100);
-  }
+  
 
-  inline uint8_t getCooling(void) { return _segment.cooling; }
+  // setters
+  inline void setCRC                  (uint16_t CRC)    { _segment.CRC = CRC; }
+  inline void setIsRunning            (bool isRunning)  { _segment.isRunning = isRunning; }
+  inline void setPower                (bool power)      { _segment.power = power; }
+  inline void setReverse              (bool rev)        { _segment.reverse = rev; }
+  inline void setInverse              (bool inv)        { _segment.inverse = inv; }
+  inline void setMirror               (bool mirror)     { _segment.mirror = mirror; }
+  inline void setAutoplay             (AUTOPLAYMODES m) { _segment.autoplay = m; }
+  inline void setAutopal              (AUTOPLAYMODES p) { _segment.autoPal = p; }
+  inline void setBeat88               (uint16_t b)      { _segment.beat88 = constrain(b, BEAT88_MIN, BEAT88_MAX); _segment_runtime.tb.timebase = millis(); }
+  inline void setSpeed                (uint16_t s)      { setBeat88(s); }
+  inline void setHuetime              (uint16_t t)      { _segment.hueTime = t; SEGMENT_RUNTIME.nextHue = 0; }
+  inline void setMilliamps            (uint16_t m)      { _segment.milliamps = constrain(m, 100, 20000); FastLED.setMaxPowerInVoltsAndMilliamps(_volts, _segment.milliamps); }
+  inline void setAutoplayDuration     (uint16_t t)      { _segment.autoplayDuration = t; SEGMENT_RUNTIME.nextAuto = 0; }
+  inline void setAutopalDuration      (uint16_t t)      { _segment.autoPalDuration = t; SEGMENT_RUNTIME.nextPalette = 0; }
+  inline void setSegments             (uint8_t s)       { _segment.segments = constrain(s, 1, max(LED_COUNT / 50, 1)); }
+  inline void setCooling              (uint8_t cool)    { _segment.cooling = constrain(cool, 20, 100); }
+  inline void setSparking             (uint8_t spark)   { _segment.sparking = constrain(spark, 50, 200); }
+  inline void setTwinkleSpeed         (uint8_t speed)   { _segment.twinkleSpeed = constrain(speed, 0, 8); }
+  inline void setTwinkleDensity       (uint8_t density) { _segment.twinkleDensity = constrain(density, 0, 8); }
+  inline void setNumBars              (uint8_t numBars) { _segment.numBars = constrain(numBars, 1, max(LED_COUNT / 20, 1)); }
+  // setMode --> treated separately...
+  inline void setMaxFPS               (uint8_t fps)     { _segment.fps = constrain(fps, 10, 111); FastLED.setMaxRefreshRate(fps); }
+  inline void setDeltaHue             (uint8_t dh)      { _segment.deltaHue = dh; }
+  inline void setBlur                 (uint8_t b)       { _segment.blur = b; _pblur = b; }
+  inline void setDamping              (uint8_t d)       { _segment.damping = constrain(d, 0, 100); }
+  inline void setDithering            (uint8_t dither)  { _segment.dithering = dither; FastLED.setDither(dither); }
+  inline void setSunriseTime          (uint8_t t)       { _segment.sunrisetime = constrain(t, 1, 60); }
+  inline void setTargetBrightness     (uint8_t b)       { setBrightness(b); }
+  inline void setTargetPaletteNumber  (uint8_t p)       { setTargetPalette(p); }
+  inline void setCurrentPaletteNumber (uint8_t p)       { setCurrentPalette(p); }
+  inline void setColorTemp            (uint8_t c)       { setColorTemperature(c); }
 
-  inline void setSparking(uint8_t spark)
-  {
-    _segment.sparking = constrain(spark, 50, 200);
-  }
+ 
 
-  inline uint8_t getSparking(void) { return _segment.sparking; }
-
-  inline void setTwinkleSpeed(uint8_t speed)
-  {
-    _segment.twinkleSpeed = constrain(speed, 0, 8);
-  }
-
-  inline uint8_t getTwinkleSpeed(void) { return _segment.twinkleSpeed; }
-
-  inline void setNumBars(uint8_t numBars)
-  {
-    _segment.numBars = constrain(numBars, 1, max(_length / 20, 1));
-  }
-
-  inline uint8_t getNumBars(void) { return _segment.numBars; }
-
-  inline void setTwinkleDensity(uint8_t density)
-  {
-    _segment.twinkleDensity = constrain(density, 0, 8);
-  }
-
-  inline uint8_t getBlurValue(void) { return _segment.blur; }
-
-  inline void setBlurValue(uint8_t blur)
-  {
-    _segment.blur = blur;
-    _pblur = blur;
-  }
-
-  inline void setAutoplayDuration(uint16_t duration)
-  {
-    SEGMENT_RUNTIME.nextAuto = 0;
-    SEGMENT.autoplayDuration = duration;
-  }
-
-  inline void setAutoPalDuration(uint16_t duration)
-  {
-    SEGMENT_RUNTIME.nextPalette = 0;
-    SEGMENT.autoPalDuration = duration;
-  }
-
-  inline void sethueTime(uint16_t hueTime)
-  {
-    SEGMENT_RUNTIME.nextHue = 0;
-    SEGMENT.hueTime = hueTime;
-  }
-
-  inline void setTransition(void)
-  {
-    _transition = true;
-    _segment_runtime.modeinit = true;
-    _blend = 0;
-  }
-
-  inline bool getInverse(void) { return _segment.inverse; }
-  inline void setInverse(bool inverse) { _segment.inverse = inverse; }
-  inline bool getMirror(void) { return _segment.mirror; }
-  inline void setMirror(bool mirror) { _segment.mirror = mirror; }
-  inline void setDithering(uint8_t dither)
-  {
-    _segment.dithering = dither;
-    FastLED.setDither(dither);
-  }
-  inline uint8_t getTwinkleDensity(void) { return _segment.twinkleDensity; }
-  inline uint8_t getMaxFPS(void) { return _segment.fps; }
-  inline void setMaxFPS(uint8_t fps)
-  {
-    FastLED.setMaxRefreshRate(fps);
-    _segment.fps = fps;
-  }
-
-  boolean
-  isRunning(void);
+  inline void setTransition           (void)            { _transition = true; _segment_runtime.modeinit = true; _blend = 0; }
+  
+  // getters
+  inline size_t         getCRCsize(void)          { return sizeof(_segment.CRC); }
+    
+  inline uint16_t       getCRC(void)                  { return _segment.CRC; }
+  inline bool           isRunning(void)               { return _segment.isRunning; }
+  inline bool           getPower(void)                { return _segment.power; }
+  inline bool           geReverse(void)               { return _segment.reverse; }
+  inline bool           getInverse(void)              { return _segment.inverse; }
+  inline bool           getMirror(void)               { return _segment.mirror; }
+  inline AUTOPLAYMODES  getAutoplay(void)             { return _segment.autoplay; }
+  inline AUTOPLAYMODES  getAutopal(void)              { return _segment.autoPal; }
+  inline uint16_t       getSpeed(void)                { return getBeat88(); }
+  inline uint16_t       getBeat88(void)               { return _segment.beat88; }
+  inline uint16_t       getHueTime(void)              { return _segment.hueTime; }
+  inline uint16_t       getMilliamps(void)            { return _segment.milliamps; }
+  inline uint16_t       getAutoplayDuration(void)     { return _segment.autoplayDuration; }
+  inline uint16_t       getAutopalDuration(void)      { return _segment.autoPalDuration; }
+  inline uint8_t        getSegments(void)             { return _segment.segments; }
+  inline uint8_t        getCooling(void)              { return _segment.cooling; }
+  inline uint8_t        getSparking(void)             { return _segment.sparking; }
+  inline uint8_t        getTwinkleSpeed(void)         { return _segment.twinkleSpeed; }  
+  inline uint8_t        getTwinkleDensity(void)       { return _segment.twinkleDensity; }
+  inline uint8_t        getNumBars(void)              { return _segment.numBars; }
+  // getmode -> see below
+  inline uint8_t        getMaxFPS(void)               { return _segment.fps; }
+  inline uint8_t        getDeltaHue(void)             { return _segment.deltaHue; }
+  inline uint8_t        getBlurValue(void)            { return _segment.blur; }
+  inline uint8_t        getDamping(void)              { return _segment.damping; }
+  inline uint8_t        getDithering(void)            { return _segment.dithering; }
+  inline uint8_t        getSunriseTime(void)          { return _segment.sunrisetime; }
+  inline uint8_t        getBrightness(void)           { return getTargetBrightness(); }
+  inline uint8_t        getTargetBrightness(void)     { return _segment.targetBrightness; }
+  inline uint8_t        getTargetPaletteNumber(void)  { return _segment.targetPaletteNum; }
+  inline uint8_t        getCurrentPaletteNumber(void) { return _segment.currentPaletteNum; }
+  inline TBlendType     getBlendType(void)            { return _segment.blendType; }
+         uint8_t        getColorTemp(void);
+  
+  inline uint32_t       getCurrentPower(void)         { return calculate_unscaled_power_mW(leds, LED_COUNT); }
+ 
+  // return a pointer to the complete segment structure
+  inline WS2812FX::segment *getSegment(void) { return &_segment; }
+  inline size_t getSegmentSize(void) { return sizeof(_segment); }
 
   uint8_t
   getMode(void),
-      getBrightness(void),
       getModeCount(void),
       getPalCount(void),
-      getColorTemp(void),
       nextMode(AUTOPLAYMODES mode),
       nextPalette(AUTOPLAYMODES mode),
       qadd8_lim(uint8_t i, uint8_t j, uint8_t lim);
 
   uint16_t old_segs;
 
-  inline uint8_t getCurrentPaletteNumber(void) { return _currentPaletteNum; }
-  inline uint8_t getTargetPaletteNumber(void) { return _targetPaletteNum; }
-  inline uint8_t getVoltage(void) { return _volts; }
+  inline uint8_t getVoltage(void) {
+    return _volts; }
 
   uint16_t
-  getBeat88(void),
       getStripLength(void),
       getLength(void);
 
@@ -658,8 +594,7 @@ public:
     modeCallBack = p;
   }
 
-  inline uint16_t getMilliamps(void) { return _segment.milliamps; }
-  inline uint32_t getCurrentPower(void) { return calculate_unscaled_power_mW(leds, _length); }
+  
 
   uint32_t
   getColor(uint8_t p_index);
@@ -671,8 +606,6 @@ public:
   getPalName(uint8_t p);
 
   String getColorTempName(uint8_t index);
-
-  inline WS2812FX::segment *getSegment(void) { return &_segment; }
 
   CRGBPalette16 getCurrentPalette(void) { return _currentPalette; };
   CRGBPalette16 getTargetPalette(void) { return _targetPalette; };
@@ -805,8 +738,7 @@ private:
 
   const __FlashStringHelper *_pal_name[NUM_PALETTES];
 
-  boolean
-      _running,
+  bool
       _transition,
       _triggered;
 
@@ -814,15 +746,10 @@ private:
       get_random_wheel_index(uint8_t, uint8_t),
       _new_mode,
       _volts,
-      _currentPaletteNum,
-      _targetPaletteNum,
       _blend,
       _pblur,
-      _targetBrightness,
       _brightness;
 
-  uint16_t
-      _length;
 
   const __FlashStringHelper *
       _name[MODE_COUNT]; // SRAM footprint: 2 bytes per element
