@@ -188,9 +188,10 @@ void WS2812FX::init()
 
   _brightness = 255;
 
+  bool isRunning = _segment.isRunning;
+  bool power = _segment.power;
+
   // initialising segment
-  setIsRunning(_segment.isRunning );
-  setPower(_segment.power);
   setReverse(_segment.reverse );
   setInverse(_segment.inverse );
   setMirror(_segment.mirror );
@@ -224,6 +225,8 @@ void WS2812FX::init()
 
   // should start with tranistion after init
   setTransition();
+  setIsRunning(isRunning );
+  setPower(power);
 
 }
 
@@ -315,7 +318,7 @@ void WS2812FX::service()
   }
   else
   {
-    fadeToBlackBy(_bleds, LED_COUNT, 8);
+    fadeToBlackBy(_bleds, LED_COUNT, 4);
     FastLED.show();
     return;
   }
@@ -411,6 +414,7 @@ void WS2812FX::service()
   EVERY_N_MILLISECONDS(STRIP_MIN_DELAY) //(10)
   {
     fadeToBlackBy(_bleds, LED_COUNT, 1);
+    //fadeToBlackBy(leds,   LED_COUNT, 1);
   }
 
   // every "hueTime" we set either the deltaHue (fixed offset)
@@ -454,7 +458,6 @@ void WS2812FX::service()
   }
 
   // Autoplay
-  //EVERY_N_SECONDS(SEGMENT.autoplayDuration)
   if (now > SEGMENT_RUNTIME.nextAuto)
   {
     if (!_transition)
@@ -469,16 +472,6 @@ void WS2812FX::service()
     if (!_transition)
     {
       nextPalette(_segment.autoPal);
-      /*
-      if (getTargetPaletteNumber() >= getPalCount() - 1)
-      {
-        setTargetPalette(0);
-      }
-      else
-      {
-        setTargetPalette(getTargetPaletteNumber() + 1);
-      }
-      */
       SEGMENT_RUNTIME.nextPalette = now + SEGMENT.autoPalDuration * 1000;
     }
   }
@@ -486,8 +479,8 @@ void WS2812FX::service()
 
 void WS2812FX::start()
 {
-  _segment.isRunning = true;
-  _segment.power = true;
+  setIsRunning(true);
+  setPower(true);
 }
 
 void WS2812FX::stop()
@@ -1109,9 +1102,6 @@ void WS2812FX::setTargetPalette(CRGBPalette16 p, String Name = "Custom")
   _targetPalette = p;
   _targetPaletteName = Name;
   _segment.targetPaletteNum = NUM_PALETTES;
-
-  if (targetPaletteCallback != NULL)
-    targetPaletteCallback(_segment.targetPaletteNum);
 }
 
 /*
@@ -1129,15 +1119,11 @@ void WS2812FX::setTargetPalette(uint8_t n = 0)
     _targetPalette = getRandomPalette();
     _targetPaletteName = _pal_name[n % NUM_PALETTES];
     _segment.targetPaletteNum = n % NUM_PALETTES;
-    if (targetPaletteCallback != NULL)
-      targetPaletteCallback(_segment.targetPaletteNum);
     return;
   }
   _targetPalette = *(_palettes[n % NUM_PALETTES]);
   _targetPaletteName = _pal_name[n % NUM_PALETTES];
   _segment.targetPaletteNum = n % NUM_PALETTES;
-  if (targetPaletteCallback != NULL)
-    targetPaletteCallback(_segment.targetPaletteNum);
 }
 
 /*
@@ -1174,10 +1160,7 @@ void WS2812FX::setMode(uint8_t m)
   _blend = 0;
   SEGMENT_RUNTIME.modeinit = true;
   setBlur(_pblur);
-
-  if (modeCallBack != NULL)
-    modeCallBack(SEGMENT.mode);
-
+  
   if (m == FX_MODE_VOID)
   {
     segs = _segment.segments;

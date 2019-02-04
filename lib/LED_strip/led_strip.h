@@ -81,40 +81,6 @@ uint8_t Green(uint32_t color);
 // Returns the Blue component of a 32-bit color
 uint8_t Blue(uint32_t color);
 
-/*
-// resets the current effects and stops the strip
-void reset(void);
-
-// just calls the right effec routine according to the current Effect
-void effectHandler(void);
-
-// Sets a new Effect to be called
-void setEffect(uint8_t Effect);
-
-// returns the current Effect
-uint8_t getEffect(void);
-
-// return the previous effect
-uint8_t getPreviousEffect(void);
-
-// helper for long delays (prevents watchdog reboot)
-void delaymicro(unsigned int mics);
-
-// set color for a single pixel (deactivates effects)
-// but also sets the color for the effect library
-void strip_setpixelcolor(uint16_t pixel, uint8_t r, uint8_t g, uint8_t b);
-void strip_setpixelcolor(uint16_t pixel, uint32_t color);
-
-void set_Range(uint16_t start, uint16_t stop, uint8_t r, uint8_t g, uint8_t b);
-void set_Range(uint16_t start, uint16_t stop, uint32_t color);
-
-void stripe_setDelayInterval(uint16_t delay);
-
-uint16_t stripe_getDelayInterval();
-
-*/
-
-
 // Field.h
 /*
    ESP8266 + FastLED + IR Remote: https://github.com/jasoncoon/esp8266-fastled-webserver

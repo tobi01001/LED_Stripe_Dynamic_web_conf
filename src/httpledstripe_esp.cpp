@@ -110,6 +110,8 @@ String AP_SSID = LED_NAME + String(ESP.getChipId());
 //flag for saving data
 bool shouldSaveRuntime = false;
 
+WS2812FX::segment seg;
+
 #include "FSBrowser.h"
 
 // function Definitions
@@ -130,8 +132,7 @@ void saveEEPROMData(void),
     broadcastInt(String name, uint16_t value),
     broadcastString(String name, String value),
     webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length),
-    targetPaletteChanged(uint8_t num),
-    modeChanged(uint8_t num),
+    checkSegmentChanges(void),
     clearEEPROM(void);
 
 const String
@@ -139,22 +140,6 @@ pals_setup(void);
 
 uint32
 getResetReason(void);
-
-void targetPaletteChanged(uint8_t pal)
-{
-  sendAnswer("\"palette\": " + String(pal) + ", \"palette name\": \"" +
-             (String)strip->getPalName(pal) + "\"");
-  broadcastInt("pa", pal);
-}
-
-void modeChanged(uint8_t num)
-{
-  sendAnswer("\"mode\": 3, \"modename\": \"" +
-             (String)strip->getModeName(num) +
-             "\", \"wsfxmode\": " + String(num));
-  // let anyone connected know what we just did
-  broadcastInt("mo", num);
-}
 
 // used to send an answer as INT to the calling http request
 // TODO: Use one answer function with parameters being overloaded
@@ -231,8 +216,184 @@ unsigned int calc_CRC16(unsigned int crc, unsigned char *buf, int len)
   return crc;
 }
 
-void print_segment(WS2812FX::segment * s)
-{
+
+void checkSegmentChanges(void) {
+  if(seg.power != strip->getPower()) {
+    seg.power = strip->getPower();
+    broadcastInt("power", seg.power);
+    shouldSaveRuntime = true;
+  }
+  if(seg.isRunning != strip->isRunning()) {
+    seg.isRunning = strip->isRunning();
+    broadcastInt("isRunning", seg.isRunning);
+    shouldSaveRuntime = true;
+  }
+  if(seg.targetBrightness != strip->getTargetBrightness()) {
+    seg.targetBrightness = strip->getTargetBrightness();
+    broadcastInt("br", seg.targetBrightness);
+    shouldSaveRuntime = true;
+  }
+  if(seg.mode != strip->getMode()){
+    seg.mode = strip->getMode();
+    broadcastInt("mo", seg.mode);
+    shouldSaveRuntime = true;
+  }
+  if(seg.targetPaletteNum != strip->getTargetPaletteNumber()) {
+    seg.targetPaletteNum = strip->getTargetPaletteNumber();
+    broadcastInt("pa", seg.targetPaletteNum);
+    shouldSaveRuntime = true;
+  }
+  if(seg.beat88 != strip->getBeat88()) {
+    seg.beat88 = strip->getBeat88();
+    broadcastInt("sp", seg.beat88);
+    shouldSaveRuntime = true;
+  }
+  if(seg.blendType != strip->getBlendType()) {
+    seg.blendType = strip->getBlendType();
+    broadcastInt("blendType", seg.blendType);
+    shouldSaveRuntime = true;
+  }
+  if(seg.colorTemp != strip->getColorTemperature())
+  {
+    seg.colorTemp = strip->getColorTemperature();
+    broadcastInt("ColorTemperature", strip->getColorTemp());
+    shouldSaveRuntime = true;
+  }
+  if(seg.blur != strip->getBlurValue())
+  {
+    seg.blur = strip->getBlurValue();
+    broadcastInt("LEDblur", seg.blur);
+    shouldSaveRuntime = true;
+  }
+  if(seg.reverse != strip->getReverse())
+  {
+    seg.reverse = strip->getReverse();
+    broadcastInt("reverse", seg.reverse);
+    shouldSaveRuntime = true;
+  }
+  if(seg.segments != strip->getSegments())
+  {
+    seg.segments = strip->getSegments();
+    broadcastInt("segments", seg.segments);
+    shouldSaveRuntime = true;
+  }
+  if(seg.mirror != strip->getMirror())
+  {
+    seg.mirror = strip->getMirror();
+    broadcastInt("mirror", seg.mirror);
+    shouldSaveRuntime = true;
+  }
+  if(seg.inverse != strip->getInverse())
+  {
+    seg.inverse = strip->getInverse();
+    broadcastInt("inverse",seg.inverse);
+    shouldSaveRuntime = true;
+  }
+  if(seg.hueTime != strip->getHueTime())
+  {
+    seg.hueTime = strip->getHueTime();
+    broadcastInt("huetime", seg.hueTime);
+    shouldSaveRuntime = true;
+  }
+  if(seg.deltaHue != strip->getDeltaHue())
+  { 
+    seg.deltaHue = strip->getDeltaHue();
+    broadcastInt("deltahue", seg.deltaHue);
+    shouldSaveRuntime = true;
+  }
+  if(seg.autoplay != strip->getAutoplay())
+  {
+    seg.autoplay = strip->getAutoplay();
+    broadcastInt("autoplay", seg.autoplay);
+    shouldSaveRuntime = true;
+  }
+  if(seg.autoplayDuration != strip->getAutoplayDuration())
+  {
+    seg.autoplayDuration = strip->getAutoplayDuration();
+    broadcastInt("autoplayDuration", seg.autoplayDuration);
+    shouldSaveRuntime = true;
+  }
+  if(seg.autoPal != strip->getAutopal())
+  {
+    seg.autoPal = strip->getAutopal();
+    broadcastInt("autopal", seg.autoPal);
+    shouldSaveRuntime = true;
+  }
+  if(seg.autoPalDuration != strip->getAutopalDuration())
+  {
+    seg.autoPalDuration = strip->getAutopalDuration();
+    broadcastInt("autopalDuration", seg.autoPalDuration);
+    shouldSaveRuntime = true;
+  }
+  /*
+  "solidColor" -> currently not possible to save?
+  --> for this to work we need to add 32bit color to the structure 
+      and to "set" this including palette creation...
+      ...and the palette creation depends on the current palette number?
+  */
+  if(seg.cooling != strip->getCooling())
+  {
+    seg.cooling = strip->getCooling();
+    broadcastInt("cooling", seg.cooling);
+    shouldSaveRuntime = true;
+  }
+  if(seg.sparking != strip->getSparking())
+  {
+    seg.sparking = strip->getSparking();
+    broadcastInt("sparking", seg.sparking);
+    shouldSaveRuntime = true;
+  }
+  if(seg.twinkleSpeed != strip->getTwinkleSpeed())
+  {
+    seg.twinkleSpeed = strip->getTwinkleSpeed();
+    broadcastInt("twinkleSpeed", seg.twinkleSpeed);
+    shouldSaveRuntime = true;
+  }
+  if(seg.twinkleDensity != strip->getTwinkleDensity())
+  {
+    seg.twinkleDensity = strip->getTwinkleDensity();
+    broadcastInt("twinkleDensity", seg.twinkleDensity);
+    shouldSaveRuntime = true;
+  }
+  if(seg.numBars != strip->getNumBars())
+  {
+    seg.numBars = strip->getNumBars();
+    broadcastInt("numBars", seg.numBars);
+    shouldSaveRuntime = true;
+  }
+  if(seg.damping != strip->getDamping())
+  {
+    seg.damping = strip->getDamping();
+    broadcastInt("damping", seg.damping);
+    shouldSaveRuntime = true;
+  }
+  if(seg.sunrisetime != strip->getSunriseTime())
+  {
+    seg.sunrisetime = strip->getSunriseTime();
+    broadcastInt("sunriseset", seg.sunrisetime);
+    shouldSaveRuntime = true;
+  }
+  if(seg.milliamps != strip->getMilliamps())
+  {
+    seg.milliamps = strip->getMilliamps();
+    broadcastInt("current", seg.milliamps);
+    shouldSaveRuntime = true;
+  }
+  if(seg.fps != strip->getMaxFPS())
+  {
+    seg.fps = strip->getMaxFPS();
+    broadcastInt("fps", seg.fps);
+    shouldSaveRuntime = true;
+  }
+  if(seg.dithering != strip->getDithering())
+  {
+    seg.dithering = strip->getDithering();
+    broadcastInt("dithering", seg.dithering);
+    shouldSaveRuntime = true;
+  }  
+}
+
+void print_segment(WS2812FX::segment * s) {
   DEBUGPRNT("Printing segment content");
   #ifdef DEBUG
   Serial.println("\t\tCRC:\t" + String(s->CRC));
@@ -278,7 +439,8 @@ void saveEEPROMData(void)
   DEBUGPRNT("\tGoing to store runtime on EEPROM...");
   // we will store the complete segment data
   
-  WS2812FX::segment seg = *strip->getSegment();
+  //now in "checkSegment"
+  //WS2812FX::segment seg = *strip->getSegment();
 
   DEBUGPRNT("WS2812 segment:");
   print_segment(strip->getSegment());
@@ -312,7 +474,10 @@ void readRuntimeDataEEPROM(void)
 {
   DEBUGPRNT("\tReading Config From EEPROM...");
   // copy segment...
-  WS2812FX::segment seg;
+  
+  // now separate global....
+  //WS2812FX::segment seg;
+  
   //read the configuration from EEPROM into RAM
   EEPROM.get(0, seg);
 
@@ -331,11 +496,6 @@ void readRuntimeDataEEPROM(void)
     DEBUGPRNT("\tWe got a CRC match!...");
     
     (*strip->getSegment()) = seg;
-    #pragma message "This needs to be corrected. Now set to \"working\" only"
-    //currentEffect = FX_WS2812;
-    //stripIsOn = strip->isRunning();
-    strip->setIsRunning(true);
-    strip->setPower(true);
     strip->init();
   }
   else // load defaults
@@ -343,11 +503,11 @@ void readRuntimeDataEEPROM(void)
     DEBUGPRNT("\tWe got NO NO NO CRC match!!!");
     DEBUGPRNT("Loading default Data...");
     strip->resetDefaults();
-    #pragma message "This needs to be corrected. Now set to \"working\" only"
-    strip->setIsRunning(true);
-    strip->setPower(true);
   }
 
+  memset(&seg, 0, sizeof(seg));
+
+  checkSegmentChanges();
 
   // no need to save right now. next save should be after /set?....
   shouldSaveRuntime = false;
@@ -553,14 +713,14 @@ void handleSet(void)
   bool sendStatus = false;
 
 // Debug only
-#ifdef DEBUG
+  #ifdef DEBUG
   DEBUGPRNT("<Begin>Server Args:");
   for (uint8_t i = 0; i < server.args(); i++)
   {
     DEBUGPRNT(server.argName(i) + "\t" + server.arg(i));
   }
   DEBUGPRNT("<End> Server Args");
-#endif
+  #endif
   // to be completed in general
   // TODO: question: is there enough memory to store color and "timing" per pixel?
   // i.e. uint32_t onColor, OffColor, uint16_t ontime, offtime
@@ -589,18 +749,12 @@ void handleSet(void)
     // current library effect number
     uint8_t effect = strip->getMode();
 
-#ifdef DEBUG
     DEBUGPRNT("got Argument mo....");
-#endif
 
     // just switch to the next if we get an "u" for up
     if (server.arg("mo")[0] == 'u')
     {
-
-#ifdef DEBUG
       DEBUGPRNT("got Argument mode up....");
-#endif
-
       //effect = effect + 1;
       isWS2812FX = true;
       effect = strip->nextMode(AUTO_MODE_UP);
@@ -608,9 +762,7 @@ void handleSet(void)
     // switch to the previous one if we get a "d" for down
     else if (server.arg("mo")[0] == 'd')
     {
-#ifdef DEBUG
       DEBUGPRNT("got Argument mode down....");
-#endif
       //effect = effect - 1;
       isWS2812FX = true;
       effect = strip->nextMode(AUTO_MODE_DOWN);
@@ -618,20 +770,18 @@ void handleSet(void)
     // if we get an "o" for off, we switch off
     else if (server.arg("mo")[0] == 'o')
     {
-#ifdef DEBUG
       DEBUGPRNT("got Argument mode Off....");
-#endif
       strip->setPower(false);
       sendString("state", "off");
-      broadcastInt("power", false);
+      //broadcastInt("power", false);
     }
     // for backward compatibility and FHEM:
     // --> activate fire flicker
     else if (server.arg("mo")[0] == 'f')
     {
-#ifdef DEBUG
+
       DEBUGPRNT("got Argument fire....");
-#endif
+
       effect = FX_MODE_FIRE_FLICKER;
       isWS2812FX = true;
     }
@@ -639,9 +789,7 @@ void handleSet(void)
     // --> activate rainbow effect
     else if (server.arg("mo")[0] == 'r')
     {
-#ifdef DEBUG
       DEBUGPRNT("got Argument mode rainbow cycle....");
-#endif
       effect = FX_MODE_RAINBOW_CYCLE;
       isWS2812FX = true;
     }
@@ -649,9 +797,7 @@ void handleSet(void)
     // --> activate the K.I.T.T. (larson scanner)
     else if (server.arg("mo")[0] == 'k')
     {
-#ifdef DEBUG
       DEBUGPRNT("got Argument mode KITT....");
-#endif
       effect = FX_MODE_LARSON_SCANNER;
       isWS2812FX = true;
     }
@@ -659,9 +805,7 @@ void handleSet(void)
     // --> activate Twinkle Fox
     else if (server.arg("mo")[0] == 's')
     {
-#ifdef DEBUG
       DEBUGPRNT("got Argument mode Twinkle Fox....");
-#endif
       effect = FX_MODE_TWINKLE_FOX;
       isWS2812FX = true;
     }
@@ -669,9 +813,7 @@ void handleSet(void)
     // --> activate Twinkle Fox in white...
     else if (server.arg("mo")[0] == 'w')
     {
-#ifdef DEBUG
       DEBUGPRNT("got Argument mode White Twinkle....");
-#endif
       strip->setColor(CRGBPalette16(CRGB::White));
       effect = FX_MODE_TWINKLE_FOX;
       isWS2812FX = true;
@@ -679,74 +821,39 @@ void handleSet(void)
     // sunrise effect
     else if (server.arg("mo") == "Sunrise")
     {
-#ifdef DEBUG
       DEBUGPRNT("got Argument mode sunrise....");
-#endif
-
-      // milliseconds time to full sunrise
-      //      uint32_t mytime = myEEPROMSaveData.sParam.deltaTime * myEEPROMSaveData.sParam.steps;
-      //      const uint16_t mysteps = 512; // defaults to 512 as color values are 255...
       // sunrise time in seconds
       if (server.hasArg("sec"))
       {
-#ifdef DEBUG
         DEBUGPRNT("got Argument sec....");
-#endif
-        //        mytime = 1000 * (uint32_t)strtoul(&server.arg("sec")[0], NULL, 10);
         strip->setSunriseTime(((uint16_t)strtoul(&server.arg("sec")[0], NULL, 10)) / 60);
       }
       // sunrise time in minutes
       else if (server.hasArg("min"))
       {
-#ifdef DEBUG
         DEBUGPRNT("got Argument min....");
-#endif
-        //        mytime = (1000 * 60) * (uint8_t)strtoul(&server.arg("min")[0], NULL, 10);
-         strip->setSunriseTime(((uint16_t)strtoul(&server.arg("sec")[0], NULL, 10)));
+        strip->setSunriseTime(((uint16_t)strtoul(&server.arg("sec")[0], NULL, 10)));
       }
-      /*
-      // use default if time less than 1000 ms;
-      // because smaller values should not be possible.
-      if (mytime < 1000)
-      {
-        // default will be 10 minutes
-        // = (1000 ms * 60) = 1 minute *10 = 10 minutes
-        mytime = 1000 * 60 * 10; // for readability
-      }
-      mySunriseStart(mytime, mysteps, true);
-      // answer for the "calling" party
-      */
       isWS2812FX = true;
       effect = FX_MODE_SUNRISE;
       strip->setTransition();
-      broadcastInt("sunriseset", strip->getSunriseTime());
-      sendStatus = true;
+      //broadcastInt("sunriseset", strip->getSunriseTime());
+      //sendStatus = true;
     }
     // the same for sunset....
     else if (server.arg("mo") == "Sunset")
     {
-#ifdef DEBUG
       DEBUGPRNT("got Argument mode sunset....");
-#endif
-      // milliseconds time to full sunrise
-      //      uint32_t mytime = myEEPROMSaveData.sParam.deltaTime * myEEPROMSaveData.sParam.steps;
-      //      const uint16_t mysteps = 512; // defaults to 1000;
       // sunrise time in seconds
       if (server.hasArg("sec"))
       {
-#ifdef DEBUG
         DEBUGPRNT("got Argument sec....");
-#endif
-        //        mytime = 1000 * (uint32_t)strtoul(&server.arg("sec")[0], NULL, 10);
         strip->setSunriseTime(((uint16_t)strtoul(&server.arg("sec")[0], NULL, 10)) / 60);
       }
       // sunrise time in minutes
       else if (server.hasArg("min"))
       {
-#ifdef DEBUG
         DEBUGPRNT("got Argument min....");
-#endif
-        //        mytime = (1000 * 60) * (uint8_t)strtoul(&server.arg("min")[0], NULL, 10);
         strip->setSunriseTime( ((uint16_t)strtoul(&server.arg("min")[0], NULL, 10)));
       }
 
@@ -754,26 +861,22 @@ void handleSet(void)
       isWS2812FX = true;
       effect = FX_MODE_SUNSET;
       strip->setTransition();
-      broadcastInt("sunriseset", strip->getSunriseTime());
-      sendStatus = true;
+      //broadcastInt("sunriseset", strip->getSunriseTime());
+      //sendStatus = true;
     }
     // finally - if nothing matched before - we switch to the effect  being provided.
     // we don't care if its actually an int or not
     // because it will be zero anyway if not.
     else
     {
-#ifdef DEBUG
       DEBUGPRNT("got Argument mode and seems to be an Effect....");
-#endif
       effect = (uint8_t)strtoul(&server.arg("mo")[0], NULL, 10);
       isWS2812FX = true;
     }
-    // make sure we roll over at the max number
+    // sanity only, actually handled in the library...
     if (effect >= strip->getModeCount())
     {
-#ifdef DEBUG
       DEBUGPRNT("Effect to high....");
-#endif
       effect = 0;
     }
     // activate the effect...
@@ -784,32 +887,40 @@ void handleSet(void)
       // seems to be obsolete but does not hurt anyway...
       strip->start();
 
-#ifdef DEBUG
       DEBUGPRNT("gonna send mo response....");
-#endif
-      broadcastInt("power", true);
+      //broadcastInt("power", true);
     }
   }
   // global on/off
   if (server.hasArg("power"))
   {
-#ifdef DEBUG
     DEBUGPRNT("got Argument power....");
-#endif
     if (server.arg("power")[0] == '0')
     {
       strip->setPower(false);
+    }
+    else
+    {
+      strip->setPower(true);
+      strip->setMode(strip->getMode());
+    }
+    sendString("state", strip->getPower() ? "on" : "off");
+    //broadcastInt("power", strip->getPower());
+  }
+
+  if(server.hasArg("isRunning"))
+  {
+    DEBUGPRNT("got Argument \"isRunning\"....");
+    if (server.arg("isRunning")[0] == '0')
+    {
       strip->setIsRunning(false);
     }
     else
     {
-      strip->start();
-      strip->setMode(strip->getMode());
+      strip->setIsRunning(true);
     }
-      
-
-    sendString("state", strip->getPower() ? "on" : "off");
-    broadcastInt("power", strip->getPower());
+    sendString("state", strip->isRunning() ? "on" : "off");
+    //broadcastInt("power", strip->isRunning());
   }
 
   // if we got a palette change
@@ -843,7 +954,7 @@ void handleSet(void)
     }
     strip->setBrightness(brightness);
     sendInt("brightness", brightness);
-    broadcastInt("br", strip->getBrightness());
+    //broadcastInt("br", strip->getBrightness());
   }
 
   // if we got a speed value
@@ -876,7 +987,7 @@ void handleSet(void)
     strip->setSpeed(speed);
     strip->show();
     sendAnswer("\"speed\": " + String(speed) + ", \"beat88\": \"" + String(speed));
-    broadcastInt("sp", strip->getBeat88());
+    //broadcastInt("sp", strip->getBeat88());
     strip->setTransition();
   }
 
@@ -908,7 +1019,7 @@ void handleSet(void)
     strip->setSpeed(speed);
     strip->show();
     sendAnswer("\"speed\": " + String(speed) + ", \"beat88\": \"" + String(speed));
-    broadcastInt("sp", strip->getBeat88());
+    //broadcastInt("sp", strip->getBeat88());
     strip->setTransition();
   }
 
@@ -1007,7 +1118,7 @@ void handleSet(void)
     color = (r << 16) | (g << 8) | (b << 0);
     // CRGB solidColor(color); // obsolete?
 
-    broadcastInt("pa", strip->getPalCount()); // this reflects a "custom palette"
+    //broadcastInt("pa", strip->getPalCount()); // this reflects a "custom palette"
   }
   // a signle pixel...
   //FIXME: Does not yet work. Lets simplyfy all of this!
@@ -1018,11 +1129,10 @@ void handleSet(void)
 #endif
     //setEffect(FX_NO_FX);
     uint16_t pixel = constrain((uint16_t)strtoul(&server.arg("pi")[0], NULL, 10), 0, strip->getStripLength() - 1);
-    //strip_setpixelcolor(pixel, color);
 
     strip->setMode(FX_MODE_VOID);
     strip->leds[pixel] = CRGB(color);
-    sendStatus = true;
+    //sendStatus = true;
     // a range of pixels from start rnS to end rnE
   }
   //FIXME: Does not yet work. Lets simplyfy all of this!
@@ -1039,8 +1149,7 @@ void handleSet(void)
     {
       strip->leds[i] = CRGB(color);
     }
-    //set_Range(start, end, color);
-    sendStatus = true;
+    //sendStatus = true;
     // one color for the complete strip
   }
   else if (server.hasArg("rgb"))
@@ -1058,7 +1167,7 @@ void handleSet(void)
     if (setColor)
     {
       strip->setColor(color);
-      sendStatus = true;
+      //sendStatus = true;
     }
   }
 
@@ -1068,7 +1177,7 @@ void handleSet(void)
     uint16_t value = String(server.arg("autoplay")).toInt();
     strip->setAutoplay((AUTOPLAYMODES)value);
     sendInt("Autoplay Mode", value);
-    broadcastInt("autoplay", value);
+    //broadcastInt("autoplay", value);
   }
 
   // autoplay duration changes
@@ -1077,7 +1186,7 @@ void handleSet(void)
     uint16_t value = String(server.arg("autoplayDuration")).toInt();
     strip->setAutoplayDuration(value);
     sendInt("Autoplay Mode Interval", value);
-    broadcastInt("autoplayDuration", value);
+    //broadcastInt("autoplayDuration", value);
   }
 
   // auto plaette change
@@ -1086,7 +1195,7 @@ void handleSet(void)
     uint16_t value = String(server.arg("autopal")).toInt();
     strip->setAutopal((AUTOPLAYMODES)value);
     sendInt("Autoplay Palette", value);
-    broadcastInt("autopal", value);
+    //broadcastInt("autopal", value);
   }
 
   // auto palette change duration changes
@@ -1095,7 +1204,7 @@ void handleSet(void)
     uint16_t value = String(server.arg("autopalDuration")).toInt();
     strip->setAutopalDuration(value);
     sendInt("Autoplay Palette Interval", value);
-    broadcastInt("autopalDuration", value);
+    //broadcastInt("autopalDuration", value);
   }
 
   // time for cycling through the basehue value changes
@@ -1103,7 +1212,7 @@ void handleSet(void)
   {
     uint16_t value = String(server.arg("huetime")).toInt();
     sendInt("Hue change time", value);
-    broadcastInt("huetime", value);
+    //broadcastInt("huetime", value);
     strip->setHuetime(value);
   }
 
@@ -1114,7 +1223,7 @@ void handleSet(void)
   {
     uint16_t value = constrain(String(server.arg("deltahue")).toInt(), 0, 255);
     sendInt("Delta hue per change", value);
-    broadcastInt("deltahue", value);
+    //broadcastInt("deltahue", value);
     strip->setDeltaHue(value);
     strip->setTransition();
   }
@@ -1124,7 +1233,7 @@ void handleSet(void)
   {
     uint16_t value = String(server.arg("cooling")).toInt();
     sendInt("Fire Cooling", value);
-    broadcastInt("cooling", value);
+    //broadcastInt("cooling", value);
     strip->setCooling(value);
     strip->setTransition();
   }
@@ -1134,7 +1243,7 @@ void handleSet(void)
   {
     uint16_t value = String(server.arg("sparking")).toInt();
     sendInt("Fire sparking", value);
-    broadcastInt("sparking", value);
+    //broadcastInt("sparking", value);
     strip->setSparking(value);
     strip->setTransition();
   }
@@ -1144,7 +1253,7 @@ void handleSet(void)
   {
     uint16_t value = String(server.arg("twinkleSpeed")).toInt();
     sendInt("Twinkle Speed", value);
-    broadcastInt("twinkleSpeed", value);
+    //broadcastInt("twinkleSpeed", value);
     strip->setTwinkleSpeed(value);
     strip->setTransition();
   }
@@ -1154,7 +1263,7 @@ void handleSet(void)
   {
     uint16_t value = String(server.arg("twinkleDensity")).toInt();
     sendInt("Twinkle Density", value);
-    broadcastInt("twinkleDensity", value);
+    //broadcastInt("twinkleDensity", value);
     strip->setTwinkleDensity(value);
     strip->setTransition();
   }
@@ -1166,7 +1275,7 @@ void handleSet(void)
     if (value >= (LED_COUNT / strip->getSegments() / 10))
       value = max((LED_COUNT / strip->getSegments() / 10), 2);
     sendInt("Number of Bars", value);
-    broadcastInt("numBars", value);
+    //broadcastInt("numBars", value);
     strip->setNumBars(value);
     strip->setTransition();
   }
@@ -1176,7 +1285,7 @@ void handleSet(void)
   {
     uint16_t value = String(server.arg("blendType")).toInt();
 
-    broadcastInt("blendType", value);
+    //broadcastInt("blendType", value);
     if (value)
     {
       strip->setBlendType(LINEARBLEND);
@@ -1195,7 +1304,7 @@ void handleSet(void)
   {
     uint8_t value = String(server.arg("ColorTemperature")).toInt();
 
-    broadcastInt("ColorTemperature", value);
+    //broadcastInt("ColorTemperature", value);
     sendString("ColorTemperature", strip->getColorTempName(value));
     strip->setColorTemperature(value);
     strip->setTransition();
@@ -1206,7 +1315,7 @@ void handleSet(void)
   {
     uint16_t value = String(server.arg("reverse")).toInt();
     sendInt("reverse", value);
-    broadcastInt("reverse", value);
+    //broadcastInt("reverse", value);
     strip->getSegment()->reverse = value;
     strip->setTransition();
   }
@@ -1216,7 +1325,7 @@ void handleSet(void)
   {
     uint16_t value = String(server.arg("inverse")).toInt();
     sendInt("inverse", value);
-    broadcastInt("inverse", value);
+    //broadcastInt("inverse", value);
     strip->setInverse(value);
     strip->setTransition();
   }
@@ -1226,7 +1335,7 @@ void handleSet(void)
   {
     uint16_t value = String(server.arg("mirror")).toInt();
     sendInt("mirror", value);
-    broadcastInt("mirror", value);
+    //broadcastInt("mirror", value);
     strip->setMirror(value);
     strip->setTransition();
   }
@@ -1236,7 +1345,7 @@ void handleSet(void)
   {
     uint16_t value = String(server.arg("current")).toInt();
     sendInt("Lamp Max Current", value);
-    broadcastInt("current", value);
+    //broadcastInt("current", value);
     strip->setMilliamps(value);
   }
 
@@ -1245,7 +1354,7 @@ void handleSet(void)
   {
     uint8_t value = String(server.arg("LEDblur")).toInt();
     sendInt("LEDblur", value);
-    broadcastInt("LEDblur", value);
+    //broadcastInt("LEDblur", value);
     strip->setBlur(value);
     strip->setTransition();
   }
@@ -1255,7 +1364,7 @@ void handleSet(void)
   {
     uint8_t value = String(server.arg("fps")).toInt();
     sendInt("fps", value);
-    broadcastInt("fps", value);
+    //broadcastInt("fps", value);
     strip->setMaxFPS(value);
     strip->setTransition();
   }
@@ -1264,7 +1373,7 @@ void handleSet(void)
   {
     uint8_t value = String(server.arg("dithering")).toInt();
     sendInt("dithering", value);
-    broadcastInt("dithering", value);
+    //broadcastInt("dithering", value);
     strip->setDithering(value);
   }
 
@@ -1272,7 +1381,7 @@ void handleSet(void)
   {
     uint8_t value = String(server.arg("sunriseset")).toInt();
     sendInt("sunriseset", value);
-    broadcastInt("sunriseset", value);
+    //broadcastInt("sunriseset", value);
     strip->getSegment()->sunrisetime = value;
   }
 
@@ -1283,8 +1392,8 @@ void handleSet(void)
     if (value)
       strip->resetDefaults();
     sendInt("resetdefaults", 0);
-    broadcastInt("resetdefaults", 0);
-    sendStatus = true;
+    //broadcastInt("resetdefaults", 0);
+    //sendStatus = true;
     strip->setTransition();
   }
 
@@ -1292,7 +1401,7 @@ void handleSet(void)
   {
     uint8_t value = constrain(String(server.arg("damping")).toInt(), 0, 100);
     sendInt("damping", value);
-    broadcastInt("damping", value);
+    //broadcastInt("damping", value);
     strip->getSegment()->damping = value;
   }
 
@@ -1334,17 +1443,19 @@ void handleSet(void)
   {
     uint16_t value = String(server.arg("segments")).toInt();
     sendInt("segments", value);
-    broadcastInt("segments", value);
+    //broadcastInt("segments", value);
     strip->getSegment()->segments = constrain(value, 1, LED_COUNT / 10);
     strip->setTransition();
   }
 
   // new parameters, it's time to save
-  shouldSaveRuntime = true;
+  //shouldSaveRuntime = true;
+  /*
   if (sendStatus)
   {
     handleStatus();
   }
+  */
   /// strip->setTransition();  <-- this is not wise as it removes the smooth fading for colors. So we need to set it case by case
 }
 
@@ -1749,11 +1860,9 @@ void setupWebServer(void)
     {
       String fileName = dir.fileName();
       size_t fileSize = dir.fileSize();
-      DEBUGPRNT("FS_FILE:");
-      Serial.printf("FS File: %s, size: %s\n", fileName.c_str(), String(fileSize).c_str());
+      DEBUGPRNT("FS File: " + fileName + ", size: " + String(fileSize) + "\n");
     }
-
-    Serial.printf("\n");
+    DEBUGPRNT("\n");
 #endif
   }
 
@@ -1924,10 +2033,6 @@ void setup()
 
   EEPROM.begin(strip->getSegmentSize());
 
-  // callbacks for "untraced changes". Can feed the websocket.
-  strip->setTargetPaletteCallback(&targetPaletteChanged);
-  strip->setModeCallback(&modeChanged);
-
   setupWiFi();
 
   setupWebServer();
@@ -1976,7 +2081,6 @@ void setup()
 void loop()
 {
   uint32_t now = millis();
-  static uint32_t nextEEPROM_save = now + 1000;
   static uint32_t wifi_check_time = now + WIFI_TIMEOUT;
 
 #ifdef DEBUG
@@ -1991,17 +2095,34 @@ void loop()
   // Debug Watchdog. to be removed for "production".
   if (now - last_status_msg > 10000)
   {
+    String msg = "";
     last_status_msg = now;
-    DEBUGPRNT("\n");
-    DEBUGPRNT("\tWS2812FX\t" + String(strip->getMode()) + "\t" + strip->getModeName(strip->getMode()));
-    DEBUGPRNT("\tC:\t" + strip->getCurrentPaletteName() + "\tT:\t" + strip->getTargetPaletteName() + "\t\tFPS:\t" + String(FastLED.getFPS()));
+    if(strip->getPower())
+    {
+      msg += "Strip is ON";
+    }
+    else
+    {
+      msg += "\tStrip is OFF";
+    }
+    if(strip->isRunning())
+    {
+      msg += " and running.\n";
+    }
+    else
+    {
+      msg += " and paused.\n";
+    }
+    msg += "\tWS2812FX mode #" + String(strip->getMode()) + " - " + strip->getModeName(strip->getMode());
+    msg += "\n\tC-Pal: " + strip->getCurrentPaletteName() + "\tT-Pal: " + strip->getTargetPaletteName() + "\n\tFPS: " + String(FastLED.getFPS());
+    DEBUGPRNT(msg);
   }
 #endif
   // Checking WiFi state every WIFI_TIMEOUT
   // Reset on disconnection
   if (now > wifi_check_time)
   {
-    DEBUGPRNT("Checking WiFi... ");
+    //DEBUGPRNT("Checking WiFi... ");
     if (WiFi.status() != WL_CONNECTED)
     {
 #ifdef DEBUG
@@ -2034,10 +2155,14 @@ void loop()
 
   strip->service();
 
-  if (shouldSaveRuntime && now > nextEEPROM_save)
+  EVERY_N_MILLIS(250)
+  {
+    checkSegmentChanges();
+  }
+
+  EVERY_N_MILLIS(1000)
   {
     saveEEPROMData();
-    nextEEPROM_save = now + 1000;
     shouldSaveRuntime = false;
   }
 }

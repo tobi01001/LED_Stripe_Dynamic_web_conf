@@ -212,13 +212,6 @@ public:
     bool reverse;
     bool inverse;
     bool mirror;
-    AUTOPLAYMODES autoplay;
-    AUTOPLAYMODES autoPal;
-    uint16_t beat88;
-    uint16_t hueTime;
-    uint16_t milliamps;
-    uint16_t autoplayDuration;
-    uint16_t autoPalDuration;
     uint8_t segments;
     uint8_t cooling;
     uint8_t sparking;
@@ -235,6 +228,13 @@ public:
     uint8_t targetBrightness;
     uint8_t targetPaletteNum;
     uint8_t currentPaletteNum;
+    AUTOPLAYMODES autoplay;
+    AUTOPLAYMODES autoPal;
+    uint16_t beat88;
+    uint16_t hueTime;
+    uint16_t milliamps;
+    uint16_t autoplayDuration;
+    uint16_t autoPalDuration;
     TBlendType blendType;
     ColorTemperature colorTemp;
   } segment;
@@ -478,15 +478,11 @@ public:
 
   /*
    * _segment set functions
-   * 
-    
-    */
-
-  
-
+   */ 
   // setters
+
   inline void setCRC                  (uint16_t CRC)    { _segment.CRC = CRC; }
-  inline void setIsRunning            (bool isRunning)  { _segment.isRunning = isRunning; }
+  inline void setIsRunning            (bool isRunning)  { _segment.isRunning = isRunning; setTransition(); }
   inline void setPower                (bool power)      { _segment.power = power; }
   inline void setReverse              (bool rev)        { _segment.reverse = rev; }
   inline void setInverse              (bool inv)        { _segment.inverse = inv; }
@@ -527,7 +523,7 @@ public:
   inline uint16_t       getCRC(void)                  { return _segment.CRC; }
   inline bool           isRunning(void)               { return _segment.isRunning; }
   inline bool           getPower(void)                { return _segment.power; }
-  inline bool           geReverse(void)               { return _segment.reverse; }
+  inline bool           getReverse(void)              { return _segment.reverse; }
   inline bool           getInverse(void)              { return _segment.inverse; }
   inline bool           getMirror(void)               { return _segment.mirror; }
   inline AUTOPLAYMODES  getAutoplay(void)             { return _segment.autoplay; }
@@ -557,7 +553,7 @@ public:
   inline uint8_t        getCurrentPaletteNumber(void) { return _segment.currentPaletteNum; }
   inline TBlendType     getBlendType(void)            { return _segment.blendType; }
          uint8_t        getColorTemp(void);
-  
+  inline ColorTemperature getColorTemperature(void)   { return _segment.colorTemp; }
   inline uint32_t       getCurrentPower(void)         { return calculate_unscaled_power_mW(leds, LED_COUNT); }
  
   // return a pointer to the complete segment structure
@@ -580,21 +576,6 @@ public:
   uint16_t
       getStripLength(void),
       getLength(void);
-
-  void (*targetPaletteCallback)(uint8_t pal) = NULL;
-  void (*modeCallBack)(uint8_t mode) = NULL;
-
-  inline void setTargetPaletteCallback(void (*p)(uint8_t pal))
-  {
-    targetPaletteCallback = p;
-  }
-
-  inline void setModeCallback(void (*p)(uint8_t mode))
-  {
-    modeCallBack = p;
-  }
-
-  
 
   uint32_t
   getColor(uint8_t p_index);

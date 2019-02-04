@@ -224,22 +224,22 @@ String getMirror()
 
 String getAutoplay()
 {
-  return String(strip->getSegment()->autoplay);
+  return String(strip->getAutoplay());
 }
 
 String getAutoplayDuration()
 {
-  return String(strip->getSegment()->autoplayDuration);
+  return String(strip->getAutoplayDuration());
 }
 
 String getAutopal()
 {
-  return String(strip->getSegment()->autoPal);
+  return String(strip->getAutopal());
 }
 
 String getAutopalDuration()
 {
-  return String(strip->getSegment()->autoPalDuration);
+  return String(strip->getAutopalDuration());
 }
 
 String getSolidColor()
@@ -280,22 +280,22 @@ String getNumBars()
 
 String getHueTime()
 {
-  return String(strip->getSegment()->hueTime);
+  return String(strip->getHueTime());
 }
 
 String getDeltaHue()
 {
-  return String(strip->getSegment()->deltaHue);
+  return String(strip->getDeltaHue());
 }
 
 String getBlendType()
 {
-  return String(strip->getSegment()->blendType);
+  return String(strip->getBlendType());
 }
 
 String getDamping()
 {
-  return String(strip->getSegment()->damping);
+  return String(strip->getDamping());
 }
 
 String getBlendTypes()
@@ -325,7 +325,7 @@ String getColorTemps()
 
 String getReverse()
 {
-  return String(strip->getSegment()->reverse);
+  return String(strip->getReverse());
 }
 
 String getMilliamps(void)
@@ -345,7 +345,7 @@ String getFPSValue(void)
 
 String getSegments(void)
 {
-  return String(strip->getSegment()->segments);
+  return String(strip->getSegments());
 }
 
 String getResetDefaults(void)
@@ -355,64 +355,66 @@ String getResetDefaults(void)
 
 String getDithering(void)
 {
-  return String(strip->getSegment()->dithering);
+  return String(strip->getDithering());
 }
 
 String getSunRiseTime(void)
 {
-  return String(strip->getSegment()->sunrisetime);
+  return String(strip->getSunriseTime());
+}
+
+String getIsRunning(void)
+{
+  return String(strip->isRunning());
 }
 
 FieldList fields = {
-    {"title", LED_NAME, TitleFieldType},
-    {"power", LED_NAME, SectionFieldType},
-    {"power", "LED Schalter", BooleanFieldType, 0, 1, getPower},
-    {"basicControl", "Basic control", SectionFieldType},
-    {"br", "Helligkeit", NumberFieldType, BRIGHTNESS_MIN, BRIGHTNESS_MAX, getBrightness},
-    {"mo", "Lichteffekt", SelectFieldType, 0, strip->getModeCount(), getPattern, getPatterns},
-    {"pa", "Farbpalette", SelectFieldType, 0, (uint16_t)(strip->getPalCount() + 1), getPalette, getPalettes},
-    {"sp", "Geschwindigkeit", NumberFieldType, BEAT88_MIN, BEAT88_MAX, getSpeed},
-    {"blendType", "Blendmodus", SelectFieldType, NOBLEND, LINEARBLEND, getBlendType, getBlendTypes},
-    {"ColorTemperature", "Farbtemperatur", SelectFieldType, 0, 20, getColorTemp, getColorTemps},
-    {"LEDblur", "LED / Effect Blending", NumberFieldType, 0, 255, getBlurValue},
-    {"reverse", "Rückwärts", BooleanFieldType, 0, 1, getReverse},
-    {"segments", "Segmente", NumberFieldType, 1, max(LED_COUNT / 50, 1), getSegments},
-    {"mirror", "gespiegelt", BooleanFieldType, 0, 1, getMirror},
-    {"inverse", "Invertiert", BooleanFieldType, 0, 1, getInverse},
-    {"hue", "Farbwechsel", SectionFieldType},
-    {"huetime", "Hue Wechselintervall", NumberFieldType, 0, 10000, getHueTime},
-    {"deltahue", "Hue Offset", NumberFieldType, 0, 255, getDeltaHue},
-    {"autoplay", "Mode Autoplay", SectionFieldType},
-    {"autoplay", "Mode Automatisch wechseln", SelectFieldType, AUTO_MODE_OFF, AUTO_MODE_RANDOM, getAutoplay, getAutoplayModes},
-    {"autoplayDuration", "Mode Wechselzeit", NumberFieldType, 5, 1000, getAutoplayDuration},
-    {"autopal", "Farbpalette Autoplay", SectionFieldType},
-    {"autopal", "Farbpalette Automatisch wechseln", SelectFieldType, AUTO_MODE_OFF, AUTO_MODE_RANDOM, getAutopal, getAutoplayModes},
-    {"autopalDuration", "Farbpalette Wechselzeit", NumberFieldType, 5, 1000, getAutopalDuration},
-    {"solidColor", "Feste Farbe", SectionFieldType},
-    {"solidColor", "Farbe", ColorFieldType, 0, 255, getSolidColor},
-    {"fire", "Feuer und Wasser", SectionFieldType},
-    {"cooling", "Kühlung", NumberFieldType, 0, 255, getCooling},
-    {"sparking", "Funken", NumberFieldType, 0, 255, getSparking},
-    {"twinkles", "Funkeln", SectionFieldType},
-    {"twinkleSpeed", "Funkelgeschwindigkeit", NumberFieldType, 0, 8, getTwinkleSpeed},
-    {"twinkleDensity", "Wieviel Funkellichter", NumberFieldType, 0, 8, getTwinkleDensity},
-    {
-        "ledBars",
-        "LED Balken für Effekte",
-        SectionFieldType,
-    },
-    {"numBars", "Anzahl LED Balken", NumberFieldType, 1, max(LED_COUNT / 20, 1), getNumBars},
-    {"damping", "Dämpfung bei Popcorn", NumberFieldType, 0, 100, getDamping},
-    {"sunriseset", "Sonnenauf- und Untergang", NumberFieldType, 1, 60, getSunRiseTime}, // time provided in Minutes and capped at 60 minutes actually.
-    {"Settings", "Einstellungen", SectionFieldType},
-    {"current", "max Strom", NumberFieldType, 100, 10000, getMilliamps},
-    {"fps", "Wiederholrate (FPS)", NumberFieldType, 5, 111, getFPSValue}, // 111 max equals the minimum update time required for 300 pixels
-                                                                          // this is the minimal delay being used anyway, sono use to be faster
-    {"dithering", "Dithering", BooleanFieldType, 0, 1, getDithering},
-    {"resetdefaults", "Standardwerte laden", BooleanFieldType, 0, 1, getResetDefaults},
+    {"title",             LED_NAME,                           TitleFieldType},
+    {"power",             LED_NAME,                           SectionFieldType},
+    {"power",             "LED Schalter",                     BooleanFieldType, 0, 1, getPower},
+    {"isRunning",         "Läuft / Pause",                    BooleanFieldType, 0, 1, getIsRunning},
+    {"basicControl",      "Basic control",                    SectionFieldType},
+    {"br",                "Helligkeit",                       NumberFieldType, BRIGHTNESS_MIN, BRIGHTNESS_MAX, getBrightness},
+    {"mo",                "Lichteffekt",                      SelectFieldType, 0, strip->getModeCount(), getPattern, getPatterns},
+    {"pa",                "Farbpalette",                      SelectFieldType, 0, (uint16_t)(strip->getPalCount() + 1), getPalette, getPalettes},
+    {"sp",                "Geschwindigkeit",                  NumberFieldType, BEAT88_MIN, BEAT88_MAX, getSpeed},
+    {"blendType",         "Blendmodus",                       SelectFieldType, NOBLEND, LINEARBLEND, getBlendType, getBlendTypes},
+    {"ColorTemperature",  "Farbtemperatur",                   SelectFieldType, 0, 20, getColorTemp, getColorTemps},
+    {"LEDblur",           "LED / Effect Blending",            NumberFieldType, 0, 255, getBlurValue},
+    {"reverse",           "Rückwärts",                        BooleanFieldType, 0, 1, getReverse},
+    {"segments",          "Segmente",                         NumberFieldType, 1, max(LED_COUNT / 50, 1), getSegments},
+    {"mirror",            "gespiegelt",                       BooleanFieldType, 0, 1, getMirror},
+    {"inverse",           "Invertiert",                       BooleanFieldType, 0, 1, getInverse},
+    {"hue",               "Farbwechsel",                      SectionFieldType},
+    {"huetime",           "Hue Wechselintervall",             NumberFieldType, 0, 10000, getHueTime},
+    {"deltahue",          "Hue Offset",                       NumberFieldType, 0, 255, getDeltaHue},
+    {"autoplay",          "Mode Autoplay",                    SectionFieldType},
+    {"autoplay",          "Mode Automatisch wechseln",        SelectFieldType, AUTO_MODE_OFF, AUTO_MODE_RANDOM, getAutoplay, getAutoplayModes},
+    {"autoplayDuration",  "Mode Wechselzeit",                 NumberFieldType, 5, 1000, getAutoplayDuration},
+    {"autopal",           "Farbpalette Autoplay",             SectionFieldType},
+    {"autopal",           "Farbpalette Automatisch wechseln", SelectFieldType,    AUTO_MODE_OFF,    AUTO_MODE_RANDOM,     getAutopal,     getAutoplayModes  },
+    {"autopalDuration",   "Farbpalette Wechselzeit",          NumberFieldType,    5,                1000,                 getAutopalDuration                },
+    {"solidColor",        "Feste Farbe",                      SectionFieldType                                                                              },
+    {"solidColor",        "Farbe",                            ColorFieldType,     0,                55,                   getSolidColor                     },
+    {"fire",              "Feuer und Wasser",                 SectionFieldType},
+    {"cooling",           "Kühlung",                          NumberFieldType, 0, 255, getCooling},
+    {"sparking",          "Funken",                           NumberFieldType, 0, 255, getSparking},
+    {"twinkles",          "Funkeln",                          SectionFieldType},
+    {"twinkleSpeed",      "Funkelgeschwindigkeit",            NumberFieldType, 0, 8, getTwinkleSpeed},
+    {"twinkleDensity",    "Wieviel Funkellichter",            NumberFieldType, 0, 8, getTwinkleDensity},
+    {"ledBars",           "LED Balken für Effekte",           SectionFieldType },
+    {"numBars",           "Anzahl LED Balken",                NumberFieldType, 1, max(LED_COUNT / 20, 1), getNumBars},
+    {"damping",           "Dämpfung bei Popcorn",             NumberFieldType, 0, 100, getDamping},
+    {"sunriseset",        "Sonnenauf- und Untergang",         NumberFieldType, 1, 60, getSunRiseTime}, // time provided in Minutes and capped at 60 minutes actually.
+    {"Settings",          "Einstellungen",                    SectionFieldType},
+    {"current",           "max Strom",                        NumberFieldType, 100, 10000, getMilliamps},
+    {"fps",               "Wiederholrate (FPS)",              NumberFieldType, 5, 111, getFPSValue}, // 111 max equals the minimum update time required for 300 pixels
+                                                                                        // this is the minimal delay being used anyway, sono use to be faster
+    {"dithering",         "Dithering",                        BooleanFieldType, 0, 1, getDithering},
+    {"resetdefaults",     "Standardwerte laden",              BooleanFieldType, 0, 1, getResetDefaults},
 #ifdef DEBUG
-    {"Debug", "DEBUG only - not for production", SectionFieldType},
-    {"resets", "Resets (DEV Debug)", SelectFieldType, 0, 5, getReset, getResets},
+    {"Debug",             "DEBUG only - not for production",  SectionFieldType},
+    {"resets",            "Resets (DEV Debug)",               SelectFieldType, 0, 5, getReset, getResets},
 #endif
 };
 
@@ -435,47 +437,6 @@ void stripe_setup(const uint16_t LEDCount,
   strip->init();
   strip->start();
   strip->show();
-}
-
-// FIXME: May have to activate the strip power here!!!
-void set_Range(uint16_t start, uint16_t stop, uint8_t r, uint8_t g, uint8_t b)
-{
-  if (start >= strip->getStripLength() || stop >= strip->getStripLength())
-    return;
-  for (uint16_t i = start; i <= stop; i++)
-  {
-    strip->leds[i] = CRGB(((uint32_t)r << 16) | ((uint32_t)g << 8) | b);
-  }
-}
-
-// FIXME: May have to activate the strip power here!!!
-void set_Range(uint16_t start, uint16_t stop, uint32_t color)
-{
-  if (start >= strip->getStripLength() || stop >= strip->getStripLength())
-    return;
-
-  strip->setMode(FX_MODE_VOID);
-  for (uint16_t i = start; i <= stop; i++)
-  {
-    strip->leds[i] = CRGB(color);
-  }
-}
-
-// FIXME: May have to activate the strip power here!!!
-void strip_setpixelcolor(uint16_t pixel, uint8_t r, uint8_t g, uint8_t b)
-{
-  if (pixel >= strip->getStripLength())
-    return;
-  strip->setMode(FX_MODE_VOID);
-  strip->leds[pixel] = CRGB(((uint32_t)r << 16) | ((uint32_t)g << 8) | b);
-}
-
-void strip_setpixelcolor(uint16_t pixel, uint32_t color)
-{
-  if (pixel >= strip->getStripLength())
-    return;
-  strip->setMode(FX_MODE_VOID);
-  strip->leds[pixel] = CRGB(color);
 }
 
 uint32_t strip_color32(uint8_t r, uint8_t g, uint8_t b)
