@@ -1571,28 +1571,9 @@ void handleStatus(void)
   message += String(strip->getCurrentPower());
   message += F(",\n    \"Leds an\": ");
   message += String(num_leds_on);
-  message += F(",\n    \"mode\": ");
-  message += String(FX_WS2812);
   message += F(",\n    \"modename\": ");
-  switch (FX_WS2812)
-  {
-  case FX_NO_FX:
-    message += F("\"No FX");
-    break;
-  case FX_SUNRISE:
-    message += F("\"Sunrise Effect");
-    break;
-  case FX_SUNSET:
-    message += F("\"Sunset Effect");
-    break;
-  case FX_WS2812:
-    message += F("\"WS2812fx ");
-    message += String(strip->getModeName(strip->getMode()));
-    break;
-  default:
-    message += F("\"UNKNOWN");
-    break;
-  }
+  message += F("\"WS2812fx ");
+  message += String(strip->getModeName(strip->getMode()));
   message += F("\", \n    \"wsfxmode\": ");
   message += String(strip->getMode());
   message += F(", \n    \"beat88\": ");
@@ -1657,12 +1638,46 @@ void handleStatus(void)
   message += getDeltaHue();
 
   message += F(", \n    \"Autoplay Mode\": ");
-  message += getAutoplay();
+  switch(strip->getAutoplay())
+  {
+    case AUTO_MODE_OFF:
+      message += "\"Off\"";
+    break;
+    case AUTO_MODE_UP:
+      message += "\"Up\"";
+    break;
+    case AUTO_MODE_DOWN:
+      message += "\"Down\"";
+    break;
+    case AUTO_MODE_RANDOM:
+      message += "\"Random\"";
+    break;
+    default:
+      message += "\"unknown error\"";
+    break;
+  }
   message += F(", \n    \"Autoplay Mode Interval\": ");
   message += getAutoplayDuration();
 
   message += F(", \n    \"Autoplay Palette\": ");
-  message += getAutopal();
+  switch(strip->getAutopal())
+  {
+    case AUTO_MODE_OFF:
+      message += "\"Off\"";
+    break;
+    case AUTO_MODE_UP:
+      message += "\"Up\"";
+    break;
+    case AUTO_MODE_DOWN:
+      message += "\"Down\"";
+    break;
+    case AUTO_MODE_RANDOM:
+      message += "\"Random\"";
+    break;
+    default:
+      message += "\"unknown error\"";
+    break;
+  }
 
   message += F(", \n    \"Autoplay Palette Interval\": ");
   message += getAutopalDuration();
@@ -1696,17 +1711,17 @@ void handleStatus(void)
   message += F(",\n    \"sunRiseActive\": ");
   if (strip->getMode() == FX_MODE_SUNRISE || strip->getMode() == FX_MODE_SUNSET)
   {
-    message += F("\"on\"");
-    message += F(", \n    \"sunRiseCurrStep\": ");
-    message += F("..Repair needed..");
-    message += F(", \n    \"sunRiseTotalSteps\": ");
-    message += F("..Repair needed..");
-    message += F(", \n    \"sunRiseTimeToFinish\": ");
-    message += F("..Repair needed..");
+    
   }
   else
   {
-    message += F("\"off\", \n    \"sunRiseCurrStep\": 0, \n    \"sunRiseTotalSteps\": 0, \n    \"sunRiseTimeToFinish\": 0");
+    message += F("\"Off\"");
+    message += F(", \n    \"sunRiseCurrStep\": ");
+    message += F("\"..Repair needed..\"");
+    message += F(", \n    \"sunRiseTotalSteps\": ");
+    message += F("\"..Repair needed..\"");
+    message += F(", \n    \"sunRiseTimeToFinish\": ");
+    message += F("\"..Repair needed..\"");
   }
 
   message += F("\n  }");
@@ -1723,26 +1738,12 @@ void handleStatus(void)
   message += F(",\n    \"DBG_Sketch Size\": ");
   message += String(ESP.getSketchSize());
   message += F("\n  }");
-
-  message += F(",\n  \"Server_Args\": {");
-  for (uint8_t i = 0; i < server.args(); i++)
-  {
-    message += F("\n    \"");
-    message += server.argName(i);
-    message += F("\": \"");
-    message += server.arg(i);
-    if (i < server.args() - 1)
-      message += F("\",");
-    else
-      message += F("\"");
-  }
-  message += F("\n  }");
 #endif
   message += F(",\n  \"Stats\": {\n    \"Answer_Time\": ");
   answer_time = micros() - answer_time;
-  message += answer_time;
+  message += String(answer_time);
   message += F(",\n    \"FPS\": ");
-  message += FastLED.getFPS();
+  message += String(FastLED.getFPS());
   message += F("\n  }");
   message += F("\n}");
 

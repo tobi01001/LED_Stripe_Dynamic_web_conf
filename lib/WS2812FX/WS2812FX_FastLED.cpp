@@ -3145,22 +3145,28 @@ uint16_t WS2812FX::mode_void(void)
 
 void WS2812FX::draw_sunrise_step(uint16_t sunriseStep)
 {
-  EVERY_N_MILLISECONDS(20)
+  static uint8_t nc[LED_COUNT];
+  uint8_t step = (uint8_t)map(sunriseStep, 0, 1000, 0, 255);
+  fill_solid(leds, getStripLength(), HeatColor(step));
+
+  EVERY_N_MILLISECONDS(100)
   {
-    uint8_t step = (uint8_t)map(sunriseStep, 0, 1000, 0, 255);
-    fill_solid(leds, getStripLength(), HeatColor(step));
-
-    uint8_t br = (step < 96) ? (uint8_t)map(step, 0, 96, 0, getBrightness()) : getBrightness(); //BRIGHTNESS_MAX):BRIGHTNESS_MAX;
-    nscale8_video(leds, getStripLength(), br);
-
-    CRGB nc = 0x0;
-    for (uint16_t i = 0; i < getStripLength(); i++)
+    for(uint16_t i=0; i<getStripLength(); i++)
     {
-      nc = leds[i];
-      nc.nscale8_video(random8(step < 172 ? (step / 2) : (255 - step)));
-      leds[i] = nblend(leds[i], nc, 96);
+      nc[i] = random8(0, 185);//step < 171 ? (step / 2) : 85); //(255 - step-5));
     }
   }
+  for (uint16_t i = 0; i < getStripLength(); i++)
+  {
+    CRGB col;
+    col = leds[i];
+    col.nscale8_video(nc[i]);  //random8(step < 172 ? (step / 2) : (255 - step))
+    leds[i] = nblend(leds[i], col, 64);
+  }
+
+  uint8_t br = (step < 96) ? (uint8_t)map(step, 0, 96, 0, getBrightness()) : getBrightness(); //BRIGHTNESS_MAX):BRIGHTNESS_MAX;
+  nscale8_video(leds, getStripLength(), br);
+
 }
 
 void WS2812FX::m_sunrise_sunset(bool isSunrise)
@@ -3177,6 +3183,7 @@ void WS2812FX::m_sunrise_sunset(bool isSunrise)
     {
       _segment.targetBrightness = 255;
       sunriseStep = 0;
+      setTargetPalette(HeatColor(255), F("Sunrise End"));
     }
     else
     {
@@ -3189,11 +3196,37 @@ void WS2812FX::m_sunrise_sunset(bool isSunrise)
     next = millis() + stepInterval;
     if (isSunrise)
     {
-      sunriseStep < sunriseSteps ? sunriseStep++ : sunriseStep;
+      if(sunriseStep < sunriseSteps)
+      {
+        sunriseStep++;
+      }
+      else
+      {
+        CRGB col = 0;
+        for(uint16_t i = 0; i<LED_COUNT; i++)
+        {
+          if(leds[i] > col)
+          {
+            col = leds[i];
+          }
+        }
+        setTargetPalette(0);//CRGBPalette16(col), "Sunrise End");
+        setMode(FX_MODE_STATIC);
+      }
     }
     else
     {
-      sunriseStep > 0 ? sunriseStep-- : sunriseStep;
+      if(sunriseStep > 0)
+      {
+        sunriseStep--;
+      }
+      else
+      {
+        // we switch off - this should fix issue #6
+        setMode(FX_MODE_STATIC);
+        setIsRunning(false);
+        setPower(0);
+      }
     }
   }
 }
@@ -3201,10 +3234,10 @@ void WS2812FX::m_sunrise_sunset(bool isSunrise)
 uint16_t WS2812FX::mode_sunrise(void)
 {
   m_sunrise_sunset(true);
-  return STRIP_MIN_DELAY;
+  return 0; // should look better if we call this more often.... STRIP_MIN_DELAY;
 }
 uint16_t WS2812FX::mode_sunset(void)
 {
   m_sunrise_sunset(false);
-  return STRIP_MIN_DELAY;
+  return 0; // should look better if we call this more often.... STRIP_MIN_DELAY;
 }
