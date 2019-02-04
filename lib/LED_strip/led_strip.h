@@ -68,20 +68,6 @@ void stripe_setup(  const uint16_t LEDCount,
                     const String Name ,
                     const LEDColorCorrection colc);
 
-// resets the current effects and stops the strip
-void reset(void);
-
-// just calls the right effec routine according to the current Effect
-void effectHandler(void);
-
-// Sets a new Effect to be called
-void setEffect(uint8_t Effect);
-
-// returns the current Effect
-uint8_t getEffect(void);
-
-// return the previous effect
-uint8_t getPreviousEffect(void);
 
 // 32 Bit Color out of 3 Color values....
 uint32_t strip_color32(uint8_t r, uint8_t g, uint8_t b);
@@ -94,54 +80,6 @@ uint8_t Green(uint32_t color);
 
 // Returns the Blue component of a 32-bit color
 uint8_t Blue(uint32_t color);
-
-// helper for long delays (prevents watchdog reboot)
-void delaymicro(unsigned int mics);
-
-// set color for a single pixel (deactivates effects)
-// but also sets the color for the effect library
-void strip_setpixelcolor(uint16_t pixel, uint8_t r, uint8_t g, uint8_t b);
-void strip_setpixelcolor(uint16_t pixel, uint32_t color);
-
-void set_Range(uint16_t start, uint16_t stop, uint8_t r, uint8_t g, uint8_t b);
-void set_Range(uint16_t start, uint16_t stop, uint32_t color);
-
-void stripe_setDelayInterval(uint16_t delay);
-
-uint16_t stripe_getDelayInterval();
-
-void strip_off(void);
-
-void strip_On_Off(bool onOff);
-
-void stripe_setBrightness(uint8_t brightness);
-
-void mySunriseStart(uint32_t  mytime, uint16_t steps, bool up);
-
-void mySunriseTrigger(void);
-
-// ToDo: To be reqorked for the FastLED approach
-typedef struct sunriseParam {
-  bool isRunning;
-  bool isSunrise;
-  uint16_t steps;
-  uint16_t step;
-  uint32_t deltaTime;
-  uint32_t lastChange;
-} mysunriseParam;
-
-
-extern bool sunrise_running;
-extern bool stripWasOff;
-extern bool stripIsOn;
-
-
-//extern unsigned long last_delay_trigger;
-
-extern uint8_t currentEffect;
-extern uint8_t previousEffect;
-
-extern mysunriseParam sunriseParam;
 
 // Field.h
 /*
