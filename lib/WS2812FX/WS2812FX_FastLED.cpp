@@ -3146,7 +3146,17 @@ uint16_t WS2812FX::mode_void(void)
 void WS2812FX::draw_sunrise_step(uint16_t sunriseStep)
 {
   static uint8_t nc[LED_COUNT];
-  uint8_t step = (uint8_t)map(sunriseStep, 0, 1000, 0, 255);
+  static bool toggle = false;
+  uint8_t step = (uint8_t)map(sunriseStep, 0, DEFAULT_SUNRISE_STEPS, 0, 255);
+
+  // Kind of dithering... lets see
+  if(toggle)
+  {
+    if(step < 255) step +=1;
+  }
+  toggle = !toggle;
+  
+
   fill_solid(leds, getStripLength(), HeatColor(step));
 
   EVERY_N_MILLISECONDS(100)
@@ -3172,9 +3182,9 @@ void WS2812FX::draw_sunrise_step(uint16_t sunriseStep)
 void WS2812FX::m_sunrise_sunset(bool isSunrise)
 {
   static uint16_t sunriseStep = 0;
-  const uint16_t sunriseSteps = 1000;
+  const uint16_t sunriseSteps = DEFAULT_SUNRISE_STEPS;
   static uint32_t next = 0;
-  uint16_t stepInterval = _segment.sunrisetime * 60; // equals  (uint16_t)((_segment.sunrisetime * 60 * 1000) / sunriseSteps);
+  uint16_t stepInterval = (uint16_t)((_segment.sunrisetime * 60 * 1000) / sunriseSteps);
   if (_segment_runtime.modeinit)
   {
     _segment_runtime.modeinit = false;
@@ -3183,11 +3193,11 @@ void WS2812FX::m_sunrise_sunset(bool isSunrise)
     {
       _segment.targetBrightness = 255;
       sunriseStep = 0;
-      setTargetPalette(HeatColor(255), F("Sunrise End"));
+      //setTargetPalette(HeatColor(255), F("Sunrise End"));
     }
     else
     {
-      sunriseStep = 1000;
+      sunriseStep = sunriseSteps;
     }
   }
   draw_sunrise_step(sunriseStep);
@@ -3202,6 +3212,7 @@ void WS2812FX::m_sunrise_sunset(bool isSunrise)
       }
       else
       {
+        /*
         CRGB col = 0;
         for(uint16_t i = 0; i<LED_COUNT; i++)
         {
@@ -3212,6 +3223,7 @@ void WS2812FX::m_sunrise_sunset(bool isSunrise)
         }
         setTargetPalette(0);//CRGBPalette16(col), "Sunrise End");
         setMode(FX_MODE_STATIC);
+        */
       }
     }
     else
@@ -3223,9 +3235,9 @@ void WS2812FX::m_sunrise_sunset(bool isSunrise)
       else
       {
         // we switch off - this should fix issue #6
-        setMode(FX_MODE_STATIC);
+        //setMode(FX_MODE_STATIC);
         setIsRunning(false);
-        setPower(0);
+        setPower(false);
       }
     }
   }
