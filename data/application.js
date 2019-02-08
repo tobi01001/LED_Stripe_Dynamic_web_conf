@@ -422,6 +422,9 @@ function postValue(name, value) {
       $("#status").html("Set /set?" + name + ": " + data);
     }
   });
+
+  $("#status").html("Fertig...");
+
 }
 
 function delayPostValue(name, value) {
