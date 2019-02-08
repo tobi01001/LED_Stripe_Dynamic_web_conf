@@ -1,6 +1,30 @@
 #ifndef WS2812FX_DEFAULTS_h
 #define WS2812FX_DEFAULTS_h
 
+// The delay being used for several init phases.
+#ifdef DEBUG
+#define INITDELAY 500
+#else
+#define INITDELAY 2
+#endif
+
+/* use build flags to define these */
+#ifndef LED_NAME
+#error "You need to give your LED a Name (build flag e.g. '-DLED_NAME=\"My LED\"')!"
+#endif
+
+#ifndef LED_COUNT
+#error "You need to define the number of Leds by LED_COUNT (build flag e.g. -DLED_COUNT=50)"
+#endif
+
+// Other parameters being used
+
+#define DEFAULT_SUNRISE_STEPS   1024
+#define EEPROM_SAVE_INTERVAL_MS 5000
+#define WIFI_TIMEOUT            5000
+
+// default strip / segment values below (before being stored / after "reset")
+
 
 #define BEAT88_MIN 1
 #define BEAT88_MAX 10000
@@ -45,5 +69,6 @@
 #define DEFAULT_DITHER 1
 #define DEFAULT_PALETTE 0
 #define DEFAULT_COLOR_TEMP 19
+
 
 #endif

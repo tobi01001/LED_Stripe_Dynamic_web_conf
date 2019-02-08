@@ -32,7 +32,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     Serial.print(__FILE__);                 \
     Serial.print(':');                      \
     Serial.print(__LINE__);                 \
-    Serial.print("\n\t\t\t");               \
+    Serial.print("\n\t\t");               \
     Serial.println(str);                    \
     Serial.print("\n");              
 #else

@@ -69,18 +69,6 @@ extern "C"
 // new approach starts here:
 #include "led_strip.h"
 
-// The delay being used for several init phases.
-#ifdef DEBUG
-#define INITDELAY 500
-#else
-#define INITDELAY 2
-#endif
-// TODO: Implement and use a "defaults.h" to enable specific defaults?
-
-/* use build flags to define these */
-#ifndef LED_NAME
-#error "You need to give your LED a Name (build flag e.g. '-DLED_NAME=\"My LED\"')!"
-#endif
 
 #define BUILD_VERSION ("0.9_Segs_")
 #ifndef BUILD_VERSION
@@ -93,13 +81,10 @@ String build_version = BUILD_VERSION + String("DEBUG ") + String(__TIMESTAMP__);
 String build_version = BUILD_VERSION + String(__TIMESTAMP__);
 #endif
 
-#ifndef LED_COUNT
-#error "You need to define the number of Leds by LED_COUNT (build flag e.g. -DLED_COUNT=50)"
-#endif
 
 /* Definitions for network usage */
 /* maybe move all wifi stuff to separate files.... */
-#define WIFI_TIMEOUT 5000
+
 ESP8266WebServer server(80);
 WebSocketsServer *webSocketsServer; // webSocketsServer = WebSocketsServer(81);
 
@@ -218,6 +203,11 @@ unsigned int calc_CRC16(unsigned int crc, unsigned char *buf, int len)
 
 
 void checkSegmentChanges(void) {
+
+  #ifdef DEBUG
+  bool save = shouldSaveRuntime;
+  #endif
+
   if(seg.power != strip->getPower()) {
     seg.power = strip->getPower();
     broadcastInt("power", seg.power);
@@ -390,44 +380,51 @@ void checkSegmentChanges(void) {
     seg.dithering = strip->getDithering();
     broadcastInt("dithering", seg.dithering);
     shouldSaveRuntime = true;
-  }  
+  }
+  #ifdef DEBUG  
+    if(save != shouldSaveRuntime)
+    {
+      DEBUGPRNT("changes detected by checkSegmentChanges. EEPROM save at the next possibility...");
+    }
+  #endif
 }
 
 void print_segment(WS2812FX::segment * s) {
-  DEBUGPRNT("Printing segment content");
+  DEBUGPRNT("\nPrinting segment content");
   #ifdef DEBUG
-  Serial.println("\t\tCRC:\t" + String(s->CRC));
-  Serial.println("\t\tisRunning:\t" + String(s->isRunning));
-  Serial.println("\t\tReverse:\t" + String(s->reverse));
-  Serial.println("\t\tInverse:\t" + String(s->inverse));
-  Serial.println("\t\tMirror:\t" + String(s->mirror));
-  Serial.println("\t\tAutoplay:\t" + String(s->autoplay));  
-  Serial.println("\t\tAutopal:\t" + String(s->autoPal));
-  Serial.println("\t\tbeat88:\t" + String(s->beat88));
-  Serial.println("\t\thueTime:\t" + String(s->hueTime));
-  Serial.println("\t\tmilliamps:\t" + String(s->milliamps));
+  Serial.println("\t\tCRC:\t\t\t" + String(s->CRC));
+  Serial.println("\t\tPower:\t\t\t" + String(s->power));
+  Serial.println("\t\tisRunning:\t\t" + String(s->isRunning));
+  Serial.println("\t\tReverse:\t\t" + String(s->reverse));
+  Serial.println("\t\tInverse:\t\t" + String(s->inverse));
+  Serial.println("\t\tMirror:\t\t\t" + String(s->mirror));
+  Serial.println("\t\tAutoplay:\t\t" + String(s->autoplay));  
+  Serial.println("\t\tAutopal:\t\t" + String(s->autoPal));
+  Serial.println("\t\tbeat88:\t\t\t" + String(s->beat88));
+  Serial.println("\t\thueTime:\t\t" + String(s->hueTime));
+  Serial.println("\t\tmilliamps:\t\t" + String(s->milliamps));
   Serial.println("\t\tautoplayduration:\t" + String(s->autoplayDuration));
   Serial.println("\t\tautopalduration:\t" + String(s->autoPalDuration));
-  Serial.println("\t\tsegements:\t" + String(s->segments));
-  Serial.println("\t\tcooling:\t" + String(s->cooling));
-  Serial.println("\t\tsparking:\t" + String(s->sparking));
-  Serial.println("\t\ttwinkleSpeed:\t" + String(s->twinkleSpeed));
-  Serial.println("\t\ttwinkleDensity:\t" + String(s->twinkleDensity));
-  Serial.println("\t\tnumBars:\t" + String(s->numBars));
-  Serial.println("\t\tmode:\t" + String(s->mode));
-  Serial.println("\t\tfps:\t" + String(s->fps));
-  Serial.println("\t\tdeltaHue:\t" + String(s->deltaHue));
-  Serial.println("\t\tblur:\t" + String(s->blur));
-  Serial.println("\t\tdamping:\t" + String(s->damping));
-  Serial.println("\t\tdithering:\t" + String(s->dithering));
-  Serial.println("\t\tsunrisetime:\t" + String(s->sunrisetime));
+  Serial.println("\t\tsegements:\t\t" + String(s->segments));
+  Serial.println("\t\tcooling:\t\t" + String(s->cooling));
+  Serial.println("\t\tsparking:\t\t" + String(s->sparking));
+  Serial.println("\t\ttwinkleSpeed:\t\t" + String(s->twinkleSpeed));
+  Serial.println("\t\ttwinkleDensity:\t\t" + String(s->twinkleDensity));
+  Serial.println("\t\tnumBars:\t\t" + String(s->numBars));
+  Serial.println("\t\tmode:\t\t\t" + String(s->mode));
+  Serial.println("\t\tfps:\t\t\t" + String(s->fps));
+  Serial.println("\t\tdeltaHue:\t\t" + String(s->deltaHue));
+  Serial.println("\t\tblur:\t\t\t" + String(s->blur));
+  Serial.println("\t\tdamping:\t\t" + String(s->damping));
+  Serial.println("\t\tdithering:\t\t" + String(s->dithering));
+  Serial.println("\t\tsunrisetime:\t\t" + String(s->sunrisetime));
   Serial.println("\t\ttargetBrightness:\t" + String(s->targetBrightness));
   Serial.println("\t\ttargetPaletteNum:\t" + String(s->targetPaletteNum));
   Serial.println("\t\tcurrentPaletteNum:\t" + String(s->currentPaletteNum));
-  Serial.println("\t\tblendType:\t" + String(s->blendType));
-  Serial.println("\t\tcolorTemp:\t" + String(s->colorTemp));
+  Serial.println("\t\tblendType:\t\t" + String(s->blendType));
+  Serial.println("\t\tcolorTemp:\t\t" + String(s->colorTemp));
+  Serial.println("\n\t\tDONE\n");
   #endif
-  DEBUGPRNT("done");
 }
 
 // write runtime data to EEPROM (when required by "shouldSave Runtime")
@@ -436,7 +433,7 @@ void saveEEPROMData(void)
   if (!shouldSaveRuntime)
     return;
   shouldSaveRuntime = false;
-  DEBUGPRNT("\tGoing to store runtime on EEPROM...");
+  DEBUGPRNT("Going to store runtime on EEPROM...");
   // we will store the complete segment data
   
   //now in "checkSegment"
@@ -710,7 +707,6 @@ uint8_t changebypercentage(uint8_t value, uint8_t percentage)
 // if /set was called
 void handleSet(void)
 {
-  bool sendStatus = false;
 
 // Debug only
   #ifdef DEBUG
@@ -888,6 +884,7 @@ void handleSet(void)
       strip->start();
 
       DEBUGPRNT("gonna send mo response....");
+      sendInt("mo", strip->getMode() );
       //broadcastInt("power", true);
     }
   }
@@ -919,7 +916,8 @@ void handleSet(void)
     {
       strip->setIsRunning(true);
     }
-    sendString("state", strip->isRunning() ? "on" : "off");
+    sendString("isRunning", strip->isRunning() ? "running" : "paused");
+    
     //broadcastInt("power", strip->isRunning());
   }
 
@@ -1159,7 +1157,6 @@ void handleSet(void)
 #endif
     strip->setColor(color);
     strip->setMode(FX_MODE_STATIC);
-    sendStatus = true;
     // finally set a new color
   }
   else
@@ -1457,6 +1454,7 @@ void handleSet(void)
   }
   */
   /// strip->setTransition();  <-- this is not wise as it removes the smooth fading for colors. So we need to set it case by case
+
 }
 
 // if something unknown was called...
@@ -1546,7 +1544,7 @@ void handleStatus(void)
     }
   }
 
-  message += F("{\n  \"currentState\": {\n    \"state\": ");
+  message += F("\n{\n  \"currentState\": {\n    \"state\": ");
   if (strip->getPower())
   {
     message += F("\"on\"");
@@ -1739,9 +1737,9 @@ void handleStatus(void)
   message += String(ESP.getSketchSize());
   message += F("\n  }");
 #endif
-  message += F(",\n  \"Stats\": {\n    \"Answer_Time\": ");
+  message += F(",\n  \"Stats\": {\n    \"Answer_Time ms\": ");
   answer_time = micros() - answer_time;
-  message += String(answer_time);
+  message += String((float)((float)(answer_time)/1000.0));
   message += F(",\n    \"FPS\": ");
   message += String(FastLED.getFPS());
   message += F("\n  }");
@@ -1958,7 +1956,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
     Serial.printf("[%u] get Text: %s\n", num, payload);
 
     // send message to client
-    // webSocketsServer.sendTXT(num, "message here");
+    webSocketsServer->sendTXT(num, "Thank you for your message.");
 
     // send data to all connected clients
     // webSocketsServer.broadcastTXT("message here");
@@ -1967,10 +1965,12 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
   case WStype_BIN:
     Serial.printf("[%u] get binary length: %u\n", num, length);
     hexdump(payload, length);
+    webSocketsServer->sendTXT(num, "Thank you for your binary message.");
 
     break;
 
   default:
+    webSocketsServer->sendTXT(num, "Don't know what you sent.");
     break;
   }
 #endif
@@ -1982,10 +1982,9 @@ void setup()
   // Sanity delay to get everything settled....
   delay(500);
 
-#ifdef DEBUG
   // Open serial communications and wait for port to open:
   Serial.begin(115200);
-#endif
+
   DEBUGPRNT("\n");
   DEBUGPRNT(F("Booting"));
 
@@ -2067,6 +2066,43 @@ void setup()
   }
   //strip->stop();
   delay(INITDELAY);
+
+  // Show the IP Address at the beginning
+  // so one can take a picture. 
+  // one needs to know the structure of the leds...
+  IPAddress myIP = WiFi.localIP();
+  DEBUGPRNT("Going to show IP Address " + myIP.toString());
+  if(LED_COUNT >= 40)
+  {
+    // can show the complete IP Address on the first 40 LEDs
+    for(uint8_t j=0; j<4; j++)
+    {
+      for(uint8_t i=0; i<8; i++)
+      {
+        if((myIP[j] >> i) & 0x01)
+        {
+          strip->_bleds[j * 10 + 7 - i] = CRGB::Red;
+        }
+        else
+        {
+          strip->_bleds[j * 10 + 7 - i] = CRGB(16,16,16);
+        }
+      }
+    }
+  }
+  else if(LED_COUNT >= 8)
+  {
+    // can show the last ocet i.e. 192.168.2.XXX where XXX will be shown
+  }
+  else
+  {
+    // will show the IP as a "hue" on the first LED.
+  }
+  FastLED.show();
+
+  delay(15000);
+
+
 #ifdef DEBUG
   DEBUGPRNT("Init finished.. Read runtime data");
 #endif
@@ -2104,7 +2140,7 @@ void loop()
     }
     else
     {
-      msg += "\tStrip is OFF";
+      msg += "Strip is OFF";
     }
     if(strip->isRunning())
     {
@@ -2114,8 +2150,8 @@ void loop()
     {
       msg += " and paused.\n";
     }
-    msg += "\tWS2812FX mode #" + String(strip->getMode()) + " - " + strip->getModeName(strip->getMode());
-    msg += "\n\tC-Pal: " + strip->getCurrentPaletteName() + "\tT-Pal: " + strip->getTargetPaletteName() + "\n\tFPS: " + String(FastLED.getFPS());
+    msg += "\t\tWS2812FX mode #" + String(strip->getMode()) + " - " + strip->getModeName(strip->getMode());
+    msg += "\n\t\tC-Pal: " + strip->getCurrentPaletteName() + "\tT-Pal: " + strip->getTargetPaletteName() + "\n\t\tFPS: " + String(FastLED.getFPS());
     DEBUGPRNT(msg);
   }
 #endif
@@ -2161,7 +2197,7 @@ void loop()
     checkSegmentChanges();
   }
 
-  EVERY_N_MILLIS(1000)
+  EVERY_N_MILLIS(EEPROM_SAVE_INTERVAL_MS)
   {
     saveEEPROMData();
     shouldSaveRuntime = false;
