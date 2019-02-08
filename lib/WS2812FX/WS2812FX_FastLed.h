@@ -482,7 +482,7 @@ public:
   // setters
 
   inline void setCRC                  (uint16_t CRC)    { _segment.CRC = CRC; }
-  inline void setIsRunning            (bool isRunning)  { _segment.isRunning = isRunning; setTransition(); }
+  inline void setIsRunning            (bool isRunning)  { _segment.isRunning = isRunning; if(isRunning) setTransition(); }
   inline void setPower                (bool power)      { _segment.power = power; }
   inline void setReverse              (bool rev)        { _segment.reverse = rev; }
   inline void setInverse              (bool inv)        { _segment.inverse = inv; }
