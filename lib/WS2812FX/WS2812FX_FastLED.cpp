@@ -3179,9 +3179,25 @@ void WS2812FX::draw_sunrise_step(uint16_t sunriseStep)
 
 }
 
+uint16_t WS2812FX::getSunriseTimeToFinish(void)
+{
+  float time = (float)((_segment.sunrisetime * 60.0) / DEFAULT_SUNRISE_STEPS);
+  if(getMode() == FX_MODE_SUNRISE)
+  {
+    return (uint16_t)(time * (DEFAULT_SUNRISE_STEPS - _segment_runtime.sunRiseStep));
+  }
+  else if (getMode() == FX_MODE_SUNSET) 
+  {
+    return (uint16_t)(time * _segment_runtime.sunRiseStep);
+  }
+  else
+  {
+    return 0;
+  }
+}
+
 void WS2812FX::m_sunrise_sunset(bool isSunrise)
 {
-  static uint16_t sunriseStep = 0;
   const uint16_t sunriseSteps = DEFAULT_SUNRISE_STEPS;
   static uint32_t next = 0;
   uint16_t stepInterval = (uint16_t)((_segment.sunrisetime * 60 * 1000) / sunriseSteps);
@@ -3192,23 +3208,23 @@ void WS2812FX::m_sunrise_sunset(bool isSunrise)
     if (isSunrise)
     {
       _segment.targetBrightness = 255;
-      sunriseStep = 0;
+      _segment_runtime.sunRiseStep = 0;
       //setTargetPalette(HeatColor(255), F("Sunrise End"));
     }
     else
     {
-      sunriseStep = sunriseSteps;
+      _segment_runtime.sunRiseStep = sunriseSteps;
     }
   }
-  draw_sunrise_step(sunriseStep);
+  draw_sunrise_step(_segment_runtime.sunRiseStep);
   if (millis() > next)
   {
     next = millis() + stepInterval;
     if (isSunrise)
     {
-      if(sunriseStep < sunriseSteps)
+      if(_segment_runtime.sunRiseStep < sunriseSteps)
       {
-        sunriseStep++;
+        _segment_runtime.sunRiseStep++;
       }
       else
       {
@@ -3228,9 +3244,9 @@ void WS2812FX::m_sunrise_sunset(bool isSunrise)
     }
     else
     {
-      if(sunriseStep > 0)
+      if(_segment_runtime.sunRiseStep > 0)
       {
-        sunriseStep--;
+        _segment_runtime.sunRiseStep--;
       }
       else
       {

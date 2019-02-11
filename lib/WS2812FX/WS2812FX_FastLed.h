@@ -292,6 +292,7 @@ public:
     uint16_t start;
     uint16_t stop;
     uint16_t length;
+    uint16_t sunRiseStep;
   } segment_runtime;
 
 public:
@@ -560,6 +561,8 @@ public:
   inline WS2812FX::segment *getSegment(void) { return &_segment; }
   inline size_t getSegmentSize(void) { return sizeof(_segment); }
 
+  inline uint16_t getCurrentSunriseStep(void) { return _segment_runtime.sunRiseStep; }
+
   uint8_t
   getMode(void),
       getModeCount(void),
@@ -574,6 +577,7 @@ public:
     return _volts; }
 
   uint16_t
+      getSunriseTimeToFinish(void),
       getStripLength(void),
       getLength(void);
 

@@ -97,6 +97,8 @@ bool shouldSaveRuntime = false;
 
 WS2812FX::segment seg;
 
+StaticJsonBuffer<3000> jsonBuffer;
+
 #include "FSBrowser.h"
 
 // function Definitions
@@ -130,52 +132,125 @@ getResetReason(void);
 // TODO: Use one answer function with parameters being overloaded
 void sendInt(String name, uint16_t value)
 {
+  JsonObject& answerObj = jsonBuffer.createObject();
+  JsonObject& answer = answerObj.createNestedObject("returnState");
+  answer[name] = value;
+  String ret;
+  
+  /*
   String answer = F("{ ");
   answer += F("\"currentState\" : { \"");
   answer += name;
   answer += F("\": ");
   answer += value;
   answer += " } }";
-  DEBUGPRNT("Send HTML respone 200, application/json with value: " + answer);
-  server.send(200, "application/json", answer);
+  */
+  #ifdef DEBUG
+    ret.reserve(answerObj.measurePrettyLength());
+    answerObj.prettyPrintTo(ret);
+  #else
+    ret.reserve(answerObj.measureLength());
+    answerObj.printTo(ret);
+  #endif
+  jsonBuffer.clear();
+  DEBUGPRNT("Send HTML respone 200, application/json with value: " + ret);
+  server.send(200, "application/json", ret);
 }
 
 // used to send an answer as String to the calling http request
 // TODO: Use one answer function with parameters being overloaded
 void sendString(String name, String value)
 {
+  /*
   String answer = F("{ ");
   answer += F("\"currentState\" : { \"");
   answer += name;
   answer += F("\": \"");
   answer += value;
   answer += "\" } }";
-  DEBUGPRNT("Send HTML respone 200, application/json with value: " + answer);
+  */
+  JsonObject& answerObj = jsonBuffer.createObject();
+  JsonObject& answer = answerObj.createNestedObject("returnState");
+  answer[name] = value;
+  String ret;
+  
+  #ifdef DEBUG
+    ret.reserve(answerObj.measurePrettyLength());
+    answerObj.prettyPrintTo(ret);
+  #else
+    ret.reserve(answerObj.measureLength());
+    answerObj.printTo(ret);
+  #endif
 
-  server.send(200, "application/json", answer);
+  jsonBuffer.clear();
+
+  DEBUGPRNT("Send HTML respone 200, application/json with value: " + ret);
+
+  server.send(200, "application/json", ret);
 }
 
 // used to send an answer as JSONString to the calling http request
 // send answer can embed a complete json string instead of a single name / value pair.
 void sendAnswer(String jsonAnswer)
 {
-  String answer = "{ \"currentState\": { " + jsonAnswer + "} }";
+  String answer = "{ \"returnState\": { " + jsonAnswer + "} }";
   server.send(200, "application/json", answer);
 }
 
 // broadcasts the name and value to all websocket clients
 void broadcastInt(String name, uint16_t value)
 {
+  /*
   String json = "{\"name\":\"" + name + "\",\"value\":" + String(value) + "}";
   DEBUGPRNT("Send websocket broadcast with value: " + json);
   webSocketsServer->broadcastTXT(json);
+  */
+  JsonObject& answerObj = jsonBuffer.createObject();
+  JsonObject& answer = answerObj.createNestedObject("currentState");
+  answer["name"] = name;
+  answer["value"] = value;
+
+  String json;
+  
+  #ifdef DEBUG
+    json.reserve(answer.measurePrettyLength());
+    answer.prettyPrintTo(json);
+  #else
+    json.reserve(answer.measureLength());
+    answer.printTo(json);
+  #endif
+  jsonBuffer.clear();
+  DEBUGPRNT("Send websocket broadcast with value: " + json);
+  webSocketsServer->broadcastTXT(json);
+
 }
 
 // broadcasts the name and value to all websocket clients
 // TODO: One function with parameters being overloaded.
 void broadcastString(String name, String value)
 {
+  /*
   String json = "{\"name\":\"" + name + "\",\"value\":\"" + String(value) + "\"}";
+  DEBUGPRNT("Send websocket broadcast with value: " + json);
+  webSocketsServer->broadcastTXT(json);
+  */
+  JsonObject& answerObj = jsonBuffer.createObject();
+  JsonObject& answer = answerObj.createNestedObject("currentState");
+  answer["name"] = name;
+  answer["value"] = value;
+
+  answer["name"] = name;
+  answer["value"] = value;
+  String json;
+  
+  #ifdef DEBUG
+    json.reserve(answer.measurePrettyLength());
+    answer.prettyPrintTo(json);
+  #else
+    json.reserve(answer.measureLength());
+    answer.printTo(json);
+  #endif
+  jsonBuffer.clear();
   DEBUGPRNT("Send websocket broadcast with value: " + json);
   webSocketsServer->broadcastTXT(json);
 }
@@ -1408,6 +1483,7 @@ void handleSet(void)
   if (server.hasArg("resets"))
   {
     uint8_t value = String(server.arg("resets")).toInt();
+    volatile uint8_t d = 1;
     switch (value)
     {
     case 0:
@@ -1422,14 +1498,16 @@ void handleSet(void)
       ESP.wdtDisable();
       break;
     case 4:
-      while (1)
+      while (d)
       {
+        d=1;
       }
       break;
     case 5:
       volatile uint8_t a = 0;
       volatile uint8_t b = 5;
-      volatile uint8_t c = b / a;
+      volatile uint8_t c = 0;
+      c = b / a;
       break;
     }
   }
@@ -1454,7 +1532,7 @@ void handleSet(void)
   }
   */
   /// strip->setTransition();  <-- this is not wise as it removes the smooth fading for colors. So we need to set it case by case
-
+  server.send(200, "text/plain", "OK");
 }
 
 // if something unknown was called...
@@ -1490,13 +1568,15 @@ void handleGetModes(void)
   {
     modeinfo_modes[strip->getModeName(i)] = i;
   }
-
-#ifdef DEBUG
-  root.printTo(Serial);
-#endif
-
   String message = "";
+#ifdef DEBUG
+  message.reserve(root.measurePrettyLength());
   root.prettyPrintTo(message);
+#else
+  message.reserve(root.measureLength());
+  root.printTo(message);
+#endif
+  DEBUGPRNT(message);
   server.send(200, "application/json", message);
 }
 
@@ -1515,22 +1595,26 @@ void handleGetPals(void)
   {
     modeinfo_modes[strip->getPalName(i)] = i;
   }
-
+String message = "";
 #ifdef DEBUG
-  root.printTo(Serial);
-#endif
-
-  String message = "";
+  message.reserve(root.measurePrettyLength());
   root.prettyPrintTo(message);
+#else
+  message.reserve(root.measureLength());
+  root.printTo(message);
+#endif
+  DEBUGPRNT(message);
   server.send(200, "application/json", message);
 }
 
 void handleStatus(void)
 {
   uint32_t answer_time = micros();
+  JsonObject& answerObj = jsonBuffer.createObject();
+  JsonObject& currentStateAnswer = answerObj.createNestedObject("currentState");
+  JsonObject& sunriseAnswer = answerObj.createNestedObject("sunRiseState");
+  JsonObject& statsAnswer = answerObj.createNestedObject("Stats");
 
-  String message;
-  message.reserve(1500);
   uint16_t num_leds_on = 0;
   // if brightness = 0, no LED can be lid.
   if (strip->getBrightness())
@@ -1543,53 +1627,31 @@ void handleStatus(void)
         num_leds_on++;
     }
   }
-
-  message += F("\n{\n  \"currentState\": {\n    \"state\": ");
   if (strip->getPower())
   {
-    message += F("\"on\"");
+    currentStateAnswer["state"] = "on";
   }
   else
   {
-    message += F("\"off\"");
+    currentStateAnswer["state"] = "off";
   }
-  message += F(",\n    \"Buildversion\": \"");
-  message += build_version; //String(BUILD_VERSION);
-  message += F("\",\n    \"Lampenname\": \"");
-  message += String(LED_NAME);
-  message += F("\",\n    \"Anzahl Leds\": ");
-  message += String(strip->getStripLength());
-  message += F(",\n    \"Lamp Voltage\": ");
-  message += String(strip->getVoltage());
-  message += F(",\n    \"Lamp Max Current\": ");
-  message += String(strip->getMilliamps());
-  message += F(",\n    \"Lamp Max Power (mW)\": ");
-  message += String(strip->getVoltage() * strip->getMilliamps());
-  message += F(",\n    \"Lamp current Power\": ");
-  message += String(strip->getCurrentPower());
-  message += F(",\n    \"Leds an\": ");
-  message += String(num_leds_on);
-  message += F(",\n    \"modename\": ");
-  message += F("\"WS2812fx ");
-  message += String(strip->getModeName(strip->getMode()));
-  message += F("\", \n    \"wsfxmode\": ");
-  message += String(strip->getMode());
-  message += F(", \n    \"beat88\": ");
-  message += String(strip->getBeat88());
-  message += F(", \n    \"speed\": ");
-  message += String(strip->getBeat88());
-  message += F(", \n    \"brightness\": ");
-  message += String(strip->getBrightness());
-
+  currentStateAnswer["Buildversion"] = build_version;
+  currentStateAnswer["Lampname"] = LED_NAME;
+  currentStateAnswer["LED_Count"] = strip->getStripLength();
+  currentStateAnswer["Lamp_max_current"] = strip->getMilliamps();
+  currentStateAnswer["Lamp_max_power"] = strip->getVoltage() * strip->getMilliamps();
+  currentStateAnswer["Lamp_current_power"] = strip->getCurrentPower();
+  currentStateAnswer["LEDs_On"] = num_leds_on;
+  currentStateAnswer["mode_Name"] = strip->getModeName(strip->getMode());
+  currentStateAnswer["wsfxmode_Num"] = strip->getMode();
+  currentStateAnswer["wsfxmode_count"] = strip->getModeCount();
+  currentStateAnswer["beat88"] = strip->getBeat88();
+  currentStateAnswer["speed"] = strip->getBeat88();
+  currentStateAnswer["brightness"] = strip->getBrightness();
   // Palettes and Colors
-  message += F(", \n    \"palette count\": ");
-  message += String(strip->getPalCount());
-  message += F(", \n    \"palette\": ");
-  message += String(strip->getTargetPaletteNumber());
-  message += F(", \n    \"palette name\": \"");
-  message += String(strip->getTargetPaletteName());
-  message += F("\"");
-
+  currentStateAnswer["palette_count"] = strip->getTargetPaletteNumber();
+  currentStateAnswer["palette_num"] = strip->getTargetPaletteNumber();
+  currentStateAnswer["palette_name"] = strip->getTargetPaletteName();
   CRGB col = CRGB::Black;
   // We return either black (strip effectively off)
   // or the color of the first pixel....
@@ -1601,155 +1663,126 @@ void handleStatus(void)
       break;
     }
   }
-  message += F(", \n    \"rgb\": ");
-  message += String(((col.r << 16) |
-                     (col.g << 8) |
-                     (col.b << 0)) &
-                    0xffffff);
-  message += F(", \n    \"color red\": ");
-  message += String(col.red);
-  message += F(", \n    \"color green\": ");
-  message += String(col.green);
-  message += F(", \n    \"color blue\": ");
-  message += String(col.blue);
-
-  message += F(", \n    \"BlendType\": ");
+  currentStateAnswer["RGB"] = (((col.r << 16) | (col.g << 8) | (col.b << 0)) & 0xffffff);
+  currentStateAnswer["RGB_Red"] = col.r;
+  currentStateAnswer["RGB_Green"] = col.g;
+  currentStateAnswer["RGB_Blue"] = col.b;
   if (strip->getSegment()->blendType == NOBLEND)
   {
-    message += "\"No Blend\"";
+    currentStateAnswer["BlendType"] = "No Blend";
   }
   else if (strip->getSegment()->blendType == LINEARBLEND)
   {
-    message += "\"Linear Blend\"";
+    currentStateAnswer["BlendType"] = "Linear Blend";
   }
   else
   {
-    message += "\"Unknown Blend\"";
+    currentStateAnswer["BlendType"] = "Unknown Blend";
   }
 
-  message += F(", \n    \"Reverse\": ");
-  message += getReverse();
-
-  message += F(", \n    \"Hue change time\": ");
-  message += getHueTime();
-  message += F(", \n    \"Delta hue per change\": ");
-  message += getDeltaHue();
-
-  message += F(", \n    \"Autoplay Mode\": ");
+  currentStateAnswer["Reverse"] = strip->getReverse();;
+  currentStateAnswer["HueChangeInt"] = strip->getHueTime();
+  currentStateAnswer["HueDeltaHue"] = strip->getDeltaHue();
   switch(strip->getAutoplay())
   {
     case AUTO_MODE_OFF:
-      message += "\"Off\"";
+      currentStateAnswer["AutoPlayMode"] = "Off";
     break;
     case AUTO_MODE_UP:
-      message += "\"Up\"";
+      currentStateAnswer["AutoPlayMode"] = "Up";
     break;
     case AUTO_MODE_DOWN:
-      message += "\"Down\"";
+      currentStateAnswer["AutoPlayMode"] = "Down";
     break;
     case AUTO_MODE_RANDOM:
-      message += "\"Random\"";
+      currentStateAnswer["AutoPlayMode"] = "Random";
     break;
     default:
-      message += "\"unknown error\"";
+      currentStateAnswer["AutoPlayMode"] = "unknown error";
     break;
   }
-  message += F(", \n    \"Autoplay Mode Interval\": ");
-  message += getAutoplayDuration();
-
-  message += F(", \n    \"Autoplay Palette\": ");
+  currentStateAnswer["AutoPlayModeIntervall"] = strip->getAutoplayDuration();
   switch(strip->getAutopal())
   {
     case AUTO_MODE_OFF:
-      message += "\"Off\"";
+      currentStateAnswer["AutoPalette"] = "Off";
     break;
     case AUTO_MODE_UP:
-      message += "\"Up\"";
+      currentStateAnswer["AutoPalette"] = "Up";
     break;
     case AUTO_MODE_DOWN:
-      message += "\"Down\"";
+      currentStateAnswer["AutoPalette"] = "Down";
     break;
     case AUTO_MODE_RANDOM:
-      message += "\"Random\"";
+      currentStateAnswer["AutoPalette"] = "Random";
     break;
     default:
-      message += "\"unknown error\"";
+      currentStateAnswer["AutoPalette"] = "unknown error";
     break;
   }
-
-  message += F(", \n    \"Autoplay Palette Interval\": ");
-  message += getAutopalDuration();
-
-  message += F(", \n    \"Fire Cooling\": ");
-  message += getCooling();
-
-  message += F(", \n    \"Fire sparking\": ");
-  message += getSparking();
-
-  message += F(", \n    \"Twinkle Speed\": ");
-  message += getTwinkleSpeed();
-
-  message += F(", \n    \"Twinkle Density\": ");
-  message += getTwinkleDensity();
-
-  message += F("\n  },\n  \"sunRiseState\": {\n    \"sunRiseMode\": ");
+  currentStateAnswer["AutoPaletteInterval"] = strip->getAutoplayDuration();
 
   if (strip->getMode() == FX_MODE_SUNRISE)
   {
-    message += F("\"Sunrise\"");
+    sunriseAnswer["sunRiseMode"] = "Sunrise";
   }
   else if (strip->getMode() == FX_MODE_SUNSET)
   {
-    message += F("\"Sunset\"");
+    sunriseAnswer["sunRiseMode"] = "Sunset";
   }
   else
   {
-    message += F("\"None\"");
+    sunriseAnswer["sunRiseMode"] = "None";
   }
-  message += F(",\n    \"sunRiseActive\": ");
+  
   if (strip->getMode() == FX_MODE_SUNRISE || strip->getMode() == FX_MODE_SUNSET)
   {
-    
+    if(num_leds_on)
+    {
+      sunriseAnswer["sunRiseActive"] = "On";
+    }
+    else
+    {
+      sunriseAnswer["sunRiseActive"] = "Off";
+    }
   }
   else
   {
-    message += F("\"Off\"");
-    message += F(", \n    \"sunRiseCurrStep\": ");
-    message += F("\"..Repair needed..\"");
-    message += F(", \n    \"sunRiseTotalSteps\": ");
-    message += F("\"..Repair needed..\"");
-    message += F(", \n    \"sunRiseTimeToFinish\": ");
-    message += F("\"..Repair needed..\"");
+    sunriseAnswer["sunRiseActive"] = "Off";
   }
-
-  message += F("\n  }");
+    sunriseAnswer["sunRiseCurrStep"] = strip->getCurrentSunriseStep();
+    
+    sunriseAnswer["sunRiseTotalSteps"] = DEFAULT_SUNRISE_STEPS;
+    
+    sunriseAnswer["sunRiseTimeToFinish"] = strip->getSunriseTimeToFinish();
+    
 
 #ifdef DEBUG
-  message += F(",\n  \"ESP_Data\": {\n    \"DBG_Debug code\": \"On\",\n    \"DBG_CPU_Freq\": ");
-  message += String(ESP.getCpuFreqMHz());
-  message += F(",\n    \"DBG_Flash Real Size\": ");
-  message += String(ESP.getFlashChipRealSize());
-  message += F(",\n    \"DBG_Free RAM\": ");
-  message += String(ESP.getFreeHeap());
-  message += F(",\n    \"DBG_Free Sketch Space\": ");
-  message += String(ESP.getFreeSketchSpace());
-  message += F(",\n    \"DBG_Sketch Size\": ");
-  message += String(ESP.getSketchSize());
-  message += F("\n  }");
+  JsonObject& debugAnswer = answerObj.createNestedObject("ESP_Data");
+  debugAnswer["DBG_Debug code"] = "On";
+  debugAnswer["DBG_CPU_FRQ"] = ESP.getCpuFreqMHz();
+  debugAnswer["DBG_Flash Real Size"] = ESP.getFlashChipRealSize();
+  debugAnswer["DBG_Free RAM"] = ESP.getFreeHeap();
+  debugAnswer["DBG_Free Sketch Space"] = ESP.getFreeSketchSpace();
+  debugAnswer["DBG_Sketch Size"] = ESP.getSketchSize();
 #endif
-  message += F(",\n  \"Stats\": {\n    \"Answer_Time ms\": ");
+  
   answer_time = micros() - answer_time;
-  message += String((float)((float)(answer_time)/1000.0));
-  message += F(",\n    \"FPS\": ");
-  message += String(FastLED.getFPS());
-  message += F("\n  }");
-  message += F("\n}");
+  statsAnswer["AnswerTime_ms"] = (float)((float)(answer_time)/1000.0);
+  statsAnswer["FPS"] = FastLED.getFPS();
+
+  String message;
 
 #ifdef DEBUG
-  DEBUGPRNT(message);
+  message.reserve(answerObj.measurePrettyLength());
+  answerObj.prettyPrintTo(message);
+#else
+  message.reserve(answerObj.measureLength());
+  answerObj.printTo(message);
 #endif
-
+  DEBUGPRNT(message);
   server.send(200, "application/json", message);
+  jsonBuffer.clear();
 }
 
 void factoryReset(void)
@@ -1934,7 +1967,9 @@ void setupWebServer(void)
 
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
 {
+
 #ifdef DEBUG
+  const char* ret = (const char*)payload;
   switch (type)
   {
   case WStype_DISCONNECTED:
@@ -1956,8 +1991,9 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
     Serial.printf("[%u] get Text: %s\n", num, payload);
 
     // send message to client
-    webSocketsServer->sendTXT(num, "Thank you for your message.");
-
+    //webSocketsServer->sendTXT(num, "Thank you for your message.");
+    webSocketsServer->broadcastTXT("Received " + String(ret));
+    
     // send data to all connected clients
     // webSocketsServer.broadcastTXT("message here");
     break;
@@ -2022,6 +2058,10 @@ void setup()
     DEBUGPRNT(F("\tUnknown cause..."));
     break;
   }
+
+  // preparing JSONBuffers
+  
+
 
   stripe_setup(LED_COUNT,
                STRIP_FPS,
