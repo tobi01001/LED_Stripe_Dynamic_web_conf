@@ -496,12 +496,12 @@ public:
   inline void setMilliamps            (uint16_t m)      { _segment.milliamps = constrain(m, 100, 20000); FastLED.setMaxPowerInVoltsAndMilliamps(_volts, _segment.milliamps); }
   inline void setAutoplayDuration     (uint16_t t)      { _segment.autoplayDuration = t; SEGMENT_RUNTIME.nextAuto = 0; }
   inline void setAutopalDuration      (uint16_t t)      { _segment.autoPalDuration = t; SEGMENT_RUNTIME.nextPalette = 0; }
-  inline void setSegments             (uint8_t s)       { _segment.segments = constrain(s, 1, max(LED_COUNT / 50, 1)); }
+  inline void setSegments             (uint8_t s)       { _segment.segments = constrain(s, 1, max(MAX_NUM_SEGMENTS, 1)); }
   inline void setCooling              (uint8_t cool)    { _segment.cooling = constrain(cool, 20, 100); }
   inline void setSparking             (uint8_t spark)   { _segment.sparking = constrain(spark, 50, 200); }
   inline void setTwinkleSpeed         (uint8_t speed)   { _segment.twinkleSpeed = constrain(speed, 0, 8); }
   inline void setTwinkleDensity       (uint8_t density) { _segment.twinkleDensity = constrain(density, 0, 8); }
-  inline void setNumBars              (uint8_t numBars) { _segment.numBars = constrain(numBars, 1, max(LED_COUNT / 20, 1)); }
+  inline void setNumBars              (uint8_t numBars) { _segment.numBars = constrain(numBars, 1, max((LED_COUNT / _segment.segments) / MAX_NUM_BARS_FACTOR, 1)); setTransition(); }
   // setMode --> treated separately...
   inline void setMaxFPS               (uint8_t fps)     { _segment.fps = constrain(fps, 10, 111); FastLED.setMaxRefreshRate(fps); }
   inline void setDeltaHue             (uint8_t dh)      { _segment.deltaHue = dh; }
@@ -611,6 +611,8 @@ private:
       addSparks(uint8_t probability, bool onBlackOnly, bool white);
 
   uint8_t attackDecayWave8(uint8_t i);
+
+  CRGB calcSunriseColorValue(uint16_t step);
 
   uint16_t
   mode_ease(void),

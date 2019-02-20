@@ -295,6 +295,10 @@ void WS2812FX::service()
     _segment_runtime.start = 0;
     _segment_runtime.length = (LED_COUNT / _segment.segments);
     _segment_runtime.stop = _segment_runtime.start + _segment_runtime.length - 1;
+    if(_segment.numBars > ((LED_COUNT / _segment.segments) / MAX_NUM_BARS_FACTOR))
+    {
+      _segment.numBars = ((LED_COUNT / _segment.segments) / MAX_NUM_BARS_FACTOR);
+    }
     setTransition();
     old_segs = _segment.segments;
   }
@@ -3145,19 +3149,22 @@ uint16_t WS2812FX::mode_void(void)
 
 void WS2812FX::draw_sunrise_step(uint16_t sunriseStep)
 {
+
   static uint8_t nc[LED_COUNT];
   static bool toggle = false;
-  uint8_t step = (uint8_t)map(sunriseStep, 0, DEFAULT_SUNRISE_STEPS, 0, 255);
+  //uint8_t step = (uint8_t)map(sunriseStep, 0, DEFAULT_SUNRISE_STEPS, 0, 255);
+  uint16_t step = sunriseStep;
 
   // Kind of dithering... lets see
   if(toggle)
   {
-    if(step < 255) step +=1;
+    //if(step < 255) step +=1;
+    step +=1;
   }
   toggle = !toggle;
   
-
-  fill_solid(leds, getStripLength(), HeatColor(step));
+  //fill_solid(leds, getStripLength(), HeatColor(step));
+  fill_solid(leds, getStripLength(), calcSunriseColorValue(step));
 
   EVERY_N_MILLISECONDS(100)
   {
@@ -3174,8 +3181,8 @@ void WS2812FX::draw_sunrise_step(uint16_t sunriseStep)
     leds[i] = nblend(leds[i], col, 64);
   }
 
-  uint8_t br = (step < 96) ? (uint8_t)map(step, 0, 96, 0, getBrightness()) : getBrightness(); //BRIGHTNESS_MAX):BRIGHTNESS_MAX;
-  nscale8_video(leds, getStripLength(), br);
+  //uint8_t br = (step < 96) ? (uint8_t)map(step, 0, 96, 0, getBrightness()) : getBrightness(); //BRIGHTNESS_MAX):BRIGHTNESS_MAX;
+  //nscale8_video(leds, getStripLength(), br);
 
 }
 
@@ -3196,11 +3203,78 @@ uint16_t WS2812FX::getSunriseTimeToFinish(void)
   }
 }
 
+CRGB WS2812FX::calcSunriseColorValue(uint16_t step)
+{
+  double uv = 0.0;
+  double red = 0.0;
+  double green = 0.0;
+  double blue = 0.0;
+  double step_d = (double)step;
+  if(step_d < SRSS_StartValue)
+  {
+    return CRGB(SRSS_StartR, SRSS_StartG, SRSS_StartB);
+  }
+  if(step_d > SRSS_Endvalue)
+  {
+    return CRGB(SRSS_EndR, SRSS_EndG, SRSS_EndB);
+  }
+  if(step_d <= SRSS_MidValue)
+  {
+    uv = (step_d - SRSS_StartValue) / (SRSS_MidValue - SRSS_StartValue);
+    red =   (100.0 * (
+                       ((1.0 - uv) * (1.0 - uv) * SRSS_StartR) +
+                        (2  * (1.0 - uv) * uv   * SRSS_Mid1R)  + 
+                        (uv * uv                * SRSS_Mid2R))  + 0.5) / 100.0;
+    green = (100.0 * (
+                       ((1.0 - uv) * (1.0 - uv) * SRSS_StartG) +
+                        (2  * (1.0 - uv) * uv   * SRSS_Mid1G)  + 
+                        (uv * uv                * SRSS_Mid2G))  + 0.5) / 100.0;
+    blue =  (100.0 * (
+                       ((1.0 - uv) * (1.0 - uv) * SRSS_StartB) +
+                        (2  * (1.0 - uv) * uv   * SRSS_Mid1B)  + 
+                        (uv * uv                * SRSS_Mid2B))  + 0.5) / 100.0;
+  }
+  else if(step_d <= SRSS_Endvalue)
+  {
+    uv = (step_d - SRSS_MidValue) / (SRSS_Endvalue - SRSS_MidValue);
+    red =   (100.0 * (
+                       ((1.0 - uv) * (1.0 - uv) * SRSS_Mid2R) +
+                        (2  * (1.0 - uv) * uv   * SRSS_Mid3R)  + 
+                        (uv * uv                * SRSS_EndR))  + 0.5) / 100.0;
+    green = (100.0 * (
+                       ((1.0 - uv) * (1.0 - uv) * SRSS_Mid2G) +
+                        (2  * (1.0 - uv) * uv   * SRSS_Mid3G)  + 
+                        (uv * uv                * SRSS_EndG))  + 0.5) / 100.0;
+    blue =  (100.0 * (
+                       ((1.0 - uv) * (1.0 - uv) * SRSS_Mid2B) +
+                        (2  * (1.0 - uv) * uv   * SRSS_Mid3B)  + 
+                        (uv * uv                * SRSS_EndB))  + 0.5) / 100.0;
+  }
+  #ifdef DEBUG
+    EVERY_N_MILLISECONDS(500)
+    {
+      Serial.print("SRSS_Step: ");
+      Serial.print(step);
+      Serial.print("\tuv ");
+      Serial.print(uv);
+      Serial.print("\tred ");
+      Serial.print(red);
+      Serial.print("\tgreen ");
+      Serial.print(green);
+      Serial.print("\tblue ");
+      Serial.print(blue);
+      Serial.printf("\tr %d\tg %d\t b %d\n", (uint8_t)red, (uint8_t)green, (uint8_t)blue);
+    }
+    
+  #endif
+  return CRGB((uint8_t)red, (uint8_t)green, (uint8_t)blue);
+}
+
 void WS2812FX::m_sunrise_sunset(bool isSunrise)
 {
   const uint16_t sunriseSteps = DEFAULT_SUNRISE_STEPS;
   static uint32_t next = 0;
-  uint16_t stepInterval = (uint16_t)((_segment.sunrisetime * 60 * 1000) / sunriseSteps);
+  uint16_t stepInterval = (uint16_t)(_segment.sunrisetime * ((60 * 1000) / sunriseSteps));
   if (_segment_runtime.modeinit)
   {
     _segment_runtime.modeinit = false;
@@ -3226,21 +3300,6 @@ void WS2812FX::m_sunrise_sunset(bool isSunrise)
       {
         _segment_runtime.sunRiseStep++;
       }
-      else
-      {
-        /*
-        CRGB col = 0;
-        for(uint16_t i = 0; i<LED_COUNT; i++)
-        {
-          if(leds[i] > col)
-          {
-            col = leds[i];
-          }
-        }
-        setTargetPalette(0);//CRGBPalette16(col), "Sunrise End");
-        setMode(FX_MODE_STATIC);
-        */
-      }
     }
     else
     {
@@ -3251,7 +3310,7 @@ void WS2812FX::m_sunrise_sunset(bool isSunrise)
       else
       {
         // we switch off - this should fix issue #6
-        //setMode(FX_MODE_STATIC);
+        
         setIsRunning(false);
         setPower(false);
       }

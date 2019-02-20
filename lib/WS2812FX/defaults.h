@@ -19,9 +19,37 @@
 
 // Other parameters being used
 
+
+#define SRSS_StartR 0.0
+#define SRSS_StartG 0.0
+#define SRSS_StartB 0.0
+
+#define SRSS_Mid1R  67.0
+#define SRSS_Mid1G  4.0
+#define SRSS_Mid1B  0.0
+
+#define SRSS_Mid2R  127.0
+#define SRSS_Mid2G  31.0
+#define SRSS_Mid2B  0.0
+
+#define SRSS_Mid3R  191.0
+#define SRSS_Mid3G  63.0
+#define SRSS_Mid3B  3.0
+
+#define SRSS_EndR   255.0
+#define SRSS_EndG   255.0//200.0
+#define SRSS_EndB   255.0//128.0
+
+#define SRSS_StartValue 0.0
+#define SRSS_MidValue 512.0
+#define SRSS_Endvalue 1023.0
 #define DEFAULT_SUNRISE_STEPS   1024
+
 #define EEPROM_SAVE_INTERVAL_MS 5000
 #define WIFI_TIMEOUT            5000
+#define MAX_NUM_SEGMENTS        (LED_COUNT / 25)
+#define MAX_NUM_BARS_FACTOR     15                    // Segment divided by this defines the maximum number of "bars"
+#define MAX_NUM_BARS            (LED_COUNT / MAX_NUM_BARS_FACTOR)
 
 // default strip / segment values below (before being stored / after "reset")
 

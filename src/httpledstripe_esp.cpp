@@ -70,7 +70,7 @@ extern "C"
 #include "led_strip.h"
 
 
-#define BUILD_VERSION ("0.9_Segs_")
+#define BUILD_VERSION ("0.96_Segs_New_Sunrise")
 #ifndef BUILD_VERSION
 #error "We need a SW Version and Build Version!"
 #endif
@@ -514,10 +514,10 @@ void saveEEPROMData(void)
   //now in "checkSegment"
   //WS2812FX::segment seg = *strip->getSegment();
 
-  DEBUGPRNT("WS2812 segment:");
-  print_segment(strip->getSegment());
-  DEBUGPRNT("copied segment:");
-  print_segment(&seg);
+  //DEBUGPRNT("WS2812 segment:");
+  //print_segment(strip->getSegment());
+  //DEBUGPRNT("copied segment:");
+  //print_segment(&seg);
 
 
   seg.CRC = (uint16_t)calc_CRC16(0x5a5a,(unsigned char *)&seg + 2, sizeof(seg) - 2);
@@ -527,8 +527,8 @@ void saveEEPROMData(void)
   DEBUGPRNT("\tSegment size: " + String(strip->getSegmentSize())+ "\tCRC size: " + String(strip->getCRCsize()));
   DEBUGPRNT("\tCRC calculated " + String(seg.CRC) + "\tCRC stored " + String(strip->getCRC()));
 
-  DEBUGPRNT("WS2812 segment with new CRC:");
-  print_segment(strip->getSegment());
+  //DEBUGPRNT("WS2812 segment with new CRC:");
+  //print_segment(strip->getSegment());
 
   // write the data to the EEPROM
   EEPROM.put(0, seg);
@@ -785,6 +785,8 @@ void handleSet(void)
 
 // Debug only
   #ifdef DEBUG
+  IPAddress add = server.client().remoteIP();
+  DEBUGPRNT("The HTTP Request was received by " + add.toString());
   DEBUGPRNT("<Begin>Server Args:");
   for (uint8_t i = 0; i < server.args(); i++)
   {
@@ -811,7 +813,6 @@ void handleSet(void)
   // pi = pixel to be set (clears others?)
   // rnS = Range start Pixel;
   // rnE = Range end Pixel;
-
   // here we set a new mode if we have the argument mode
   if (server.hasArg("mo"))
   {
@@ -843,7 +844,7 @@ void handleSet(void)
     {
       DEBUGPRNT("got Argument mode Off....");
       strip->setPower(false);
-      sendString("state", "off");
+      //sendString("state", "off");
       //broadcastInt("power", false);
     }
     // for backward compatibility and FHEM:
@@ -903,7 +904,7 @@ void handleSet(void)
       else if (server.hasArg("min"))
       {
         DEBUGPRNT("got Argument min....");
-        strip->setSunriseTime(((uint16_t)strtoul(&server.arg("sec")[0], NULL, 10)));
+        strip->setSunriseTime(((uint16_t)strtoul(&server.arg("min")[0], NULL, 10)));
       }
       isWS2812FX = true;
       effect = FX_MODE_SUNRISE;
@@ -959,7 +960,7 @@ void handleSet(void)
       strip->start();
 
       DEBUGPRNT("gonna send mo response....");
-      sendInt("mo", strip->getMode() );
+      //sendInt("mo", strip->getMode() );
       //broadcastInt("power", true);
     }
   }
@@ -976,7 +977,7 @@ void handleSet(void)
       strip->setPower(true);
       strip->setMode(strip->getMode());
     }
-    sendString("state", strip->getPower() ? "on" : "off");
+    //sendString("state", strip->getPower() ? "on" : "off");
     //broadcastInt("power", strip->getPower());
   }
 
@@ -991,7 +992,7 @@ void handleSet(void)
     {
       strip->setIsRunning(true);
     }
-    sendString("isRunning", strip->isRunning() ? "running" : "paused");
+    //sendString("isRunning", strip->isRunning() ? "running" : "paused");
     
     //broadcastInt("power", strip->isRunning());
   }
@@ -1026,7 +1027,7 @@ void handleSet(void)
       brightness = constrain((uint8_t)strtoul(&server.arg("br")[0], NULL, 10), BRIGHTNESS_MIN, BRIGHTNESS_MAX);
     }
     strip->setBrightness(brightness);
-    sendInt("brightness", brightness);
+    //sendInt("brightness", brightness);
     //broadcastInt("br", strip->getBrightness());
   }
 
@@ -1248,7 +1249,7 @@ void handleSet(void)
   {
     uint16_t value = String(server.arg("autoplay")).toInt();
     strip->setAutoplay((AUTOPLAYMODES)value);
-    sendInt("Autoplay Mode", value);
+    //sendInt("Autoplay Mode", value);
     //broadcastInt("autoplay", value);
   }
 
@@ -1257,7 +1258,7 @@ void handleSet(void)
   {
     uint16_t value = String(server.arg("autoplayDuration")).toInt();
     strip->setAutoplayDuration(value);
-    sendInt("Autoplay Mode Interval", value);
+    //sendInt("Autoplay Mode Interval", value);
     //broadcastInt("autoplayDuration", value);
   }
 
@@ -1266,7 +1267,7 @@ void handleSet(void)
   {
     uint16_t value = String(server.arg("autopal")).toInt();
     strip->setAutopal((AUTOPLAYMODES)value);
-    sendInt("Autoplay Palette", value);
+    //sendInt("Autoplay Palette", value);
     //broadcastInt("autopal", value);
   }
 
@@ -1275,7 +1276,7 @@ void handleSet(void)
   {
     uint16_t value = String(server.arg("autopalDuration")).toInt();
     strip->setAutopalDuration(value);
-    sendInt("Autoplay Palette Interval", value);
+    //sendInt("Autoplay Palette Interval", value);
     //broadcastInt("autopalDuration", value);
   }
 
@@ -1283,7 +1284,7 @@ void handleSet(void)
   if (server.hasArg("huetime"))
   {
     uint16_t value = String(server.arg("huetime")).toInt();
-    sendInt("Hue change time", value);
+    //sendInt("Hue change time", value);
     //broadcastInt("huetime", value);
     strip->setHuetime(value);
   }
@@ -1294,7 +1295,7 @@ void handleSet(void)
   if (server.hasArg("deltahue"))
   {
     uint16_t value = constrain(String(server.arg("deltahue")).toInt(), 0, 255);
-    sendInt("Delta hue per change", value);
+    //sendInt("Delta hue per change", value);
     //broadcastInt("deltahue", value);
     strip->setDeltaHue(value);
     strip->setTransition();
@@ -1304,7 +1305,7 @@ void handleSet(void)
   if (server.hasArg("cooling"))
   {
     uint16_t value = String(server.arg("cooling")).toInt();
-    sendInt("Fire Cooling", value);
+    //sendInt("Fire Cooling", value);
     //broadcastInt("cooling", value);
     strip->setCooling(value);
     strip->setTransition();
@@ -1314,7 +1315,7 @@ void handleSet(void)
   if (server.hasArg("sparking"))
   {
     uint16_t value = String(server.arg("sparking")).toInt();
-    sendInt("Fire sparking", value);
+    //sendInt("Fire sparking", value);
     //broadcastInt("sparking", value);
     strip->setSparking(value);
     strip->setTransition();
@@ -1324,7 +1325,7 @@ void handleSet(void)
   if (server.hasArg("twinkleSpeed"))
   {
     uint16_t value = String(server.arg("twinkleSpeed")).toInt();
-    sendInt("Twinkle Speed", value);
+    //sendInt("Twinkle Speed", value);
     //broadcastInt("twinkleSpeed", value);
     strip->setTwinkleSpeed(value);
     strip->setTransition();
@@ -1334,7 +1335,7 @@ void handleSet(void)
   if (server.hasArg("twinkleDensity"))
   {
     uint16_t value = String(server.arg("twinkleDensity")).toInt();
-    sendInt("Twinkle Density", value);
+    //sendInt("Twinkle Density", value);
     //broadcastInt("twinkleDensity", value);
     strip->setTwinkleDensity(value);
     strip->setTransition();
@@ -1344,9 +1345,9 @@ void handleSet(void)
   if (server.hasArg("numBars"))
   {
     uint16_t value = String(server.arg("numBars")).toInt();
-    if (value >= (LED_COUNT / strip->getSegments() / 10))
-      value = max((LED_COUNT / strip->getSegments() / 10), 2);
-    sendInt("Number of Bars", value);
+    if (value > MAX_NUM_BARS)
+      value = max(MAX_NUM_BARS, 1);
+    //sendInt("Number of Bars", value);
     //broadcastInt("numBars", value);
     strip->setNumBars(value);
     strip->setTransition();
@@ -1361,12 +1362,12 @@ void handleSet(void)
     if (value)
     {
       strip->setBlendType(LINEARBLEND);
-      sendString("BlendType", "LINEARBLEND");
+      //sendString("BlendType", "LINEARBLEND");
     }
     else
     {
       strip->setBlendType(NOBLEND);
-      sendString("BlendType", "NOBLEND");
+      //sendString("BlendType", "NOBLEND");
     }
     strip->setTransition();
   }
@@ -1377,7 +1378,7 @@ void handleSet(void)
     uint8_t value = String(server.arg("ColorTemperature")).toInt();
 
     //broadcastInt("ColorTemperature", value);
-    sendString("ColorTemperature", strip->getColorTempName(value));
+    //sendString("ColorTemperature", strip->getColorTempName(value));
     strip->setColorTemperature(value);
     strip->setTransition();
   }
@@ -1386,7 +1387,7 @@ void handleSet(void)
   if (server.hasArg("reverse"))
   {
     uint16_t value = String(server.arg("reverse")).toInt();
-    sendInt("reverse", value);
+    //sendInt("reverse", value);
     //broadcastInt("reverse", value);
     strip->getSegment()->reverse = value;
     strip->setTransition();
@@ -1396,7 +1397,7 @@ void handleSet(void)
   if (server.hasArg("inverse"))
   {
     uint16_t value = String(server.arg("inverse")).toInt();
-    sendInt("inverse", value);
+    //sendInt("inverse", value);
     //broadcastInt("inverse", value);
     strip->setInverse(value);
     strip->setTransition();
@@ -1406,7 +1407,7 @@ void handleSet(void)
   if (server.hasArg("mirror"))
   {
     uint16_t value = String(server.arg("mirror")).toInt();
-    sendInt("mirror", value);
+    //sendInt("mirror", value);
     //broadcastInt("mirror", value);
     strip->setMirror(value);
     strip->setTransition();
@@ -1416,7 +1417,7 @@ void handleSet(void)
   if (server.hasArg("current"))
   {
     uint16_t value = String(server.arg("current")).toInt();
-    sendInt("Lamp Max Current", value);
+    //sendInt("Lamp Max Current", value);
     //broadcastInt("current", value);
     strip->setMilliamps(value);
   }
@@ -1425,7 +1426,7 @@ void handleSet(void)
   if (server.hasArg("LEDblur"))
   {
     uint8_t value = String(server.arg("LEDblur")).toInt();
-    sendInt("LEDblur", value);
+    //sendInt("LEDblur", value);
     //broadcastInt("LEDblur", value);
     strip->setBlur(value);
     strip->setTransition();
@@ -1435,7 +1436,7 @@ void handleSet(void)
   if (server.hasArg("fps"))
   {
     uint8_t value = String(server.arg("fps")).toInt();
-    sendInt("fps", value);
+    //sendInt("fps", value);
     //broadcastInt("fps", value);
     strip->setMaxFPS(value);
     strip->setTransition();
@@ -1444,7 +1445,7 @@ void handleSet(void)
   if (server.hasArg("dithering"))
   {
     uint8_t value = String(server.arg("dithering")).toInt();
-    sendInt("dithering", value);
+    //sendInt("dithering", value);
     //broadcastInt("dithering", value);
     strip->setDithering(value);
   }
@@ -1452,7 +1453,7 @@ void handleSet(void)
   if (server.hasArg("sunriseset"))
   {
     uint8_t value = String(server.arg("sunriseset")).toInt();
-    sendInt("sunriseset", value);
+    //sendInt("sunriseset", value);
     //broadcastInt("sunriseset", value);
     strip->getSegment()->sunrisetime = value;
   }
@@ -1463,7 +1464,7 @@ void handleSet(void)
     uint8_t value = String(server.arg("resetdefaults")).toInt();
     if (value)
       strip->resetDefaults();
-    sendInt("resetdefaults", 0);
+    //sendInt("resetdefaults", 0);
     //broadcastInt("resetdefaults", 0);
     //sendStatus = true;
     strip->setTransition();
@@ -1472,7 +1473,7 @@ void handleSet(void)
   if (server.hasArg("damping"))
   {
     uint8_t value = constrain(String(server.arg("damping")).toInt(), 0, 100);
-    sendInt("damping", value);
+    //sendInt("damping", value);
     //broadcastInt("damping", value);
     strip->getSegment()->damping = value;
   }
@@ -1517,9 +1518,9 @@ void handleSet(void)
   if (server.hasArg("segments"))
   {
     uint16_t value = String(server.arg("segments")).toInt();
-    sendInt("segments", value);
+    //sendInt("segments", value);
     //broadcastInt("segments", value);
-    strip->getSegment()->segments = constrain(value, 1, LED_COUNT / 10);
+    strip->getSegment()->segments = constrain(value, 1, MAX_NUM_SEGMENTS);
     strip->setTransition();
   }
 
@@ -1739,22 +1740,24 @@ void handleStatus(void)
   {
     if(num_leds_on)
     {
-      sunriseAnswer["sunRiseActive"] = "On";
+      sunriseAnswer["sunRiseActive"] = "on";
     }
     else
     {
-      sunriseAnswer["sunRiseActive"] = "Off";
+      sunriseAnswer["sunRiseActive"] = "off";
     }
   }
   else
   {
-    sunriseAnswer["sunRiseActive"] = "Off";
+    sunriseAnswer["sunRiseActive"] = "off";
   }
     sunriseAnswer["sunRiseCurrStep"] = strip->getCurrentSunriseStep();
     
     sunriseAnswer["sunRiseTotalSteps"] = DEFAULT_SUNRISE_STEPS;
     
     sunriseAnswer["sunRiseTimeToFinish"] = strip->getSunriseTimeToFinish();
+
+    sunriseAnswer["sunRiseTime"] = strip->getSunriseTime();
     
 
 #ifdef DEBUG
@@ -1967,49 +1970,57 @@ void setupWebServer(void)
 
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
 {
-
-#ifdef DEBUG
-  const char* ret = (const char*)payload;
-  switch (type)
+  DEBUGPRNT("Checking the websocket event!");
+ 
+  if(type == WStype_TEXT)
   {
-  case WStype_DISCONNECTED:
-
-    Serial.printf("[%u] Disconnected!\n", num);
-    break;
-
-  case WStype_CONNECTED:
-  {
-    IPAddress ip = webSocketsServer->remoteIP(num);
-    Serial.printf("[%u] Connected from %d.%d.%d.%d url: %s\n", num, ip[0], ip[1], ip[2], ip[3], payload);
-
-    // send message to client
-    // webSocketsServer.sendTXT(num, "Connected");
-  }
-  break;
-
-  case WStype_TEXT:
+    #ifdef DEBUG
     Serial.printf("[%u] get Text: %s\n", num, payload);
+    #endif
+    JsonObject& received = jsonBuffer.parse(payload);
+    if(received.success())
+    {
+      #ifdef DEBUG
+      String prettyJSON;
+      received.prettyPrintTo(prettyJSON);
+      webSocketsServer->broadcastTXT("WS: Received JSON deserialized value: \n\t" + prettyJSON);
+      DEBUGPRNT("WEBSOCKET: Received JSON:" + prettyJSON);
+      for(JsonPair& p : received)
+      {
+        DEBUGPRNT("Key: " + String(p.key));
+        DEBUGPRNT("Value: " + String(p.value.asString()));
+      }
+      #endif
 
-    // send message to client
-    //webSocketsServer->sendTXT(num, "Thank you for your message.");
-    webSocketsServer->broadcastTXT("Received " + String(ret));
-    
-    // send data to all connected clients
-    // webSocketsServer.broadcastTXT("message here");
-    break;
-
-  case WStype_BIN:
-    Serial.printf("[%u] get binary length: %u\n", num, length);
-    hexdump(payload, length);
-    webSocketsServer->sendTXT(num, "Thank you for your binary message.");
-
-    break;
-
-  default:
-    webSocketsServer->sendTXT(num, "Don't know what you sent.");
-    break;
+    }
+    else
+    {
+      #ifdef DEBUG
+      webSocketsServer->broadcastTXT("WS: Received non decodable value: \n\t" + String((const char *)payload));
+      #endif
+    }
   }
-#endif
+  else if(type == WStype_CONNECTED)
+  {
+    #ifdef DEBUG
+      IPAddress ip = webSocketsServer->remoteIP(num);
+      Serial.printf("[%u] Connected from %d.%d.%d.%d url: %s\n", num, ip[0], ip[1], ip[2], ip[3], payload);
+      // send message to client
+      webSocketsServer->sendTXT(num, "Welcome to the LED Control world!");
+    #endif
+  }
+  else if(type == WStype_DISCONNECTED)
+  {
+    #ifdef DEBUG
+    Serial.printf("[%u] Disconnected!\n", num);
+    #endif
+  }
+  else
+  {
+    #ifdef DEBUG
+    webSocketsServer->sendTXT(num, "Don't know what you sent.");
+    #endif
+  }
 }
 
 // setup network and output pins
@@ -2059,7 +2070,6 @@ void setup()
     break;
   }
 
-  // preparing JSONBuffers
   
 
 
@@ -2140,7 +2150,7 @@ void setup()
   }
   FastLED.show();
 
-  delay(15000);
+  delay(10000);
 
 
 #ifdef DEBUG
@@ -2211,8 +2221,8 @@ void loop()
       for (uint16_t i = 0; i < strip->getStripLength(); i++)
       {
         strip->leds[i] = 0xa0a000;
-        strip->show();
       }
+      strip->show();
       // Reset after 6 seconds....
       delay(3000);
 #ifdef DEBUG
