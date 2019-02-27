@@ -1980,18 +1980,21 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
     JsonObject& received = jsonBuffer.parse(payload);
     if(received.success())
     {
+      String myJSON;
       #ifdef DEBUG
-      String prettyJSON;
-      received.prettyPrintTo(prettyJSON);
-      webSocketsServer->broadcastTXT("WS: Received JSON deserialized value: \n\t" + prettyJSON);
-      DEBUGPRNT("WEBSOCKET: Received JSON:" + prettyJSON);
+      received.prettyPrintTo(myJSON);
+      #else
+      received.printTo(myJSON);
+      #endif
+      webSocketsServer->broadcastTXT("WS: Received JSON deserialized value: \n\t" + myJSON);
+      DEBUGPRNT("WEBSOCKET: Received JSON:" + myJSON);
+      #ifdef DEBUG
       for(JsonPair& p : received)
       {
         DEBUGPRNT("Key: " + String(p.key));
         DEBUGPRNT("Value: " + String(p.value.asString()));
       }
       #endif
-
     }
     else
     {
@@ -1999,6 +2002,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
       webSocketsServer->broadcastTXT("WS: Received non decodable value: \n\t" + String((const char *)payload));
       #endif
     }
+    jsonBuffer.clear();
   }
   else if(type == WStype_CONNECTED)
   {
@@ -2150,7 +2154,7 @@ void setup()
   }
   FastLED.show();
 
-  delay(10000);
+  delay(7500);
 
 
 #ifdef DEBUG
@@ -2204,6 +2208,34 @@ void loop()
     msg += "\n\t\tC-Pal: " + strip->getCurrentPaletteName() + "\tT-Pal: " + strip->getTargetPaletteName() + "\n\t\tFPS: " + String(FastLED.getFPS());
     DEBUGPRNT(msg);
   }
+#endif
+
+#ifdef DEBUG_PERFORMANCE
+EVERY_N_MILLIS(250)
+{
+  JsonObject& toSend = jsonBuffer.createObject();
+  toSend["name"] = F("infoBox");
+  toSend["value"] = "\nCurrFPS: " + String(FastLED.getFPS()) +
+                    "\n maxFPS: " + String(strip->getMaxFPS()) +
+                    "\nStripMi: " + String(max((1000 / (strip->getMaxFPS())), ((30 * 300) / 1000))) + 
+                    "\nServInt: " + String(strip->service_interval) +
+                    "\nServMax: " + String(strip->service_interval_max) +   
+                    "\nServMin: " + String(strip->service_interval_min) +
+                    "\nServAvg: " + String(strip->service_interval_cnt>0?strip->service_interval_sum / strip->service_interval_cnt:0) +
+                    "\nShowInt: " + String(strip->show_interval) +
+                    "\nShowMax: " + String(strip->show_interval_max) +
+                    "\nShowMin: " + String(strip->show_interval_min) +
+                    "\nShowAvg: " + String(strip->show_interval_cnt>0?strip->show_interval_sum / strip->show_interval_cnt:0) +
+                    "\nDeltaSS: " + String(strip->service_interval - strip->show_interval) +
+                    "\nDuraInt: " + String(strip->service_duration) +
+                    "\nDuraMax: " + String(strip->service_duration_max) +
+                    "\nDuraMin: " + String(strip->service_duration_min) +
+                    "\nDuraAVG: " + String(strip->service_duration_cnt>0?strip->service_duration_sum / strip->service_duration_cnt:0);
+  String myJSON;
+  toSend.printTo(myJSON);
+  webSocketsServer->broadcastTXT(myJSON);
+  jsonBuffer.clear();
+}
 #endif
   // Checking WiFi state every WIFI_TIMEOUT
   // Reset on disconnection
