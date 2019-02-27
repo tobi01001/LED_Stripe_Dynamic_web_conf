@@ -49,7 +49,7 @@
 #define LED_PIN 3
 #endif
 
-#define STRIP_MIN_DELAY max((1000 / (_segment.fps)), ((30 * 300) / 1000))
+#define STRIP_MIN_DELAY max((1000 / (_segment.fps)), ((30 * 300 + 50) / 1000))
 
 #define FASTLED_INTERNAL
 #include "FastLED.h"
@@ -440,6 +440,24 @@ public:
     FastLED.setBrightness(DEFAULT_BRIGHTNESS);
 
     resetDefaults();
+
+    #ifdef DEBUG_PERFORMANCE
+    service_interval = 0;
+    service_interval_max = 0;
+    service_interval_min = 65535;
+    service_interval_sum = 0;
+    service_interval_cnt = 0;
+    show_interval = 0;
+    show_interval_max = 0;
+    show_interval_min = 65535;
+    show_interval_sum = 0;
+    show_interval_cnt = 0;
+    service_duration = 0;
+    service_duration_max = 0;
+    service_duration_min = 65535;
+    service_duration_sum = 0;
+    service_duration_cnt = 0;
+    #endif
   }
 
   ~WS2812FX()
@@ -447,6 +465,24 @@ public:
     delete leds;
     delete _bleds;
   }
+
+  #ifdef DEBUG_PERFORMANCE
+  uint32_t service_interval;
+  uint32_t service_interval_max;
+  uint32_t service_interval_min;
+  uint32_t service_interval_sum;
+  uint32_t service_interval_cnt;
+  uint16_t show_interval;
+  uint16_t show_interval_max;
+  uint16_t show_interval_min;
+  uint32_t show_interval_sum;
+  uint16_t show_interval_cnt;
+  uint32_t service_duration;
+  uint32_t service_duration_max;
+  uint32_t service_duration_min;
+  uint32_t service_duration_sum;
+  uint32_t service_duration_cnt;
+  #endif
 
   CRGB *leds;
   CRGB *_bleds;
@@ -503,7 +539,7 @@ public:
   inline void setTwinkleDensity       (uint8_t density) { _segment.twinkleDensity = constrain(density, 0, 8); }
   inline void setNumBars              (uint8_t numBars) { _segment.numBars = constrain(numBars, 1, max((LED_COUNT / _segment.segments) / MAX_NUM_BARS_FACTOR, 1)); setTransition(); }
   // setMode --> treated separately...
-  inline void setMaxFPS               (uint8_t fps)     { _segment.fps = constrain(fps, 10, 111); FastLED.setMaxRefreshRate(fps); }
+  inline void setMaxFPS               (uint8_t fps)     { _segment.fps = constrain(fps, 10, STRIP_FPS); /*FastLED.setMaxRefreshRate(fps);*/ }
   inline void setDeltaHue             (uint8_t dh)      { _segment.deltaHue = dh; }
   inline void setBlur                 (uint8_t b)       { _segment.blur = b; _pblur = b; }
   inline void setDamping              (uint8_t d)       { _segment.damping = constrain(d, 0, 100); }

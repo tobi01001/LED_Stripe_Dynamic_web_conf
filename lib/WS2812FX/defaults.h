@@ -62,7 +62,7 @@
 
 #define LED_PIN 3 // Needs to be 3 (raw value) for ESP8266 because of DMA
 #define DEFAULT_MAX_CURRENT 2800
-#define STRIP_FPS 111              // set to 111 as this is the max we can get out of 300 WS2812 leds....
+#define STRIP_FPS  (1000*1000)/(30 * LED_COUNT + 50)        // Depends on LED count...
 #define STRIP_VOLTAGE 5            // fixed to 5 volts
 #define STRIP_MILLIAMPS ((LED_COUNT * 60) < DEFAULT_MAX_CURRENT ? LED_COUNT * 60 : DEFAULT_MAX_CURRENT) // can be changed during runtime
 

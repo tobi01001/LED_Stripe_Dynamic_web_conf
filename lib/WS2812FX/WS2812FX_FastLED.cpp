@@ -32,7 +32,6 @@
 
 */
 
-// FIXME: Need set/get methods. Especially for the "segments" but also more...
 // TODO: Probably make _segments more private?
 
 #include "WS2812FX_FastLED.h"
@@ -289,7 +288,39 @@ void WS2812FX::resetDefaults(void)
  */
 void WS2812FX::service()
 {
-
+  unsigned long now = millis(); // Be aware, millis() rolls over every 49 days
+  
+  #ifdef DEBUG_PERFORMANCE
+  static uint32_t prev_int = 0;
+  uint32_t service_now = micros();
+  if(service_now + this->service_interval < (UINT32_MAX - this->service_interval))
+  {
+    this->service_interval = service_now - prev_int;
+    prev_int = service_now;
+    if(this->service_interval > this->service_interval_max) this->service_interval_max = this->service_interval;
+    if(this->service_interval < this->service_interval_min) this->service_interval_min = this->service_interval;
+    if(this->service_interval_sum > (UINT32_MAX - this->service_interval))
+    {
+      this->service_interval_cnt = 0;
+      this->service_interval_sum = 0;
+    }
+    this->service_interval_cnt++;
+    this->service_interval_sum+=service_interval;
+  }
+  else
+  {
+    // rollover!
+    prev_int = service_now;
+    this->service_interval_min = UINT32_MAX;
+    this->service_interval_max = 0;
+    this->service_interval_cnt = 0;
+    this->service_interval_sum = 0;
+  }
+  
+  
+  
+  #endif
+ 
   if ((_segment.segments != old_segs) || _segment_runtime.modeinit)
   {
     _segment_runtime.start = 0;
@@ -302,7 +333,7 @@ void WS2812FX::service()
     setTransition();
     old_segs = _segment.segments;
   }
-  unsigned long now = millis(); // Be aware, millis() rolls over every 49 days
+  
   if (_segment.power)
   {
     if (_segment.isRunning || _triggered)
@@ -322,8 +353,26 @@ void WS2812FX::service()
   }
   else
   {
-    fadeToBlackBy(_bleds, LED_COUNT, 4);
-    FastLED.show();
+    if (now > SEGMENT_RUNTIME.next_time || _triggered)
+    {
+      fadeToBlackBy(_bleds, LED_COUNT, 4);
+      FastLED.show();
+      SEGMENT_RUNTIME.next_time = now + STRIP_MIN_DELAY / 2;
+    }
+    #ifdef DEBUG_PERFORMANCE
+    this->show_interval_min = UINT16_MAX;
+    this->show_interval_max = 0;
+    this->show_interval_cnt = 0;
+    this->show_interval_sum = 0;
+    this->service_interval_min = UINT32_MAX;
+    this->service_interval_max = 0;
+    this->service_interval_cnt = 0;
+    this->service_interval_sum = 0;
+    this->service_duration_min = UINT32_MAX;
+    this->service_duration_max = 0;
+    this->service_duration_cnt = 0;
+    this->service_duration_sum = 0;
+    #endif
     return;
   }
   
@@ -412,8 +461,41 @@ void WS2812FX::service()
     }
   }
 
+  #ifdef DEBUG_PERFORMANCE
+  static uint32_t next_show = 0;
+  uint32_t now_micros = micros();
+  if(now_micros > next_show)
+  {
+    next_show = now_micros + STRIP_MIN_DELAY * 1000 - 200; 
+    // Write the data
+    FastLED.show();
+     //(LED_COUNT*30);
+  }
+
+  this->show_interval = micros() - now_micros;
+
+  if(this->show_interval > this->show_interval_max) this->show_interval_max = this->show_interval;
+
+  if(this->show_interval < this->show_interval_min) this->show_interval_min = this->show_interval;
+
+  if(this->show_interval_sum > (UINT32_MAX - this->show_interval))
+  {
+    this->show_interval_sum = 0;
+    this->show_interval_cnt = 0;
+  }
+  this->show_interval_sum += this->show_interval;
+  this->show_interval_cnt ++;
+  #else
   // Write the data
-  FastLED.show();
+  static uint32_t next_show = 0;
+  uint32_t now_micros = micros();
+  if(now_micros > next_show)
+  {
+    next_show = now_micros + STRIP_MIN_DELAY * 1000 - 200; 
+    // Write the data
+    FastLED.show();
+  }
+  #endif
 
   EVERY_N_MILLISECONDS(STRIP_MIN_DELAY) //(10)
   {
@@ -479,6 +561,22 @@ void WS2812FX::service()
       SEGMENT_RUNTIME.nextPalette = now + SEGMENT.autoPalDuration * 1000;
     }
   }
+  #ifdef DEBUG_PERFORMANCE
+  this->service_duration = micros() - service_now;
+
+  if(this->service_duration > this->service_duration_max) this->service_duration_max = this->service_duration;
+
+  if(this->service_duration < this->service_duration_min) this->service_duration_min = this->service_duration;
+  
+  if(this->service_duration_sum > (UINT32_MAX-this->service_duration))
+  {
+    this->service_duration_sum = 0;
+    this->service_duration_cnt = 0;
+  }
+  this->service_duration_cnt ++;
+  this->service_duration_sum += this->service_duration;
+
+  #endif
 }
 
 void WS2812FX::start()
@@ -1016,8 +1114,13 @@ uint16_t WS2812FX::pride(bool glitter = false)
 
     CRGB newcolor = ColorFromPalette(_currentPalette, hue8, bri8, SEGMENT.blendType); //CHSV( hue8, sat8, bri8);
 
+    // what is this about?
+    // lets simplify and correct...
+    /*
     uint16_t pixelnumber = i;
     pixelnumber = (_segment_runtime.stop) - pixelnumber;
+    */
+    uint16_t pixelnumber = (_segment_runtime.stop-1) - i;
 
     nblend(leds[pixelnumber], newcolor, 64);
   }
@@ -2288,6 +2391,7 @@ uint16_t WS2812FX::mode_fire_flicker_intense(void)
 
 uint16_t WS2812FX::mode_bubble_sort(void)
 {
+  const uint16_t framedelay = map(_segment.beat88, 10000, 0, 0, 50) + map(_segment_runtime.length, 300, 0, 0, 25);
   static uint8_t *hues;
   static bool movedown = false;
   static uint16_t ci = 0;
@@ -2358,9 +2462,9 @@ uint16_t WS2812FX::mode_bubble_sort(void)
       movedown = false;
     }
     cd--;
-    return 0; //STRIP_MIN_DELAY;
+    return framedelay; // 0; //STRIP_MIN_DELAY;
   }
-  return 0; //STRIP_MIN_DELAY;
+  return framedelay; //0; //STRIP_MIN_DELAY;
 }
 
 /* 
