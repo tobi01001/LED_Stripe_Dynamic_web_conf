@@ -70,7 +70,7 @@ extern "C"
 #include "led_strip.h"
 
 
-#define BUILD_VERSION ("0.96_Segs_New_Sunrise")
+#define BUILD_VERSION ("LED_Control_Web_SRV_0.9.2_")
 #ifndef BUILD_VERSION
 #error "We need a SW Version and Build Version!"
 #endif
@@ -456,6 +456,37 @@ void checkSegmentChanges(void) {
     broadcastInt("dithering", seg.dithering);
     shouldSaveRuntime = true;
   }
+
+
+    
+    
+    
+  if(seg.addGlitter != strip->getAddGlitter())
+  {
+    seg.addGlitter= strip->getAddGlitter();
+    broadcastInt("addGlitter", seg.addGlitter);
+    shouldSaveRuntime = true;
+  }
+  if(seg.whiteGlitter != strip->getWhiteGlitter())
+  {
+    seg.whiteGlitter= strip->getWhiteGlitter();
+    broadcastInt("WhiteOnly", seg.whiteGlitter);
+    shouldSaveRuntime = true;
+  }
+  if(seg.onBlackOnly != strip->getOnBlackOnly())
+  {
+    seg.onBlackOnly = strip->getOnBlackOnly();
+    broadcastInt("onBlackOnly", seg.onBlackOnly);
+    shouldSaveRuntime = true;
+  }
+  if(seg.chanceOfGlitter != strip->getChanceOfGlitter())
+  {
+    seg.chanceOfGlitter = strip->getChanceOfGlitter();
+    broadcastInt("glitterChance", seg.chanceOfGlitter);
+    shouldSaveRuntime = true;
+  }
+
+
   #ifdef DEBUG  
     if(save != shouldSaveRuntime)
     {
@@ -1478,6 +1509,28 @@ void handleSet(void)
     strip->getSegment()->damping = value;
   }
 
+  if (server.hasArg("addGlitter"))
+  {
+    uint8_t value = constrain(String(server.arg("addGlitter")).toInt(), 0, 100);
+    strip->setAddGlitter(value);
+  }
+  if (server.hasArg("WhiteOnly"))
+  {
+    uint8_t value = constrain(String(server.arg("WhiteOnly")).toInt(), 0, 100);
+    strip->setWhiteGlitter(value);
+  }
+  if (server.hasArg("onBlackOnly"))
+  {
+    uint8_t value = constrain(String(server.arg("onBlackOnly")).toInt(), 0, 100);
+    strip->setOnBlackOnly(value);
+  }
+  if (server.hasArg("glitterChance"))
+  {
+    uint8_t value = constrain(String(server.arg("glitterChance")).toInt(), 0, 100);
+    strip->setChanceOfGlitter(value);
+  }
+
+
 #ifdef DEBUG
   // Testing different Resets
   // can then be triggered via web interface (at the very bottom)
@@ -1971,7 +2024,7 @@ void setupWebServer(void)
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
 {
   DEBUGPRNT("Checking the websocket event!");
- 
+
   if(type == WStype_TEXT)
   {
     #ifdef DEBUG

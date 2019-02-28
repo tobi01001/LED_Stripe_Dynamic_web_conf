@@ -219,6 +219,10 @@ void WS2812FX::init()
   setColorTemp            (_segment.colorTemp);
   setTargetPaletteNumber(_segment.targetPaletteNum );
   setCurrentPaletteNumber(_segment.currentPaletteNum );
+  setAddGlitter(_segment.addGlitter);
+  setWhiteGlitter(_segment.whiteGlitter);
+  setOnBlackOnly(_segment.onBlackOnly);
+  setChanceOfGlitter(_segment.chanceOfGlitter);
 
   old_segs = 0;
 
@@ -275,6 +279,10 @@ void WS2812FX::resetDefaults(void)
   setTargetBrightness     (DEFAULT_BRIGHTNESS);
   setBlendType            (DEFAULT_BLEND);
   setColorTemp            (DEFAULT_COLOR_TEMP);
+  setAddGlitter(false);
+  setWhiteGlitter(true);
+  setOnBlackOnly(false);
+  setChanceOfGlitter(DEFAULT_GLITTER_CHANCE_MAX);
 
   FastLED.setBrightness(DEFAULT_BRIGHTNESS);
 
@@ -343,6 +351,11 @@ void WS2812FX::service()
       {
 
         uint16_t delay = (this->*_mode[SEGMENT.mode])();
+
+        if(_segment.addGlitter)
+        {
+          addSparks(_segment.chanceOfGlitter, _segment.onBlackOnly, _segment.whiteGlitter);
+        }
 
         SEGMENT_RUNTIME.next_time = now + (int)delay; //STRIP_MIN_DELAY;
       }
@@ -958,13 +971,48 @@ void WS2812FX::strip_off()
 /*
  * Add sparks
  */
-void WS2812FX::addSparks(uint8_t probability = 10, bool onBlackOnly = true, bool white = false)
+void WS2812FX::addSparks(const uint8_t prob = 10, bool onBlackOnly = true, bool white = false)
 {
-  if (random8(probability) != 0)
+  
+  const uint8_t probability = constrain(prob, DEFAULT_GLITTER_CHANCE_MIN, DEFAULT_GLITTER_CHANCE_MAX);
+
+  static uint8_t sparks[LED_COUNT];
+
+  uint16_t active_sparks = 0;
+  for(uint16_t i=_segment_runtime.start; i<_segment_runtime.stop; i++)
+  {
+    if(sparks[i])
+    {
+      if (leds[i] && onBlackOnly)
+      {
+        sparks[i] = 0;
+      }
+      active_sparks++;
+      CRGB newCol = CRGB::White;
+      if (!white)
+      {
+        newCol = ColorFromPalette(_currentPalette, map(i,_segment_runtime.start, _segment_runtime.stop, 0, 255) + 128, 255, SEGMENT.blendType);
+      }
+      uint8_t blend = map(sparks[i], 0, _segment.fps, 0, 255);
+      nblend(leds[i], newCol, blend);
+      sparks[i] = sparks[i] / 2;
+    }
+  }
+  
+  if (random8(DEFAULT_GLITTER_CHANCE_MAX) > probability)
+    return;
+
+  if(active_sparks > ((_segment_runtime.length * prob)/100) + 1)
     return;
 
   uint16_t pos = random16(_segment_runtime.start, _segment_runtime.stop); // Pick an LED at random.
+  
+  if (leds[pos] && onBlackOnly)
+    return;
+  
+  sparks[pos] = random8(_segment.fps);
 
+/*
   if (leds[pos] && onBlackOnly)
     return;
 
@@ -976,6 +1024,7 @@ void WS2812FX::addSparks(uint8_t probability = 10, bool onBlackOnly = true, bool
   {
     leds[pos] += ColorFromPalette(_currentPalette, random8(SEGMENT_RUNTIME.baseHue, (uint8_t)(SEGMENT_RUNTIME.baseHue + 128)), random8(92, 255), SEGMENT.blendType);
   }
+  */
   return;
 }
 

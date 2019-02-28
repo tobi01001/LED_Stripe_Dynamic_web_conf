@@ -212,6 +212,10 @@ public:
     bool reverse;
     bool inverse;
     bool mirror;
+    bool addGlitter;
+    bool whiteGlitter;
+    bool onBlackOnly;
+    uint8_t chanceOfGlitter;
     uint8_t segments;
     uint8_t cooling;
     uint8_t sparking;
@@ -524,6 +528,10 @@ public:
   inline void setReverse              (bool rev)        { _segment.reverse = rev; }
   inline void setInverse              (bool inv)        { _segment.inverse = inv; }
   inline void setMirror               (bool mirror)     { _segment.mirror = mirror; }
+  inline void setAddGlitter           (bool addGlitter) { _segment.addGlitter = addGlitter; }
+  inline void setWhiteGlitter         (bool whiteGlitter) { _segment.whiteGlitter = whiteGlitter; }
+  inline void setOnBlackOnly          (bool onBlackOnly){ _segment.onBlackOnly = onBlackOnly; }
+  inline void setChanceOfGlitter      (uint8_t glitProp){ _segment.chanceOfGlitter = constrain(glitProp, DEFAULT_GLITTER_CHANCE_MIN, DEFAULT_GLITTER_CHANCE_MAX); }
   inline void setAutoplay             (AUTOPLAYMODES m) { _segment.autoplay = m; }
   inline void setAutopal              (AUTOPLAYMODES p) { _segment.autoPal = p; }
   inline void setBeat88               (uint16_t b)      { _segment.beat88 = constrain(b, BEAT88_MIN, BEAT88_MAX); _segment_runtime.tb.timebase = millis(); }
@@ -563,6 +571,10 @@ public:
   inline bool           getReverse(void)              { return _segment.reverse; }
   inline bool           getInverse(void)              { return _segment.inverse; }
   inline bool           getMirror(void)               { return _segment.mirror; }
+  inline bool           getAddGlitter(void)           { return _segment.addGlitter ; }
+  inline bool           getWhiteGlitter(void)         { return _segment.whiteGlitter ; }
+  inline bool           getOnBlackOnly(void)          { return _segment.onBlackOnly ; }
+  inline uint8_t        getChanceOfGlitter(void)      { return _segment.chanceOfGlitter; }
   inline AUTOPLAYMODES  getAutoplay(void)             { return _segment.autoplay; }
   inline AUTOPLAYMODES  getAutopal(void)              { return _segment.autoPal; }
   inline uint16_t       getSpeed(void)                { return getBeat88(); }

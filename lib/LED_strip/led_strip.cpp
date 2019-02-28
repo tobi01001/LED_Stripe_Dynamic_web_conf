@@ -368,28 +368,53 @@ String getIsRunning(void)
   return String(strip->isRunning());
 }
 
+String getAddGlitter(void)
+{
+  return String(strip->getAddGlitter());
+}
+
+String getWhiteOnly(void)
+{
+  return String(strip->getWhiteGlitter());
+}
+
+String getOnBlackOnly(void)
+{
+  return String(strip->getOnBlackOnly());
+}
+
+String getChanceOfGlitter(void)
+{
+  return String(strip->getChanceOfGlitter());
+}
+
 FieldList fields = {
     {"title",             LED_NAME,                           TitleFieldType},
     {"power",             LED_NAME,                           SectionFieldType},
-    {"power",             "LED Power",                     BooleanFieldType, 0, 1, getPower},
-    {"isRunning",         "Running / Pause",                    BooleanFieldType, 0, 1, getIsRunning},
+    {"power",             "LED Power",                        BooleanFieldType, 0, 1, getPower},
+    {"isRunning",         "Running / Pause",                  BooleanFieldType, 0, 1, getIsRunning},
     {"basicControl",      "Basic control",                    SectionFieldType},
     {"br",                "Brightness",                       NumberFieldType, BRIGHTNESS_MIN, BRIGHTNESS_MAX, getBrightness},
-    {"mo",                "Effect",                      SelectFieldType, 0, strip->getModeCount(), getPattern, getPatterns},
-    {"pa",                "Color palette",                      SelectFieldType, 0, (uint16_t)(strip->getPalCount() + 1), getPalette, getPalettes},
-    {"sp",                "Speed (beat88)",                  NumberFieldType, BEAT88_MIN, BEAT88_MAX, getSpeed},
-    {"blendType",         "Color blend type",                       SelectFieldType, NOBLEND, LINEARBLEND, getBlendType, getBlendTypes},
-    {"ColorTemperature",  "Color temperature",                   SelectFieldType, 0, 20, getColorTemp, getColorTemps},
-    {"LEDblur",           "LED effect blur / blending",            NumberFieldType, 0, 255, getBlurValue},
-    {"reverse",           "Reverse",                        BooleanFieldType, 0, 1, getReverse},
+    {"mo",                "Effect",                           SelectFieldType, 0, strip->getModeCount(), getPattern, getPatterns},
+    {"pa",                "Color palette",                    SelectFieldType, 0, (uint16_t)(strip->getPalCount() + 1), getPalette, getPalettes},
+    {"sp",                "Speed (beat88)",                   NumberFieldType, BEAT88_MIN, BEAT88_MAX, getSpeed},
+    {"blendType",         "Color blend type",                 SelectFieldType, NOBLEND, LINEARBLEND, getBlendType, getBlendTypes},
+    {"ColorTemperature",  "Color temperature",                SelectFieldType, 0, 20, getColorTemp, getColorTemps},
+    {"LEDblur",           "LED effect blur / blending",       NumberFieldType, 0, 255, getBlurValue},
+    {"reverse",           "Reverse",                          BooleanFieldType, 0, 1, getReverse},
     {"segments",          "Segments",                         NumberFieldType, 1, max(MAX_NUM_SEGMENTS, 1), getSegments},
-    {"mirror",            "Mirror",                       BooleanFieldType, 0, 1, getMirror},
-    {"inverse",           "Inverse",                       BooleanFieldType, 0, 1, getInverse},
-    {"hue",               "Color Change / Hue Change",                      SectionFieldType},
-    {"huetime",           "Hue change interval (ms)",             NumberFieldType, 0, 10000, getHueTime},
+    {"mirror",            "Mirror",                           BooleanFieldType, 0, 1, getMirror},
+    {"inverse",           "Inverse",                          BooleanFieldType, 0, 1, getInverse},
+    {"glitter",           "Glitter / sparks",                 SectionFieldType},
+    {"addGlitter",        "Add Glitter",                      BooleanFieldType, 0, 1, getAddGlitter},
+    {"WhiteOnly",         "White Glitter",                    BooleanFieldType, 0, 1, getWhiteOnly},
+    {"onBlackOnly",       "On Black Only",                    BooleanFieldType, 0, 1, getOnBlackOnly},
+    {"glitterChance",      "Chance of Glitter",               NumberFieldType, DEFAULT_GLITTER_CHANCE_MIN, DEFAULT_GLITTER_CHANCE_MAX, getChanceOfGlitter },     
+    {"hue",               "Color Change / Hue Change",        SectionFieldType},
+    {"huetime",           "Hue change interval (ms)",         NumberFieldType, 0, 10000, getHueTime},
     {"deltahue",          "Hue Offset",                       NumberFieldType, 0, 255, getDeltaHue},
     {"autoplay",          "Mode Autoplay",                    SectionFieldType},
-    {"autoplay",          "Automatic mode change",        SelectFieldType, AUTO_MODE_OFF, AUTO_MODE_RANDOM, getAutoplay, getAutoplayModes},
+    {"autoplay",          "Automatic mode change",            SelectFieldType, AUTO_MODE_OFF, AUTO_MODE_RANDOM, getAutoplay, getAutoplayModes},
     {"autoplayDuration",  "Automatic mode change interval (ms)",                 NumberFieldType, 5, 1000, getAutoplayDuration},
     {"autopal",           "Color Palette Autoplay",             SectionFieldType},
     {"autopal",           "Automatic color palette change", SelectFieldType,    AUTO_MODE_OFF,    AUTO_MODE_RANDOM,     getAutopal,     getAutoplayModes  },
