@@ -1,3 +1,13 @@
+This work is based on inredibly good work from many others... I just modified it to my personal use.
+
+So thanks to:
+-------------
+   - FastLED library - see http://www.fastLed.io
+   - ESPWebserver - see https://github.com/jasoncoon/esp8266-fastled-webserver
+   - Adafruit Neopixel https://github.com/adafruit/Adafruit_NeoPixel
+   - WS2812FX library https://github.com/kitesurfer1404/WS2812FX
+   - fhem esp8266 implementation - Idea from https://github.com/sw-home/FHEM-LEDStripe 
+
 # LED_Stripe_Dynamic_web_conf
 LED Stripe including simple Web Server, basics from the ws2812fx library - but different effects etc... 
 FHEM control is possible with the related perl fhem module...
@@ -17,15 +27,7 @@ Major differences to WS2812FX / ESPWebserver:
 - every setting is stored to the EEPROM (with CRC protection, defaults being loaded on mismatch, sudden ESP reset (by watchdog or exception)
 - ...
 
-This work is based on inredibly good work from many others... I just modified it to my personal use.
 
-So thanks to:
--------------
-   - Adafruit Neopixel https://github.com/adafruit/Adafruit_NeoPixel
-   - WS2812FX library https://github.com/kitesurfer1404/WS2812FX
-   - fhem esp8266 implementation - Idea from https://github.com/sw-home/FHEM-LEDStripe 
-   - FastLED library - see http://www.fastLed.io
-   - ESPWebserver - see https://github.com/jasoncoon/esp8266-fastled-webserver
 
 If you intend to use, compile and run this code you need to:
 - have a WS2812FX strip on **Pin 3 (RX)** on a ESP8266 (nodemcu / wemos D1 mini)
