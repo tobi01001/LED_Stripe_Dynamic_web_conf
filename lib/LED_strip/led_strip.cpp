@@ -409,16 +409,16 @@ FieldList fields = {
     {"addGlitter",        "Add Glitter",                      BooleanFieldType, 0, 1, getAddGlitter},
     {"WhiteOnly",         "White Glitter",                    BooleanFieldType, 0, 1, getWhiteOnly},
     {"onBlackOnly",       "On Black Only",                    BooleanFieldType, 0, 1, getOnBlackOnly},
-    {"glitterChance",      "Chance of Glitter",               NumberFieldType, DEFAULT_GLITTER_CHANCE_MIN, DEFAULT_GLITTER_CHANCE_MAX, getChanceOfGlitter },     
+    {"glitterChance",     "Chance of Glitter",               NumberFieldType, DEFAULT_GLITTER_CHANCE_MIN, DEFAULT_GLITTER_CHANCE_MAX, getChanceOfGlitter },     
     {"hue",               "Color Change / Hue Change",        SectionFieldType},
-    {"huetime",           "Hue change interval (ms)",         NumberFieldType, 0, 10000, getHueTime},
+    {"huetime",           "Hue change interval (ms)",         NumberFieldType, 0, 5000, getHueTime},
     {"deltahue",          "Hue Offset",                       NumberFieldType, 0, 255, getDeltaHue},
     {"autoplay",          "Mode Autoplay",                    SectionFieldType},
     {"autoplay",          "Automatic mode change",            SelectFieldType, AUTO_MODE_OFF, AUTO_MODE_RANDOM, getAutoplay, getAutoplayModes},
-    {"autoplayDuration",  "Automatic mode change interval (ms)",                 NumberFieldType, 5, 1000, getAutoplayDuration},
+    {"autoplayDuration",  "Automatic mode change interval (s)",                 NumberFieldType, 5, 1000, getAutoplayDuration},
     {"autopal",           "Color Palette Autoplay",             SectionFieldType},
     {"autopal",           "Automatic color palette change", SelectFieldType,    AUTO_MODE_OFF,    AUTO_MODE_RANDOM,     getAutopal,     getAutoplayModes  },
-    {"autopalDuration",   "Automatic palette change interval (ms)",          NumberFieldType,    5,                1000,                 getAutopalDuration                },
+    {"autopalDuration",   "Automatic palette change interval (s)",          NumberFieldType,    5,                1000,                 getAutopalDuration                },
     {"solidColor",        "Solid color",                      SectionFieldType                                                                              },
     {"solidColor",        "Color",                            ColorFieldType,     0,                55,                   getSolidColor                     },
     {"fire",              "Fire and water settings",                 SectionFieldType},
@@ -432,7 +432,7 @@ FieldList fields = {
     {"damping",           "damping for bounce",             NumberFieldType, 0, 100, getDamping},
     {"sunriseset",        "sunrise and sunset time in minutes",         NumberFieldType, 1, 60, getSunRiseTime}, // time provided in Minutes and capped at 60 minutes actually.
     {"current",           "Current limit",                        NumberFieldType, 100, 10000, getMilliamps},
-    {"fps",               "Frames per second (FPS)",              NumberFieldType, 5, 111, getFPSValue}, // 111 max equals the minimum update time required for 300 pixels
+    {"fps",               "Frames per second (FPS)",              NumberFieldType, 5, STRIP_FPS, getFPSValue}, // 111 max equals the minimum update time required for 300 pixels
                                                                                         // this is the minimal delay being used anyway, sono use to be faster
     {"dithering",         "Dithering",                        BooleanFieldType, 0, 1, getDithering},
     {"resetdefaults",     "Reset default values",              BooleanFieldType, 0, 1, getResetDefaults},
