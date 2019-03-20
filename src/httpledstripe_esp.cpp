@@ -70,7 +70,7 @@ extern "C"
 #include "led_strip.h"
 
 
-#define BUILD_VERSION ("LED_Control_Web_SRV_0.9.2_")
+#define BUILD_VERSION ("LED_Control_Web_SRV_0.9.3_")
 #ifndef BUILD_VERSION
 #error "We need a SW Version and Build Version!"
 #endif
@@ -813,8 +813,7 @@ uint8_t changebypercentage(uint8_t value, uint8_t percentage)
 // if /set was called
 void handleSet(void)
 {
-
-// Debug only
+  // Debug only
   #ifdef DEBUG
   IPAddress add = server.client().remoteIP();
   DEBUGPRNT("The HTTP Request was received by " + add.toString());
@@ -845,6 +844,7 @@ void handleSet(void)
   // rnS = Range start Pixel;
   // rnE = Range end Pixel;
   // here we set a new mode if we have the argument mode
+
   if (server.hasArg("mo"))
   {
     // flag to decide if this is an library effect
@@ -2021,10 +2021,12 @@ void setupWebServer(void)
   delay(INITDELAY);
 }
 
+
+
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
 {
   DEBUGPRNT("Checking the websocket event!");
-
+  server.arg(1);
   if(type == WStype_TEXT)
   {
     #ifdef DEBUG
@@ -2033,13 +2035,14 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
     JsonObject& received = jsonBuffer.parse(payload);
     if(received.success())
     {
+      received["Received"] = "OK";
       String myJSON;
       #ifdef DEBUG
       received.prettyPrintTo(myJSON);
       #else
       received.printTo(myJSON);
       #endif
-      webSocketsServer->broadcastTXT("WS: Received JSON deserialized value: \n\t" + myJSON);
+      webSocketsServer->sendTXT(num, myJSON);
       DEBUGPRNT("WEBSOCKET: Received JSON:" + myJSON);
       #ifdef DEBUG
       for(JsonPair& p : received)
@@ -2052,8 +2055,11 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
     else
     {
       #ifdef DEBUG
-      webSocketsServer->broadcastTXT("WS: Received non decodable value: \n\t" + String((const char *)payload));
+      webSocketsServer->sendTXT(num, "WS: Received non decodable value: \n\t" + String((const char *)payload));
+      #else
+      webSocketsServer->sendTXT(num, "{\"Received\":\"Failed\"}");
       #endif
+
     }
     jsonBuffer.clear();
   }
@@ -2207,6 +2213,9 @@ void setup()
   }
   FastLED.show();
 
+  // internal LED can be light up when current is limited by FastLED
+  pinMode(2, OUTPUT);
+
   delay(7500);
 
 
@@ -2263,6 +2272,44 @@ void loop()
   }
 #endif
 
+
+/* Test sending LED_Data over WebSocket */
+/*
+EVERY_N_MILLIS(strip->getDamping()*5)
+{
+  
+  const uint16_t nleds = LED_COUNT;
+  
+  JsonObject& Leds = jsonBuffer.createObject();
+  Leds["name"] = "Strip_Data";
+  JsonArray &messages = Leds.createNestedArray("values");
+  for (uint16_t i = 0; i < nleds; i++) {
+      JsonObject& msg = messages.createNestedObject();
+      msg["Red"]    = strip->leds[i].r;
+      msg["Green"]  = strip->leds[i].g;
+      msg["Blue"]   = strip->leds[i].b;
+  }
+  String myJson;
+  myJson.reserve(Leds.measureLength());
+  Leds.printTo(myJson);
+  
+  webSocketsServer->broadcastTXT(myJson);
+  jsonBuffer.clear();
+}
+*/
+
+/*
+EVERY_N_MILLISECONDS(250)
+{
+  JsonObject& toSend = jsonBuffer.createObject();
+  toSend["name"] = F("currFPS");
+  toSend["value"] = String(FastLED.getFPS());
+  String myJSON;
+  toSend.printTo(myJSON);
+  webSocketsServer->broadcastTXT(myJSON);
+  jsonBuffer.clear();
+}
+*/
 #ifdef DEBUG_PERFORMANCE
 EVERY_N_MILLIS(250)
 {
@@ -2327,7 +2374,7 @@ EVERY_N_MILLIS(250)
 
   strip->service();
 
-  EVERY_N_MILLIS(250)
+  EVERY_N_MILLIS(50)
   {
     checkSegmentChanges();
   }

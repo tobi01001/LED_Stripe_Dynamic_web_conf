@@ -49,7 +49,8 @@
 #define LED_PIN 3
 #endif
 
-#define STRIP_MIN_DELAY max((1000 / (_segment.fps)), ((30 * 300 + 50) / 1000))
+#define STRIP_MIN_DELAY max((1000 / (_segment.fps)), ((30 * LED_COUNT + 50) / 1000))
+#define STRIP_DELAY_MICROSEC  ((uint32_t)max((1000000 / (_segment.fps)), ((30 * LED_COUNT + 50))))
 
 #define FASTLED_INTERNAL
 #include "FastLED.h"
@@ -245,6 +246,122 @@ public:
 
   // segment runtime parameters
 
+  typedef struct {
+  #define BLENDWIDTH 20
+    uint32_t timebase;
+    uint16_t prev_pos;
+    double pos;
+    double v0;
+    double v;
+    double v_explode;
+    uint8_t color_index;
+    bool ignite;
+    uint16_t P_ignite;
+    uint16_t explodeTime;
+    CRGB dist[BLENDWIDTH];
+  } pKernel;
+
+  typedef union 
+  {
+    struct pride
+    {
+      uint16_t sPseudotime;
+      uint16_t sLastMillis;
+      uint16_t sHue16;
+    } pride;
+    struct ease
+    {
+      bool trigger;
+      uint16_t beat;
+      uint16_t oldbeat;
+      uint16_t p_lerp;
+    } ease;
+    struct inoise
+    {
+      uint16_t dist;
+    } inoise;
+    struct juggle
+    {
+      uint8_t thishue;
+    } juggle;
+    struct dot_beat
+    {
+      uint16_t oldVal;
+      uint8_t  num_bars;
+      uint32_t timebases[MAX_NUM_BARS];
+      uint16_t beats[MAX_NUM_BARS];
+      uint8_t  coff[MAX_NUM_BARS];
+      bool     newBase[MAX_NUM_BARS];
+    } dot_beat;
+    struct col_wipe
+    {
+      bool newcolor;
+      uint8_t npos;
+      uint16_t prev;
+    } col_wipe;
+    struct multi_dyn
+    {
+      uint8_t last_index;
+      uint32_t last;
+    } multi_dyn;
+    struct firework
+    {
+      uint8_t colors[LED_COUNT];
+      uint8_t keeps [LED_COUNT];
+    } firework;
+    struct theater_chase
+    {
+      uint32_t counter_mode_step;
+    } theater_chase;
+    struct bubble_sort
+    {
+      uint8_t hues[LED_COUNT];
+      bool movedown;
+      uint16_t ci;
+      uint16_t co;
+      uint16_t cd;
+    } bubble_sort;
+    struct fire2012
+    {
+      byte heat[LED_COUNT];
+    } fire2012;
+    struct soft_twinkle
+    {
+      uint8_t directionFlags [(LED_COUNT + 7)/8];
+    } soft_twinkle;
+    struct shooting
+    {
+      uint8_t numBars;
+      uint16_t basebeat;
+      uint16_t delta_b[MAX_NUM_BARS];
+      uint8_t  cind[MAX_NUM_BARS];
+      bool     new_cind[MAX_NUM_BARS];
+    } shooting;
+    struct beatsin
+    {
+      uint8_t  num_bars;
+      uint16_t beats[MAX_NUM_BARS];
+      uint16_t theta[MAX_NUM_BARS];
+      int16_t  prev[MAX_NUM_BARS];
+      uint32_t times[MAX_NUM_BARS];
+      uint8_t  cinds[MAX_NUM_BARS];
+      bool     newval[MAX_NUM_BARS];
+      uint16_t basebeat;
+    } beatsin;
+    struct pixel_stack
+    {
+      bool up;
+      int16_t leds_moved;
+      int16_t pos;
+    } pixel_stack;
+    struct sunrise
+    {
+      uint8_t nc[LED_COUNT];
+      bool toggle;
+      uint32_t next;
+    } sunrise_step;
+  } mode_variables;
+
   // to save some memory, all the "static" variables are now in unions
   // terrible to read but saving quite some ram.
   // other option would be to have dynamic effects (effect classes)
@@ -252,51 +369,18 @@ public:
   typedef struct segment_runtime
   {
     bool modeinit;
-    union nb {
-      bool newBase[3];
-      bool trigger;
-      bool newcolor;
-    } nb;
-    union co {
-      uint8_t coff[3];
-      uint8_t thishue;
-      uint8_t cind;
-      uint8_t last_index;
-    } co;
     uint8_t baseHue;
-    union b16 {
-      uint16_t beats[3];
-      struct p
-      {
-        uint16_t sPseudotime;
-        uint16_t sLastMillis;
-        uint16_t sHue16;
-      } p;
-      struct e
-      {
-        uint16_t beat;
-        uint16_t oldbeat;
-        uint16_t p_lerp;
-      } e;
-      uint16_t beat;
-      uint16_t dist;
-      uint16_t prev;
-    } b16;
-    uint16_t oldVal;
-    union tb {
-      uint32_t last;
-      uint32_t timebase;
-      uint32_t timebases[3];
-    } tb;
-    uint32_t counter_mode_step;
-    uint32_t nextHue;
-    uint32_t nextAuto;
-    uint32_t nextPalette;
-    uint32_t next_time;
     uint16_t start;
     uint16_t stop;
     uint16_t length;
     uint16_t sunRiseStep;
+    uint32_t timebase;
+    uint32_t nextHue;
+    uint32_t nextAuto;
+    uint32_t nextPalette;
+    uint32_t next_time;
+    mode_variables modevars;
+    pKernel pops[MAX_NUM_BARS];
   } segment_runtime;
 
 public:
@@ -534,7 +618,7 @@ public:
   inline void setChanceOfGlitter      (uint8_t glitProp){ _segment.chanceOfGlitter = constrain(glitProp, DEFAULT_GLITTER_CHANCE_MIN, DEFAULT_GLITTER_CHANCE_MAX); }
   inline void setAutoplay             (AUTOPLAYMODES m) { _segment.autoplay = m; }
   inline void setAutopal              (AUTOPLAYMODES p) { _segment.autoPal = p; }
-  inline void setBeat88               (uint16_t b)      { _segment.beat88 = constrain(b, BEAT88_MIN, BEAT88_MAX); _segment_runtime.tb.timebase = millis(); }
+  inline void setBeat88               (uint16_t b)      { _segment.beat88 = constrain(b, BEAT88_MIN, BEAT88_MAX); _segment_runtime.timebase = millis(); }
   inline void setSpeed                (uint16_t s)      { setBeat88(s); }
   inline void setHuetime              (uint16_t t)      { _segment.hueTime = t; SEGMENT_RUNTIME.nextHue = 0; }
   inline void setMilliamps            (uint16_t m)      { _segment.milliamps = constrain(m, 100, 20000); FastLED.setMaxPowerInVoltsAndMilliamps(_volts, _segment.milliamps); }
@@ -638,7 +722,7 @@ public:
   const __FlashStringHelper *
   getPalName(uint8_t p);
 
-  String getColorTempName(uint8_t index);
+  const __FlashStringHelper * getColorTempName(uint8_t index);
 
   CRGBPalette16 getCurrentPalette(void) { return _currentPalette; };
   CRGBPalette16 getTargetPalette(void) { return _targetPalette; };
