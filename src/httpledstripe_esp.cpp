@@ -929,13 +929,13 @@ void handleSet(void)
       if (server.hasArg("sec"))
       {
         DEBUGPRNT("got Argument sec....");
-        strip->setSunriseTime(((uint16_t)strtoul(&server.arg("sec")[0], NULL, 10)) / 60);
+        strip->setSunriseTime(((uint16_t)strtoul(server.arg("sec").c_str(), NULL, 10)) / 60);
       }
       // sunrise time in minutes
       else if (server.hasArg("min"))
       {
         DEBUGPRNT("got Argument min....");
-        strip->setSunriseTime(((uint16_t)strtoul(&server.arg("min")[0], NULL, 10)));
+        strip->setSunriseTime(((uint16_t)strtoul(server.arg("min").c_str(), NULL, 10)));
       }
       isWS2812FX = true;
       effect = FX_MODE_SUNRISE;
@@ -951,13 +951,13 @@ void handleSet(void)
       if (server.hasArg("sec"))
       {
         DEBUGPRNT("got Argument sec....");
-        strip->setSunriseTime(((uint16_t)strtoul(&server.arg("sec")[0], NULL, 10)) / 60);
+        strip->setSunriseTime(((uint16_t)strtoul(server.arg("sec").c_str(), NULL, 10)) / 60);
       }
       // sunrise time in minutes
       else if (server.hasArg("min"))
       {
         DEBUGPRNT("got Argument min....");
-        strip->setSunriseTime( ((uint16_t)strtoul(&server.arg("min")[0], NULL, 10)));
+        strip->setSunriseTime( ((uint16_t)strtoul(server.arg("min").c_str(), NULL, 10)));
       }
 
       // answer for the "calling" party
@@ -973,7 +973,7 @@ void handleSet(void)
     else
     {
       DEBUGPRNT("got Argument mode and seems to be an Effect....");
-      effect = (uint8_t)strtoul(&server.arg("mo")[0], NULL, 10);
+      effect = (uint8_t)strtoul(server.arg("mo").c_str(), NULL, 10);
       isWS2812FX = true;
     }
     // sanity only, actually handled in the library...
@@ -1032,7 +1032,7 @@ void handleSet(void)
   if (server.hasArg("pa"))
   {
     // TODO: Possibility to setColors and new Palettes...
-    uint8_t pal = (uint8_t)strtoul(&server.arg("pa")[0], NULL, 10);
+    uint8_t pal = (uint8_t)strtoul(server.arg("pa").c_str(), NULL, 10);
     DEBUGPRNT("New palette with value: " + String(pal));
     strip->setTargetPalette(pal);
     //  sendAnswer(   "\"palette\": " + String(pal) + ", \"palette name\": \"" +
@@ -1055,7 +1055,7 @@ void handleSet(void)
     }
     else
     {
-      brightness = constrain((uint8_t)strtoul(&server.arg("br")[0], NULL, 10), BRIGHTNESS_MIN, BRIGHTNESS_MAX);
+      brightness = constrain((uint8_t)strtoul(server.arg("br").c_str(), NULL, 10), BRIGHTNESS_MIN, BRIGHTNESS_MAX);
     }
     strip->setBrightness(brightness);
     //sendInt("brightness", brightness);
@@ -1087,7 +1087,7 @@ void handleSet(void)
     }
     else
     {
-      speed = constrain((uint16_t)strtoul(&server.arg("sp")[0], NULL, 10), BEAT88_MIN, BEAT88_MAX);
+      speed = constrain((uint16_t)strtoul(server.arg("sp").c_str(), NULL, 10), BEAT88_MIN, BEAT88_MAX);
     }
     strip->setSpeed(speed);
     strip->show();
@@ -1119,7 +1119,7 @@ void handleSet(void)
     }
     else
     {
-      speed = constrain((uint16_t)strtoul(&server.arg("be")[0], NULL, 10), BEAT88_MIN, BEAT88_MAX);
+      speed = constrain((uint16_t)strtoul(server.arg("be").c_str(), NULL, 10), BEAT88_MIN, BEAT88_MAX);
     }
     strip->setSpeed(speed);
     strip->show();
@@ -1152,7 +1152,7 @@ void handleSet(void)
     }
     else
     {
-      re = constrain((uint8_t)strtoul(&server.arg("re")[0], NULL, 10), 0, 255);
+      re = constrain((uint8_t)strtoul(server.arg("re").c_str(), NULL, 10), 0, 255);
     }
     color = (color & 0x00ffff) | (re << 16);
   }
@@ -1174,7 +1174,7 @@ void handleSet(void)
     }
     else
     {
-      gr = constrain((uint8_t)strtoul(&server.arg("gr")[0], NULL, 10), 0, 255);
+      gr = constrain((uint8_t)strtoul(server.arg("gr").c_str(), NULL, 10), 0, 255);
     }
     color = (color & 0xff00ff) | (gr << 8);
   }
@@ -1196,7 +1196,7 @@ void handleSet(void)
     }
     else
     {
-      bl = constrain((uint8_t)strtoul(&server.arg("bl")[0], NULL, 10), 0, 255);
+      bl = constrain((uint8_t)strtoul(server.arg("bl").c_str(), NULL, 10), 0, 255);
     }
     color = (color & 0xffff00) | (bl << 0);
   }
@@ -1207,7 +1207,7 @@ void handleSet(void)
 #ifdef DEBUG
     DEBUGPRNT("got Argument color....");
 #endif
-    color = constrain((uint32_t)strtoul(&server.arg("co")[0], NULL, 16), 0, 0xffffff);
+    color = constrain((uint32_t)strtoul(server.arg("co").c_str(), NULL, 16), 0, 0xffffff);
   }
   // we got one solid color value as r, g, b
   if (server.hasArg("solidColor"))
@@ -1217,9 +1217,9 @@ void handleSet(void)
     DEBUGPRNT("got Argument solidColor....");
 #endif
     uint8_t r, g, b;
-    r = constrain((uint8_t)strtoul(&server.arg("r")[0], NULL, 10), 0, 255);
-    g = constrain((uint8_t)strtoul(&server.arg("g")[0], NULL, 10), 0, 255);
-    b = constrain((uint8_t)strtoul(&server.arg("b")[0], NULL, 10), 0, 255);
+    r = constrain((uint8_t)strtoul(server.arg("r").c_str(), NULL, 10), 0, 255);
+    g = constrain((uint8_t)strtoul(server.arg("g").c_str(), NULL, 10), 0, 255);
+    b = constrain((uint8_t)strtoul(server.arg("b").c_str(), NULL, 10), 0, 255);
     color = (r << 16) | (g << 8) | (b << 0);
     // CRGB solidColor(color); // obsolete?
 
@@ -1233,7 +1233,7 @@ void handleSet(void)
     DEBUGPRNT("got Argument pixel....");
 #endif
     //setEffect(FX_NO_FX);
-    uint16_t pixel = constrain((uint16_t)strtoul(&server.arg("pi")[0], NULL, 10), 0, strip->getStripLength() - 1);
+    uint16_t pixel = constrain((uint16_t)strtoul(server.arg("pi").c_str(), NULL, 10), 0, strip->getStripLength() - 1);
 
     strip->setMode(FX_MODE_VOID);
     strip->leds[pixel] = CRGB(color);
@@ -1246,8 +1246,8 @@ void handleSet(void)
 #ifdef DEBUG
     DEBUGPRNT("got Argument range start / range end....");
 #endif
-    uint16_t start = constrain((uint16_t)strtoul(&server.arg("rnS")[0], NULL, 10), 0, strip->getStripLength());
-    uint16_t end = constrain((uint16_t)strtoul(&server.arg("rnE")[0], NULL, 10), start, strip->getStripLength());
+    uint16_t start = constrain((uint16_t)strtoul(server.arg("rnS").c_str(), NULL, 10), 0, strip->getStripLength());
+    uint16_t end = constrain((uint16_t)strtoul(server.arg("rnE").c_str(), NULL, 10), start, strip->getStripLength());
 
     strip->setMode(FX_MODE_VOID);
     for (uint16_t i = start; i <= end; i++)
