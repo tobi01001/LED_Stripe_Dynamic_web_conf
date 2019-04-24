@@ -259,7 +259,7 @@ void WS2812FX::resetDefaults(void)
   setAutopal(DEFAULT_AUTOCOLOR );
   setBeat88(DEFAULT_SPEED );
   setHuetime(DEFAULT_HUE_INT );
-  setMilliamps(DEFAULT_MAX_CURRENT );
+  setMilliamps(DEFAULT_CURRENT );
   setAutoplayDuration(DEFAULT_T_AUTOMODE);
   setAutopalDuration(DEFAULT_T_AUTOCOLOR);
   setSegments(DEFAULT_NUM_SEGS);
@@ -2071,7 +2071,7 @@ uint16_t WS2812FX::mode_to_inner(void)
                    SEGMENT.beat88 < 13107 ? SEGMENT.beat88 * 5 : 65535,
                    0, led_up_to, SEGMENT_RUNTIME.timebase),
                SEGMENT_RUNTIME.baseHue, 5, _currentPalette, 255, SEGMENT.blendType);
-  for (uint8_t i = (_segment_runtime.length) - 1; i >= ((_segment_runtime.length) - led_up_to); i--)
+  for (uint16_t i = (_segment_runtime.length) - 1; i >= ((_segment_runtime.length) - led_up_to); i--)
   {
     if (((_segment_runtime.length) - i) >= 0 && ((_segment_runtime.length) - i) < (_segment_runtime.length))
     {
@@ -2483,7 +2483,7 @@ uint16_t WS2812FX::mode_bubble_sort(void)
     _segment_runtime.modeinit = false;
     _segment_runtime.modevars.bubble_sort.movedown = false;
     _segment_runtime.modevars.bubble_sort.ci = _segment_runtime.modevars.bubble_sort.co = _segment_runtime.modevars.bubble_sort.cd = 0;
-    for (uint8_t i = 0; i < _segment_runtime.length; i++)
+    for (uint16_t i = 0; i < _segment_runtime.length; i++)
     {
       if (i == 0)
       {

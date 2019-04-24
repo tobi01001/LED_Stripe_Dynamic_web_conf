@@ -431,7 +431,7 @@ FieldList fields = {
     {"numBars",           "Number of LED bars for effects",                NumberFieldType, 1, max(MAX_NUM_BARS, 1), getNumBars},
     {"damping",           "damping for bounce",             NumberFieldType, 0, 100, getDamping},
     {"sunriseset",        "sunrise and sunset time in minutes",         NumberFieldType, 1, 60, getSunRiseTime}, // time provided in Minutes and capped at 60 minutes actually.
-    {"current",           "Current limit",                        NumberFieldType, 100, 3500, getMilliamps},
+    {"current",           "Current limit",                        NumberFieldType, 100, DEFAULT_CURRENT_MAX, getMilliamps},
     {"fps",               "Frames per second (FPS)",              NumberFieldType, 5, STRIP_FPS, getFPSValue}, // 111 max equals the minimum update time required for 300 pixels
                                                                                         // this is the minimal delay being used anyway, sono use to be faster
     {"dithering",         "Dithering",                        BooleanFieldType, 0, 1, getDithering},
