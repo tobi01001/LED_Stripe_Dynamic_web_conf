@@ -290,6 +290,28 @@ void WS2812FX::resetDefaults(void)
   setTransition();
 }
 
+
+unsigned int WS2812FX::calc_CRC16(unsigned int crc, unsigned char *buf, int len)
+{
+  for (int pos = 0; pos < len; pos++)
+  {
+    crc ^= (unsigned int)buf[pos]; // XOR byte into least sig. byte of crc
+
+    for (int i = 8; i != 0; i--)
+    { // Loop over each bit
+      if ((crc & 0x0001) != 0)
+      {            // If the LSB is set
+        crc >>= 1; // Shift right and XOR 0xA001
+        crc ^= 0xA001;
+      }
+      else         // Else LSB is not set
+        crc >>= 1; // Just shift right
+    }
+  }
+  return crc;
+}
+
+
 /*
  * the overall service task. To be called as often as possible / useful
  * (at least at the desired frame rate)
@@ -325,9 +347,6 @@ void WS2812FX::service()
     this->service_interval_cnt = 0;
     this->service_interval_sum = 0;
   }
-  
-  
-  
   #endif
  
   if ((_segment.segments != old_segs) || _segment_runtime.modeinit)
@@ -339,10 +358,14 @@ void WS2812FX::service()
     {
       _segment.numBars = ((LED_COUNT / _segment.segments) / MAX_NUM_BARS_FACTOR);
     }
+    // 12.04.2019
+    // There are artefacts remeianing if the distribution is not equal.
+    // as we blend towards the new effect, we will remove the artefacts by clearing the leds array...
+    fill_solid(leds, LED_COUNT, CRGB::Black);
     setTransition();
     old_segs = _segment.segments;
   }
-  
+  bool doShow = false;
   if (_segment.power)
   {
     if (_segment.isRunning || _triggered)
@@ -359,8 +382,8 @@ void WS2812FX::service()
         }
 
         SEGMENT_RUNTIME.next_time = now + (uint32_t)delay; //STRIP_MIN_DELAY;
+        doShow = true;
       }
-
       // reset trigger...
       _triggered = false;
     }
@@ -370,8 +393,17 @@ void WS2812FX::service()
     if (now > SEGMENT_RUNTIME.next_time || _triggered)
     {
       SEGMENT_RUNTIME.next_time = now + (uint32_t)(STRIP_DELAY_MICROSEC/1000);
-      fadeToBlackBy(_bleds, LED_COUNT, 4);
-      FastLED.show();
+      // no need to write data if nothing is shown (safeguard)
+      bool stillOn = false;
+      for(uint16_t i = 0; i < LED_COUNT; i++)
+      {
+        if(_bleds[i]) stillOn = true;
+      }
+      if(stillOn)
+      {
+        fadeToBlackBy(_bleds, LED_COUNT, 4);
+        FastLED.show();
+      }
     }
     #ifdef DEBUG_PERFORMANCE
     this->show_interval_min = UINT16_MAX;
@@ -414,16 +446,18 @@ void WS2812FX::service()
   }
 
   // Smooth brightness change?
-  EVERY_N_MILLISECONDS(3)
+  EVERY_N_MILLISECONDS(20)
   {
     uint8_t b = FastLED.getBrightness();
     if (_segment.targetBrightness > b)
     {
       FastLED.setBrightness(b + 1);
+      doShow = true;
     }
     else if (_segment.targetBrightness < b)
     {
       FastLED.setBrightness(b - 1);
+      doShow = true;
     }
   }
 
@@ -459,10 +493,7 @@ void WS2812FX::service()
     }
   }
 
-  for (uint16_t i = 0; i < LED_COUNT; i++)
-  {
-    nblend(_bleds[i], leds[i], l_blend);
-  }
+  nblend(_bleds, leds, LED_COUNT, l_blend);
 
   if (_segment.reverse)
   {
@@ -505,7 +536,7 @@ void WS2812FX::service()
   static uint32_t next_show = 0;
   uint32_t now_micros = micros();
 
-  if((now_micros - next_show) > ((uint32_t)(STRIP_DELAY_MICROSEC) - FRAME_CALC_WAIT_MICROINTERVAL))
+  if(doShow && ((now_micros - next_show) > ((uint32_t)(STRIP_DELAY_MICROSEC) - FRAME_CALC_WAIT_MICROINTERVAL)))
   {
     if(((next_show + FRAME_CALC_WAIT_MICROINTERVAL) < now_micros) )
     // && ((now_micros - (next_show + FRAME_CALC_WAIT_MICROINTERVAL)) < FRAME_CALC_WAIT_MICROINTERVAL))
@@ -517,6 +548,14 @@ void WS2812FX::service()
     // Write the data
     FastLED.show();
   }
+  else
+  {
+    // Test to see if it brekas things...
+    // usually we do not need to perform the rest of the service routine if nothing was updated....
+    // but it may stutter on the next written frame?
+    return;
+  }
+  
   #endif
 
   EVERY_N_MILLISECONDS(STRIP_MIN_DELAY) //(10)
@@ -3061,99 +3100,87 @@ uint16_t WS2812FX::mode_firework2(void)
       _segment_runtime.pops[i].prev_pos = 0;
       _segment_runtime.pops[i].v0 = 0;
       _segment_runtime.pops[i].v = 0;
-      _segment_runtime.pops[i].ignite = false;
+      //_segment_runtime.pops[i].ignite = false;
       _segment_runtime.pops[i].P_ignite = random(100, 500);
       _segment_runtime.pops[i].v_explode = _segment_runtime.pops[i].v0 * ((double)random8(0, 10) / 100.0);
     }
   }
-
-  for (uint16_t i = 0; i < _segment.numBars; i++)
-  {
-    if (_segment_runtime.pops[i].pos <= 0)
-    {
-      if (_segment_runtime.pops[i].v0 <= 0.01)
-      {
-        if (random8() < 2)
-        {
+  fade_out(64);
+  for (uint16_t i = 0; i < _segment.numBars; i++) {
+    if (_segment_runtime.pops[i].pos <= 0) {
+      if (_segment_runtime.pops[i].v0 <= 0.01) {
+        if (random8() < 2) {
           _segment_runtime.pops[i].v0 = (double)random((long)(v0_max * 750), (long)(v0_max * 990)) / 1000.0;
           _segment_runtime.pops[i].v = _segment_runtime.pops[i].v0;
           _segment_runtime.pops[i].pos = 0.00001;
           _segment_runtime.pops[i].prev_pos = 0;
           _segment_runtime.pops[i].timebase = now;
           _segment_runtime.pops[i].color_index = get_random_wheel_index(_segment_runtime.pops[i].color_index);
-          _segment_runtime.pops[i].ignite = false;
+          //_segment_runtime.pops[i].ignite = false;
           _segment_runtime.pops[i].P_ignite = random(100, 500);
-          uint16_t t_max = _segment_runtime.pops[i].v0 / (-1 * gravity);
+          uint16_t t_max = (_segment_runtime.pops[i].v0 / (-1 * gravity)) + 10 * STRIP_MIN_DELAY;
           _segment_runtime.pops[i].explodeTime = random(t_max / 2, t_max * 4 / 5);
           _segment_runtime.pops[i].v_explode = _segment_runtime.pops[i].v0 * ((double)random8(0, 10) / 100.0);
           fill_solid(_segment_runtime.pops[i].dist, 20, CRGB::Black);
         }
-      }
-      else
-      {
+      } else {
         float damping = 0.1f / 100.0f;
-        if (_segment.damping)
-        {
-          if (_segment.damping <= 100)
-          {
+        if (_segment.damping) {
+          if (_segment.damping <= 100) {
             damping = ((float)_segment.damping / 100.0f);
-          }
-          else
-          {
+          } else {
             damping = 1.0f;
           }
         }
 
         _segment_runtime.pops[i].v0 = 0.001; //pops[i].v0 * damping;
 
-        if (damping < 1.0f)
-          _segment_runtime.pops[i].v0 -= 0.01;
+        if (damping < 1.0f) _segment_runtime.pops[i].v0 -= 0.01;
 
         _segment_runtime.pops[i].v = _segment_runtime.pops[i].v0;
         _segment_runtime.pops[i].pos = 0.00001;
         _segment_runtime.pops[i].prev_pos = 0;
         _segment_runtime.pops[i].timebase = now;
       }
-    }
-    else
-    {
+    } else {
+      
+
+      if ((_segment_runtime.pops[i].explodeTime > STRIP_MIN_DELAY) && (_segment_runtime.pops[i].prev_pos > _segment_runtime.length/2)) {
+        _segment_runtime.pops[i].explodeTime -= STRIP_MIN_DELAY/2; //STRIP_MIN_DELAY;
+        //_segment_runtime.pops[i].ignite = true;
+        _segment_runtime.pops[i].dist[BLENDWIDTH / 2] += ColorFromPalette(_currentPalette, _segment_runtime.pops[i].color_index);
+      } else {
+        //_segment_runtime.pops[i].ignite = false;
+      }
+      
       uint16_t pos = map((long)_segment_runtime.pops[i].pos, 0, (long)segmentLength, _segment_runtime.start * 16, _segment_runtime.stop * 16);
-      if (_segment_runtime.pops[i].v > _segment_runtime.pops[i].v_explode) //0)
-      {
-        fade_out(96);
-        if (pos != _segment_runtime.pops[i].prev_pos)
-        {
-          if (pos > _segment_runtime.pops[i].prev_pos)
-          {
-            uint16_t width = max((pos - _segment_runtime.pops[i].prev_pos) / 16, 1);
+      if (_segment_runtime.pops[i].v > _segment_runtime.pops[i].v_explode) {
+        //fade_out(64);
+        if (pos != _segment_runtime.pops[i].prev_pos) {
+          if (pos > _segment_runtime.pops[i].prev_pos) {
+            uint16_t width = max((pos - _segment_runtime.pops[i].prev_pos) / 16, 2);
             drawFractionalBar(_segment_runtime.pops[i].prev_pos, width, _currentPalette, _segment_runtime.pops[i].color_index, _brightness, true);
-          }
-          else
-          {
-            uint16_t width = max((_segment_runtime.pops[i].prev_pos - pos) / 16, 1);
+          } else {
+            uint16_t width = max((_segment_runtime.pops[i].prev_pos - pos) / 16, 2);
             drawFractionalBar(pos, width, _currentPalette, _segment_runtime.pops[i].color_index, _brightness, true);
           }
+        } else {
+          drawFractionalBar(pos, 2, _currentPalette, _segment_runtime.pops[i].color_index, _brightness, true);
         }
-        else
-        {
-          drawFractionalBar(pos, 1, _currentPalette, _segment_runtime.pops[i].color_index, _brightness, true);
-        }
-      }
-      else
-      {
-        fade_out(8);
+      } else {
+        //fade_out(4);
         blur1d(_segment_runtime.pops[i].dist, BLENDWIDTH, 172);
         if ((pos / 16 + 1) >= (_segment_runtime.start + BLENDWIDTH / 2) && (pos / 16 + 1) <= (_segment_runtime.stop - BLENDWIDTH / 2))
         {
-          nblend(&leds[pos / 16 + 1 - BLENDWIDTH / 2], _segment_runtime.pops[i].dist, BLENDWIDTH, 64);
+          nblend(&leds[pos / 16 + 1 - BLENDWIDTH / 2], _segment_runtime.pops[i].dist, BLENDWIDTH, 128);
         }
         else if ((pos / 16 + 1) > (_segment_runtime.stop - BLENDWIDTH / 2))
         {
-          nblend(&leds[pos / 16 + 1 - BLENDWIDTH / 2], _segment_runtime.pops[i].dist, _segment_runtime.stop - pos / 16 + 1, 64);
+          nblend(&leds[pos / 16 + 1 - BLENDWIDTH / 2], _segment_runtime.pops[i].dist, _segment_runtime.stop - pos / 16 + 1, 128);
         }
         else
         {
-          nblend(&leds[_segment_runtime.start], &_segment_runtime.pops[i].dist[BLENDWIDTH / 2 - pos / 16 + 1], BLENDWIDTH / 2 + (BLENDWIDTH / 2 - pos / 16 + 1), 64);
+          nblend(&leds[_segment_runtime.start], &_segment_runtime.pops[i].dist[BLENDWIDTH / 2 - pos / 16 + 1], BLENDWIDTH / 2 + (BLENDWIDTH / 2 - pos / 16 + 1), 128);
         }
         if (!leds[pos / 16] && !leds[pos / 16 + 1])
         {
@@ -3161,10 +3188,6 @@ uint16_t WS2812FX::mode_firework2(void)
           _segment_runtime.pops[i].pos = 0;
           return STRIP_MIN_DELAY;
         }
-      }
-      if (_segment_runtime.pops[i].ignite)
-      {
-        _segment_runtime.pops[i].dist[BLENDWIDTH / 2] = ColorFromPalette(_currentPalette, _segment_runtime.pops[i].color_index);
       }
 
       _segment_runtime.pops[i].prev_pos = pos;
@@ -3180,16 +3203,6 @@ uint16_t WS2812FX::mode_firework2(void)
       {
         _segment_runtime.pops[i].v = 1000;
         _segment_runtime.pops[i].pos = 0.00001;
-      }
-
-      if (_segment_runtime.pops[i].explodeTime > STRIP_MIN_DELAY)
-      {
-        _segment_runtime.pops[i].explodeTime -= STRIP_MIN_DELAY;
-        _segment_runtime.pops[i].ignite = true;
-      }
-      else
-      {
-        _segment_runtime.pops[i].ignite = false;
       }
     }
   }

@@ -70,7 +70,7 @@ extern "C"
 #include "led_strip.h"
 
 
-#define BUILD_VERSION ("LED_Control_Web_SRV_0.9.3_")
+#define BUILD_VERSION ("LED_Control_Web_SRV_0.9.5_")
 #ifndef BUILD_VERSION
 #error "We need a SW Version and Build Version!"
 #endif
@@ -254,28 +254,6 @@ void broadcastString(String name, String value)
   DEBUGPRNT("Send websocket broadcast with value: " + json);
   webSocketsServer->broadcastTXT(json);
 }
-
-// calculates a simple CRC over the given buffer and length
-unsigned int calc_CRC16(unsigned int crc, unsigned char *buf, int len)
-{
-  for (int pos = 0; pos < len; pos++)
-  {
-    crc ^= (unsigned int)buf[pos]; // XOR byte into least sig. byte of crc
-
-    for (int i = 8; i != 0; i--)
-    { // Loop over each bit
-      if ((crc & 0x0001) != 0)
-      {            // If the LSB is set
-        crc >>= 1; // Shift right and XOR 0xA001
-        crc ^= 0xA001;
-      }
-      else         // Else LSB is not set
-        crc >>= 1; // Just shift right
-    }
-  }
-  return crc;
-}
-
 
 void checkSegmentChanges(void) {
 
@@ -551,7 +529,7 @@ void saveEEPROMData(void)
   //print_segment(&seg);
 
 
-  seg.CRC = (uint16_t)calc_CRC16(0x5a5a,(unsigned char *)&seg + 2, sizeof(seg) - 2);
+  seg.CRC = (uint16_t)WS2812FX::calc_CRC16(0x5a5a,(unsigned char *)&seg + 2, sizeof(seg) - 2);
 
   strip->setCRC(seg.CRC);
 
@@ -588,7 +566,7 @@ void readRuntimeDataEEPROM(void)
   print_segment(&seg);
 
   // calculate the CRC over the data being stored in the EEPROM (except the CRC itself)
-  uint16_t mCRC = (uint16_t)calc_CRC16(0x5a5a, (unsigned char *)&seg + 2, sizeof(seg) - 2);
+  uint16_t mCRC = (uint16_t)WS2812FX::calc_CRC16(0x5a5a, (unsigned char *)&seg + 2, sizeof(seg) - 2);
 
   
   DEBUGPRNT("\tCRC calculated " + String(mCRC) + "\tCRC stored " + String(seg.CRC));
@@ -845,6 +823,9 @@ void handleSet(void)
   // rnE = Range end Pixel;
   // here we set a new mode if we have the argument mode
 
+  JsonObject& answerObj = jsonBuffer.createObject();
+  JsonObject& answer = answerObj.createNestedObject("currentState");
+  
   if (server.hasArg("mo"))
   {
     // flag to decide if this is an library effect
@@ -940,6 +921,10 @@ void handleSet(void)
       isWS2812FX = true;
       effect = FX_MODE_SUNRISE;
       strip->setTransition();
+      answer.set("sunRiseTime", strip->getSunriseTime());
+      answer.set("sunRiseTimeToFinish", strip->getSunriseTimeToFinish());
+      answer.set("sunRiseMode", "sunrise");
+      answer.set("sunRiseActive", "on");
       //broadcastInt("sunriseset", strip->getSunriseTime());
       //sendStatus = true;
     }
@@ -966,6 +951,10 @@ void handleSet(void)
       strip->setTransition();
       //broadcastInt("sunriseset", strip->getSunriseTime());
       //sendStatus = true;
+      answer.set("sunRiseTime", strip->getSunriseTime());
+      answer.set("sunRiseTimeToFinish", strip->getSunriseTimeToFinish());
+      answer.set("sunRiseMode", "sunset");
+      answer.set("sunRiseActive", "on");
     }
     // finally - if nothing matched before - we switch to the effect  being provided.
     // we don't care if its actually an int or not
@@ -993,7 +982,17 @@ void handleSet(void)
       DEBUGPRNT("gonna send mo response....");
       //sendInt("mo", strip->getMode() );
       //broadcastInt("power", true);
+      answer.set("wsfxmode_Num", effect);
+      answer.set("wsfxmode", strip->getModeName(effect));
+      answer.set("state", strip->getPower() ? "on" : "off");
+      answer.set("power", strip->getPower());
     }
+    else
+    {
+      answer.set("state", strip->getPower() ? "on" : "off");
+      answer.set("power", strip->getPower());
+    }
+    
   }
   // global on/off
   if (server.hasArg("power"))
@@ -1008,8 +1007,8 @@ void handleSet(void)
       strip->setPower(true);
       strip->setMode(strip->getMode());
     }
-    //sendString("state", strip->getPower() ? "on" : "off");
-    //broadcastInt("power", strip->getPower());
+    answer.set("state", strip->getPower() ? "on" : "off");
+    answer.set("power", strip->getPower());
   }
 
   if(server.hasArg("isRunning"))
@@ -1023,9 +1022,8 @@ void handleSet(void)
     {
       strip->setIsRunning(true);
     }
+    answer.set("isRunning", strip->isRunning() ? "running" : "paused");
     //sendString("isRunning", strip->isRunning() ? "running" : "paused");
-    
-    //broadcastInt("power", strip->isRunning());
   }
 
   // if we got a palette change
@@ -1038,6 +1036,9 @@ void handleSet(void)
     //  sendAnswer(   "\"palette\": " + String(pal) + ", \"palette name\": \"" +
     //                (String)strip->getPalName(pal) + "\"");
     //  broadcastInt("pa", pal);
+    answer.set("palette_num", strip->getTargetPaletteNumber());
+    answer.set("palette_name", strip->getTargetPaletteName());
+    answer.set("palette_count", strip->getPalCount());
   }
 
   // if we got a new brightness value
@@ -1060,6 +1061,7 @@ void handleSet(void)
     strip->setBrightness(brightness);
     //sendInt("brightness", brightness);
     //broadcastInt("br", strip->getBrightness());
+    answer.set("brightness", strip->getBrightness());
   }
 
   // if we got a speed value
@@ -1091,7 +1093,9 @@ void handleSet(void)
     }
     strip->setSpeed(speed);
     strip->show();
-    sendAnswer("\"speed\": " + String(speed) + ", \"beat88\": \"" + String(speed));
+    //sendAnswer("\"speed\": " + String(speed) + ", \"beat88\": \"" + String(speed));
+    answer.set("speed", strip->getSpeed());
+    answer.set("beat88", strip->getSpeed());
     //broadcastInt("sp", strip->getBeat88());
     strip->setTransition();
   }
@@ -1123,7 +1127,9 @@ void handleSet(void)
     }
     strip->setSpeed(speed);
     strip->show();
-    sendAnswer("\"speed\": " + String(speed) + ", \"beat88\": \"" + String(speed));
+    answer.set("speed", strip->getSpeed());
+    answer.set("beat88", strip->getSpeed());
+    //sendAnswer("\"speed\": " + String(speed) + ", \"beat88\": \"" + String(speed));
     //broadcastInt("sp", strip->getBeat88());
     strip->setTransition();
   }
@@ -1239,6 +1245,10 @@ void handleSet(void)
     strip->leds[pixel] = CRGB(color);
     //sendStatus = true;
     // a range of pixels from start rnS to end rnE
+    answer.set("wsfxmode_Num", FX_MODE_VOID);
+    answer.set("wsfxmode", strip->getModeName(FX_MODE_VOID));
+    answer.set("state", strip->getPower() ? "on" : "off");
+    answer.set("power", strip->getPower());
   }
   //FIXME: Does not yet work. Lets simplyfy all of this!
   else if (server.hasArg("rnS") && server.hasArg("rnE"))
@@ -1254,6 +1264,10 @@ void handleSet(void)
     {
       strip->leds[i] = CRGB(color);
     }
+    answer.set("wsfxmode_Num", FX_MODE_VOID);
+    answer.set("wsfxmode", strip->getModeName(FX_MODE_VOID));
+    answer.set("state", strip->getPower() ? "on" : "off");
+    answer.set("power", strip->getPower());
     //sendStatus = true;
     // one color for the complete strip
   }
@@ -1265,12 +1279,20 @@ void handleSet(void)
     strip->setColor(color);
     strip->setMode(FX_MODE_STATIC);
     // finally set a new color
+    answer.set("wsfxmode_Num", FX_MODE_STATIC);
+    answer.set("wsfxmode", strip->getModeName(FX_MODE_STATIC));
+    answer.set("state", strip->getPower() ? "on" : "off");
+    answer.set("power", strip->getPower());
   }
   else
   {
     if (setColor)
     {
       strip->setColor(color);
+      answer.set("RGB", color);
+      answer.set("RGB_Blue", Blue(color));
+      answer.set("RGB_Green", Green(color));
+      answer.set("RGB_Red", Red(color));
       //sendStatus = true;
     }
   }
@@ -1282,6 +1304,25 @@ void handleSet(void)
     strip->setAutoplay((AUTOPLAYMODES)value);
     //sendInt("Autoplay Mode", value);
     //broadcastInt("autoplay", value);
+    switch(strip->getAutoplay())
+  {
+    case AUTO_MODE_OFF:
+      answer["AutoPlayMode"] = "Off";
+    break;
+    case AUTO_MODE_UP:
+      answer["AutoPlayMode"] = "Up";
+    break;
+    case AUTO_MODE_DOWN:
+      answer["AutoPlayMode"] = "Down";
+    break;
+    case AUTO_MODE_RANDOM:
+      answer["AutoPlayMode"] = "Random";
+    break;
+    default:
+      answer["AutoPlayMode"] = "unknown error";
+    break;
+  }
+  
   }
 
   // autoplay duration changes
@@ -1291,6 +1332,8 @@ void handleSet(void)
     strip->setAutoplayDuration(value);
     //sendInt("Autoplay Mode Interval", value);
     //broadcastInt("autoplayDuration", value);
+    answer["AutoPlayModeIntervall"] = strip->getAutoplayDuration();
+ 
   }
 
   // auto plaette change
@@ -1300,6 +1343,24 @@ void handleSet(void)
     strip->setAutopal((AUTOPLAYMODES)value);
     //sendInt("Autoplay Palette", value);
     //broadcastInt("autopal", value);
+    switch(strip->getAutopal())
+    {
+      case AUTO_MODE_OFF:
+        answer["AutoPalette"] = "Off";
+      break;
+      case AUTO_MODE_UP:
+        answer["AutoPalette"] = "Up";
+      break;
+      case AUTO_MODE_DOWN:
+        answer["AutoPalette"] = "Down";
+      break;
+      case AUTO_MODE_RANDOM:
+        answer["AutoPalette"] = "Random";
+      break;
+      default:
+        answer["AutoPalette"] = "unknown error";
+      break;
+    }
   }
 
   // auto palette change duration changes
@@ -1309,6 +1370,7 @@ void handleSet(void)
     strip->setAutopalDuration(value);
     //sendInt("Autoplay Palette Interval", value);
     //broadcastInt("autopalDuration", value);
+    answer["AutoPaletteInterval"] = strip->getAutoplayDuration();
   }
 
   // time for cycling through the basehue value changes
@@ -1318,6 +1380,7 @@ void handleSet(void)
     //sendInt("Hue change time", value);
     //broadcastInt("huetime", value);
     strip->setHuetime(value);
+    answer["HueChangeInt"] = strip->getHueTime();
   }
 
 #pragma message "We could implement a value to change how a palette is distributed accross the strip"
@@ -1330,6 +1393,7 @@ void handleSet(void)
     //broadcastInt("deltahue", value);
     strip->setDeltaHue(value);
     strip->setTransition();
+    answer["HueDeltaHue"] = strip->getDeltaHue();
   }
 
   // parameter for teh "fire" - flame cooldown
@@ -1340,6 +1404,7 @@ void handleSet(void)
     //broadcastInt("cooling", value);
     strip->setCooling(value);
     strip->setTransition();
+    answer["Cooling"] = strip->getCooling();
   }
 
   // parameter for the sparking - new flames
@@ -1350,6 +1415,7 @@ void handleSet(void)
     //broadcastInt("sparking", value);
     strip->setSparking(value);
     strip->setTransition();
+    answer["Sparking"] = strip->getSparking();
   }
 
   // parameter for twinkle fox (speed)
@@ -1360,6 +1426,7 @@ void handleSet(void)
     //broadcastInt("twinkleSpeed", value);
     strip->setTwinkleSpeed(value);
     strip->setTransition();
+    answer["TwinkleSpeed"] = strip->getTwinkleSpeed();
   }
 
   // parameter for twinkle fox (density)
@@ -1370,6 +1437,7 @@ void handleSet(void)
     //broadcastInt("twinkleDensity", value);
     strip->setTwinkleDensity(value);
     strip->setTransition();
+    answer["TwinkleDensity"] = strip->getTwinkleDensity();
   }
 
   // parameter for number of bars (beat sine glows etc...)
@@ -1382,6 +1450,7 @@ void handleSet(void)
     //broadcastInt("numBars", value);
     strip->setNumBars(value);
     strip->setTransition();
+    answer["NumBars"] = strip->getNumBars();
   }
 
   // parameter to change the palette blend type for cetain effects
@@ -1394,11 +1463,13 @@ void handleSet(void)
     {
       strip->setBlendType(LINEARBLEND);
       //sendString("BlendType", "LINEARBLEND");
+      answer["BlendType"] = "Linear Blend";
     }
     else
     {
       strip->setBlendType(NOBLEND);
       //sendString("BlendType", "NOBLEND");
+      answer["BlendType"] = "No Blend";
     }
     strip->setTransition();
   }
@@ -1412,6 +1483,7 @@ void handleSet(void)
     //sendString("ColorTemperature", strip->getColorTempName(value));
     strip->setColorTemperature(value);
     strip->setTransition();
+    answer["ColorTemperature"] = strip->getColorTempName(strip->getColorTemperature());
   }
 
   // parameter to change direction of certain effects..
@@ -1422,6 +1494,7 @@ void handleSet(void)
     //broadcastInt("reverse", value);
     strip->getSegment()->reverse = value;
     strip->setTransition();
+    answer["Reverse"] = strip->getReverse();
   }
 
   // parameter to invert colors of all effects..
@@ -1432,6 +1505,7 @@ void handleSet(void)
     //broadcastInt("inverse", value);
     strip->setInverse(value);
     strip->setTransition();
+    answer["Inverse"] = strip->getInverse();
   }
 
   // parameter to divide LEDS into two equal halfs...
@@ -1442,6 +1516,7 @@ void handleSet(void)
     //broadcastInt("mirror", value);
     strip->setMirror(value);
     strip->setTransition();
+    answer["Mirrored"] = strip->getMirror();
   }
 
   // parameter so set the max current the leds will draw
@@ -1451,6 +1526,7 @@ void handleSet(void)
     //sendInt("Lamp Max Current", value);
     //broadcastInt("current", value);
     strip->setMilliamps(value);
+    answer["Lamp_max_current"] = strip->getMilliamps();
   }
 
   // parameter for the blur against the previous LED values
@@ -1461,6 +1537,7 @@ void handleSet(void)
     //broadcastInt("LEDblur", value);
     strip->setBlur(value);
     strip->setTransition();
+    answer["Led_blur"] = strip->getBlurValue();
   }
 
   // parameter for the frames per second (FPS)
@@ -1471,6 +1548,7 @@ void handleSet(void)
     //broadcastInt("fps", value);
     strip->setMaxFPS(value);
     strip->setTransition();
+    answer["max_FPS"] = strip->getMaxFPS();
   }
 
   if (server.hasArg("dithering"))
@@ -1479,6 +1557,7 @@ void handleSet(void)
     //sendInt("dithering", value);
     //broadcastInt("dithering", value);
     strip->setDithering(value);
+    answer["Dithering"] = strip->getDithering();
   }
 
   if (server.hasArg("sunriseset"))
@@ -1487,6 +1566,7 @@ void handleSet(void)
     //sendInt("sunriseset", value);
     //broadcastInt("sunriseset", value);
     strip->getSegment()->sunrisetime = value;
+    answer["sunRiseTime"] = strip->getSunriseTime();
   }
 
   // reset to default values
@@ -1507,27 +1587,32 @@ void handleSet(void)
     //sendInt("damping", value);
     //broadcastInt("damping", value);
     strip->getSegment()->damping = value;
+    answer["Damping"] = strip->getDamping();
   }
 
   if (server.hasArg("addGlitter"))
   {
     uint8_t value = constrain(String(server.arg("addGlitter")).toInt(), 0, 100);
     strip->setAddGlitter(value);
+    answer["Glitter_Add"] = strip->getAddGlitter();
   }
   if (server.hasArg("WhiteOnly"))
   {
     uint8_t value = constrain(String(server.arg("WhiteOnly")).toInt(), 0, 100);
     strip->setWhiteGlitter(value);
+    answer["Glitter_White"] = strip->getWhiteGlitter();
   }
   if (server.hasArg("onBlackOnly"))
   {
     uint8_t value = constrain(String(server.arg("onBlackOnly")).toInt(), 0, 100);
     strip->setOnBlackOnly(value);
+    answer["Glitter_OnBlackOnly"] = strip->getOnBlackOnly();
   }
   if (server.hasArg("glitterChance"))
   {
     uint8_t value = constrain(String(server.arg("glitterChance")).toInt(), 0, 100);
     strip->setChanceOfGlitter(value);
+    answer["Glitter_Chance"] = strip->getChanceOfGlitter();
   }
 
 
@@ -1575,6 +1660,7 @@ void handleSet(void)
     //broadcastInt("segments", value);
     strip->getSegment()->segments = constrain(value, 1, MAX_NUM_SEGMENTS);
     strip->setTransition();
+    answer["Segments"] = strip->getSegments();
   }
 
   // new parameters, it's time to save
@@ -1586,7 +1672,11 @@ void handleSet(void)
   }
   */
   /// strip->setTransition();  <-- this is not wise as it removes the smooth fading for colors. So we need to set it case by case
-  server.send(200, "text/plain", "OK");
+  String json = "";
+  json.reserve(answerObj.measureLength());
+  answerObj.printTo(json);
+  server.send(200, "application/json", json);
+  jsonBuffer.clear();
 }
 
 // if something unknown was called...
@@ -1681,6 +1771,7 @@ void handleStatus(void)
         num_leds_on++;
     }
   }
+  currentStateAnswer["power"] = strip->getPower();
   if (strip->getPower())
   {
     currentStateAnswer["state"] = "on";
@@ -1697,13 +1788,14 @@ void handleStatus(void)
   currentStateAnswer["Lamp_current_power"] = strip->getCurrentPower();
   currentStateAnswer["LEDs_On"] = num_leds_on;
   currentStateAnswer["mode_Name"] = strip->getModeName(strip->getMode());
+  currentStateAnswer["wsfxmode"] = strip->getModeName(strip->getMode());
   currentStateAnswer["wsfxmode_Num"] = strip->getMode();
   currentStateAnswer["wsfxmode_count"] = strip->getModeCount();
   currentStateAnswer["beat88"] = strip->getBeat88();
   currentStateAnswer["speed"] = strip->getBeat88();
   currentStateAnswer["brightness"] = strip->getBrightness();
   // Palettes and Colors
-  currentStateAnswer["palette_count"] = strip->getTargetPaletteNumber();
+  currentStateAnswer["palette_count"] = strip->getPalCount();
   currentStateAnswer["palette_num"] = strip->getTargetPaletteNumber();
   currentStateAnswer["palette_name"] = strip->getTargetPaletteName();
   CRGB col = CRGB::Black;
@@ -1813,16 +1905,46 @@ void handleStatus(void)
     sunriseAnswer["sunRiseTime"] = strip->getSunriseTime();
     
 
-#ifdef DEBUG
   JsonObject& debugAnswer = answerObj.createNestedObject("ESP_Data");
-  debugAnswer["DBG_Debug code"] = "On";
-  debugAnswer["DBG_CPU_FRQ"] = ESP.getCpuFreqMHz();
-  debugAnswer["DBG_Flash Real Size"] = ESP.getFlashChipRealSize();
-  debugAnswer["DBG_Free RAM"] = ESP.getFreeHeap();
-  debugAnswer["DBG_Free Sketch Space"] = ESP.getFreeSketchSpace();
-  debugAnswer["DBG_Sketch Size"] = ESP.getSketchSize();
-#endif
+//  debugAnswer["DBG_Debug code"] = "On";
+  debugAnswer["Chip_CPU_FRQ"] = ESP.getCpuFreqMHz();
+//  debugAnswer["DBG_Flash Real Size"] = ESP.getFlashChipRealSize();
+  debugAnswer["Chip_Free_RAM"] = ESP.getFreeHeap();
+//  debugAnswer["DBG_Free Sketch Space"] = ESP.getFreeSketchSpace();
+//  debugAnswer["DBG_Sketch Size"] = ESP.getSketchSize();
+//  debugAnswer["DBG_Chip Voltage"] = ESP.getVcc();
+  switch (getResetReason())
+  {
+  case REASON_DEFAULT_RST:
+    
+    debugAnswer["Chip_ResetReason"] = "Normal Boot";
+    break;
+  case REASON_WDT_RST:
+    debugAnswer["Chip_ResetReason"] = "WDT Reset";
+    break;
+  case REASON_EXCEPTION_RST:
+    debugAnswer["Chip_ResetReason"] = "Exception";
+    break;
+  case REASON_SOFT_WDT_RST:
+    debugAnswer["Chip_ResetReason"] = "Soft WDT Reset";
+    break;
+  case REASON_SOFT_RESTART:
+    debugAnswer["Chip_ResetReason"] = "Restart";
+    break;
+  case REASON_DEEP_SLEEP_AWAKE:
+    debugAnswer["Chip_ResetReason"] = "Sleep Awake";
+    break;
+  case REASON_EXT_SYS_RST:
+    debugAnswer["Chip_ResetReason"] = "External Trigger";
+    break;
+
+  default:
+    debugAnswer["Chip_ResetReason"] = "Unknown Cause";
+    break;
+  }
+  debugAnswer["Chip_ID"] = String(ESP.getChipId());
   
+
   answer_time = micros() - answer_time;
   statsAnswer["AnswerTime_ms"] = (float)((float)(answer_time)/1000.0);
   statsAnswer["FPS"] = FastLED.getFPS();

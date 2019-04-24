@@ -255,7 +255,7 @@ public:
     double v;
     double v_explode;
     uint8_t color_index;
-    bool ignite;
+    //bool ignite;
     uint16_t P_ignite;
     uint16_t explodeTime;
     CRGB dist[BLENDWIDTH];
@@ -621,7 +621,7 @@ public:
   inline void setBeat88               (uint16_t b)      { _segment.beat88 = constrain(b, BEAT88_MIN, BEAT88_MAX); _segment_runtime.timebase = millis(); }
   inline void setSpeed                (uint16_t s)      { setBeat88(s); }
   inline void setHuetime              (uint16_t t)      { _segment.hueTime = t; SEGMENT_RUNTIME.nextHue = 0; }
-  inline void setMilliamps            (uint16_t m)      { _segment.milliamps = constrain(m, 100, 20000); FastLED.setMaxPowerInVoltsAndMilliamps(_volts, _segment.milliamps); }
+  inline void setMilliamps            (uint16_t m)      { _segment.milliamps = constrain(m, 100, 3500); FastLED.setMaxPowerInVoltsAndMilliamps(_volts, _segment.milliamps); }
   inline void setAutoplayDuration     (uint16_t t)      { _segment.autoplayDuration = t; SEGMENT_RUNTIME.nextAuto = 0; }
   inline void setAutopalDuration      (uint16_t t)      { _segment.autoPalDuration = t; SEGMENT_RUNTIME.nextPalette = 0; }
   inline void setSegments             (uint8_t s)       { _segment.segments = constrain(s, 1, max(MAX_NUM_SEGMENTS, 1)); }
@@ -712,6 +712,9 @@ public:
       getSunriseTimeToFinish(void),
       getStripLength(void),
       getLength(void);
+
+  static unsigned int calc_CRC16(unsigned int crc, unsigned char *buf, int len);
+
 
   uint32_t
   getColor(uint8_t p_index);
