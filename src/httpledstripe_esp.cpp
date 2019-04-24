@@ -736,7 +736,11 @@ void initOverTheAirUpdate(void)
 void showInitColor(CRGB Color)
 {
 #ifdef DEBUG
-  FastLED.showColor(Color);
+  Color.r = Color.r&0x20;
+  Color.g = Color.g&0x20;
+  Color.b = Color.b&0x20;
+  fill_solid(strip->leds, NUM_INFORMATION_LEDS, Color);
+  strip->show();
 #endif
 }
 
@@ -1483,7 +1487,7 @@ void handleSet(void)
     //sendString("ColorTemperature", strip->getColorTempName(value));
     strip->setColorTemperature(value);
     strip->setTransition();
-    answer["ColorTemperature"] = strip->getColorTempName(strip->getColorTemperature());
+    answer["ColorTemperature"] = strip->getColorTempName(strip->getColorTemp());
   }
 
   // parameter to change direction of certain effects..
@@ -2266,6 +2270,9 @@ void setup()
                F("Rainbow Colors"),
                UncorrectedColor); //TypicalLEDStrip);
 
+  // internal LED can be light up when current is limited by FastLED
+  pinMode(2, OUTPUT);
+
   EEPROM.begin(strip->getSegmentSize());
 
   setupWiFi();
@@ -2274,29 +2281,31 @@ void setup()
 
   initOverTheAirUpdate();
 
-// if we got that far, we show by a nice little animation
-// as setup finished signal....
+  // if we got that far, we show by a nice little animation
+  // as setup finished signal....
+  const uint16_t mindelay = map(NUM_INFORMATION_LEDS, LED_COUNT>300?LED_COUNT:300, 0, 1, 100);
   for (uint8_t a = 0; a < 1; a++)
   {
-    for (uint16_t c = 0; c < 256; c += 3)
+    for (uint16_t c = 0; c < 32; c += 3)
     {
-      for (uint16_t i = 0; i < strip->getStripLength(); i++)
+      for (uint16_t i = 0; i < NUM_INFORMATION_LEDS; i++)
       {
         strip->leds[i].green = c;
       }
       strip->show();
-      delay(1);
+      
+      delay(mindelay);
     }
     DEBUGPRNT("Init done - fading green out");
-    delay(2);
-    for (uint8_t c = 255; c > 0; c -= 3)
+    delay(20);
+    for (int16_t c = strip->leds[0].green; c > 0; c -= 3)
     {
-      for (uint16_t i = 0; i < strip->getStripLength(); i++)
+      for (uint16_t i = 0; i < NUM_INFORMATION_LEDS; i++)
       {
         strip->leds[i].subtractFromRGB(4);
       }
       strip->show();
-      delay(1);
+      delay(mindelay);
     }
   }
   //strip->stop();
@@ -2335,10 +2344,7 @@ void setup()
   }
   FastLED.show();
 
-  // internal LED can be light up when current is limited by FastLED
-  pinMode(2, OUTPUT);
-
-  delay(7500);
+  delay(4000);
 
 
 #ifdef DEBUG
@@ -2472,9 +2478,9 @@ EVERY_N_MILLIS(250)
 #endif
       // Show the WiFi loss with yellow LEDs.
       // Whole strip lid finally.
-      for (uint16_t i = 0; i < strip->getStripLength(); i++)
+      for (uint16_t i = 0; i < NUM_INFORMATION_LEDS; i++)
       {
-        strip->leds[i] = 0xa0a000;
+        strip->leds[i] = 0x202000;
       }
       strip->show();
       // Reset after 6 seconds....
