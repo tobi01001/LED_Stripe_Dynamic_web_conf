@@ -84,6 +84,8 @@ WebSocketsServer *webSocketsServer; // webSocketsServer = WebSocketsServer(81);
 
 String AP_SSID = LED_NAME + String(ESP.getChipId());
 
+IPAddress myIP;
+
 /* END Network Definitions */
 
 //flag for saving data
@@ -609,7 +611,7 @@ void initOverTheAirUpdate(void)
   // TODO: Implement Hostname in config and WIFI Settings?
 
   // Hostname defaults to esp8266-[ChipID]
-  // ArduinoOTA.setHostname("esp8266Toby01");
+  ArduinoOTA.setHostname(LED_NAME);
 
   // No authentication by default
   // ArduinoOTA.setPassword((const char *)"123");
@@ -745,7 +747,7 @@ void setupWiFi(void)
   showInitColor(CRGB::Blue);
   delay(INITDELAY);
 
-  WiFi.hostname(LED_NAME + String(ESP.getChipId()));
+  WiFi.hostname(LED_NAME);
 
   WiFiManager wifiManager;
 
@@ -1941,6 +1943,7 @@ void handleStatus(void)
     break;
   }
   debugAnswer["Chip_ID"] = String(ESP.getChipId());
+  debugAnswer["LED_IP"] =  myIP.toString();
   
 
   answer_time = micros() - answer_time;
@@ -2315,7 +2318,7 @@ void setup()
   // Show the IP Address at the beginning
   // so one can take a picture. 
   // one needs to know the structure of the leds...
-  IPAddress myIP = WiFi.localIP();
+  myIP = WiFi.localIP();
   DEBUGPRNT("Going to show IP Address " + myIP.toString());
   if(LED_COUNT >= 40)
   {
@@ -2364,6 +2367,7 @@ void loop()
 {
   uint32_t now = millis();
   static uint32_t wifi_check_time = now + WIFI_TIMEOUT;
+  static uint8_t wifi_err_counter = 0;
 
 #ifdef DEBUG
   static unsigned long last_status_msg = 0;
@@ -2474,24 +2478,37 @@ EVERY_N_MILLIS(250)
     if (WiFi.status() != WL_CONNECTED)
     {
 #ifdef DEBUG
-      DEBUGPRNT("WiFi connection lost. Reconnecting...");
-      DEBUGPRNT("Lost Wifi Connection....");
+        DEBUGPRNT("WiFi connection lost. Reconnecting...");
+        DEBUGPRNT("Lost Wifi Connection....");
 #endif
+      wifi_err_counter+=2;
+
       // Show the WiFi loss with yellow LEDs.
       // Whole strip lid finally.
+    }
+    else
+    {
+      if(wifi_err_counter > 0)
+      {
+        wifi_err_counter--;
+      }
+    }
+    
+    if(wifi_err_counter++ > 20)
+    {
       for (uint16_t i = 0; i < NUM_INFORMATION_LEDS; i++)
       {
         strip->leds[i] = 0x202000;
       }
       strip->show();
-      // Reset after 6 seconds....
+      // Reset after 3 seconds....
       delay(3000);
 #ifdef DEBUG
       DEBUGPRNT("Resetting ESP....");
 #endif
-      delay(3000);
       ESP.restart();
     }
+
     wifi_check_time = now + WIFI_TIMEOUT;
   }
 
