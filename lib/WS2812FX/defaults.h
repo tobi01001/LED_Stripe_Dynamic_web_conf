@@ -8,9 +8,15 @@
 #define INITDELAY 2
 #endif
 
+#define BUILD_VERSION ("LED_Control_0.9.7")
+#ifndef BUILD_VERSION
+#error "We need a SW Version and Build Version!"
+#endif
+
+
 /* use build flags to define these */
 #ifndef LED_NAME
-#error "You need to give your LED a Name (build flag e.g. '-DLED_NAME=\"My LED\"')!"
+#error "You need to give your LED a unique Name (build flag e.g. '-DLED_NAME=\"My_LED\"')!"
 #endif
 
 #ifndef LED_COUNT
@@ -73,7 +79,7 @@
 #define DEFAULT_RUNNING 1
 #define DEFAULT_POWER 0 // starts being switched off
 #define DEFAULT_MODE 0
-#define DEFAULT_BRIGHTNESS 255        // 0 to 255
+#define DEFAULT_BRIGHTNESS 200        // 0 to 255
 #define DEFAULT_EFFECT 0              // 0 to modecount
 #define DEFAULT_PALETTE 0             // 0 is rainbow colors
 #define DEFAULT_SPEED 1000            // fair value
@@ -83,7 +89,7 @@
 #define DEFAULT_NUM_SEGS 1             // one segment only
 #define DEFAULT_MIRRORED 1             // mirrored - effect with more than one seg only...
 #define DEFAULT_INVERTED 0             // invert all the colors (makes it pretty bright) FIXME: reconsider this option
-#define DEFAULT_HUE_INT 0              // Hue does not change over time
+#define DEFAULT_HUE_INT 500              // Hue does change over time
 #define DEFAULT_HUE_OFFSET 0           // Hue default value. No offset
 #define DEFAULT_AUTOMODE AUTO_MODE_OFF // auto mode change off
 #define DEFAULT_T_AUTOMODE 60          // auto mode change every 60 seconds
@@ -103,6 +109,7 @@
 #define DEFAULT_COLOR_TEMP 19
 #define DEFAULT_GLITTER_CHANCE_MIN 0
 #define DEFAULT_GLITTER_CHANCE_MAX 10
+#define DEFAULT_GLITTER_CHANCE_NORMAL 1
 
 #define RND_PAL_MIN_SAT 224
 #define RND_PAL_MIN_BRIGHT 96

@@ -283,7 +283,7 @@ void WS2812FX::resetDefaults(void)
   setAddGlitter(false);
   setWhiteGlitter(true);
   setOnBlackOnly(false);
-  setChanceOfGlitter(DEFAULT_GLITTER_CHANCE_MAX);
+  setChanceOfGlitter(DEFAULT_GLITTER_CHANCE_NORMAL);
 
   FastLED.setBrightness(DEFAULT_BRIGHTNESS);
 

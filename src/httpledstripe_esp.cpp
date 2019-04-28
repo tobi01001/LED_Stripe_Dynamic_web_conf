@@ -52,6 +52,7 @@
 #include <WiFiManager.h>
 #include <ArduinoOTA.h>
 #include <EEPROM.h>
+#include <ESP8266mDNS.h>
 
 #define FASTLED_ESP8266_RAW_PIN_ORDER
 #define FASTLED_ESP8266_DMA
@@ -69,18 +70,11 @@ extern "C"
 // new approach starts here:
 #include "led_strip.h"
 
-
-#define BUILD_VERSION ("LED_Control_Web_SRV_0.9.5_")
-#ifndef BUILD_VERSION
-#error "We need a SW Version and Build Version!"
-#endif
-
 #ifdef DEBUG
-String build_version = BUILD_VERSION + String("DEBUG ") + String(__TIMESTAMP__);
+const String build_version = BUILD_VERSION + String("DEBUG ") + String(__TIMESTAMP__);
 #else
-String build_version = BUILD_VERSION + String(__TIMESTAMP__);
+const String build_version = BUILD_VERSION; // + String(__TIMESTAMP__);
 #endif
-
 
 /* Definitions for network usage */
 /* maybe move all wifi stuff to separate files.... */
@@ -1293,10 +1287,10 @@ void handleSet(void)
     if (setColor)
     {
       strip->setColor(color);
-      answer.set("RGB", color);
-      answer.set("RGB_Blue", Blue(color));
-      answer.set("RGB_Green", Green(color));
-      answer.set("RGB_Red", Red(color));
+      answer.set("rgb", color);
+      answer.set("rgb_blue", Blue(color));
+      answer.set("rgb_green", Green(color));
+      answer.set("rgb_red", Red(color));
       //sendStatus = true;
     }
   }
@@ -1813,10 +1807,10 @@ void handleStatus(void)
       break;
     }
   }
-  currentStateAnswer["RGB"] = (((col.r << 16) | (col.g << 8) | (col.b << 0)) & 0xffffff);
-  currentStateAnswer["RGB_Red"] = col.r;
-  currentStateAnswer["RGB_Green"] = col.g;
-  currentStateAnswer["RGB_Blue"] = col.b;
+  currentStateAnswer["rgb"] = (((col.r << 16) | (col.g << 8) | (col.b << 0)) & 0xffffff);
+  currentStateAnswer["rgb_red"] = col.r;
+  currentStateAnswer["rgb_green"] = col.g;
+  currentStateAnswer["rgb_blue"] = col.b;
   if (strip->getSegment()->blendType == NOBLEND)
   {
     currentStateAnswer["BlendType"] = "No Blend";
@@ -2279,6 +2273,13 @@ void setup()
 
   setupWebServer();
 
+  if (!MDNS.begin(LED_NAME)) {
+    DEBUGPRNT("Error setting up MDNS responder!");
+    //ESP.restart();
+  }
+  DEBUGPRNT("mDNS responder started");
+
+
   initOverTheAirUpdate();
 
   // if we got that far, we show by a nice little animation
@@ -2501,6 +2502,8 @@ EVERY_N_MILLIS(250)
   server.handleClient();
 
   strip->service();
+
+  MDNS.update();
 
   EVERY_N_MILLIS(50)
   {
