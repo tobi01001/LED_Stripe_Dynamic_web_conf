@@ -40,9 +40,10 @@
 #define FASTLED_ESP8266_DMA
 #define FASTLED_USE_PROGMEM 1
 
-#include "defaults.h"
-
-#include "debug_help.h"
+#pragma message "Needs to be corrected. A library should not depend on project inlcudes!"
+// FIXME: Needs to be corrected. A library should not depend on project inlcudes!
+#include "../../include/defaults.h"
+#include "../../include/debug_help.h"
 
 
 #ifndef LED_PIN

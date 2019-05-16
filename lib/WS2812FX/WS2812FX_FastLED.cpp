@@ -677,10 +677,37 @@ CRGBPalette16 WS2812FX::getRandomPalette(void)
 {
   const uint8_t min_distance = 32;
   static uint8_t hue[16];
-  hue[0] = get_random_wheel_index(hue[15], min_distance);
+  uint8_t old_hue;
+  old_hue = hue[0];
+  uint8_t delta = 0;
+  while(delta < min_distance)
+  {
+    hue[0] = get_random_wheel_index(hue[15], min_distance);
+    if(hue[0] < old_hue)
+    {
+      delta = old_hue - hue[0];
+    }
+    else
+    {
+      delta = hue[0] - old_hue;
+    }
+  }
   for (uint8_t i = 1; i < 16; i++)
   {
+    old_hue = hue[i];
+    delta = 0;
+    while(delta < min_distance)
+    {
       hue[i] = get_random_wheel_index(hue[i-1], min_distance);
+      if(hue[i] < old_hue)
+      {
+        delta = old_hue - hue[i];
+      }
+      else
+      {
+        delta = hue[i] - old_hue;
+      }
+    }
   }
   return CRGBPalette16(
       CHSV(hue[0],  random8(RND_PAL_MIN_SAT, 255), random8(RND_PAL_MIN_BRIGHT, 255)), CHSV(hue[1],  random8(RND_PAL_MIN_SAT, 255), random8(RND_PAL_MIN_BRIGHT, 255)),
