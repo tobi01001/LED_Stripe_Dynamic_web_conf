@@ -493,18 +493,7 @@ void WS2812FX::service()
     }
   }
 
-  nblend(_bleds, leds, LED_COUNT, l_blend);
-
-  if (_segment.reverse)
-  {
-    CRGB temp;
-    for (uint16_t i = 0; i <= _segment_runtime.length / 2; i++)
-    {
-      temp = leds[i];
-      leds[i] = leds[_segment_runtime.stop - i];
-      leds[_segment_runtime.stop - i] = temp;
-    }
-  }
+  
 
   #ifdef DEBUG_PERFORMANCE
   static uint32_t next_show = 0;
@@ -544,16 +533,24 @@ void WS2812FX::service()
       while((micros() - (next_show + FRAME_CALC_WAIT_MICROINTERVAL)) < FRAME_CALC_WAIT_MICROINTERVAL);
       //delayMicroseconds(now_micros - (next_show + FRAME_CALC_WAIT_MICROINTERVAL));
     }
+
+     nblend(_bleds, leds, LED_COUNT, l_blend); // Only blend when actually writing the LEDs... 
+
     next_show = now_micros; 
     // Write the data
     FastLED.show();
   }
-  else
+
+
+  if (_segment.reverse)
   {
-    // Test to see if it brekas things...
-    // usually we do not need to perform the rest of the service routine if nothing was updated....
-    // but it may stutter on the next written frame?
-    return;
+    CRGB temp;
+    for (uint16_t i = 0; i <= _segment_runtime.length / 2; i++)
+    {
+      temp = leds[i];
+      leds[i] = leds[_segment_runtime.stop - i];
+      leds[_segment_runtime.stop - i] = temp;
+    }
   }
   
   #endif
@@ -678,10 +675,12 @@ void WS2812FX::show()
  */
 CRGBPalette16 WS2812FX::getRandomPalette(void)
 {
+  const uint8_t min_distance = 32;
   static uint8_t hue[16];
-  for (uint8_t i = 0; i < 16; i++)
+  hue[0] = get_random_wheel_index(hue[15], min_distance);
+  for (uint8_t i = 1; i < 16; i++)
   {
-    hue[i] = get_random_wheel_index(hue[i], 32);
+      hue[i] = get_random_wheel_index(hue[i-1], min_distance);
   }
   return CRGBPalette16(
       CHSV(hue[0],  random8(RND_PAL_MIN_SAT, 255), random8(RND_PAL_MIN_BRIGHT, 255)), CHSV(hue[1],  random8(RND_PAL_MIN_SAT, 255), random8(RND_PAL_MIN_BRIGHT, 255)),
@@ -1003,7 +1002,7 @@ void WS2812FX::drawFractionalBar(int pos16, int width, const CRGBPalette16 &pal,
  */
 uint8_t WS2812FX::get_random_wheel_index(uint8_t pos, uint8_t dist = 42)
 {
-  dist = (dist & 0x55); // dist shouldn't be too high (not higher than 85 actually)
+  dist = dist < 85 ? dist : 85; // dist shouldn't be too high (not higher than 85 actually)
   return (pos + random8(dist, 255 - (2 * dist)));
 }
 
