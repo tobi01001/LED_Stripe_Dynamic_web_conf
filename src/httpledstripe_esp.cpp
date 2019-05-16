@@ -82,11 +82,15 @@ const String build_version = BUILD_VERSION; // + String(__TIMESTAMP__);
 ESP8266WebServer server(80);
 WebSocketsServer *webSocketsServer; // webSocketsServer = WebSocketsServer(81);
 
-String AP_SSID = LED_NAME + String(ESP.getChipId());
+const String AP_SSID = LED_NAME + String("-") + String(ESP.getChipId());
 
 IPAddress myIP;
 
 /* END Network Definitions */
+
+// helpers
+uint8_t wifi_err_counter = 0;
+uint16_t wifi_disconnect_counter = 0;
 
 //flag for saving data
 bool shouldSaveRuntime = false;
@@ -749,11 +753,20 @@ void setupWiFi(void)
 
   WiFi.hostname(LED_NAME);
 
+  WiFi.mode(WIFI_STA);
+
+  WiFi.setSleepMode(WIFI_NONE_SLEEP);
+
+  WiFi.persistent(true);
+
   WiFiManager wifiManager;
 
   // 4 Minutes should be sufficient.
   // Especially in case of WiFi loss...
   wifiManager.setConfigPortalTimeout(240);
+ 
+  // we reset after configuration to not have AP and STA in parallel...
+  wifiManager.setBreakAfterConfig(true);
 
 //tries to connect to last known settings
 //if it does not connect it starts an access point with the specified name
@@ -762,13 +775,20 @@ void setupWiFi(void)
   DEBUGPRNT("Going to autoconnect and/or Start AP");
   if (!wifiManager.autoConnect(AP_SSID.c_str()))
   {
-    DEBUGPRNT("failed to connect, we should reset as see if it connects");
+    DEBUGPRNT("Config saved (or timed out), we should reset as see if it connects");
     showInitColor(CRGB::Yellow);
     delay(3000);
     showInitColor(CRGB::Red);
     ESP.restart();
     delay(5000);
   }
+
+  if(WiFi.getMode() != WIFI_STA)
+  {
+    WiFi.mode(WIFI_STA);
+  }
+
+  WiFi.setAutoReconnect(true);
 //if we get here we have connected to the WiFi
   DEBUGPRNT("local ip: ");
   DEBUGPRNT(WiFi.localIP());
@@ -1753,7 +1773,11 @@ String message = "";
 
 void handleStatus(void)
 {
+  #ifdef DEBUG
   uint32_t answer_time = micros();
+  JsonObject& debugAnswer = answerObj.createNestedObject("ESP_Data");
+  #endif
+  
   JsonObject& answerObj = jsonBuffer.createObject();
   JsonObject& currentStateAnswer = answerObj.createNestedObject("currentState");
   JsonObject& sunriseAnswer = answerObj.createNestedObject("sunRiseState");
@@ -1780,6 +1804,11 @@ void handleStatus(void)
   {
     currentStateAnswer["state"] = "off";
   }
+  #ifdef DEBUG
+  
+  debugAnswer["AnswerTime_ms_01"] = (float)((float)(micros()-answer_time)/1000.0);
+  #endif
+
   currentStateAnswer["Buildversion"] = build_version;
   currentStateAnswer["Lampname"] = LED_NAME;
   currentStateAnswer["LED_Count"] = strip->getStripLength();
@@ -1813,6 +1842,11 @@ void handleStatus(void)
   currentStateAnswer["rgb_red"] = col.r;
   currentStateAnswer["rgb_green"] = col.g;
   currentStateAnswer["rgb_blue"] = col.b;
+
+  #ifdef DEBUG
+  debugAnswer["AnswerTime_ms_02"] = (float)((float)(micros()-answer_time)/1000.0);
+  #endif
+
   if (strip->getSegment()->blendType == NOBLEND)
   {
     currentStateAnswer["BlendType"] = "No Blend";
@@ -1868,6 +1902,10 @@ void handleStatus(void)
   }
   currentStateAnswer["AutoPaletteInterval"] = strip->getAutoplayDuration();
 
+  #ifdef DEBUG
+  debugAnswer["AnswerTime_ms_03"] = (float)((float)(micros()-answer_time)/1000.0);
+  #endif
+
   if (strip->getMode() == FX_MODE_SUNRISE)
   {
     sunriseAnswer["sunRiseMode"] = "Sunrise";
@@ -1904,50 +1942,52 @@ void handleStatus(void)
 
     sunriseAnswer["sunRiseTime"] = strip->getSunriseTime();
     
-
-  JsonObject& debugAnswer = answerObj.createNestedObject("ESP_Data");
-//  debugAnswer["DBG_Debug code"] = "On";
+  #ifdef DEBUG
+  debugAnswer["DBG_Debug code"] = "On";
   debugAnswer["Chip_CPU_FRQ"] = ESP.getCpuFreqMHz();
-//  debugAnswer["DBG_Flash Real Size"] = ESP.getFlashChipRealSize();
+  debugAnswer["DBG_Flash Real Size"] = ESP.getFlashChipRealSize();
   debugAnswer["Chip_Free_RAM"] = ESP.getFreeHeap();
-//  debugAnswer["DBG_Free Sketch Space"] = ESP.getFreeSketchSpace();
-//  debugAnswer["DBG_Sketch Size"] = ESP.getSketchSize();
-//  debugAnswer["DBG_Chip Voltage"] = ESP.getVcc();
+  debugAnswer["DBG_Free Sketch Space"] = ESP.getFreeSketchSpace();
+  debugAnswer["DBG_Sketch Size"] = ESP.getSketchSize();
+  #endif
+  
   switch (getResetReason())
   {
   case REASON_DEFAULT_RST:
     
-    debugAnswer["Chip_ResetReason"] = "Normal Boot";
+    statsAnswer["Chip_ResetReason"] = "Normal Boot";
     break;
   case REASON_WDT_RST:
-    debugAnswer["Chip_ResetReason"] = "WDT Reset";
+    statsAnswer["Chip_ResetReason"] = "WDT Reset";
     break;
   case REASON_EXCEPTION_RST:
-    debugAnswer["Chip_ResetReason"] = "Exception";
+    statsAnswer["Chip_ResetReason"] = "Exception";
     break;
   case REASON_SOFT_WDT_RST:
-    debugAnswer["Chip_ResetReason"] = "Soft WDT Reset";
+    statsAnswer["Chip_ResetReason"] = "Soft WDT Reset";
     break;
   case REASON_SOFT_RESTART:
-    debugAnswer["Chip_ResetReason"] = "Restart";
+    statsAnswer["Chip_ResetReason"] = "Restart";
     break;
   case REASON_DEEP_SLEEP_AWAKE:
-    debugAnswer["Chip_ResetReason"] = "Sleep Awake";
+    statsAnswer["Chip_ResetReason"] = "Sleep Awake";
     break;
   case REASON_EXT_SYS_RST:
-    debugAnswer["Chip_ResetReason"] = "External Trigger";
+    statsAnswer["Chip_ResetReason"] = "External Trigger";
     break;
 
   default:
-    debugAnswer["Chip_ResetReason"] = "Unknown Cause";
+    statsAnswer["Chip_ResetReason"] = "Unknown Cause";
     break;
   }
-  debugAnswer["Chip_ID"] = String(ESP.getChipId());
-  debugAnswer["LED_IP"] =  myIP.toString();
+  statsAnswer["Chip_ID"] = String(ESP.getChipId());
+  statsAnswer["WIFI_IP"] =  myIP.toString();
+  statsAnswer["WIFI_CONNECT_ERR_COUNT"] = wifi_disconnect_counter;
   
-
+  #ifdef DEBUG
   answer_time = micros() - answer_time;
-  statsAnswer["AnswerTime_ms"] = (float)((float)(answer_time)/1000.0);
+  debugAnswer["AnswerTime_ms"] = (float)((float)(answer_time)/1000.0);
+  #endif
   statsAnswer["FPS"] = FastLED.getFPS();
 
   String message;
@@ -1966,9 +2006,7 @@ void handleStatus(void)
 
 void factoryReset(void)
 {
-#ifdef DEBUG
   DEBUGPRNT("Someone requested Factory Reset");
-#endif
   // on factory reset, each led will be red
   // increasing from led 0 to max.
   for (uint16_t i = 0; i < strip->getStripLength(); i++)
@@ -1978,19 +2016,17 @@ void factoryReset(void)
     delay(2);
   }
   strip->show();
+  WiFiManager wifimgr;
   delay(INITDELAY);
-  /*#ifdef DEBUG
   DEBUGPRNT("Reset WiFi Settings");
-  #endif
-  wifiManager.resetSettings();
+  wifimgr.resetSettings();
+  wifimgr.erase();
   delay(INITDELAY);
-  */
   clearEEPROM();
+  WiFi.persistent(false);
+  
 //reset and try again
-#ifdef DEBUG
   DEBUGPRNT("Reset ESP and start all over...");
-#endif
-  delay(3000);
   ESP.restart();
 }
 
@@ -2006,9 +2042,7 @@ uint32 getResetReason(void)
 void clearCRC(void)
 {
 // invalidating the CRC - in case somthing goes terribly wrong...
-#ifdef DEBUG
   DEBUGPRNT("Clearing CRC in EEPRom");
-#endif
   EEPROM.begin(strip->getCRCsize());
   for (uint i = 0; i < EEPROM.length(); i++)
   {
@@ -2016,9 +2050,7 @@ void clearCRC(void)
   }
   EEPROM.commit();
   EEPROM.end();
-#ifdef DEBUG
   DEBUGPRNT("Reset ESP and start all over with default values...");
-#endif
   delay(1000);
   ESP.restart();
 }
@@ -2026,9 +2058,7 @@ void clearCRC(void)
 void clearEEPROM(void)
 {
 //Clearing EEPROM
-#ifdef DEBUG
   DEBUGPRNT("Clearing EEPROM");
-#endif
   EEPROM.begin(strip->getSegmentSize());
   for (uint i = 0; i < EEPROM.length(); i++)
   {
@@ -2102,6 +2132,11 @@ void setupWebServer(void)
   server.on("/edit", HTTP_GET, []() {
     if (!handleFileRead("/edit.htm"))
       server.send(404, "text/plain", "FileNotFound");
+  });
+
+  // keepAlive
+  server.on("/ping", HTTP_GET, []() {
+    server.send(200, "text/plain", "OK");
   });
 
   //create file
@@ -2280,7 +2315,13 @@ void setup()
     DEBUGPRNT("Error setting up MDNS responder!");
     //ESP.restart();
   }
-  DEBUGPRNT("mDNS responder started");
+  else
+  {
+    MDNS.addService("http", "tcp", 80);
+    DEBUGPRNT("mDNS responder started");
+  }
+  
+  
 
 
   initOverTheAirUpdate();
@@ -2367,7 +2408,7 @@ void loop()
 {
   uint32_t now = millis();
   static uint32_t wifi_check_time = now + WIFI_TIMEOUT;
-  static uint8_t wifi_err_counter = 0;
+
 
 #ifdef DEBUG
   static unsigned long last_status_msg = 0;
@@ -2477,14 +2518,9 @@ EVERY_N_MILLIS(250)
     //DEBUGPRNT("Checking WiFi... ");
     if (WiFi.status() != WL_CONNECTED)
     {
-#ifdef DEBUG
-        DEBUGPRNT("WiFi connection lost. Reconnecting...");
-        DEBUGPRNT("Lost Wifi Connection....");
-#endif
+      DEBUGPRNT("Lost Wifi Connection. Counter is " + String(wifi_err_counter));
       wifi_err_counter+=2;
-
-      // Show the WiFi loss with yellow LEDs.
-      // Whole strip lid finally.
+      wifi_disconnect_counter++;
     }
     else
     {
@@ -2494,7 +2530,22 @@ EVERY_N_MILLIS(250)
       }
     }
     
-    if(wifi_err_counter++ > 20)
+      if(WiFi.getMode() != WIFI_STA)
+      {
+        WiFi.mode(WIFI_STA);
+      }
+
+
+    if(wifi_err_counter > 20)
+    {
+      DEBUGPRNT("Trying to reconnect now...");
+      delay(2000);
+      WiFi.mode(WIFI_OFF);
+      delay(2000);
+      setupWiFi();
+    }
+
+    if(wifi_err_counter > 40)
     {
       for (uint16_t i = 0; i < NUM_INFORMATION_LEDS; i++)
       {
@@ -2503,13 +2554,11 @@ EVERY_N_MILLIS(250)
       strip->show();
       // Reset after 3 seconds....
       delay(3000);
-#ifdef DEBUG
-      DEBUGPRNT("Resetting ESP....");
-#endif
+      DEBUGPRNT("Reconnecting failed, resetting ESP....");
       ESP.restart();
     }
 
-    wifi_check_time = now + WIFI_TIMEOUT;
+    wifi_check_time = now + (WIFI_TIMEOUT / 10);
   }
 
   ArduinoOTA.handle(); // check and handle OTA updates of the code....
