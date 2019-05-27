@@ -7,10 +7,12 @@ extern uint32_t _frame_cnt;
 extern uint32_t _retry_cnt;
 #endif
 
+#ifndef FASTLED_INTERNAL
 #ifdef FASTLED_HAS_PRAGMA_MESSAGE
 #    pragma message "Using RGBW controller as per FASTLED_RGBW define"
 #else
 #    warning "Using RGBW controller as per FASTLED_RGBW define"
+#endif
 #endif
 
 // Info on reading cycle counter from https://github.com/kbeckmann/nodemcu-firmware/blob/ws2812-dual/app/modules/ws2812.c

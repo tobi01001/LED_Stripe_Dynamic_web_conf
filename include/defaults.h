@@ -9,7 +9,7 @@
 #endif
 
 //#error "check version first"
-#define BUILD_VERSION ("LED_Control_0.9.16")
+#define BUILD_VERSION ("LED_Control_0.9.17")
 #ifndef BUILD_VERSION
 #error "We need a SW Version and Build Version!"
 #endif
@@ -112,7 +112,8 @@
 #define DEFAULT_GLITTER_CHANCE_MAX 10
 #define DEFAULT_GLITTER_CHANCE_NORMAL 1
 
-#define RND_PAL_MIN_SAT 224
-#define RND_PAL_MIN_BRIGHT 96
+//#define RND_PAL_MIN_SAT 224
+#define RND_PAL_CHANGE_INT 200 
+#define RND_PAL_MIN_BRIGHT 128
 
 #endif

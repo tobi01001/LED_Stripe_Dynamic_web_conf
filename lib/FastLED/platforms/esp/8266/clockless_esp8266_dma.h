@@ -12,11 +12,12 @@ FASTLED_NAMESPACE_BEGIN
 extern uint32_t _frame_cnt;
 extern uint32_t _retry_cnt;
 #endif
-
-#ifdef FASTLED_HAS_PRAGMA_MESSAGE
-#    pragma message "Using DMA-based RGBW controller as per FASTLED_RGBW define"
-#else
-#    warning "Using DMA-Based RGBW controller as per FASTLED_RGBW define"
+#ifndef FASTLED_INTERNAL
+#   ifdef FASTLED_HAS_PRAGMA_MESSAGE
+#        pragma message "Using DMA-based RGBW controller as per FASTLED_RGBW define"
+#   else
+#        warning "Using DMA-Based RGBW controller as per FASTLED_RGBW define"
+#   endif
 #endif
 
 

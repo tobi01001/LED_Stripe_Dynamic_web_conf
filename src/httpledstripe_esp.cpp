@@ -42,7 +42,9 @@
 
 
  **************************************************************/
-
+#ifndef DEBUG
+# define FASTLED_INTERNAL
+#endif
 #include <FS.h>
 #include <Arduino.h>
 #include <ArduinoJson.h>

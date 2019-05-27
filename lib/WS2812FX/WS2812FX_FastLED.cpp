@@ -534,7 +534,7 @@ void WS2812FX::service()
       //delayMicroseconds(now_micros - (next_show + FRAME_CALC_WAIT_MICROINTERVAL));
     }
 
-     nblend(_bleds, leds, LED_COUNT, l_blend); // Only blend when actually writing the LEDs... 
+    nblend(_bleds, leds, LED_COUNT, l_blend); // Only blend when actually writing the LEDs... 
 
     next_show = now_micros; 
     // Write the data
@@ -577,26 +577,39 @@ void WS2812FX::service()
   }
 
   // Palette fading / blending
-  EVERY_N_MILLISECONDS(24)
-  { // Blend towards the target palette
-    uint8_t maxChanges = 8;
-    if (getTargetPaletteNumber() == RANDOM_PAL)
-    {
-      maxChanges = 48;
-    }
-    else
-    {
-      maxChanges = 8;
-    }
-
-    nblendPaletteTowardPalette(_currentPalette, _targetPalette, maxChanges);
-
-    if (_currentPalette == _targetPalette)
-    {
-      _currentPaletteName = _targetPaletteName;
-      if (getTargetPaletteNumber() == RANDOM_PAL)
+  if (getTargetPaletteNumber() == RANDOM_PAL)
+  {
+    EVERY_N_MILLISECONDS(RND_PAL_CHANGE_INT)
+    { // Blend towards the target palette
+      static uint8_t current_distance = 0;
+      if(current_distance >= 32)
       {
         setTargetPalette(RANDOM_PAL);
+        current_distance = 0;
+      }
+      current_distance++;
+      nblendPaletteTowardPalette(_currentPalette, _targetPalette, 255);
+    
+      if (_currentPalette == _targetPalette)
+      {
+        _currentPaletteName = _targetPaletteName;
+      }
+    }
+  }
+  else
+  {
+    EVERY_N_MILLISECONDS(24)
+    { // Blend towards the target palette
+
+      nblendPaletteTowardPalette(_currentPalette, _targetPalette, 8);
+    
+      if (_currentPalette == _targetPalette)
+      {
+        _currentPaletteName = _targetPaletteName;
+        if (getTargetPaletteNumber() == RANDOM_PAL)
+        {
+          setTargetPalette(RANDOM_PAL);
+        }
       }
     }
   }
@@ -709,6 +722,7 @@ CRGBPalette16 WS2812FX::getRandomPalette(void)
       }
     }
   }
+  /*
   return CRGBPalette16(
       CHSV(hue[0],  random8(RND_PAL_MIN_SAT, 255), random8(RND_PAL_MIN_BRIGHT, 255)), CHSV(hue[1],  random8(RND_PAL_MIN_SAT, 255), random8(RND_PAL_MIN_BRIGHT, 255)),
       CHSV(hue[2],  random8(RND_PAL_MIN_SAT, 255), random8(RND_PAL_MIN_BRIGHT, 255)), CHSV(hue[3],  random8(RND_PAL_MIN_SAT, 255), random8(RND_PAL_MIN_BRIGHT, 255)),
@@ -718,6 +732,16 @@ CRGBPalette16 WS2812FX::getRandomPalette(void)
       CHSV(hue[10], random8(RND_PAL_MIN_SAT, 255), random8(RND_PAL_MIN_BRIGHT, 255)), CHSV(hue[11], random8(RND_PAL_MIN_SAT, 255), random8(RND_PAL_MIN_BRIGHT, 255)),
       CHSV(hue[12], random8(RND_PAL_MIN_SAT, 255), random8(RND_PAL_MIN_BRIGHT, 255)), CHSV(hue[13], random8(RND_PAL_MIN_SAT, 255), random8(RND_PAL_MIN_BRIGHT, 255)),
       CHSV(hue[14], random8(RND_PAL_MIN_SAT, 255), random8(RND_PAL_MIN_BRIGHT, 255)), CHSV(hue[15], random8(RND_PAL_MIN_SAT, 255), random8(RND_PAL_MIN_BRIGHT, 255)));
+  */
+ return CRGBPalette16(
+      CHSV(hue[0],  255, random8(RND_PAL_MIN_BRIGHT, 255)), CHSV(hue[1],  255, random8(RND_PAL_MIN_BRIGHT, 255)),
+      CHSV(hue[2],  255, random8(RND_PAL_MIN_BRIGHT, 255)), CHSV(hue[3],  255, random8(RND_PAL_MIN_BRIGHT, 255)),
+      CHSV(hue[4],  255, random8(RND_PAL_MIN_BRIGHT, 255)), CHSV(hue[5],  255, random8(RND_PAL_MIN_BRIGHT, 255)),
+      CHSV(hue[6],  255, random8(RND_PAL_MIN_BRIGHT, 255)), CHSV(hue[7],  255, random8(RND_PAL_MIN_BRIGHT, 255)),
+      CHSV(hue[8],  255, random8(RND_PAL_MIN_BRIGHT, 255)), CHSV(hue[9],  255, random8(RND_PAL_MIN_BRIGHT, 255)),
+      CHSV(hue[10], 255, random8(RND_PAL_MIN_BRIGHT, 255)), CHSV(hue[11], 255, random8(RND_PAL_MIN_BRIGHT, 255)),
+      CHSV(hue[12], 255, random8(RND_PAL_MIN_BRIGHT, 255)), CHSV(hue[13], 255, random8(RND_PAL_MIN_BRIGHT, 255)),
+      CHSV(hue[14], 255, random8(RND_PAL_MIN_BRIGHT, 255)), CHSV(hue[15], 255, random8(RND_PAL_MIN_BRIGHT, 255)));
 }
 
 /*
