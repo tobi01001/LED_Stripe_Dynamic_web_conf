@@ -1641,7 +1641,7 @@ uint16_t WS2812FX::mode_static(void)
     _segment_runtime.modeinit = false;
 
   }
-  fill_palette(&leds[_segment_runtime.start], _segment_runtime.length, SEGMENT_RUNTIME.baseHue, (_segment_runtime.length > 255 ? 1 : (256 / _segment_runtime.length)), _currentPalette, _brightness, SEGMENT.blendType);
+  fill_palette(&leds[_segment_runtime.start], _segment_runtime.length, SEGMENT_RUNTIME.baseHue, (_segment_runtime.length > 255 ? 1 : (256 / _segment_runtime.length)), _currentPalette, 255, SEGMENT.blendType);
   return STRIP_MIN_DELAY;
 }
 
@@ -3446,4 +3446,62 @@ uint16_t WS2812FX::mode_sunset(void)
 {
   m_sunrise_sunset(false);
   return 0; // should look better if we call this more often.... STRIP_MIN_DELAY;
+}
+
+uint16_t WS2812FX::mode_ring_ring(void)
+{
+  const uint16_t onTime  = 50; //(BEAT88_MAX + 10) - _segment.beat88;
+  const uint16_t offTime = 100; //2*((BEAT88_MAX + 10) - _segment.beat88);
+  const uint16_t runTime = 1500;
+  const uint16_t pauseTime = 2000;
+  uint32_t now = millis();
+  if(_segment_runtime.modeinit)
+  {
+    _segment_runtime.modeinit = false;
+    _segment_runtime.modevars.ring_ring.isOn = true;
+    _segment_runtime.modevars.ring_ring.nextmillis = 0; 
+    _segment_runtime.modevars.ring_ring.pausemillis = 0;
+    _segment_runtime.modevars.ring_ring.isPause = 0;
+  }
+  if(_segment_runtime.modevars.ring_ring.isPause)
+  {
+    fadeToBlackBy(leds, _segment_runtime.length, 32);
+    //fill_solid(leds, _segment_runtime.length, CRGB::Black);
+    if(now > (_segment_runtime.modevars.ring_ring.pausemillis + pauseTime))
+    {
+      _segment_runtime.modevars.ring_ring.pausemillis = now;
+      _segment_runtime.modevars.ring_ring.isPause = false;
+    }
+  }
+  else
+  {
+    if(_segment_runtime.modevars.ring_ring.isOn)
+    {
+      fill_palette(leds, _segment_runtime.length, SEGMENT_RUNTIME.baseHue, (_segment_runtime.length > 255 ? 1 : (256 / _segment_runtime.length)), _currentPalette, 255, SEGMENT.blendType);
+      if(now > (_segment_runtime.modevars.ring_ring.nextmillis + onTime))
+      {
+        _segment_runtime.modevars.ring_ring.nextmillis = now;
+        _segment_runtime.modevars.ring_ring.isOn = false;
+      }
+    }
+    else
+    {
+      fill_solid(leds, _segment_runtime.length, CRGB::Black);
+      if(now > (_segment_runtime.modevars.ring_ring.nextmillis + offTime))
+      {
+        _segment_runtime.modevars.ring_ring.nextmillis = now;
+        _segment_runtime.modevars.ring_ring.isOn = true;
+      }
+    }
+    if(now > (_segment_runtime.modevars.ring_ring.pausemillis + runTime))
+    {
+      _segment_runtime.modevars.ring_ring.pausemillis = now;
+      _segment_runtime.modevars.ring_ring.isPause = true;
+    }
+  }
+
+  
+  
+  
+  return STRIP_MIN_DELAY;
 }
