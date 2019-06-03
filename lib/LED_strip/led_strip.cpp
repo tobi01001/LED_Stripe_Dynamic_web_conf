@@ -435,7 +435,7 @@ FieldList fields = {
     {"current",           "Current limit",                          NumberFieldType,    (uint16_t)100,                          (uint16_t)DEFAULT_CURRENT_MAX,                    getMilliamps                  },
     // 111 max equals the minimum update time required for 300 pixels
     // this is the minimal delay being used anyway, so no use in being faster
-    {"fps",               "Frames per second (FPS)",                NumberFieldType,    (uint16_t)5,                            (uint16_t)STRIP_FPS,                              getFPSValue                   },                                                                           
+    {"fps",               "Frames per second (FPS)",                NumberFieldType,    (uint16_t)STRIP_MIN_FPS,                (uint16_t)(STRIP_MAX_FPS),                        getFPSValue                   },                                                                           
     {"dithering",         "Dithering",                              BooleanFieldType,   (uint16_t)0,                            (uint16_t)1,                                      getDithering                  },
     {"resetdefaults",     "Reset default values",                   BooleanFieldType,   (uint16_t)0,                            (uint16_t)1,                                      getResetDefaults              },
 #ifdef DEBUG

@@ -2297,7 +2297,7 @@ void setup()
 
 
   stripe_setup(LED_COUNT,
-               STRIP_FPS,
+               STRIP_MAX_FPS,
                STRIP_VOLTAGE,
                STRIP_MILLIAMPS,
                RainbowColors_p,

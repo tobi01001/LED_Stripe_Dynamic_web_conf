@@ -269,7 +269,7 @@ void WS2812FX::resetDefaults(void)
   setTwinkleDensity(DEFAULT_TWINKLE_NUM);
   setNumBars(DEFAULT_LED_BARS);
   setMode(DEFAULT_MODE);
-  setMaxFPS(STRIP_FPS);
+  setMaxFPS(STRIP_MAX_FPS);
   setDeltaHue(DEFAULT_HUE_OFFSET );
   setBlur(DEFAULT_BLENDING );
   setDamping(DEFAULT_DAMPING);

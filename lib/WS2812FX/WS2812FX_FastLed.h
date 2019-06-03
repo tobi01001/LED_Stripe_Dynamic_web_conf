@@ -646,7 +646,7 @@ public:
   inline void setTwinkleDensity       (uint8_t density) { _segment.twinkleDensity = constrain(density, 0, 8); }
   inline void setNumBars              (uint8_t numBars) { _segment.numBars = constrain(numBars, 1, max((LED_COUNT / _segment.segments) / MAX_NUM_BARS_FACTOR, 1)); setTransition(); }
   // setMode --> treated separately...
-  inline void setMaxFPS               (uint8_t fps)     { _segment.fps = constrain(fps, 10, STRIP_FPS); /*FastLED.setMaxRefreshRate(fps);*/ }
+  inline void setMaxFPS               (uint8_t fps)     { _segment.fps = constrain(fps, 10, STRIP_MAX_FPS); /*FastLED.setMaxRefreshRate(fps);*/ }
   inline void setDeltaHue             (uint8_t dh)      { _segment.deltaHue = dh; }
   inline void setBlur                 (uint8_t b)       { _segment.blur = b; _pblur = b; }
   inline void setDamping              (uint8_t d)       { _segment.damping = constrain(d, 0, 100); }

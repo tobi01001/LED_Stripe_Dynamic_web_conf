@@ -9,7 +9,7 @@
 #endif
 
 //#error "check version first"
-#define BUILD_VERSION ("LED_Control_0.9.19")
+#define BUILD_VERSION ("LED_Control_0.9.20")
 #ifndef BUILD_VERSION
 #error "We need a SW Version and Build Version!"
 #endif
@@ -70,7 +70,8 @@
 #define LED_PIN 3 // Needs to be 3 (raw value) for ESP8266 because of DMA
 #define DEFAULT_CURRENT_MAX 4000
 #define DEFAULT_CURRENT 2800
-#define STRIP_FPS  (1000*1000)/(30 * LED_COUNT + 50)        // Depends on LED count...
+#define STRIP_MIN_FPS  (10)
+#define STRIP_MAX_FPS  (LED_COUNT < 276 ? 120 : ((1000*1000)/(30 * LED_COUNT + 50)))        // Depends on LED count...
 #define STRIP_VOLTAGE 5            // fixed to 5 volts
 #define STRIP_MILLIAMPS ((LED_COUNT * 60) < DEFAULT_CURRENT ? LED_COUNT * 60 : DEFAULT_CURRENT) // can be changed during runtime
 #define NUM_INFORMATION_LEDS (10<LED_COUNT?10:LED_COUNT)
