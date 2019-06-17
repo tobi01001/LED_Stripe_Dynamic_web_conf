@@ -13,5 +13,6 @@
         "list": "cpp",
         "unordered_map": "cpp",
         "vector": "cpp"
-    }
+    },
+    "python.pythonPath": "C:\\Users\\toby\\.platformio\\penv\\Scripts\\python.exe"
 }

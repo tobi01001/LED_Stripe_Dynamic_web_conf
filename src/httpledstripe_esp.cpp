@@ -77,6 +77,7 @@ const String build_version = BUILD_VERSION + String("DEBUG ") + String(__TIMESTA
 #else
 const String build_version = BUILD_VERSION; // + String(__TIMESTAMP__);
 #endif
+const String git_revision  = BUILD_GITREV;
 
 /* Definitions for network usage */
 /* maybe move all wifi stuff to separate files.... */
@@ -1812,6 +1813,7 @@ void handleStatus(void)
   #endif
 
   currentStateAnswer["Buildversion"] = build_version;
+  currentStateAnswer["Git_Revision"] = git_revision;
   currentStateAnswer["Lampname"] = LED_NAME;
   currentStateAnswer["LED_Count"] = strip->getStripLength();
   currentStateAnswer["Lamp_max_current"] = strip->getMilliamps();

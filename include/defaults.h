@@ -9,11 +9,11 @@
 #endif
 
 //#error "check version first"
-#define BUILD_VERSION ("LED_Control_0.9.20")
+#define BUILD_VERSION ("LED_Control_0.9.21")
 #ifndef BUILD_VERSION
 #error "We need a SW Version and Build Version!"
 #endif
-
+#define BUILD_GITREV PIO_SRC_REV
 
 /* use build flags to define these */
 #ifndef LED_NAME
