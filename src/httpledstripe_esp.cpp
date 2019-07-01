@@ -799,6 +799,8 @@ void setupWiFi(void)
   showInitColor(CRGB::Green);
   delay(INITDELAY);
   showInitColor(CRGB::Black);
+  wifi_disconnect_counter = 0;
+  wifi_err_counter = 0;
 }
 
 // helper function to change an 8bit value by the given percentage
