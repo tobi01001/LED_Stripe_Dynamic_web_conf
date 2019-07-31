@@ -2026,7 +2026,7 @@ void factoryReset(void)
   delay(INITDELAY);
   DEBUGPRNT("Reset WiFi Settings");
   wifimgr.resetSettings();
-  wifimgr.erase();
+  // wifimgr.erase(); // seems to be removed from WiFiManager
   delay(INITDELAY);
   clearEEPROM();
   WiFi.persistent(false);
