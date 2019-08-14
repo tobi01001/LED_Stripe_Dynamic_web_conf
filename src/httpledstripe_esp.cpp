@@ -157,6 +157,9 @@ void sendInt(String name, uint16_t value)
   #endif
   jsonBuffer.clear();
   DEBUGPRNT("Send HTML respone 200, application/json with value: " + ret);
+  server.sendHeader("Access-Control-Allow-Methods", "*");
+  server.sendHeader("Access-Control-Allow-Headers", "*");
+  server.sendHeader("Access-Control-Allow-Origin", "*");
   server.send(200, "application/json", ret);
 }
 
@@ -188,7 +191,9 @@ void sendString(String name, String value)
   jsonBuffer.clear();
 
   DEBUGPRNT("Send HTML respone 200, application/json with value: " + ret);
-
+  server.sendHeader("Access-Control-Allow-Methods", "*");
+  server.sendHeader("Access-Control-Allow-Headers", "*");
+  server.sendHeader("Access-Control-Allow-Origin", "*");
   server.send(200, "application/json", ret);
 }
 
@@ -197,6 +202,9 @@ void sendString(String name, String value)
 void sendAnswer(String jsonAnswer)
 {
   String answer = "{ \"returnState\": { " + jsonAnswer + "} }";
+  server.sendHeader("Access-Control-Allow-Methods", "*");
+  server.sendHeader("Access-Control-Allow-Headers", "*");
+  server.sendHeader("Access-Control-Allow-Origin", "*");
   server.send(200, "application/json", answer);
 }
 
@@ -1700,6 +1708,9 @@ void handleSet(void)
   String json = "";
   json.reserve(answerObj.measureLength());
   answerObj.printTo(json);
+  server.sendHeader("Access-Control-Allow-Methods", "*");
+  server.sendHeader("Access-Control-Allow-Headers", "*");
+  server.sendHeader("Access-Control-Allow-Origin", "*");
   server.send(200, "application/json", json);
   jsonBuffer.clear();
 }
@@ -1746,6 +1757,9 @@ void handleGetModes(void)
   root.printTo(message);
 #endif
   DEBUGPRNT(message);
+  server.sendHeader("Access-Control-Allow-Methods", "*");
+  server.sendHeader("Access-Control-Allow-Headers", "*");
+  server.sendHeader("Access-Control-Allow-Origin", "*");
   server.send(200, "application/json", message);
 }
 
@@ -1773,6 +1787,9 @@ String message = "";
   root.printTo(message);
 #endif
   DEBUGPRNT(message);
+  server.sendHeader("Access-Control-Allow-Methods", "*");
+  server.sendHeader("Access-Control-Allow-Headers", "*");
+  server.sendHeader("Access-Control-Allow-Origin", "*");
   server.send(200, "application/json", message);
 }
 
@@ -2006,6 +2023,9 @@ void handleStatus(void)
   answerObj.printTo(message);
 #endif
   DEBUGPRNT(message);
+  server.sendHeader("Access-Control-Allow-Methods", "*");
+  server.sendHeader("Access-Control-Allow-Headers", "*");
+  server.sendHeader("Access-Control-Allow-Origin", "*");
   server.send(200, "application/json", message);
   jsonBuffer.clear();
 }
@@ -2118,6 +2138,9 @@ void setupWebServer(void)
     DEBUGPRNT("Called /all!");
 #endif
     String json = getFieldsJson(fields, fieldCount);
+    server.sendHeader("Access-Control-Allow-Methods", "*");
+    server.sendHeader("Access-Control-Allow-Headers", "*");
+    server.sendHeader("Access-Control-Allow-Origin", "*");
     server.send(200, "text/json", json);
   });
 
@@ -2129,7 +2152,10 @@ void setupWebServer(void)
 #endif
 
     String value = getFieldValue(name, fields, fieldCount);
-    server.send(200, "text/json", value);
+    server.sendHeader("Access-Control-Allow-Methods", "*");
+    server.sendHeader("Access-Control-Allow-Headers", "*");
+    server.sendHeader("Access-Control-Allow-Origin", "*");
+    server.send(200, "text/plain", value);
   });
 
   //list directory
@@ -2162,6 +2188,15 @@ void setupWebServer(void)
   server.on("/status", handleStatus);
   server.on("/reset", handleResetRequest);
   server.onNotFound(handleNotFound);
+
+  server.on("/", HTTP_OPTIONS, []() {
+    server.sendHeader("Access-Control-Max-Age", "10000");
+    server.sendHeader("Access-Control-Allow-Methods", "*");
+    server.sendHeader("Access-Control-Allow-Headers", "*");
+    server.sendHeader("Access-Control-Allow-Origin", "*");
+    server.send(200, "text/plain", "" );
+  });
+
 
   server.serveStatic("/", SPIFFS, "/", "max-age=86400");
   delay(INITDELAY);
