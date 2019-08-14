@@ -8,6 +8,9 @@ var urlBase = "";
 
 var postColorTimer = {};
 var postValueTimer = {};
+var classSection = "default"; // for foldable sections
+
+var DEBUGME = false; //for console loggin. 
 
 var ignoreColorChange = false;
 
@@ -15,19 +18,28 @@ var ws = new ReconnectingWebSocket('ws://' + address + ':81/', ['arduino']);
 ws.debug = true;
 
 ws.onmessage = function(evt) {
+  
+  
   if(evt.data != null)
   {
-    var data = JSON.parse(evt.data);
-    if(data == null) return;
+    // added exception handling fro wrong json strings
+    var data = null;
+	  try {
+      data = JSON.parse(evt.data);
+	    if(DEBUGME) console.log("Data in the non null event: " + data);
+    } catch (e) {
+		  console.log("Error " + e + " while decoding " + evt.data);
+      return;
+    }
     updateFieldValue(data.name, data.value);
   }
 }
 
 $(document).ready(function() {
-  $("#status").html("Verbinde, bitte warten...");
+  $("#status").html("Connecting, please wait...");
 
   $.get(urlBase + "all", function(data) {
-      $("#status").html("Lade, bitte warten...");
+      $("#status").html("Loading, please wait...");
 
       $.each(data, function(index, field) {
         if (field.type == "Number") {
@@ -41,7 +53,7 @@ $(document).ready(function() {
         } else if (field.type == "Select") {
           addSelectField(field);
         } else if (field.type == "Color") {
-          addColorFieldPalette(field);
+          // addColorFieldPalette(field); // removed this to save space on the page. no need currently
           addColorFieldPicker(field);
         } else if (field.type == "Section") {
           addSectionField(field);
@@ -51,9 +63,10 @@ $(document).ready(function() {
       $(".minicolors").minicolors({
         theme: "bootstrap",
         changeDelay: 200,
-        control: "wheel",
+        control: "brightness",  // changed to sqare one with brightness to the side
         format: "rgb",
-        inline: true
+        inline: true,
+        swatches: ["FF0000", "FF8000", "FFFF00", "00FF00", "00FFFF", "0000FF", "FF00FF", "FFFFFF"] // some colors from the previous list
       });
 
       $("#status").html("Ready");
@@ -68,6 +81,7 @@ function addNumberField(field) {
 
   template.attr("id", "form-group-" + field.name);
   template.attr("data-field-type", field.type);
+  template.addClass(classSection); // foldable sections
 
   var label = template.find(".control-label");
   label.attr("for", "input-" + field.name);
@@ -117,6 +131,7 @@ function addBooleanField(field) {
 
   template.attr("id", "form-group-" + field.name);
   template.attr("data-field-type", field.type);
+  template.addClass(classSection); // foldable sections
 
   var label = template.find(".control-label");
   label.attr("for", "btn-group-" + field.name);
@@ -149,6 +164,7 @@ function addSelectField(field) {
 
   template.attr("id", "form-group-" + field.name);
   template.attr("data-field-type", field.type);
+  template.addClass(classSection); // foldable sections
 
   var id = "input-" + field.name;
 
@@ -205,6 +221,7 @@ function addColorFieldPicker(field) {
 
   template.attr("id", "form-group-" + field.name);
   template.attr("data-field-type", field.type);
+  template.addClass(classSection); // foldable sections
 
   var id = "input-" + field.name;
 
@@ -335,6 +352,8 @@ function addColorFieldPicker(field) {
 function addColorFieldPalette(field) {
   var template = $("#colorPaletteTemplate").clone();
 
+  template.addClass(classSection); // foldable sections
+
   var buttons = template.find(".btn-color");
 
   var label = template.find(".control-label");
@@ -366,13 +385,15 @@ function addColorFieldPalette(field) {
 
 function addSectionField(field) {
   var template = $("#sectionTemplate").clone();
-
+  classSection = field.name;
   template.attr("id", "form-group-section-" + field.name);
   template.attr("data-field-type", field.type);
   
-  var label = template.find(".control-label");
+  var label = template.find(".my-control-label");
   label.attr("for", "input-" + field.name);
+  label.attr("data-target", "."+classSection);
   label.text(field.label);
+  
 
   $("#form").append(template);
 }

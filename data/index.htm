@@ -8,9 +8,13 @@
   <title>LED Steuerung</title>
 
   <!-- request CSS from internet CDN -->
-  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://bootswatch.com/3/slate/bootstrap.min.css"> <!-- dark template! -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery-minicolors/2.2.4/jquery.minicolors.min.css" integrity="sha256-4wnSkPYU5B4yngAlx/rEb8LdfMah4teUth4AfhGEuaY=" crossorigin="anonymous" />
 
+  <!-- request CSS from internet CDN 
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery-minicolors/2.2.4/jquery.minicolors.min.css" integrity="sha256-4wnSkPYU5B4yngAlx/rEb8LdfMah4teUth4AfhGEuaY=" crossorigin="anonymous" />
+  -->
   <!-- request CSS from the ESP8266 web server
   <link rel="stylesheet" href="css/bootstrap.min.css">
   <link rel="stylesheet" href="css/minicolors.min.css">
@@ -26,15 +30,12 @@
     <div class="container">
       <div class="navbar-header">
         <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar-collapse-1" aria-expanded="false">
-          <span class="sr-only">Menue-Umschaltung</span>
-          <span class="icon-bar"></span>
-          <span class="icon-bar"></span>
-          <span class="icon-bar"></span>
+          <span class="sr-only">Menu toggle</span>
         </button>
       </div>
       <div class="collapse navbar-collapse" id="navbar-collapse-1">
         <ul class="nav navbar-nav">
-          <li class="active"><a href="/">LED Steuerung <span class="sr-only">(current)</span></a></li>
+          <li class="active"><a href="/">LED control <span class="sr-only">(current)</span></a></li>
         </ul>
       </div>
     </div>
@@ -50,15 +51,13 @@
   <div id="templates" style="display: none">
 
     <div id="sectionTemplate" class="form-group">
-	<label class="col-sm-4 control-label text-center"></label>
-      
-	  <div class="col-sm-8">
-        <hr style="margin-bottom: 5px;margin-top: 5px;" />
+      <div class="col-sm-4">
+          <button type="button" class="my-control-label btn btn-info btn-block text-left" data-toggle="collapse"></button>
       </div>
-	  
+      <div class="col-sm-8"></div>
     </div>
 
-    <div id="numberTemplate" class="form-group">
+    <div id="numberTemplate" class="form-group collapse in">
       <label class="col-sm-2 control-label"></label>
       <div class="col-sm-2">
         <input class="form-control input" type="number" step="1" min="0" max="65535" />
@@ -68,17 +67,17 @@
       </div>
     </div>
 
-    <div id="booleanTemplate" class="form-group">
+    <div id="booleanTemplate" class="form-group collapse in">
       <label class="col-sm-2 control-label"></label>
       <div class="col-sm-10">
         <div class="btn-group" role="group">
-          <button type="button" class="btn btn-default" id="btnOn">An</button>
-          <button type="button" class="btn btn-default" id="btnOff">Aus</button>
+          <button type="button" class="btn btn-default" id="btnOn">On</button>
+          <button type="button" class="btn btn-default" id="btnOff">Off</button>
         </div>
       </div>
     </div>
 
-    <div id="selectTemplate" class="form-group">
+    <div id="selectTemplate" class="form-group collapse in">
       <label class="col-sm-2 control-label"></label>
       <div class="col-sm-8">
         <select class="form-control"><select>
@@ -86,50 +85,50 @@
       <div class="col-sm-2">
         <div class="btn-group" role="group" aria-label="...">
           <button type="button" class="btn btn-default btn-previous"
-                  aria-label="Vorherige" title="Vorherige">
+                  aria-label="Previous" title="Previous">
             <span class="glyphicon glyphicon-chevron-left"></span>
           </button>
           <button type="button" class="btn btn-default btn-next"
-                  aria-label="N�chste" title="N�chste">
+                  aria-label="Next" title="Next">
             <span class="glyphicon glyphicon-chevron-right"></span>
           </button>
         </div>
       </div>
     </div>
 
-    <div id="colorPaletteTemplate" class="form-group">
+    <div id="colorPaletteTemplate" class="form-group collapse in">
       <label class="col-sm-2 control-label color-label"></label>
       <div class="col-sm-10">
         <div class="btn-group btn-group-justified" role="group">
           <div class="btn-group" role="group">
-            <button type="button" class="btn btn-default btn-color" style="background: #FF0000;" title="rot">&nbsp;</button>
+            <button type="button" class="btn btn-default btn-color" style="background: #FF0000;" title="Red">&nbsp;</button>
           </div>
           <div class="btn-group" role="group">
             <button type="button" class="btn btn-default btn-color" style="background: #FF8000;" title="Orange">&nbsp;</button>
           </div>
           <div class="btn-group" role="group">
-            <button type="button" class="btn btn-default btn-color" style="background: #FFFF00;" title="Gelb">&nbsp;</button>
+            <button type="button" class="btn btn-default btn-color" style="background: #FFFF00;" title="Yellow">&nbsp;</button>
           </div>
           <div class="btn-group" role="group">
             <button type="button" class="btn btn-default btn-color" style="background: #80FF00;" title="Chartreuse">&nbsp;</button>
           </div>
           <div class="btn-group" role="group">
-            <button type="button" class="btn btn-default btn-color" style="background: #00FF00;" title="Gr�n">&nbsp;</button>
+            <button type="button" class="btn btn-default btn-color" style="background: #00FF00;" title="Green">&nbsp;</button>
           </div>
           <div class="btn-group" role="group">
-            <button type="button" class="btn btn-default btn-color" style="background: #00FF80;" title="Fr�hlingsgr�n">&nbsp;</button>
+            <button type="button" class="btn btn-default btn-color" style="background: #00FF80;" title="Spring Green">&nbsp;</button>
           </div>
           <div class="btn-group" role="group">
             <button type="button" class="btn btn-default btn-color" style="background: #00FFFF;" title="Cyan">&nbsp;</button>
           </div>
           <div class="btn-group" role="group">
-            <button type="button" class="btn btn-default btn-color" style="background: #0080FF;" title="Himmelblau">&nbsp;</button>
+            <button type="button" class="btn btn-default btn-color" style="background: #0080FF;" title="Skyblue">&nbsp;</button>
           </div>
           <div class="btn-group" role="group">
-            <button type="button" class="btn btn-default btn-color" style="background: #0000FF;" title="Blau">&nbsp;</button>
+            <button type="button" class="btn btn-default btn-color" style="background: #0000FF;" title="Blue">&nbsp;</button>
           </div>
           <div class="btn-group" role="group">
-            <button type="button" class="btn btn-default btn-color" style="background: #8000FF;" title="Violett">&nbsp;</button>
+            <button type="button" class="btn btn-default btn-color" style="background: #8000FF;" title="Purple">&nbsp;</button>
           </div>
           <div class="btn-group" role="group">
             <button type="button" class="btn btn-default btn-color" style="background: #FF00FF;" title="Magenta">&nbsp;</button>
@@ -138,13 +137,13 @@
             <button type="button" class="btn btn-default btn-color" style="background: #FF0080;" title="Rose">&nbsp;</button>
           </div>
           <div class="btn-group" role="group">
-            <button type="button" class="btn btn-default btn-color" style="background: #FFFFFF;" title="Wei�">&nbsp;</button>
+            <button type="button" class="btn btn-default btn-color" style="background: #FFFFFF;" title="White">&nbsp;</button>
           </div>
         </div>
       </div>
     </div>
 
-    <div id="colorTemplate">
+    <div id="colorTemplate" class="collapse in">
       <div class="form-group">
         <!-- <label class="col-sm-2 control-label color-label"></label> -->
         <div class="col-sm-12 col-sm-offset-2">
@@ -152,7 +151,7 @@
         </div>
       </div>
       <div class="form-group">
-        <label class="col-sm-2 control-label">Rot</label>
+        <label class="col-sm-2 control-label">Red</label>
         <div class="col-sm-2">
           <input class="form-control color-red-input" type="number" step="1" min="0" max="255" />
         </div>
@@ -161,7 +160,7 @@
         </div>
       </div>
       <div class="form-group">
-        <label class="col-sm-2 control-label">Gruen</label>
+        <label class="col-sm-2 control-label">Green</label>
         <div class="col-sm-2">
           <input class="form-control color-green-input" type="number" step="1" min="0" max="255" />
         </div>
@@ -170,7 +169,7 @@
         </div>
       </div>
       <div class="form-group">
-        <label class="col-sm-2 control-label">Blau</label>
+        <label class="col-sm-2 control-label">Blue</label>
         <div class="col-sm-2">
           <input class="form-control color-blue-input" type="number" step="1" min="0" max="255" />
         </div>
@@ -219,7 +218,7 @@
   <script src="js/r-websocket.min.js"></script>
   -->
 
-  <script src="application.js?v=1"></script>
+  <script src="application.js?v=1.1"></script>
 
 </body>
 
