@@ -387,6 +387,11 @@ void WS2812FX::service()
       // reset trigger...
       _triggered = false;
     }
+    else
+    {
+      return;
+    }
+    
   }
   else
   {
@@ -557,7 +562,7 @@ void WS2812FX::service()
 
   EVERY_N_MILLISECONDS(STRIP_MIN_DELAY) //(10)
   {
-    fadeToBlackBy(_bleds, LED_COUNT, 1);
+    if(_segment.isRunning) fadeToBlackBy(_bleds, LED_COUNT, 1);
     //fadeToBlackBy(leds,   LED_COUNT, 1);
   }
 

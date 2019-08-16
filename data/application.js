@@ -432,19 +432,18 @@ function setBooleanFieldValue(field, btnOn, btnOff, value) {
 }
 
 function postValue(name, value) {
-  $("#status").html("Setze " + name + ": " + value + ", bitte warten...");
+  $("#status").html("Set " + name + ": " + value + ", please wait...");
 
   var body = { name: name, value: value };
 
   $.post(urlBase + "/set?" + name + "=" + value, body, function(data) {
     if (data.name != null) {
-      $("#status").html("Set /set?" + name + ": " + data.name);
+      $("#status").html("Set /set?" + name + ": " + value);
     } else {
-      $("#status").html("Set /set?" + name + ": " + data);
+      $("#status").html("Set /set?" + name + ": " + value);
     }
   });
-
-  $("#status").html("Fertig...");
+  $("#status").html("Done...");
 
 }
 
@@ -456,14 +455,14 @@ function delayPostValue(name, value) {
 }
 
 function postColor(name, value) {
-  $("#status").html("Setze " + name + ": " + value.r + "," + value.g + "," + value.b + ", bitte warten...");
+  $("#status").html("Set " + name + ": " + value.r + "," + value.g + "," + value.b + ", please wait...");
 
   var body = { name: name, r: value.r, g: value.g, b: value.b };
 
   $.post(urlBase + "/set?" + name + "=" + name + "&r=" + value.r + "&g=" + value.g + "&b=" + value.b, body, function(data) {
-    $("#status").html("Set /set?" + name + ": " + data);
+    $("#status").html("Set /set?" + name + "=" + name + "&r=" + value.r + "&g=" + value.g + "&b=" + value.b);
   })
-  .fail(function(textStatus, errorThrown) { $("#status").html("Fehler: " + textStatus + " " + errorThrown); });
+  .fail(function(textStatus, errorThrown) { $("#status").html("Error: " + textStatus + " " + errorThrown); });
 }
 
 function delayPostColor(name, value) {
