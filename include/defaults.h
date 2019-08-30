@@ -9,7 +9,7 @@
 #endif
 
 //#error "check version first"
-#define BUILD_VERSION ("LED_Control_0.9.26")
+#define BUILD_VERSION ("LED_Control_0.9.27")
 #ifndef BUILD_VERSION
 #error "We need a SW Version and Build Version!"
 #endif
@@ -53,7 +53,7 @@
 #define DEFAULT_SUNRISE_STEPS   1024
 
 #define EEPROM_SAVE_INTERVAL_MS 5000
-#define WIFI_TIMEOUT            10000
+#define WIFI_TIMEOUT            5000 // changed for issue #13 
 #define MAX_NUM_SEGMENTS        (LED_COUNT / 25)
 #define MAX_NUM_BARS_FACTOR     15                    // Segment divided by this defines the maximum number of "bars"
 #define MAX_NUM_BARS            (LED_COUNT / MAX_NUM_BARS_FACTOR)

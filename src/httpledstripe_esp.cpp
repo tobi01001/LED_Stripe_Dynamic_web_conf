@@ -807,8 +807,6 @@ void setupWiFi(void)
   showInitColor(CRGB::Green);
   delay(INITDELAY);
   showInitColor(CRGB::Black);
-  wifi_disconnect_counter = 0;
-  wifi_err_counter = 0;
 }
 
 // helper function to change an 8bit value by the given percentage
@@ -2448,7 +2446,7 @@ void setup()
 void loop()
 {
   uint32_t now = millis();
-  static uint32_t wifi_check_time = now + WIFI_TIMEOUT;
+  static uint32_t wifi_check_time = 0;
 
 
 #ifdef DEBUG
@@ -2487,71 +2485,6 @@ void loop()
   }
 #endif
 
-
-/* Test sending LED_Data over WebSocket */
-/*
-EVERY_N_MILLIS(strip->getDamping()*5)
-{
-  
-  const uint16_t nleds = LED_COUNT;
-  
-  JsonObject& Leds = jsonBuffer.createObject();
-  Leds["name"] = "Strip_Data";
-  JsonArray &messages = Leds.createNestedArray("values");
-  for (uint16_t i = 0; i < nleds; i++) {
-      JsonObject& msg = messages.createNestedObject();
-      msg["Red"]    = strip->leds[i].r;
-      msg["Green"]  = strip->leds[i].g;
-      msg["Blue"]   = strip->leds[i].b;
-  }
-  String myJson;
-  myJson.reserve(Leds.measureLength());
-  Leds.printTo(myJson);
-  
-  webSocketsServer->broadcastTXT(myJson);
-  jsonBuffer.clear();
-}
-*/
-
-/*
-EVERY_N_MILLISECONDS(250)
-{
-  JsonObject& toSend = jsonBuffer.createObject();
-  toSend["name"] = F("currFPS");
-  toSend["value"] = String(FastLED.getFPS());
-  String myJSON;
-  toSend.printTo(myJSON);
-  webSocketsServer->broadcastTXT(myJSON);
-  jsonBuffer.clear();
-}
-*/
-#ifdef DEBUG_PERFORMANCE
-EVERY_N_MILLIS(250)
-{
-  JsonObject& toSend = jsonBuffer.createObject();
-  toSend["name"] = F("infoBox");
-  toSend["value"] = "\nCurrFPS: " + String(FastLED.getFPS()) +
-                    "\n maxFPS: " + String(strip->getMaxFPS()) +
-                    "\nStripMi: " + String(max((1000 / (strip->getMaxFPS())), ((30 * 300) / 1000))) + 
-                    "\nServInt: " + String(strip->service_interval) +
-                    "\nServMax: " + String(strip->service_interval_max) +   
-                    "\nServMin: " + String(strip->service_interval_min) +
-                    "\nServAvg: " + String(strip->service_interval_cnt>0?strip->service_interval_sum / strip->service_interval_cnt:0) +
-                    "\nShowInt: " + String(strip->show_interval) +
-                    "\nShowMax: " + String(strip->show_interval_max) +
-                    "\nShowMin: " + String(strip->show_interval_min) +
-                    "\nShowAvg: " + String(strip->show_interval_cnt>0?strip->show_interval_sum / strip->show_interval_cnt:0) +
-                    "\nDeltaSS: " + String(strip->service_interval - strip->show_interval) +
-                    "\nDuraInt: " + String(strip->service_duration) +
-                    "\nDuraMax: " + String(strip->service_duration_max) +
-                    "\nDuraMin: " + String(strip->service_duration_min) +
-                    "\nDuraAVG: " + String(strip->service_duration_cnt>0?strip->service_duration_sum / strip->service_duration_cnt:0);
-  String myJSON;
-  toSend.printTo(myJSON);
-  webSocketsServer->broadcastTXT(myJSON);
-  jsonBuffer.clear();
-}
-#endif
   // Checking WiFi state every WIFI_TIMEOUT
   // Reset on disconnection
   if (now > wifi_check_time)
@@ -2599,7 +2532,7 @@ EVERY_N_MILLIS(250)
       ESP.restart();
     }
 
-    wifi_check_time = now + (WIFI_TIMEOUT / 10);
+    wifi_check_time = now + (WIFI_TIMEOUT);
   }
 
   ArduinoOTA.handle(); // check and handle OTA updates of the code....
