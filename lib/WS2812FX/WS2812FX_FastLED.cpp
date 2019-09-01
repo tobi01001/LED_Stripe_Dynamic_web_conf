@@ -374,11 +374,12 @@ void WS2812FX::service()
       bool stillOn = false;
       for(uint16_t i = 0; i < LED_COUNT; i++)
       {
-        if(_bleds[i]) stillOn = true;
+        if(_bleds[i] || leds[i]) stillOn = true;
       }
       if(stillOn)
       {
         fadeToBlackBy(_bleds, LED_COUNT, 4);
+        fadeToBlackBy(  leds, LED_COUNT, 4);
         FastLED.show();
       }
     }
