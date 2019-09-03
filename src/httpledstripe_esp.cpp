@@ -2004,6 +2004,8 @@ void handleStatus(void)
   statsAnswer["Chip_ID"] = String(ESP.getChipId());
   statsAnswer["WIFI_IP"] =  myIP.toString();
   statsAnswer["WIFI_CONNECT_ERR_COUNT"] = wifi_disconnect_counter;
+  statsAnswer["WIFI_SIGNAL"] = String(WiFi.RSSI());  // for #14
+  statsAnswer["WIFI_CHAN"] = String(WiFi.channel());  // for #14
   
   #ifdef DEBUG
   answer_time = micros() - answer_time;
