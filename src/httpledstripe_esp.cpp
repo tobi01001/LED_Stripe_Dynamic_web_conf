@@ -2494,21 +2494,13 @@ void loop()
     {
       DEBUGPRNT("Lost Wifi Connection. Counter is " + String(wifi_err_counter));
       wifi_err_counter+=2;
-      wifi_disconnect_counter++;
+      wifi_disconnect_counter+=4;
     }
     else
     {
-      if(wifi_err_counter > 0)
-      {
-        wifi_err_counter--;
-      }
+      if(wifi_err_counter > 0) wifi_err_counter--;
+      if(wifi_disconnect_counter > 0) wifi_disconnect_counter--;
     }
-    
-      if(WiFi.getMode() != WIFI_STA)
-      {
-        WiFi.mode(WIFI_STA);
-      }
-
 
     if(wifi_err_counter > 20)
     {
