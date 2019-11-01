@@ -56,6 +56,21 @@
 #include <EEPROM.h>
 #include <ESP8266mDNS.h>
 
+#ifdef HAS_KNOB_CONTROL
+  #include "RotaryEncoderAdvanced.h"
+  #include "RotaryEncoderAdvanced.cpp"
+  #include "Arduino.h"
+  #include "SSD1306Brzo.h"
+  #define KNOB_C_SDA 4
+  #define KNOB_C_SCL 5
+  #define KNOB_C_BTN 2
+  #define KNOB_C_PNA 12
+  #define KNOB_C_PNB 13
+  #define KNOB_C_I2C 0x3c
+  #define KNOB_BTN_DEBOUNCE 200
+  bool WiFiConnected = true;
+#endif
+
 #define FASTLED_ESP8266_RAW_PIN_ORDER
 #define FASTLED_ESP8266_DMA
 #define FASTLED_USE_PROGMEM 1
@@ -71,6 +86,30 @@ extern "C"
 
 // new approach starts here:
 #include "led_strip.h"
+
+#ifdef HAS_KNOB_CONTROL
+volatile bool knob_operated = false; // trigger for the display / knob
+
+RotaryEncoderAdvanced<int32_t> encoder(KNOB_C_PNA, KNOB_C_PNB, KNOB_C_BTN, 1, 0, 65535);  
+
+
+//SSD1306Brzo display(KNOB_C_I2C, KNOB_C_SDA, KNOB_C_SCL);
+SSD1306Brzo display(0x3c, 4, 5);
+
+
+void ICACHE_RAM_ATTR encoderISR() //interrupt service routines need to be in ram
+{
+  encoder.readAB();
+  knob_operated = true;
+}
+
+void ICACHE_RAM_ATTR encoderButtonISR()
+{
+  encoder.readPushButton();
+  knob_operated = true;
+}
+#endif
+
 
 #ifdef DEBUG
 const String build_version = BUILD_VERSION + String("DEBUG ") + String(__TIMESTAMP__);
@@ -614,6 +653,103 @@ bool OTAisRunning = false;
 
 void initOverTheAirUpdate(void)
 {
+  #ifdef HAS_KNOB_CONTROL
+  DEBUGPRNT("Initializing OTA capabilities....");
+  /* init OTA */
+  // Port defaults to 8266
+  ArduinoOTA.setPort(8266);
+
+  ArduinoOTA.setRebootOnSuccess(true);
+
+  // TODO: Implement Hostname in config and WIFI Settings?
+
+  // Hostname defaults to esp8266-[ChipID]
+  ArduinoOTA.setHostname(LED_NAME);
+
+  // No authentication by default
+  // ArduinoOTA.setPassword((const char *)"123");
+
+  ArduinoOTA.onStart([]() {
+    DEBUGPRNT("OTA start");
+    display.clear();
+    display.drawString(0, 0, "Starte OTA...");
+    display.displayOn();
+    display.display();
+    // we need to delete the websocket server in order to have OTA correctly running.
+    delete webSocketsServer;
+    // we stop the webserver to not get interrupted....
+    server.stop();
+    // we indicate our sktch that OTA is currently running (should actually not be required)
+    OTAisRunning = true;
+  });
+
+  // what to do if OTA is finished...
+  ArduinoOTA.onEnd([]() {
+    DEBUGPRNT("OTA end");
+    // OTA finished.
+    display.drawString(0, 53, "OTA beendet!");
+    display.displayOn();
+    display.display();
+    // indicate that OTA is no longer running.
+    OTAisRunning = false;
+    // no need to reset ESP as this is done by the OTA handler by default
+  });
+  // show the progress on the strips as well to be informed if anything gets stuck...
+  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+    DEBUGPRNT("Progress: " + String((progress / (total / 100))));
+
+    unsigned int prog = (progress / (total / 100));
+    display.clear();
+    display.drawString(0, 0, "Starte OTA...");
+    display.drawStringMaxWidth(0, 12, 128, "Prog: " + String(progress) + " / " + String(total));
+    display.drawProgressBar(1,33, 126, 7, prog);
+    display.displayOn();
+    display.display();
+
+    
+  });
+
+  // something went wrong, we gonna show an error "message" via LEDs.
+  ArduinoOTA.onError([](ota_error_t error) {
+    String err = "OTA Fehler: ";
+
+    DEBUGPRNT("Error[%u]: " + String(error));
+    if (error == OTA_AUTH_ERROR) {
+      DEBUGPRNT("Auth Failed");
+      err = err + "Auth Failed";
+    }
+    else if (error == OTA_BEGIN_ERROR) {
+      DEBUGPRNT("Begin Failed");
+      err = err + "Begin Failed";
+    }
+    else if (error == OTA_CONNECT_ERROR) {
+      DEBUGPRNT("Connect Failed");
+      err = err + ("Connect Failed");
+    }
+    else if (error == OTA_RECEIVE_ERROR) {
+      DEBUGPRNT("Receive Failed");
+      err = err + ("Receive Failed");
+    }
+    else if (error == OTA_END_ERROR) {
+      DEBUGPRNT("End Failed");
+      err = err + ("End Failed");
+    }
+
+    display.clear();
+    display.drawStringMaxWidth(0, 0,  128, "Update fehlgeschlagen!");
+    display.drawStringMaxWidth(0, 22, 128, err);
+    display.drawStringMaxWidth(0, 43, 128, "Reset in 10 Sek");
+    delay(10000);
+    ESP.restart();
+  });
+  // start the service
+  ArduinoOTA.begin();
+  DEBUGPRNT("OTA capabilities initialized....");
+  showInitColor(CRGB::Green);
+  delay(INITDELAY);
+  showInitColor(CRGB::Black);
+  delay(INITDELAY);
+  #else // HAS_KNOB_CONTROL
   DEBUGPRNT("Initializing OTA capabilities....");
   showInitColor(CRGB::Blue);
   delay(INITDELAY);
@@ -741,6 +877,7 @@ void initOverTheAirUpdate(void)
   delay(INITDELAY);
   showInitColor(CRGB::Black);
   delay(INITDELAY);
+  #endif // HAS_KNOB_CONTROL
 }
 
 // for DEBUG purpose without Serial connection...
@@ -772,6 +909,7 @@ void setupWiFi(void)
 
   WiFiManager wifiManager;
 
+#ifndef HAS_KNOB_CONTROL
   // 4 Minutes should be sufficient.
   // Especially in case of WiFi loss...
   wifiManager.setConfigPortalTimeout(240);
@@ -781,7 +919,6 @@ void setupWiFi(void)
 
 //tries to connect to last known settings
 //if it does not connect it starts an access point with the specified name
-//here  "AutoConnectAP" with password "password"
 //and goes into a blocking loop awaiting configuration
   DEBUGPRNT("Going to autoconnect and/or Start AP");
   if (!wifiManager.autoConnect(AP_SSID.c_str()))
@@ -803,6 +940,44 @@ void setupWiFi(void)
 //if we get here we have connected to the WiFi
   DEBUGPRNT("local ip: ");
   DEBUGPRNT(WiFi.localIP());
+
+
+#else // We have a control knob / button
+
+  // If we are in button control mode
+  // we only need WiFi for "convenience"
+  if(WiFiConnected)
+    wifiManager.setConfigPortalTimeout(120);
+  else
+    wifiManager.setConfigPortalTimeout(10);
+ 
+  // we reset after configuration to not have AP and STA in parallel...
+  wifiManager.setBreakAfterConfig(true);
+
+//tries to connect to last known settings
+//if it does not connect it starts an access point with the specified name
+//and goes into a blocking loop awaiting configuration
+  DEBUGPRNT("Going to autoconnect and/or Start AP");
+  if (!wifiManager.autoConnect(AP_SSID.c_str()))
+  {
+    DEBUGPRNT("Config saved (or timed out), we should reset as see if it connects");
+    WiFiConnected = false;
+  }
+  else
+  {
+    WiFiConnected = true;
+    if(WiFi.getMode() != WIFI_STA)
+    {
+      WiFi.mode(WIFI_STA);
+    }
+
+    WiFi.setAutoReconnect(true);
+  //if we get here we have connected to the WiFi
+    DEBUGPRNT("local ip: ");
+    DEBUGPRNT(WiFi.localIP());
+  }
+
+#endif
 
   showInitColor(CRGB::Green);
   delay(INITDELAY);
@@ -2285,55 +2460,108 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
   }
 }
 
+#ifdef HAS_KNOB_CONTROL
+void setupKnobControl(void)
+{ 
+  encoder.begin();
+  encoder.setLooping(false);
+  encoder.setMaxValue(max(LED_COUNT*2,2*255));
+
+  attachInterrupt(digitalPinToInterrupt(KNOB_C_PNA),  encoderISR,       CHANGE);  //call encoderISR()    every high->low or low->high changes
+  attachInterrupt(digitalPinToInterrupt(KNOB_C_PNB),  encoderISR,       CHANGE);  //call encoderISR()    every high->low or low->high changes
+  attachInterrupt(digitalPinToInterrupt(KNOB_C_BTN), encoderButtonISR, FALLING); //call pushButtonISR() every high->low              changes
+
+  DEBUGPRNT("setup display...");
+  display.init();
+
+  display.flipScreenVertically();
+  display.setFont(ArialMT_Plain_10);
+
+
+  DEBUGPRNT("setup done...");
+
+  display.setTextAlignment(TEXT_ALIGN_LEFT);
+  display.setFont(ArialMT_Plain_10);
+  display.drawStringMaxWidth     (0,  0, 128, "Booting... Bitte Warten");
+  display.display();
+
+  knob_operated = true;
+}
+#endif
+
+
+
 // setup network and output pins
 void setup()
 {
   // Sanity delay to get everything settled....
   delay(500);
 
+  #ifdef HAS_KNOB_CONTROL
+
+  setupKnobControl();
+
+  #ifdef DEBUG
   // Open serial communications and wait for port to open:
   Serial.begin(115200);
+  #endif
 
   DEBUGPRNT("\n");
   DEBUGPRNT(F("Booting"));
 
   DEBUGPRNT("");
   DEBUGPRNT(F("Checking boot cause:"));
-
+  
   switch (getResetReason())
   {
   case REASON_DEFAULT_RST:
     DEBUGPRNT(F("\tREASON_DEFAULT_RST: Normal boot"));
+    display.drawStringMaxWidth(0,10,128, F("REASON_DEFAULT_RST: Normal boot"));
+    display.display();
     break;
   case REASON_WDT_RST:
     DEBUGPRNT(F("\tREASON_WDT_RST"));
+    display.drawStringMaxWidth(0,10,128, F("REASON_WDT_RST"));
+    display.display();
     clearCRC(); // should enable default start in case of
     break;
   case REASON_EXCEPTION_RST:
     DEBUGPRNT(F("\tREASON_EXCEPTION_RST"));
+    display.drawStringMaxWidth(0,10,128, F("REASON_EXCEPTION_RST"));
+    display.display();
     clearCRC();
     break;
   case REASON_SOFT_WDT_RST:
     DEBUGPRNT(F("\tREASON_SOFT_WDT_RST"));
+    display.drawStringMaxWidth(0,10,128, F("REASON_SOFT_WDT_RST"));
+    display.display();
     clearCRC();
     break;
   case REASON_SOFT_RESTART:
     DEBUGPRNT(F("\tREASON_SOFT_RESTART"));
+    display.drawStringMaxWidth(0,10,128, F("REASON_SOFT_RESTART"));
+    display.display();
     break;
   case REASON_DEEP_SLEEP_AWAKE:
     DEBUGPRNT(F("\tREASON_DEEP_SLEEP_AWAKE"));
+    display.drawStringMaxWidth(0,10,128, F("REASON_DEEP_SLEEP_AWAKE"));
+    display.display();
     break;
   case REASON_EXT_SYS_RST:
     DEBUGPRNT(F("\n\tREASON_EXT_SYS_RST: External trigger..."));
+    display.drawStringMaxWidth(0,10,128, F("REASON_EXT_SYS_RST: External trigger..."));
+    display.display();
     break;
 
   default:
     DEBUGPRNT(F("\tUnknown cause..."));
+    display.drawStringMaxWidth(0,10,128, F("Unknown cause..."));
+    display.display();
     break;
   }
-
+  display.drawString(0,20, "LED Stripe init");
+  display.display();
   
-
 
   stripe_setup(LED_COUNT,
                STRIP_MAX_FPS,
@@ -2344,10 +2572,127 @@ void setup()
                UncorrectedColor); //TypicalLEDStrip);
 
   // internal LED can be light up when current is limited by FastLED
+  #ifdef HAS_KNOB_CONTROL
+
+  #else
   pinMode(2, OUTPUT);
+  #endif
 
   EEPROM.begin(strip->getSegmentSize());
+  display.drawStringMaxWidth     (0,   0, 128, "Booting... Bitte Warten");
+  display.drawStringMaxWidth     (0,  30, 128, "WiFi-Setup");
+  display.display();
+  setupWiFi();
+  display.drawStringMaxWidth     (0,  40, 128, "WebServer Setup");
+  display.display();
+  setupWebServer();
 
+  if (!MDNS.begin(LED_NAME)) {
+    DEBUGPRNT("Error setting up MDNS responder!");
+    //ESP.restart();
+  }
+  else
+  {
+    MDNS.addService("http", "tcp", 80);
+    DEBUGPRNT("mDNS responder started");
+  }
+  display.drawStringMaxWidth     (0,  50, 128, "OTA Setup");
+  display.display();
+  initOverTheAirUpdate();
+
+
+
+  
+  myIP = WiFi.localIP();
+  DEBUGPRNT("Going to show IP Address " + myIP.toString());
+
+  readRuntimeDataEEPROM();
+  delay(4000);
+  display.clear();
+  display.drawStringMaxWidth     (0,   0, 128, "Boot von " + String(LED_NAME) + " fertig!");
+  display.drawStringMaxWidth     (0,  30, 128, "Name: " + String(LED_NAME));
+  display.drawStringMaxWidth     (0,  41, 128, "IP: " + myIP.toString());
+  display.drawStringMaxWidth     (0,  52, 128, "LEDs: " + String(LED_COUNT));
+  display.display();
+  delay(4000);
+
+#else // HAS_KNOB_CONTROL
+  #ifdef DEBUG
+  // Open serial communications and wait for port to open:
+  Serial.begin(115200);
+  #endif
+
+  DEBUGPRNT("\n");
+  DEBUGPRNT(F("Booting"));
+
+  DEBUGPRNT("");
+  DEBUGPRNT(F("Checking boot cause:"));
+  
+  switch (getResetReason())
+  {
+  case REASON_DEFAULT_RST:
+    DEBUGPRNT(F("\tREASON_DEFAULT_RST: Normal boot"));
+    
+    break;
+  case REASON_WDT_RST:
+    DEBUGPRNT(F("\tREASON_WDT_RST"));
+    
+    clearCRC(); // should enable default start in case of
+    break;
+  case REASON_EXCEPTION_RST:
+    DEBUGPRNT(F("\tREASON_EXCEPTION_RST"));
+    
+    clearCRC();
+    break;
+  case REASON_SOFT_WDT_RST:
+    DEBUGPRNT(F("\tREASON_SOFT_WDT_RST"));
+    
+    clearCRC();
+    break;
+  case REASON_SOFT_RESTART:
+    DEBUGPRNT(F("\tREASON_SOFT_RESTART"));
+    
+    break;
+  case REASON_DEEP_SLEEP_AWAKE:
+    DEBUGPRNT(F("\tREASON_DEEP_SLEEP_AWAKE"));
+    
+    break;
+  case REASON_EXT_SYS_RST:
+    DEBUGPRNT(F("\n\tREASON_EXT_SYS_RST: External trigger..."));
+    display.drawStringMaxWidth(0,12,128, F("REASON_EXT_SYS_RST: External trigger..."));
+    display.display();
+    break;
+
+  default:
+    DEBUGPRNT(F("\tUnknown cause..."));
+    display.drawStringMaxWidth(0,12,128, F("Unknown cause..."));
+    display.display();
+    break;
+  }
+  delay(1000);
+  display.drawStringMaxWidth(0,32,128, "LED Stripe init");
+  display.display();
+  
+
+  stripe_setup(LED_COUNT,
+               STRIP_MAX_FPS,
+               STRIP_VOLTAGE,
+               STRIP_MILLIAMPS,
+               RainbowColors_p,
+               F("Rainbow Colors"),
+               UncorrectedColor); //TypicalLEDStrip);
+
+  // internal LED can be light up when current is limited by FastLED
+  #ifdef HAS_KNOB_CONTROL
+
+  #else
+  pinMode(2, OUTPUT);
+  #endif
+
+  EEPROM.begin(strip->getSegmentSize());
+  delay(1000);
+  display.clear();
+  display.drawStringMaxWidth     (0,  0, 120, "Booting... Bitte Warten");
   setupWiFi();
 
   setupWebServer();
@@ -2366,6 +2711,8 @@ void setup()
 
 
   initOverTheAirUpdate();
+
+
 
   // if we got that far, we show by a nice little animation
   // as setup finished signal....
@@ -2442,7 +2789,212 @@ void setup()
   FastLED.countFPS();
 #endif
   //setEffect(FX_NO_FX);
+#endif // HAS_KNOB_CONTROL
+
 }
+
+#ifdef HAS_KNOB_CONTROL
+void knob_service(uint32_t now)
+{
+  static uint8_t curr_field = 1;
+  static uint32_t last_btn_press = 0;
+  if(knob_operated)
+  {
+    knob_operated = false;
+  }
+  if (encoder.getPushButton() == true && now > last_btn_press + KNOB_BTN_DEBOUNCE)
+  {
+    last_btn_press = now;
+    knob_operated = false;
+    
+    curr_field++;
+    while(fields[curr_field].type == "Section" || fields[curr_field].type == "Title" || fields[curr_field].type == "Color")
+    {
+      curr_field++;
+      if(curr_field >= fieldCount)
+      {
+        curr_field = 0;
+        break;
+      }
+    }
+    if(curr_field >= fieldCount) curr_field = 0;
+
+    if(fields[curr_field].getValue != NULL && fields[curr_field].type != "Section" && fields[curr_field].type != "Title" && fields[curr_field].type != "Color")
+    {
+      encoder.setMaxValue(fields[curr_field].max*2);
+      encoder.setMinValue(fields[curr_field].min*2);
+      uint16_t steps = max(1, (fields[curr_field].max - fields[curr_field].min)/128);
+      encoder.setStepsPerClick(steps);
+      uint16_t c_val = (uint16_t)strtoul(fields[curr_field].getValue().c_str(), NULL, 10);
+      encoder.setValue(c_val*2);
+    }
+  }
+  static uint16_t old_val = 0;
+  EVERY_N_MILLISECONDS(20)
+  {
+    uint16_t val = encoder.getValue()/2;
+    display.clear();
+    //display.drawString(0,  0, LED_NAME);
+    display.drawString(0,  0, "IP: " + myIP.toString());
+    display.drawString(0, 10, "Ef: " + (String)strip->getModeName(strip->getMode()));
+    display.drawString(0, 20, "Pa: " + strip->getTargetPaletteName());
+    if(fields[curr_field].getValue != NULL && fields[curr_field].type != "Section" && fields[curr_field].type != "Title")
+    {
+      display.drawStringMaxWidth(0, 30, 128, fields[curr_field].label + ": ");
+      display.setTextAlignment(TEXT_ALIGN_RIGHT);
+      display.drawString(128, 40, fields[curr_field].getValue());
+      display.setTextAlignment(TEXT_ALIGN_LEFT);
+    }
+    else
+    {
+      display.drawStringMaxWidth (0, 42, 128, fields[curr_field].label);
+    }
+    display.display();
+    if(old_val != val)
+    {
+      old_val = val;
+      switch  (curr_field)
+      {
+        case  0 : // "title" :      
+        break;       
+        case  1 : // "powerSection" :      
+        break;
+        case  2 : // "power" :
+        strip->setPower(val);
+        break;
+        case  3 : // "isRunning" :         
+        strip->setIsRunning(val);
+        break;
+        case  4 : // "basicControl" :      
+        break;
+        case  5 : // "br" :                
+        strip->setBrightness(val);
+        break;
+        case  6 : // "mo" :       
+        strip->setMode(val);         
+        break;
+        case  7 : // "pa" :                
+        strip->setTargetPalette(val);
+        break;
+        case  8 : // "sp" :          
+        strip->setBeat88(val);      
+        break;
+        case  9 : // "blendType" :         
+        strip->setBlendType((TBlendType)val);
+        break;
+        case 10 : // "ColorTemperature" :  
+        strip->setColorTemperature(val);
+
+        break;
+        case 11 : // "LEDblur" :       
+        strip->setBlur(val);    
+        break;
+        case 12 : // "reverse" :           
+        strip->setReverse(val);
+        break;
+        case 13 : // "segments" :          
+        strip->setSegments(val);
+        break;
+        case 14 : // "mirror" : 
+        strip->setMirror(val);           
+        break;
+        case 15 : // "inverse" :           
+        strip->setInverse(val);
+        break;
+        case 16 : // "glitter" :           
+        
+        break;
+        case 17 : // "addGlitter" :        
+        strip->setAddGlitter(val);
+        
+        break;
+        case 18 : // "WhiteOnly" : 
+        strip->setWhiteGlitter(val);        
+        break;
+        case 19 : // "onBlackOnly" :       
+        strip->setOnBlackOnly(val);
+        break;
+        case 20 : // "glitterChance" :     
+        strip->setChanceOfGlitter(val);
+        break;
+        case 21 : // "hue" :           
+            
+        break;
+        case 22 : // "huetime" :           
+        strip->setHuetime(val);
+        break;
+        case 23 : // "deltahue" :          
+        strip->setDeltaHue(val);
+        break;
+        case 24 : // "autoplay" :          
+        break;
+        case 25 : // "autoplay" :          
+        strip->setAutoplay((AUTOPLAYMODES)val);
+        break;
+        case 26 : // "autoplayDuration" :  
+        strip->setAutoplayDuration(val);
+        break;
+        case 27 : // "autopal" :           
+        break;
+        case 28 : // "autopal" :        
+        strip->setAutopal((AUTOPLAYMODES)val);   
+        break;
+        case 29 : // "autopalDuration" :   
+        strip->setAutopalDuration(val);
+        break;
+        case 30 : // "solidColor" :        
+        break;
+        case 31 : // "solidColor" :        
+        break;
+        case 32 : // "fire" :              
+        break;
+        case 33 : // "cooling" :       
+        strip->setCooling(val);    
+        break;
+        case 34 : // "sparking" :          
+        strip->setSparking(val);
+        break;
+        case 35 : // "twinkles" :          
+        break;
+        case 36 : // "twinkleSpeed" :      
+        strip->setTwinkleSpeed(val);
+        break;
+        case 37 : // "twinkleDensity" :    
+        strip->setTwinkleDensity(val);
+        break;
+        case 38 : // "ledBars" :           
+        break;
+        case 39 : // "numBars" :      
+        strip->setNumBars(val);     
+        break;
+        case 40 : // "damping" :           
+        strip->setDamping(val);
+        break;
+        // time provided in M
+        case 41 : // "sunriseset" :        
+        strip->setSunriseTime(val);
+        break;
+        case 42 : // "current" :   
+        strip->setMilliamps(val);        
+        break;
+        // 111 max equals the
+        // this is the minima
+        case  43 : // "fps" :    
+        strip->setMaxFPS(val);           
+        break;
+        case  44 : // "dithering" :         
+        strip->setDithering(val);
+        break;
+        case  45 : // "resetdefaults" :     
+
+        break;
+      }
+    }
+  }
+}
+#endif
+
+
 
 // request receive loop
 void loop()
@@ -2487,6 +3039,7 @@ void loop()
   }
 #endif
 
+  #ifndef HAS_KNOB_CONTROL
   // Checking WiFi state every WIFI_TIMEOUT
   // Reset on disconnection
   if (now > wifi_check_time)
@@ -2549,4 +3102,62 @@ void loop()
     saveEEPROMData();
     shouldSaveRuntime = false;
   }
+  #else
+
+
+    // Checking WiFi state every WIFI_TIMEOUT
+    // since we have Knob-Control. We do not care about "No Connection"
+  if (now > wifi_check_time)
+  {
+    //DEBUGPRNT("Checking WiFi... ");
+    if (WiFi.status() != WL_CONNECTED)
+    {
+      DEBUGPRNT("Lost Wifi Connection. Counter is " + String(wifi_err_counter));
+      wifi_err_counter+=2;
+      wifi_disconnect_counter+=4;
+      WiFiConnected = false;
+    }
+    else
+    {
+      if(wifi_err_counter > 0) wifi_err_counter--;
+      if(wifi_disconnect_counter > 0) wifi_disconnect_counter--;
+      WiFiConnected = true;
+    }
+
+    if(wifi_err_counter > 20)
+    {
+      DEBUGPRNT("Trying to reconnect now...");
+      WiFi.mode(WIFI_OFF);
+      setupWiFi();
+    }
+    wifi_check_time = now + (WIFI_TIMEOUT);
+  }
+
+  if(WiFiConnected)
+  {
+    ArduinoOTA.handle(); // check and handle OTA updates of the code....
+
+    webSocketsServer->loop();
+
+    server.handleClient();
+
+    MDNS.update();
+  }
+  
+  strip->service();
+
+  EVERY_N_MILLIS(50)
+  {
+    checkSegmentChanges();
+  }
+
+  EVERY_N_MILLIS(EEPROM_SAVE_INTERVAL_MS)
+  {
+    saveEEPROMData();
+    shouldSaveRuntime = false;
+  }
+
+  knob_service(now);
+
+  #endif
 }
