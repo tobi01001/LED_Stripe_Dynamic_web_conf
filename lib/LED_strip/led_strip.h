@@ -101,7 +101,7 @@ uint8_t Blue(uint32_t color);
 */
 
 
-typedef String (*FieldSetter)(String);
+typedef void (*FieldSetter)(uint16_t);
 typedef String (*FieldGetter)();
 
 
@@ -118,7 +118,6 @@ struct Field {
 };
 
 typedef Field FieldList[];
-
 
 // /End Field.h
 

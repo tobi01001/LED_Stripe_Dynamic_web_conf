@@ -657,6 +657,7 @@ public:
   inline void setCurrentPaletteNumber (uint8_t p)       { setCurrentPalette(p); }
   inline void setColorTemp            (uint8_t c)       { setColorTemperature(c); }
 
+
  
 
   inline void setTransition           (void)            { _transition = true; _segment_runtime.modeinit = true; _blend = 0; }

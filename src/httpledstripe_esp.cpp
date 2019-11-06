@@ -68,6 +68,11 @@
   #define KNOB_C_PNB 13
   #define KNOB_C_I2C 0x3c
   #define KNOB_BTN_DEBOUNCE 200
+  #define KNOB_ROT_DEBOUNCE 20
+  #define KNOB_BOOT_DELAY 10
+  #define KNOB_TIMEOUT_OPERATION 5000
+  #define KNOB_TIMEOUT_DISPLAY   60000
+  
   bool WiFiConnected = true;
 #endif
 
@@ -114,7 +119,11 @@ void ICACHE_RAM_ATTR encoderButtonISR()
 #ifdef DEBUG
 const String build_version = BUILD_VERSION + String("DEBUG ") + String(__TIMESTAMP__);
 #else
-const String build_version = BUILD_VERSION; // + String(__TIMESTAMP__);
+#ifdef HAS_KNOB_CONTROL
+const String build_version = (String(BUILD_VERSION) + String("_KNOB")); // + String(__TIMESTAMP__);
+#else
+const String build_version = (String(BUILD_VERSION));; // + String(__TIMESTAMP__);
+#endif
 #endif
 const String git_revision  = BUILD_GITREV;
 
@@ -739,7 +748,7 @@ void initOverTheAirUpdate(void)
     display.drawStringMaxWidth(0, 0,  128, "Update fehlgeschlagen!");
     display.drawStringMaxWidth(0, 22, 128, err);
     display.drawStringMaxWidth(0, 43, 128, "Reset in 10 Sek");
-    delay(10000);
+    delay(KNOB_BOOT_DELAY);
     ESP.restart();
   });
   // start the service
@@ -2480,26 +2489,35 @@ void setupKnobControl(void)
 
   DEBUGPRNT("setup done...");
 
-  display.setTextAlignment(TEXT_ALIGN_LEFT);
-  display.setFont(ArialMT_Plain_10);
-  display.drawStringMaxWidth     (0,  0, 128, "Booting... Bitte Warten");
-  display.display();
-
   knob_operated = true;
 }
 #endif
 
-
+uint8_t drawtxtline10(uint8_t y, uint8_t fontheight, String txt)
+{
+  if(txt == "") return y;
+  uint8_t txtLines = 1;
+  txtLines = (((display.getStringWidth(txt) - 1) / 128) + 1) * fontheight;
+  display.drawStringMaxWidth (0,  y, 128, txt);
+  y+=txtLines;
+  return y;
+}
 
 // setup network and output pins
 void setup()
 {
   // Sanity delay to get everything settled....
-  delay(500);
+  delay(50);
 
   #ifdef HAS_KNOB_CONTROL
-
+  const uint8_t font_height = 12;
   setupKnobControl();
+  uint8_t cursor = 0;
+  display.clear();
+  display.setTextAlignment(TEXT_ALIGN_LEFT);
+  display.setFont(ArialMT_Plain_10);
+  cursor = drawtxtline10(cursor, font_height, F("Booting... Bitte Warten"));
+  display.display();
 
   #ifdef DEBUG
   // Open serial communications and wait for port to open:
@@ -2516,50 +2534,50 @@ void setup()
   {
   case REASON_DEFAULT_RST:
     DEBUGPRNT(F("\tREASON_DEFAULT_RST: Normal boot"));
-    display.drawStringMaxWidth(0,10,128, F("REASON_DEFAULT_RST: Normal boot"));
+    cursor = drawtxtline10(cursor, font_height, F("REASON_DEFAULT_RST"));
     display.display();
     break;
   case REASON_WDT_RST:
     DEBUGPRNT(F("\tREASON_WDT_RST"));
-    display.drawStringMaxWidth(0,10,128, F("REASON_WDT_RST"));
+    cursor = drawtxtline10(cursor, font_height, F("REASON_WDT_RST"));
     display.display();
     clearCRC(); // should enable default start in case of
     break;
   case REASON_EXCEPTION_RST:
     DEBUGPRNT(F("\tREASON_EXCEPTION_RST"));
-    display.drawStringMaxWidth(0,10,128, F("REASON_EXCEPTION_RST"));
+    cursor = drawtxtline10(cursor, font_height, F("REASON_EXCEPTION_RST"));
     display.display();
     clearCRC();
     break;
   case REASON_SOFT_WDT_RST:
     DEBUGPRNT(F("\tREASON_SOFT_WDT_RST"));
-    display.drawStringMaxWidth(0,10,128, F("REASON_SOFT_WDT_RST"));
+    cursor = drawtxtline10(cursor, font_height, F("REASON_SOFT_WDT_RST"));
     display.display();
     clearCRC();
     break;
   case REASON_SOFT_RESTART:
     DEBUGPRNT(F("\tREASON_SOFT_RESTART"));
-    display.drawStringMaxWidth(0,10,128, F("REASON_SOFT_RESTART"));
+    cursor = drawtxtline10(cursor, font_height, F("REASON_SOFT_RESTART"));
     display.display();
     break;
   case REASON_DEEP_SLEEP_AWAKE:
     DEBUGPRNT(F("\tREASON_DEEP_SLEEP_AWAKE"));
-    display.drawStringMaxWidth(0,10,128, F("REASON_DEEP_SLEEP_AWAKE"));
+    cursor = drawtxtline10(cursor, font_height, F("REASON_DEEP_SLEEP_AWAKE"));
     display.display();
     break;
   case REASON_EXT_SYS_RST:
     DEBUGPRNT(F("\n\tREASON_EXT_SYS_RST: External trigger..."));
-    display.drawStringMaxWidth(0,10,128, F("REASON_EXT_SYS_RST: External trigger..."));
+    cursor = drawtxtline10(cursor, font_height, F("REASON_EXT_SYS_RST"));
     display.display();
     break;
 
   default:
     DEBUGPRNT(F("\tUnknown cause..."));
-    display.drawStringMaxWidth(0,10,128, F("Unknown cause..."));
+    cursor = drawtxtline10 (cursor, 10, F("Unknown cause..."));
     display.display();
     break;
   }
-  display.drawString(0,20, "LED Stripe init");
+  cursor = drawtxtline10 (cursor, 10, F("LED Stripe init"));
   display.display();
   
 
@@ -2571,19 +2589,12 @@ void setup()
                F("Rainbow Colors"),
                UncorrectedColor); //TypicalLEDStrip);
 
-  // internal LED can be light up when current is limited by FastLED
-  #ifdef HAS_KNOB_CONTROL
-
-  #else
-  pinMode(2, OUTPUT);
-  #endif
-
   EEPROM.begin(strip->getSegmentSize());
-  display.drawStringMaxWidth     (0,   0, 128, "Booting... Bitte Warten");
-  display.drawStringMaxWidth     (0,  30, 128, "WiFi-Setup");
+
+  cursor = drawtxtline10(cursor, font_height, F("WiFi-Setup"));
   display.display();
   setupWiFi();
-  display.drawStringMaxWidth     (0,  40, 128, "WebServer Setup");
+  cursor = drawtxtline10(cursor, font_height, F("WebServer Setup"));
   display.display();
   setupWebServer();
 
@@ -2596,25 +2607,21 @@ void setup()
     MDNS.addService("http", "tcp", 80);
     DEBUGPRNT("mDNS responder started");
   }
-  display.drawStringMaxWidth     (0,  50, 128, "OTA Setup");
+  cursor = drawtxtline10(cursor, font_height, F("OTA Setup"));
   display.display();
   initOverTheAirUpdate();
-
-
-
   
-  myIP = WiFi.localIP();
-  DEBUGPRNT("Going to show IP Address " + myIP.toString());
+  readRuntimeDataEEPROM();  
 
-  readRuntimeDataEEPROM();
-  delay(4000);
+  delay(KNOB_BOOT_DELAY);
   display.clear();
-  display.drawStringMaxWidth     (0,   0, 128, "Boot von " + String(LED_NAME) + " fertig!");
-  display.drawStringMaxWidth     (0,  30, 128, "Name: " + String(LED_NAME));
-  display.drawStringMaxWidth     (0,  41, 128, "IP: " + myIP.toString());
-  display.drawStringMaxWidth     (0,  52, 128, "LEDs: " + String(LED_COUNT));
+  cursor = 0;
+  cursor = drawtxtline10(cursor, font_height, "Boot von " + String(LED_NAME) + " fertig!");
+  cursor = drawtxtline10(cursor, font_height, "Name: " + String(LED_NAME));
+  cursor = drawtxtline10(cursor, font_height, "IP: " + myIP.toString());
+  cursor = drawtxtline10(cursor, font_height, "LEDs: " + String(LED_COUNT));
   display.display();
-  delay(4000);
+  delay(KNOB_BOOT_DELAY);
 
 #else // HAS_KNOB_CONTROL
   #ifdef DEBUG
@@ -2794,200 +2801,340 @@ void setup()
 }
 
 #ifdef HAS_KNOB_CONTROL
+enum fieldtypes {
+    NumberFieldType,
+    BooleanFieldType,
+    SelectFieldType,
+    ColorFieldType,
+    TitleFieldType,
+    SectionFieldType,
+    InvalidFieldType
+  };
+uint8_t get_next_field(uint8_t curr_field, bool up, fieldtypes *m_fieldtypes)
+{
+  uint8_t ret = curr_field;
+  uint8_t sanity = 0;
+  while(ret == curr_field || m_fieldtypes[ret] > SelectFieldType)
+  {
+    // sanity break....
+    if(sanity++ > fieldCount) break;
+
+    if(up)
+    {
+      ret++;
+      if(ret >= fieldCount)
+      {
+        ret = 0;
+        //ret = fieldCount-1;
+      }
+    }
+    else
+    {
+      if(ret > 0) 
+      {
+        ret--;
+      }
+      else
+      {
+        ret = fieldCount-1;
+      } 
+    }
+  }
+  return ret;
+}
+static uint32_t last_control_operation = 0;
+
+uint16_t setEncoderValues(uint8_t curr_field, fieldtypes * m_fieldtypes)
+{
+  uint16_t curr_value = 0;
+  uint16_t steps = 1;
+  switch (m_fieldtypes[curr_field])
+  {
+    case TitleFieldType :
+      // nothing?
+    break;
+    case NumberFieldType :
+      curr_value = (uint16_t)strtoul(fields[curr_field].getValue().c_str(), NULL, 10);
+      steps = (fields[curr_field].max*2 - fields[curr_field].min*2) / 100;
+      if(!steps) steps = 1;
+      encoder.setValues(curr_value*2, steps, fields[curr_field].min*2, fields[curr_field].max*2);
+    break;
+    case BooleanFieldType :
+      curr_value = (uint16_t)strtoul(fields[curr_field].getValue().c_str(), NULL, 10);
+      encoder.setValues(curr_value*2, 1, 0, 2);
+    break;
+    case SelectFieldType :
+      curr_value =(uint16_t)strtoul(fields[curr_field].getValue().c_str(), NULL, 10);
+      encoder.setValues(curr_value*2, 1, fields[curr_field].min * 2, fields[curr_field].max * 2);  
+    break;
+    case ColorFieldType :
+      // nothing? - to be done later...
+    break;
+    case SectionFieldType :
+      // nothing?
+    break;
+    default:
+    break;
+  }
+  return curr_value;
+}
+
 void knob_service(uint32_t now)
 {
-  static uint8_t curr_field = 1;
+  fieldtypes m_fieldtypes[fieldCount];
+  
+  for(uint8_t i=0; i<fieldCount; i++)
+  {
+    m_fieldtypes[i] = InvalidFieldType;
+    if(fields[i].type == "Title")
+      m_fieldtypes[i] = TitleFieldType;
+    if(fields[i].type == "Number")
+      m_fieldtypes[i] = NumberFieldType;
+    if(fields[i].type == "Boolean")
+      m_fieldtypes[i] = BooleanFieldType;
+    if(fields[i].type == "Select")
+      m_fieldtypes[i] = SelectFieldType;
+    if(fields[i].type == "Color")
+      m_fieldtypes[i] = ColorFieldType;
+    if(fields[i].type == "Section")
+      m_fieldtypes[i] = SectionFieldType;
+  }
+
+  static uint8_t curr_field = get_next_field(0, true, m_fieldtypes);
   static uint32_t last_btn_press = 0;
+  
+  static uint16_t old_val = 0;
+  static bool in_submenu = false;
+  static bool newfield_selected = false;
+
+  bool apply_new_val = false;
+
+  
+
+  if(now > last_control_operation + KNOB_TIMEOUT_DISPLAY)
+  {
+    display.displayOff();
+  }
+  else
+  {
+    display.displayOn();
+  }
+
   if(knob_operated)
   {
     knob_operated = false;
+    last_control_operation = now;
   }
   if (encoder.getPushButton() == true && now > last_btn_press + KNOB_BTN_DEBOUNCE)
   {
     last_btn_press = now;
-    knob_operated = false;
     
-    curr_field++;
-    while(fields[curr_field].type == "Section" || fields[curr_field].type == "Title" || fields[curr_field].type == "Color")
+    knob_operated = false;
+    in_submenu = !in_submenu;
+    if(!in_submenu)
     {
-      curr_field++;
-      if(curr_field >= fieldCount)
-      {
-        curr_field = 0;
-        break;
-      }
+      encoder.setMaxValue(fieldCount*2);
+      encoder.setMinValue(0);
+      encoder.setStepsPerClick(1);
+      encoder.setValue(curr_field*2);
+      old_val = curr_field;
     }
-    if(curr_field >= fieldCount) curr_field = 0;
+    else
+    {
+      old_val = setEncoderValues(curr_field, m_fieldtypes);
+    }
 
-    if(fields[curr_field].getValue != NULL && fields[curr_field].type != "Section" && fields[curr_field].type != "Title" && fields[curr_field].type != "Color")
-    {
-      encoder.setMaxValue(fields[curr_field].max*2);
-      encoder.setMinValue(fields[curr_field].min*2);
-      uint16_t steps = max(1, (fields[curr_field].max - fields[curr_field].min)/128);
-      encoder.setStepsPerClick(steps);
-      uint16_t c_val = (uint16_t)strtoul(fields[curr_field].getValue().c_str(), NULL, 10);
-      encoder.setValue(c_val*2);
-    }
   }
-  static uint16_t old_val = 0;
-  EVERY_N_MILLISECONDS(20)
+  EVERY_N_MILLISECONDS(KNOB_ROT_DEBOUNCE)
   {
     uint16_t val = encoder.getValue()/2;
-    display.clear();
-    //display.drawString(0,  0, LED_NAME);
-    display.drawString(0,  0, "IP: " + myIP.toString());
-    display.drawString(0, 10, "Ef: " + (String)strip->getModeName(strip->getMode()));
-    display.drawString(0, 20, "Pa: " + strip->getTargetPaletteName());
-    if(fields[curr_field].getValue != NULL && fields[curr_field].type != "Section" && fields[curr_field].type != "Title")
+    
+    if(old_val != val)
     {
-      display.drawStringMaxWidth(0, 30, 128, fields[curr_field].label + ": ");
+      last_control_operation = now;
+
+      if(!in_submenu)
+      {
+        if(val > curr_field)
+        {
+
+          val = get_next_field(curr_field, true, m_fieldtypes);
+        }
+        else
+        {
+
+          val = get_next_field(curr_field, false, m_fieldtypes);
+        }
+        curr_field = val;
+        encoder.setValue(val*2);
+        
+
+        newfield_selected = true;
+      }
+      else
+      {
+        if(newfield_selected)
+        {
+          old_val = setEncoderValues(curr_field, m_fieldtypes);
+          newfield_selected = false;
+        }
+        apply_new_val = true;
+      }
+      old_val = val;
+      
+    }
+    if(!in_submenu)
+    {
+      uint8_t prev_field = get_next_field(curr_field, false, m_fieldtypes);
+      uint8_t next_field = get_next_field(curr_field, true, m_fieldtypes);
+      display.clear();
+      display.setTextAlignment(TEXT_ALIGN_LEFT);
+      display.drawString(0,  0, F(LED_NAME)); 
       display.setTextAlignment(TEXT_ALIGN_RIGHT);
-      display.drawString(128, 40, fields[curr_field].getValue());
+      display.drawString(128,  53, myIP.toString());    
+      display.setTextAlignment(TEXT_ALIGN_CENTER);
+      display.drawString(64, 22, fields[prev_field].label);
+      display.fillRect(2, 34, 124, 10); 
+      display.setColor((OLEDDISPLAY_COLOR)0);
+      display.drawString(64, 32, fields[curr_field].label);
+      display.setColor((OLEDDISPLAY_COLOR)1);
+      display.drawString(64, 42, fields[next_field].label);
       display.setTextAlignment(TEXT_ALIGN_LEFT);
     }
     else
     {
-      display.drawStringMaxWidth (0, 42, 128, fields[curr_field].label);
+      display.clear();
+      //display.drawString(0,  0, LED_NAME);
+      display.setTextAlignment(TEXT_ALIGN_LEFT);
+      if(fields[curr_field].getValue != NULL && m_fieldtypes[curr_field] < ColorFieldType) // fields[curr_field].type != "Section" && fields[curr_field].type != "Title")
+      {
+        display.drawStringMaxWidth(0, 0, 128, fields[curr_field].label + ": ");
+        uint16_t val = (uint16_t)strtoul(fields[curr_field].getValue().c_str(), NULL, 10);
+        switch(m_fieldtypes[curr_field])
+        {
+          case TitleFieldType :
+            // nothing?
+          break;
+          case NumberFieldType :
+            display.setTextAlignment(TEXT_ALIGN_RIGHT);
+            display.setFont(ArialMT_Plain_16);
+            display.drawProgressBar(0, 20, 127, 20, map(val, fields[curr_field].min, fields[curr_field].max, 0, 100));
+            display.setTextAlignment(TEXT_ALIGN_CENTER);
+            display.setColor((OLEDDISPLAY_COLOR)2);
+            display.drawString(64, 22, fields[curr_field].getValue());
+            display.setColor((OLEDDISPLAY_COLOR)1);
+            display.setFont(ArialMT_Plain_10);
+            display.setTextAlignment(TEXT_ALIGN_LEFT);
+            display.drawString(0, 54, String(fields[curr_field].min));
+            display.setTextAlignment(TEXT_ALIGN_RIGHT); 
+            display.drawString(128, 54, String(fields[curr_field].max));
+            display.setTextAlignment(TEXT_ALIGN_LEFT);  
+            
+          break;
+          case BooleanFieldType :
+            display.setTextAlignment(TEXT_ALIGN_CENTER);
+            display.drawRect(50, 28, 28, 28);
+            display.setFont(ArialMT_Plain_16);
+            if(val)
+            {
+              display.fillRect(50, 28, 28, 28);
+              display.setColor((OLEDDISPLAY_COLOR)0);
+              display.drawString(64, 32, "On");  
+              display.setColor((OLEDDISPLAY_COLOR)1);
+            }
+            else
+            {
+              display.drawString(64, 32, "Off");
+            }
+            display.setTextAlignment(TEXT_ALIGN_LEFT); 
+            display.setTextAlignment(TEXT_ALIGN_LEFT);   
+            display.setFont(ArialMT_Plain_10);
+          break;
+          case SelectFieldType :
+          {
+            StaticJsonBuffer<1600> myJsonBuffer;
+            String json = "[";
+            json += fields[curr_field].getOptions();
+            json += "]";
+
+            JsonArray& myValues = myJsonBuffer.parseArray(json.c_str(),2);
+            
+            //display.drawString(128, 20, myValues[val]);
+            display.setTextAlignment(TEXT_ALIGN_LEFT);
+            uint16_t p_val = 0;
+            uint16_t n_val = 0;
+            if(val > fields[curr_field].min)
+            {
+              p_val = val - 1;
+            }
+            else
+            {
+              p_val = fields[curr_field].max;
+            }
+            if(val < fields[curr_field].max)
+            {
+              n_val = val + 1;
+            }
+            else
+            {
+              n_val = fields[curr_field].min;
+            }
+            display.drawStringMaxWidth(0, 25, 128, " -");
+            display.drawStringMaxWidth(0, 45, 128, " +");
+            display.drawStringMaxWidth(10, 25, 128, myValues[p_val]);
+            display.fillRect(0,36,128,11);
+            display.setColor((OLEDDISPLAY_COLOR)0);
+            display.drawStringMaxWidth(0, 35, 128, " >");
+            display.drawStringMaxWidth(10, 35, 128, myValues[  val]);
+            display.setColor((OLEDDISPLAY_COLOR)1);
+            display.drawStringMaxWidth(10, 45, 128, myValues[n_val]);
+          }
+          break;
+          case ColorFieldType :
+            // nothing? - to be done later...
+          break;
+          case SectionFieldType :
+            // nothing?
+          break;
+          default:
+          break;
+        }
+      }
+      else
+      {
+        display.drawStringMaxWidth(0, 30, 128, fields[curr_field].label);
+      }
+    }
+    if(now > last_control_operation + KNOB_TIMEOUT_OPERATION)
+    {
+      curr_field = get_next_field(0, true, m_fieldtypes);
+      in_submenu = true;
+      old_val = setEncoderValues(curr_field, m_fieldtypes);
+
+      display.clear();
+      display.setTextAlignment(TEXT_ALIGN_LEFT);
+      display.drawString(0,  0, LED_NAME);
+      display.setTextAlignment(TEXT_ALIGN_RIGHT);
+      display.drawString(128,   0, String(wifi_err_counter));
+      display.drawString(128,  15, String(WiFi.RSSI()));
+      display.setTextAlignment(TEXT_ALIGN_LEFT);
+      if(WiFiConnected)
+      {
+        display.drawString(0,   15, WiFi.SSID());
+      }
+      else
+      {
+        display.drawString(0,   15, "No Network");
+      }
+      display.drawString(0,  30, "Idle...");
     }
     display.display();
-    if(old_val != val)
+    if(apply_new_val)
     {
-      old_val = val;
-      switch  (curr_field)
+      apply_new_val = false;
+      if(fields[curr_field].setValue)
       {
-        case  0 : // "title" :      
-        break;       
-        case  1 : // "powerSection" :      
-        break;
-        case  2 : // "power" :
-        strip->setPower(val);
-        break;
-        case  3 : // "isRunning" :         
-        strip->setIsRunning(val);
-        break;
-        case  4 : // "basicControl" :      
-        break;
-        case  5 : // "br" :                
-        strip->setBrightness(val);
-        break;
-        case  6 : // "mo" :       
-        strip->setMode(val);         
-        break;
-        case  7 : // "pa" :                
-        strip->setTargetPalette(val);
-        break;
-        case  8 : // "sp" :          
-        strip->setBeat88(val);      
-        break;
-        case  9 : // "blendType" :         
-        strip->setBlendType((TBlendType)val);
-        break;
-        case 10 : // "ColorTemperature" :  
-        strip->setColorTemperature(val);
-
-        break;
-        case 11 : // "LEDblur" :       
-        strip->setBlur(val);    
-        break;
-        case 12 : // "reverse" :           
-        strip->setReverse(val);
-        break;
-        case 13 : // "segments" :          
-        strip->setSegments(val);
-        break;
-        case 14 : // "mirror" : 
-        strip->setMirror(val);           
-        break;
-        case 15 : // "inverse" :           
-        strip->setInverse(val);
-        break;
-        case 16 : // "glitter" :           
-        
-        break;
-        case 17 : // "addGlitter" :        
-        strip->setAddGlitter(val);
-        
-        break;
-        case 18 : // "WhiteOnly" : 
-        strip->setWhiteGlitter(val);        
-        break;
-        case 19 : // "onBlackOnly" :       
-        strip->setOnBlackOnly(val);
-        break;
-        case 20 : // "glitterChance" :     
-        strip->setChanceOfGlitter(val);
-        break;
-        case 21 : // "hue" :           
-            
-        break;
-        case 22 : // "huetime" :           
-        strip->setHuetime(val);
-        break;
-        case 23 : // "deltahue" :          
-        strip->setDeltaHue(val);
-        break;
-        case 24 : // "autoplay" :          
-        break;
-        case 25 : // "autoplay" :          
-        strip->setAutoplay((AUTOPLAYMODES)val);
-        break;
-        case 26 : // "autoplayDuration" :  
-        strip->setAutoplayDuration(val);
-        break;
-        case 27 : // "autopal" :           
-        break;
-        case 28 : // "autopal" :        
-        strip->setAutopal((AUTOPLAYMODES)val);   
-        break;
-        case 29 : // "autopalDuration" :   
-        strip->setAutopalDuration(val);
-        break;
-        case 30 : // "solidColor" :        
-        break;
-        case 31 : // "solidColor" :        
-        break;
-        case 32 : // "fire" :              
-        break;
-        case 33 : // "cooling" :       
-        strip->setCooling(val);    
-        break;
-        case 34 : // "sparking" :          
-        strip->setSparking(val);
-        break;
-        case 35 : // "twinkles" :          
-        break;
-        case 36 : // "twinkleSpeed" :      
-        strip->setTwinkleSpeed(val);
-        break;
-        case 37 : // "twinkleDensity" :    
-        strip->setTwinkleDensity(val);
-        break;
-        case 38 : // "ledBars" :           
-        break;
-        case 39 : // "numBars" :      
-        strip->setNumBars(val);     
-        break;
-        case 40 : // "damping" :           
-        strip->setDamping(val);
-        break;
-        // time provided in M
-        case 41 : // "sunriseset" :        
-        strip->setSunriseTime(val);
-        break;
-        case 42 : // "current" :   
-        strip->setMilliamps(val);        
-        break;
-        // 111 max equals the
-        // this is the minima
-        case  43 : // "fps" :    
-        strip->setMaxFPS(val);           
-        break;
-        case  44 : // "dithering" :         
-        strip->setDithering(val);
-        break;
-        case  45 : // "resetdefaults" :     
-
-        break;
+        fields[curr_field].setValue(val);
       }
     }
   }
@@ -3104,7 +3251,8 @@ void loop()
   }
   #else
 
-
+    
+    
     // Checking WiFi state every WIFI_TIMEOUT
     // since we have Knob-Control. We do not care about "No Connection"
   if (now > wifi_check_time)
@@ -3112,6 +3260,7 @@ void loop()
     //DEBUGPRNT("Checking WiFi... ");
     if (WiFi.status() != WL_CONNECTED)
     {
+      last_control_operation = now;
       DEBUGPRNT("Lost Wifi Connection. Counter is " + String(wifi_err_counter));
       wifi_err_counter+=2;
       wifi_disconnect_counter+=4;
@@ -3143,7 +3292,7 @@ void loop()
 
     MDNS.update();
   }
-  
+
   strip->service();
 
   EVERY_N_MILLIS(50)

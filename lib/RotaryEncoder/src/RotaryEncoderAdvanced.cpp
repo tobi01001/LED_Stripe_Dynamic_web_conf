@@ -136,6 +136,7 @@ template <typename T> T RotaryEncoderAdvanced<T>::getValue()
 /**************************************************************************/
 template <typename T> void RotaryEncoderAdvanced<T>::setValue(T value)
 {
+  readAB();
   _counter = value / _stepsPerClick;
 }
 
