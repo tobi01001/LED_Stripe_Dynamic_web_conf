@@ -125,7 +125,7 @@ void RotaryEncoder::begin()
 void RotaryEncoder::readAB()
 {
   noInterrupts();                                       //disable interrupts
-
+  
   _currValueAB  = digitalRead(_encoderA) << 1;
   _currValueAB |= digitalRead(_encoderB);
 
@@ -135,7 +135,7 @@ void RotaryEncoder::readAB()
     case 0b0001:                                        //CW states, 1 count  per click
   //case 0b0001: case 0b1110:                           //CW states, 2 counts per click
     #else                                               //fast MCU
-    case 0b0001: case 0b1110:                           //CW states, 1 count  per click
+    case 0b0001: //case 0b1110:                           //CW states, 1 count  per click
     //case 0b0001: case 0b1110: case 0b1000: case 0b0111: //CW states, 2 counts per click
     #endif
       _counter++;
@@ -145,17 +145,16 @@ void RotaryEncoder::readAB()
     case 0b0100:                                        //CCW states, 1 count  per click
   //case 0b0100: case 0b1011:                           //CCW states, 2 count  per click
     #else                                               //fast MCU
-    case 0b0100: case 0b1011:                           //CCW states, 1 count  per click
+    case 0b0100: //case 0b1011:                           //CCW states, 1 count  per click
     //case 0b0100: case 0b1011: case 0b0010: case 0b1101: //CCW states, 2 counts per click
     #endif
       _counter--;
       break;
   }
-
   _prevValueAB = _currValueAB << 2;                     //update previouse state
-
   interrupts();                                         //enable interrupts
 }
+
 
 /**************************************************************************/
 /*
@@ -192,7 +191,7 @@ void RotaryEncoder::readPushButton()
     Return encoder position
 */
 /**************************************************************************/
-int16_t RotaryEncoder::getPosition()
+int32_t RotaryEncoder::getPosition()
 {
   return _counter;
 }

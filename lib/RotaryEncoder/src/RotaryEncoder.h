@@ -92,11 +92,13 @@ class RotaryEncoder
            void     readAB(void);
            void     readPushButton(void);
 
-           int16_t  getPosition(void);
+           int32_t  getPosition(void);
            bool     getPushButton(void);
 
            void     setPosition(int16_t position);
            void     setPushButton(bool state);
+  inline   uint8_t  getcurrAB(void) { return _currValueAB; }
+  inline   uint8_t  getprevAB(void) { return _prevValueAB; }
 
   private:
              uint8_t _encoderA;           //pin "A"
@@ -108,7 +110,7 @@ class RotaryEncoder
     volatile bool    _buttonState = true; //encoder button status, idle value is "true" because internal pull-up resistor is enabled
 
   protected:
-    volatile int16_t _counter     = 0;    //encoder click counter, limits -32768..32767
+    volatile int32_t _counter     = 0;    //encoder click counter, limits -32768..32767
 
 };
 

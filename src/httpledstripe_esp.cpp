@@ -2474,7 +2474,7 @@ void setupKnobControl(void)
 { 
   encoder.begin();
   encoder.setLooping(false);
-  encoder.setMaxValue(max(LED_COUNT*2,2*255));
+  encoder.setMaxValue(max(LED_COUNT,255));
 
   attachInterrupt(digitalPinToInterrupt(KNOB_C_PNA),  encoderISR,       CHANGE);  //call encoderISR()    every high->low or low->high changes
   attachInterrupt(digitalPinToInterrupt(KNOB_C_PNB),  encoderISR,       CHANGE);  //call encoderISR()    every high->low or low->high changes
@@ -2855,17 +2855,17 @@ uint16_t setEncoderValues(uint8_t curr_field, fieldtypes * m_fieldtypes)
     break;
     case NumberFieldType :
       curr_value = (uint16_t)strtoul(fields[curr_field].getValue().c_str(), NULL, 10);
-      steps = (fields[curr_field].max*2 - fields[curr_field].min*2) / 100;
+      steps = (fields[curr_field].max - fields[curr_field].min) / 100;
       if(!steps) steps = 1;
-      encoder.setValues(curr_value*2, steps, fields[curr_field].min*2, fields[curr_field].max*2);
+      encoder.setValues(curr_value, steps, fields[curr_field].min, fields[curr_field].max);
     break;
     case BooleanFieldType :
       curr_value = (uint16_t)strtoul(fields[curr_field].getValue().c_str(), NULL, 10);
-      encoder.setValues(curr_value*2, 1, 0, 2);
+      encoder.setValues(curr_value, 1, 0, 1);
     break;
     case SelectFieldType :
       curr_value =(uint16_t)strtoul(fields[curr_field].getValue().c_str(), NULL, 10);
-      encoder.setValues(curr_value*2, 1, fields[curr_field].min * 2, fields[curr_field].max * 2);  
+      encoder.setValues(curr_value, 1, fields[curr_field].min, fields[curr_field].max);  
     break;
     case ColorFieldType :
       // nothing? - to be done later...
@@ -2909,8 +2909,6 @@ void knob_service(uint32_t now)
 
   bool apply_new_val = false;
 
-  
-
   if(now > last_control_operation + KNOB_TIMEOUT_DISPLAY)
   {
     display.displayOff();
@@ -2933,10 +2931,10 @@ void knob_service(uint32_t now)
     in_submenu = !in_submenu;
     if(!in_submenu)
     {
-      encoder.setMaxValue(fieldCount*2);
+      encoder.setMaxValue(fieldCount);
       encoder.setMinValue(0);
       encoder.setStepsPerClick(1);
-      encoder.setValue(curr_field*2);
+      encoder.setValue(curr_field);
       old_val = curr_field;
     }
     else
@@ -2947,7 +2945,8 @@ void knob_service(uint32_t now)
   }
   EVERY_N_MILLISECONDS(KNOB_ROT_DEBOUNCE)
   {
-    uint16_t val = encoder.getValue()/2;
+    
+    uint16_t val = encoder.getValue();
     
     if(old_val != val)
     {
@@ -2966,7 +2965,7 @@ void knob_service(uint32_t now)
           val = get_next_field(curr_field, false, m_fieldtypes);
         }
         curr_field = val;
-        encoder.setValue(val*2);
+        encoder.setValue(val);
         
 
         newfield_selected = true;
@@ -3033,20 +3032,29 @@ void knob_service(uint32_t now)
           break;
           case BooleanFieldType :
             display.setTextAlignment(TEXT_ALIGN_CENTER);
-            display.drawRect(50, 28, 28, 28);
+            display.drawRect(32, 28, 28, 28);
+            display.drawRect(68, 28, 28, 28);
             display.setFont(ArialMT_Plain_16);
             if(val)
             {
-              display.fillRect(50, 28, 28, 28);
+              display.setColor((OLEDDISPLAY_COLOR)1);
+              display.drawString(46, 32, "Off");  
+              display.fillRect(68, 28, 28, 28);
               display.setColor((OLEDDISPLAY_COLOR)0);
-              display.drawString(64, 32, "On");  
+              display.drawString(82, 32, "On");  
               display.setColor((OLEDDISPLAY_COLOR)1);
             }
             else
             {
-              display.drawString(64, 32, "Off");
+              
+              display.setColor((OLEDDISPLAY_COLOR)1);
+              display.fillRect(32, 28, 28, 28);
+              display.setColor((OLEDDISPLAY_COLOR)0);
+              display.drawString(46, 32, "Off");  
+              display.setColor((OLEDDISPLAY_COLOR)1);
+              display.drawString(82, 32, "On");  
+              display.setColor((OLEDDISPLAY_COLOR)1);
             }
-            display.setTextAlignment(TEXT_ALIGN_LEFT); 
             display.setTextAlignment(TEXT_ALIGN_LEFT);   
             display.setFont(ArialMT_Plain_10);
           break;
@@ -3128,6 +3136,10 @@ void knob_service(uint32_t now)
       }
       display.drawString(0,  30, "Idle...");
     }
+
+    
+    display.drawString(0,54, String(encoder.getPosition()));
+
     display.display();
     if(apply_new_val)
     {
