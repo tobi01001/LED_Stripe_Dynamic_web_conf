@@ -10,7 +10,7 @@
 
 //#error "check version first"
 #ifdef HAS_KNOB_CONTROL 
-#define BUILD_VERSION ("LED_Control_0.9.4_KNOB")
+#define BUILD_VERSION ("LED_Control_0.9.41_KNOB")
 #else
 #define BUILD_VERSION ("LED_Control_0.9.4")
 #endif
@@ -121,5 +121,20 @@
 //#define RND_PAL_MIN_SAT 224
 #define RND_PAL_CHANGE_INT 200 
 #define RND_PAL_MIN_BRIGHT 128
+
+#ifdef HAS_KNOB_CONTROL
+#define DEFAULT_WIFI_ENABLED    (true)
+  #define KNOB_C_SDA 4
+  #define KNOB_C_SCL 5
+  #define KNOB_C_BTN 2
+  #define KNOB_C_PNA 12
+  #define KNOB_C_PNB 13
+  #define KNOB_C_I2C 0x3c
+  #define KNOB_BTN_DEBOUNCE 200
+  #define KNOB_ROT_DEBOUNCE 2
+  #define KNOB_BOOT_DELAY 10
+  #define KNOB_TIMEOUT_OPERATION 15000
+  #define KNOB_TIMEOUT_DISPLAY   120000
+#endif
 
 #endif

@@ -61,18 +61,6 @@
   #include "RotaryEncoderAdvanced.cpp"
   #include "Arduino.h"
   #include "SSD1306Brzo.h"
-  #define KNOB_C_SDA 4
-  #define KNOB_C_SCL 5
-  #define KNOB_C_BTN 2
-  #define KNOB_C_PNA 12
-  #define KNOB_C_PNB 13
-  #define KNOB_C_I2C 0x3c
-  #define KNOB_BTN_DEBOUNCE 200
-  #define KNOB_ROT_DEBOUNCE 20
-  #define KNOB_BOOT_DELAY 10
-  #define KNOB_TIMEOUT_OPERATION 5000
-  #define KNOB_TIMEOUT_DISPLAY   60000
-  
   bool WiFiConnected = true;
 #endif
 
@@ -95,6 +83,7 @@ extern "C"
 #ifdef HAS_KNOB_CONTROL
 volatile bool knob_operated = false; // trigger for the display / knob
 
+
 RotaryEncoderAdvanced<int32_t> encoder(KNOB_C_PNA, KNOB_C_PNB, KNOB_C_BTN, 1, 0, 65535);  
 
 
@@ -106,12 +95,15 @@ void ICACHE_RAM_ATTR encoderISR() //interrupt service routines need to be in ram
 {
   encoder.readAB();
   knob_operated = true;
+  detachInterrupt(KNOB_C_PNA);
+  detachInterrupt(KNOB_C_PNB);
 }
 
 void ICACHE_RAM_ATTR encoderButtonISR()
 {
   encoder.readPushButton();
   knob_operated = true;
+  detachInterrupt(KNOB_C_BTN);
 }
 #endif
 
@@ -131,7 +123,7 @@ const String git_revision  = BUILD_GITREV;
 /* maybe move all wifi stuff to separate files.... */
 
 ESP8266WebServer server(80);
-WebSocketsServer *webSocketsServer; // webSocketsServer = WebSocketsServer(81);
+WebSocketsServer *webSocketsServer = NULL; // webSocketsServer = WebSocketsServer(81);
 
 const String AP_SSID = LED_NAME + String("-") + String(ESP.getChipId());
 
@@ -259,6 +251,10 @@ void sendAnswer(String jsonAnswer)
 // broadcasts the name and value to all websocket clients
 void broadcastInt(String name, uint16_t value)
 {
+  if(webSocketsServer == NULL)
+  {
+    return;
+  }
   /*
   String json = "{\"name\":\"" + name + "\",\"value\":" + String(value) + "}";
   DEBUGPRNT("Send websocket broadcast with value: " + json);
@@ -288,6 +284,10 @@ void broadcastInt(String name, uint16_t value)
 // TODO: One function with parameters being overloaded.
 void broadcastString(String name, String value)
 {
+  if(webSocketsServer == NULL)
+  {
+    return;
+  }
   /*
   String json = "{\"name\":\"" + name + "\",\"value\":\"" + String(value) + "\"}";
   DEBUGPRNT("Send websocket broadcast with value: " + json);
@@ -2408,6 +2408,10 @@ void setupWebServer(void)
 
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
 {
+  if(webSocketsServer == NULL)
+  {
+    return;
+  }
   DEBUGPRNT("Checking the websocket event!");
   server.arg(1);
   if(type == WStype_TEXT)
@@ -2470,15 +2474,36 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
 }
 
 #ifdef HAS_KNOB_CONTROL
+
+void enable_disable_IRs(bool enable)
+{
+  if(enable)
+  {
+    attachInterrupt(digitalPinToInterrupt(KNOB_C_PNA),  encoderISR,       CHANGE);  //call encoderISR()    every high->low or low->high changes
+    attachInterrupt(digitalPinToInterrupt(KNOB_C_PNB),  encoderISR,       CHANGE);  //call encoderISR()    every high->low or low->high changes
+    attachInterrupt(digitalPinToInterrupt(KNOB_C_BTN), encoderButtonISR, FALLING); //call pushButtonISR() every high->low              changes
+  }
+  else
+  {
+    detachInterrupt(KNOB_C_BTN);
+    detachInterrupt(KNOB_C_PNA);
+    detachInterrupt(KNOB_C_PNB);
+  }
+
+}
+
+
 void setupKnobControl(void)
 { 
   encoder.begin();
   encoder.setLooping(false);
   encoder.setMaxValue(max(LED_COUNT,255));
-
+/*
   attachInterrupt(digitalPinToInterrupt(KNOB_C_PNA),  encoderISR,       CHANGE);  //call encoderISR()    every high->low or low->high changes
   attachInterrupt(digitalPinToInterrupt(KNOB_C_PNB),  encoderISR,       CHANGE);  //call encoderISR()    every high->low or low->high changes
   attachInterrupt(digitalPinToInterrupt(KNOB_C_BTN), encoderButtonISR, FALLING); //call pushButtonISR() every high->low              changes
+*/
+  enable_disable_IRs(true);
 
   DEBUGPRNT("setup display...");
   display.init();
@@ -2493,6 +2518,7 @@ void setupKnobControl(void)
 }
 #endif
 
+#ifdef HAS_KNOB_CONTROL
 uint8_t drawtxtline10(uint8_t y, uint8_t fontheight, String txt)
 {
   if(txt == "") return y;
@@ -2502,6 +2528,31 @@ uint8_t drawtxtline10(uint8_t y, uint8_t fontheight, String txt)
   y+=txtLines;
   return y;
 }
+
+
+#include "../lib/Menu_structure/menu.h"
+menu_item * first_item = NULL;
+
+
+void create_menu(fieldtypes * m_fts)
+{
+  //if(m_item != NULL) return;
+  first_item = new menu_item(fields[0].label.c_str(), m_fts[0],0, NULL, NULL, NULL);
+  menu_item * n_item = first_item;
+  for(uint8_t i=1; i<fieldCount; i++)
+  {
+    if(n_item->getFieldType() == fieldtypes::SectionFieldType)
+    {
+      n_item = new menu_item(fields[i].label.c_str(), m_fts[i], i, NULL, n_item, NULL);
+    }
+    else
+    {
+      n_item = new menu_item(fields[i].label.c_str(), m_fts[i], i, n_item, NULL, NULL);
+    }
+  }
+}
+#endif
+
 
 // setup network and output pins
 void setup()
@@ -2524,12 +2575,38 @@ void setup()
   Serial.begin(115200);
   #endif
 
+  
+
+  fieldtypes m_fieldtypes[fieldCount];
+  
+  for(uint8_t i=0; i<fieldCount; i++)
+  {
+    m_fieldtypes[i] = InvalidFieldType;
+    if(fields[i].type == "Title")
+      m_fieldtypes[i] = TitleFieldType;
+    if(fields[i].type == "Number")
+      m_fieldtypes[i] = NumberFieldType;
+    if(fields[i].type == "Boolean")
+      m_fieldtypes[i] = BooleanFieldType;
+    if(fields[i].type == "Select")
+      m_fieldtypes[i] = SelectFieldType;
+    if(fields[i].type == "Color")
+      m_fieldtypes[i] = ColorFieldType;
+    if(fields[i].type == "Section")
+      m_fieldtypes[i] = SectionFieldType;
+  }
+
+  create_menu(m_fieldtypes);
+ 
+
   DEBUGPRNT("\n");
   DEBUGPRNT(F("Booting"));
 
   DEBUGPRNT("");
   DEBUGPRNT(F("Checking boot cause:"));
-  
+
+ 
+
   switch (getResetReason())
   {
   case REASON_DEFAULT_RST:
@@ -2610,8 +2687,11 @@ void setup()
   cursor = drawtxtline10(cursor, font_height, F("OTA Setup"));
   display.display();
   initOverTheAirUpdate();
+    
+  readRuntimeDataEEPROM(); 
   
-  readRuntimeDataEEPROM();  
+  myIP = WiFi.localIP();
+  DEBUGPRNT("Going to show IP Address " + myIP.toString()); 
 
   delay(KNOB_BOOT_DELAY);
   display.clear();
@@ -2666,20 +2746,16 @@ void setup()
     break;
   case REASON_EXT_SYS_RST:
     DEBUGPRNT(F("\n\tREASON_EXT_SYS_RST: External trigger..."));
-    display.drawStringMaxWidth(0,12,128, F("REASON_EXT_SYS_RST: External trigger..."));
-    display.display();
+    
     break;
 
   default:
     DEBUGPRNT(F("\tUnknown cause..."));
-    display.drawStringMaxWidth(0,12,128, F("Unknown cause..."));
-    display.display();
+    
     break;
   }
   delay(1000);
-  display.drawStringMaxWidth(0,32,128, "LED Stripe init");
-  display.display();
-  
+   
 
   stripe_setup(LED_COUNT,
                STRIP_MAX_FPS,
@@ -2689,17 +2765,16 @@ void setup()
                F("Rainbow Colors"),
                UncorrectedColor); //TypicalLEDStrip);
 
-  // internal LED can be light up when current is limited by FastLED
-  #ifdef HAS_KNOB_CONTROL
-
-  #else
-  pinMode(2, OUTPUT);
-  #endif
-
   EEPROM.begin(strip->getSegmentSize());
+  
+  // internal LED can be light up when current is limited by FastLED
+  
+  pinMode(2, OUTPUT);
+
+
+  //EEPROM.begin(strip->getSegmentSize());
   delay(1000);
-  display.clear();
-  display.drawStringMaxWidth     (0,  0, 120, "Booting... Bitte Warten");
+  
   setupWiFi();
 
   setupWebServer();
@@ -2801,15 +2876,8 @@ void setup()
 }
 
 #ifdef HAS_KNOB_CONTROL
-enum fieldtypes {
-    NumberFieldType,
-    BooleanFieldType,
-    SelectFieldType,
-    ColorFieldType,
-    TitleFieldType,
-    SectionFieldType,
-    InvalidFieldType
-  };
+
+
 uint8_t get_next_field(uint8_t curr_field, bool up, fieldtypes *m_fieldtypes)
 {
   uint8_t ret = curr_field;
@@ -2879,6 +2947,10 @@ uint16_t setEncoderValues(uint8_t curr_field, fieldtypes * m_fieldtypes)
   return curr_value;
 }
 
+
+
+
+
 void knob_service(uint32_t now)
 {
   fieldtypes m_fieldtypes[fieldCount];
@@ -2900,18 +2972,23 @@ void knob_service(uint32_t now)
       m_fieldtypes[i] = SectionFieldType;
   }
 
+  
+
   static uint8_t curr_field = get_next_field(0, true, m_fieldtypes);
   static uint32_t last_btn_press = 0;
   
   static uint16_t old_val = 0;
+
   static bool in_submenu = false;
   static bool newfield_selected = false;
+  static bool display_was_off = false;
 
   bool apply_new_val = false;
-
+  
   if(now > last_control_operation + KNOB_TIMEOUT_DISPLAY)
   {
     display.displayOff();
+    display_was_off = true;
   }
   else
   {
@@ -2922,30 +2999,37 @@ void knob_service(uint32_t now)
   {
     knob_operated = false;
     last_control_operation = now;
+    enable_disable_IRs(true);
   }
+
   if (encoder.getPushButton() == true && now > last_btn_press + KNOB_BTN_DEBOUNCE)
   {
     last_btn_press = now;
-    
     knob_operated = false;
-    in_submenu = !in_submenu;
-    if(!in_submenu)
+    if(display_was_off)
     {
-      encoder.setMaxValue(fieldCount);
-      encoder.setMinValue(0);
-      encoder.setStepsPerClick(1);
-      encoder.setValue(curr_field);
-      old_val = curr_field;
+      display_was_off = false;
+      last_control_operation = now + KNOB_TIMEOUT_OPERATION;
     }
     else
     {
-      old_val = setEncoderValues(curr_field, m_fieldtypes);
+      in_submenu = !in_submenu;
+      if(!in_submenu)
+      {
+        encoder.setMaxValue(fieldCount);
+        encoder.setMinValue(0);
+        encoder.setStepsPerClick(1);
+        encoder.setValue(curr_field);
+        old_val = curr_field;
+      }
+      else
+      {
+        old_val = setEncoderValues(curr_field, m_fieldtypes);
+      }
     }
-
   }
   EVERY_N_MILLISECONDS(KNOB_ROT_DEBOUNCE)
-  {
-    
+  {  
     uint16_t val = encoder.getValue();
     
     if(old_val != val)
@@ -3122,23 +3206,28 @@ void knob_service(uint32_t now)
       display.clear();
       display.setTextAlignment(TEXT_ALIGN_LEFT);
       display.drawString(0,  0, LED_NAME);
-      display.setTextAlignment(TEXT_ALIGN_RIGHT);
-      display.drawString(128,   0, String(wifi_err_counter));
-      display.drawString(128,  15, String(WiFi.RSSI()));
-      display.setTextAlignment(TEXT_ALIGN_LEFT);
+      
       if(WiFiConnected)
       {
+        display.setTextAlignment(TEXT_ALIGN_RIGHT);
+        display.drawString(128,   0, String(wifi_err_counter));
+        display.drawString(128,  15, String(WiFi.RSSI()));
+        display.setTextAlignment(TEXT_ALIGN_LEFT);
         display.drawString(0,   15, WiFi.SSID());
       }
       else
       {
         display.drawString(0,   15, "No Network");
       }
-      display.drawString(0,  30, "Idle...");
+      display.setTextAlignment(TEXT_ALIGN_CENTER);
+      display.setFont(ArialMT_Plain_24);
+      display.drawString(64,  30, "NORAH");
+      display.setTextAlignment(TEXT_ALIGN_LEFT);
+      display.setFont(ArialMT_Plain_10);
     }
 
     
-    display.drawString(0,54, String(encoder.getPosition()));
+    //display.drawString(0,54, String(encoder.getPosition()));
 
     display.display();
     if(apply_new_val)
@@ -3297,8 +3386,9 @@ void loop()
   if(WiFiConnected)
   {
     ArduinoOTA.handle(); // check and handle OTA updates of the code....
-
-    webSocketsServer->loop();
+    
+    if(webSocketsServer != NULL)
+      webSocketsServer->loop();
 
     server.handleClient();
 

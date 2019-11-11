@@ -437,8 +437,8 @@ String getResets() {
 
 FieldList fields = {
     {"title",             LED_NAME,                                 TitleFieldType,     NULL,                                   NULL,                                             NULL,               NULL,           NULL          },
-    {"powerSection",      LED_NAME,                                 SectionFieldType,   NULL,                                   NULL,                                             NULL,               NULL,           NULL          },
-    {"power",             "LED Power",                              BooleanFieldType,   (uint16_t)0,                            (uint16_t)1,                                      getPower,           NULL,           setPower      },
+    {"powerSection",      LED_NAME + String(" power"),                                 SectionFieldType,   NULL,                                   NULL,                                             NULL,               NULL,           NULL          },
+    {"power",             "LEDs On/Off",                              BooleanFieldType,   (uint16_t)0,                            (uint16_t)1,                                      getPower,           NULL,           setPower      },
     {"isRunning",         "Running / Pause",                        BooleanFieldType,   (uint16_t)0,                            (uint16_t)1,                                      getIsRunning,       NULL,           setIsRunning  },
     {"basicControl",      "Basic control",                          SectionFieldType,   NULL,                                   NULL,                                             NULL,               NULL,           NULL          },
     {"br",                "Brightness",                             NumberFieldType,    (uint16_t)BRIGHTNESS_MIN,               (uint16_t)BRIGHTNESS_MAX,                         getBrightness,      NULL,           setBrightness },
