@@ -10,7 +10,7 @@
 
 //#error "check version first"
 #ifdef HAS_KNOB_CONTROL 
-#define BUILD_VERSION ("LED_Control_0.9.41_KNOB")
+#define BUILD_VERSION ("LED_Control_0.9.42_KNOB")
 #else
 #define BUILD_VERSION ("LED_Control_0.9.4")
 #endif

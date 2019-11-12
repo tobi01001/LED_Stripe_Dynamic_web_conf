@@ -57,8 +57,8 @@
 #include <ESP8266mDNS.h>
 
 #ifdef HAS_KNOB_CONTROL
-  #include "RotaryEncoderAdvanced.h"
-  #include "RotaryEncoderAdvanced.cpp"
+  
+  #include "Encoder.h"
   #include "Arduino.h"
   #include "SSD1306Brzo.h"
   bool WiFiConnected = true;
@@ -84,27 +84,14 @@ extern "C"
 volatile bool knob_operated = false; // trigger for the display / knob
 
 
-RotaryEncoderAdvanced<int32_t> encoder(KNOB_C_PNA, KNOB_C_PNB, KNOB_C_BTN, 1, 0, 65535);  
-
+Encoder myEnc(KNOB_C_PNA, KNOB_C_PNB);
 
 //SSD1306Brzo display(KNOB_C_I2C, KNOB_C_SDA, KNOB_C_SCL);
 SSD1306Brzo display(0x3c, 4, 5);
 
 
-void ICACHE_RAM_ATTR encoderISR() //interrupt service routines need to be in ram
-{
-  encoder.readAB();
-  knob_operated = true;
-  detachInterrupt(KNOB_C_PNA);
-  detachInterrupt(KNOB_C_PNB);
-}
 
-void ICACHE_RAM_ATTR encoderButtonISR()
-{
-  encoder.readPushButton();
-  knob_operated = true;
-  detachInterrupt(KNOB_C_BTN);
-}
+
 #endif
 
 
@@ -1977,15 +1964,15 @@ String message = "";
 
 void handleStatus(void)
 {
-  #ifdef DEBUG
-  uint32_t answer_time = micros();
-  JsonObject& debugAnswer = answerObj.createNestedObject("ESP_Data");
-  #endif
   
   JsonObject& answerObj = jsonBuffer.createObject();
   JsonObject& currentStateAnswer = answerObj.createNestedObject("currentState");
   JsonObject& sunriseAnswer = answerObj.createNestedObject("sunRiseState");
   JsonObject& statsAnswer = answerObj.createNestedObject("Stats");
+  #ifdef DEBUG
+  uint32_t answer_time = micros();
+  JsonObject& debugAnswer = answerObj.createNestedObject("ESP_Data");
+  #endif
 
   uint16_t num_leds_on = 0;
   // if brightness = 0, no LED can be lid.
@@ -2475,35 +2462,14 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
 
 #ifdef HAS_KNOB_CONTROL
 
-void enable_disable_IRs(bool enable)
-{
-  if(enable)
-  {
-    attachInterrupt(digitalPinToInterrupt(KNOB_C_PNA),  encoderISR,       CHANGE);  //call encoderISR()    every high->low or low->high changes
-    attachInterrupt(digitalPinToInterrupt(KNOB_C_PNB),  encoderISR,       CHANGE);  //call encoderISR()    every high->low or low->high changes
-    attachInterrupt(digitalPinToInterrupt(KNOB_C_BTN), encoderButtonISR, FALLING); //call pushButtonISR() every high->low              changes
-  }
-  else
-  {
-    detachInterrupt(KNOB_C_BTN);
-    detachInterrupt(KNOB_C_PNA);
-    detachInterrupt(KNOB_C_PNB);
-  }
-
-}
-
+uint16_t maxVal = 65535;
+uint16_t minVal = 0;
+uint16_t curVal = 0;
+uint16_t steps  = 1;
 
 void setupKnobControl(void)
 { 
-  encoder.begin();
-  encoder.setLooping(false);
-  encoder.setMaxValue(max(LED_COUNT,255));
-/*
-  attachInterrupt(digitalPinToInterrupt(KNOB_C_PNA),  encoderISR,       CHANGE);  //call encoderISR()    every high->low or low->high changes
-  attachInterrupt(digitalPinToInterrupt(KNOB_C_PNB),  encoderISR,       CHANGE);  //call encoderISR()    every high->low or low->high changes
-  attachInterrupt(digitalPinToInterrupt(KNOB_C_BTN), encoderButtonISR, FALLING); //call pushButtonISR() every high->low              changes
-*/
-  enable_disable_IRs(true);
+
 
   DEBUGPRNT("setup display...");
   display.init();
@@ -2574,8 +2540,6 @@ void setup()
   // Open serial communications and wait for port to open:
   Serial.begin(115200);
   #endif
-
-  
 
   fieldtypes m_fieldtypes[fieldCount];
   
@@ -2881,6 +2845,19 @@ void setup()
 uint8_t get_next_field(uint8_t curr_field, bool up, fieldtypes *m_fieldtypes)
 {
   uint8_t ret = curr_field;
+  uint8_t first_field = 0;
+  uint8_t last_field = fieldCount-1;
+  for(uint8_t i=0; i<fieldCount; i++)
+  {
+    if(m_fieldtypes[i] <= SelectFieldType)
+    {
+      last_field = i;
+    }
+    if(m_fieldtypes[fieldCount-1-i] <= SelectFieldType)
+    {
+      first_field = fieldCount-1-i;
+    }
+  }
   uint8_t sanity = 0;
   while(ret == curr_field || m_fieldtypes[ret] > SelectFieldType)
   {
@@ -2890,21 +2867,21 @@ uint8_t get_next_field(uint8_t curr_field, bool up, fieldtypes *m_fieldtypes)
     if(up)
     {
       ret++;
-      if(ret >= fieldCount)
+      if(ret >= last_field)
       {
-        ret = 0;
+        ret = last_field;
         //ret = fieldCount-1;
       }
     }
     else
     {
-      if(ret > 0) 
+      if(ret > first_field) 
       {
         ret--;
       }
       else
       {
-        ret = fieldCount-1;
+        ret = first_field; //fieldCount-1;
       } 
     }
   }
@@ -2915,7 +2892,6 @@ static uint32_t last_control_operation = 0;
 uint16_t setEncoderValues(uint8_t curr_field, fieldtypes * m_fieldtypes)
 {
   uint16_t curr_value = 0;
-  uint16_t steps = 1;
   switch (m_fieldtypes[curr_field])
   {
     case TitleFieldType :
@@ -2924,16 +2900,24 @@ uint16_t setEncoderValues(uint8_t curr_field, fieldtypes * m_fieldtypes)
     case NumberFieldType :
       curr_value = (uint16_t)strtoul(fields[curr_field].getValue().c_str(), NULL, 10);
       steps = (fields[curr_field].max - fields[curr_field].min) / 100;
-      if(!steps) steps = 1;
-      encoder.setValues(curr_value, steps, fields[curr_field].min, fields[curr_field].max);
+      if(steps == 0) steps = 1;
+      maxVal = fields[curr_field].max;
+      minVal = fields[curr_field].min;
+      curVal = curr_value;
     break;
     case BooleanFieldType :
       curr_value = (uint16_t)strtoul(fields[curr_field].getValue().c_str(), NULL, 10);
-      encoder.setValues(curr_value, 1, 0, 1);
+      steps = 1;
+      maxVal = 1;
+      minVal = 0;
+      curVal = curr_value;
     break;
     case SelectFieldType :
       curr_value =(uint16_t)strtoul(fields[curr_field].getValue().c_str(), NULL, 10);
-      encoder.setValues(curr_value, 1, fields[curr_field].min, fields[curr_field].max);  
+      steps = 1;
+      maxVal = fields[curr_field].max;
+      minVal = fields[curr_field].min;
+      curVal = curr_value;
     break;
     case ColorFieldType :
       // nothing? - to be done later...
@@ -2999,10 +2983,10 @@ void knob_service(uint32_t now)
   {
     knob_operated = false;
     last_control_operation = now;
-    enable_disable_IRs(true);
+
   }
 
-  if (encoder.getPushButton() == true && now > last_btn_press + KNOB_BTN_DEBOUNCE)
+  if (digitalRead(KNOB_C_BTN) == LOW && now > last_btn_press + KNOB_BTN_DEBOUNCE)
   {
     last_btn_press = now;
     knob_operated = false;
@@ -3010,16 +2994,17 @@ void knob_service(uint32_t now)
     {
       display_was_off = false;
       last_control_operation = now + KNOB_TIMEOUT_OPERATION;
+      return;
     }
     else
     {
       in_submenu = !in_submenu;
       if(!in_submenu)
       {
-        encoder.setMaxValue(fieldCount);
-        encoder.setMinValue(0);
-        encoder.setStepsPerClick(1);
-        encoder.setValue(curr_field);
+        maxVal = fieldCount-1;
+        minVal = 0;
+        steps = 1;
+        curVal  = curr_field;
         old_val = curr_field;
       }
       else
@@ -3030,12 +3015,41 @@ void knob_service(uint32_t now)
   }
   EVERY_N_MILLISECONDS(KNOB_ROT_DEBOUNCE)
   {  
-    uint16_t val = encoder.getValue();
+    uint16_t val = 0;
+    int8_t add = myEnc.direction();
+    static bool toggle = false;
+    EVERY_N_MILLISECONDS(300)
+    {
+      toggle = !toggle;
+    }
     
+    if(add != 0)
+    {
+      if(display_was_off)
+      {
+        display_was_off = false;
+        last_control_operation = now + KNOB_TIMEOUT_OPERATION;
+        return;
+      }
+      last_control_operation = now;
+    } 
+
+    if(add < 0 && (curVal <= (minVal + steps)))
+    {
+      curVal = minVal;
+    }
+    else if(add > 0 && curVal >= (maxVal-steps))
+    {
+      curVal = maxVal;
+    }
+    else
+    {
+      curVal = curVal + add * steps;
+    }
+    val = curVal;
+
     if(old_val != val)
     {
-      last_control_operation = now;
-
       if(!in_submenu)
       {
         if(val > curr_field)
@@ -3049,9 +3063,6 @@ void knob_service(uint32_t now)
           val = get_next_field(curr_field, false, m_fieldtypes);
         }
         curr_field = val;
-        encoder.setValue(val);
-        
-
         newfield_selected = true;
       }
       else
@@ -3064,8 +3075,8 @@ void knob_service(uint32_t now)
         apply_new_val = true;
       }
       old_val = val;
-      
     }
+    curVal = val;
     if(!in_submenu)
     {
       uint8_t prev_field = get_next_field(curr_field, false, m_fieldtypes);
@@ -3076,12 +3087,17 @@ void knob_service(uint32_t now)
       display.setTextAlignment(TEXT_ALIGN_RIGHT);
       display.drawString(128,  53, myIP.toString());    
       display.setTextAlignment(TEXT_ALIGN_CENTER);
-      display.drawString(64, 22, fields[prev_field].label);
-      display.fillRect(2, 34, 124, 10); 
-      display.setColor((OLEDDISPLAY_COLOR)0);
+      if(prev_field != curr_field)
+        display.drawString(64, 22, fields[prev_field].label);
+      if(toggle)
+      {
+        display.fillRect(2, 34, 124, 10); 
+        display.setColor((OLEDDISPLAY_COLOR)0);
+      }
       display.drawString(64, 32, fields[curr_field].label);
       display.setColor((OLEDDISPLAY_COLOR)1);
-      display.drawString(64, 42, fields[next_field].label);
+      if(next_field != curr_field)
+        display.drawString(64, 42, fields[next_field].label);
       display.setTextAlignment(TEXT_ALIGN_LEFT);
     }
     else
@@ -3091,8 +3107,10 @@ void knob_service(uint32_t now)
       display.setTextAlignment(TEXT_ALIGN_LEFT);
       if(fields[curr_field].getValue != NULL && m_fieldtypes[curr_field] < ColorFieldType) // fields[curr_field].type != "Section" && fields[curr_field].type != "Title")
       {
+        
         display.drawStringMaxWidth(0, 0, 128, fields[curr_field].label + ": ");
         uint16_t val = (uint16_t)strtoul(fields[curr_field].getValue().c_str(), NULL, 10);
+        
         switch(m_fieldtypes[curr_field])
         {
           case TitleFieldType :
@@ -3101,10 +3119,10 @@ void knob_service(uint32_t now)
           case NumberFieldType :
             display.setTextAlignment(TEXT_ALIGN_RIGHT);
             display.setFont(ArialMT_Plain_16);
-            display.drawProgressBar(0, 20, 127, 20, map(val, fields[curr_field].min, fields[curr_field].max, 0, 100));
+            display.drawProgressBar(0, 28, 127, 20, map(val, fields[curr_field].min, fields[curr_field].max, 0, 100));
             display.setTextAlignment(TEXT_ALIGN_CENTER);
             display.setColor((OLEDDISPLAY_COLOR)2);
-            display.drawString(64, 22, fields[curr_field].getValue());
+            display.drawString(64, 30, fields[curr_field].getValue());
             display.setColor((OLEDDISPLAY_COLOR)1);
             display.setFont(ArialMT_Plain_10);
             display.setTextAlignment(TEXT_ALIGN_LEFT);
@@ -3174,8 +3192,11 @@ void knob_service(uint32_t now)
             display.drawStringMaxWidth(0, 25, 128, " -");
             display.drawStringMaxWidth(0, 45, 128, " +");
             display.drawStringMaxWidth(10, 25, 128, myValues[p_val]);
-            display.fillRect(0,36,128,11);
-            display.setColor((OLEDDISPLAY_COLOR)0);
+            if(toggle)
+            {
+              display.fillRect(0,36,128,11);
+              display.setColor((OLEDDISPLAY_COLOR)0);
+            }
             display.drawStringMaxWidth(0, 35, 128, " >");
             display.drawStringMaxWidth(10, 35, 128, myValues[  val]);
             display.setColor((OLEDDISPLAY_COLOR)1);
@@ -3209,9 +3230,12 @@ void knob_service(uint32_t now)
       
       if(WiFiConnected)
       {
-        display.setTextAlignment(TEXT_ALIGN_RIGHT);
-        display.drawString(128,   0, String(wifi_err_counter));
-        display.drawString(128,  15, String(WiFi.RSSI()));
+        int32_t rssi = WiFi.RSSI();
+        uint8_t bars = map(rssi, -100, -55, 0, 5);
+        for(uint8_t i=0; i<=bars; i++)
+        {
+          display.drawVerticalLine(115+2*i, -i*2, i*2);
+        }
         display.setTextAlignment(TEXT_ALIGN_LEFT);
         display.drawString(0,   15, WiFi.SSID());
       }
@@ -3220,14 +3244,14 @@ void knob_service(uint32_t now)
         display.drawString(0,   15, "No Network");
       }
       display.setTextAlignment(TEXT_ALIGN_CENTER);
-      display.setFont(ArialMT_Plain_24);
-      display.drawString(64,  30, "NORAH");
+      display.setFont(ArialMT_Plain_16);
+      display.drawString(64,  30, strip->getModeName(strip->getMode()));
+      display.drawString(64,  46, strip->getTargetPaletteName());
       display.setTextAlignment(TEXT_ALIGN_LEFT);
       display.setFont(ArialMT_Plain_10);
     }
 
     
-    //display.drawString(0,54, String(encoder.getPosition()));
 
     display.display();
     if(apply_new_val)
