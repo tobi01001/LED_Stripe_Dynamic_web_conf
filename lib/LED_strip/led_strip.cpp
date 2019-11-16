@@ -311,6 +311,8 @@ String getColorTemps()
 
 void setPower(uint16_t val) {
   strip->setPower(val);
+  if(val)
+    strip->setIsRunning(val);
 }
 void setIsRunning(uint16_t val) {
   strip->setIsRunning(val); 

@@ -59,7 +59,6 @@
 #ifdef HAS_KNOB_CONTROL
   
   #include "Encoder.h"
-  #include "Arduino.h"
   #include "SSD1306Brzo.h"
   bool WiFiConnected = true;
 #endif
@@ -81,8 +80,6 @@ extern "C"
 #include "led_strip.h"
 
 #ifdef HAS_KNOB_CONTROL
-volatile bool knob_operated = false; // trigger for the display / knob
-
 
 Encoder myEnc(KNOB_C_PNA, KNOB_C_PNB);
 
@@ -2480,7 +2477,7 @@ void setupKnobControl(void)
 
   DEBUGPRNT("setup done...");
 
-  knob_operated = true;
+
 }
 #endif
 
@@ -2519,6 +2516,16 @@ void create_menu(fieldtypes * m_fts)
 }
 #endif
 
+enum displayStates {
+  Display_Off,
+  Display_ShowInfo,
+  Display_ShowMenu,
+  Display_ShowSectionMenue,
+  Display_ShowBoolMenu,
+  Display_ShowNumberMenu,
+  Display_ShowSelectMenue
+} mDisplayState;
+
 
 // setup network and output pins
 void setup()
@@ -2541,27 +2548,7 @@ void setup()
   Serial.begin(115200);
   #endif
 
-  fieldtypes m_fieldtypes[fieldCount];
-  
-  for(uint8_t i=0; i<fieldCount; i++)
-  {
-    m_fieldtypes[i] = InvalidFieldType;
-    if(fields[i].type == "Title")
-      m_fieldtypes[i] = TitleFieldType;
-    if(fields[i].type == "Number")
-      m_fieldtypes[i] = NumberFieldType;
-    if(fields[i].type == "Boolean")
-      m_fieldtypes[i] = BooleanFieldType;
-    if(fields[i].type == "Select")
-      m_fieldtypes[i] = SelectFieldType;
-    if(fields[i].type == "Color")
-      m_fieldtypes[i] = ColorFieldType;
-    if(fields[i].type == "Section")
-      m_fieldtypes[i] = SectionFieldType;
-  }
-
-  create_menu(m_fieldtypes);
- 
+  mDisplayState = Display_ShowInfo;
 
   DEBUGPRNT("\n");
   DEBUGPRNT(F("Booting"));
@@ -2931,8 +2918,177 @@ uint16_t setEncoderValues(uint8_t curr_field, fieldtypes * m_fieldtypes)
   return curr_value;
 }
 
+uint8_t TimeoutBar = 0;
 
+void showDisplay(uint8_t curr_field, fieldtypes *fieldtype)
+{
+  static bool toggle;
+  EVERY_N_MILLISECONDS(KNOB_CURSOR_BLINK)
+  {
+    toggle = !toggle;
+  }
+  EVERY_N_MILLISECONDS(1000/KNOB_DISPLAY_FPS)
+  {
+    uint16_t val = (uint16_t)strtoul(fields[curr_field].getValue().c_str(), NULL, 10);
+    display.clear();
+    display.setTextAlignment(TEXT_ALIGN_LEFT);
+    if(mDisplayState) display.displayOn();
+    else display.displayOff();
+    switch(mDisplayState)
+    {
+      case Display_Off:
+        display.displayOff();
+      break;
+      case Display_ShowMenu:
+        {
+          uint8_t prev_field = get_next_field(curr_field, false, fieldtype);
+          uint8_t next_field = get_next_field(curr_field, true, fieldtype);
+          display.setTextAlignment(TEXT_ALIGN_LEFT);
+          display.drawString(0,  0, F(LED_NAME)); 
+          display.setTextAlignment(TEXT_ALIGN_RIGHT);
+          display.drawString(128,  53, myIP.toString());    
+          display.setTextAlignment(TEXT_ALIGN_CENTER);
+          if(prev_field != curr_field)
+            display.drawString(64, 22, fields[prev_field].label);
+          if(toggle)
+          {
+            display.fillRect(2, 34, 124, 10); 
+            display.setColor((OLEDDISPLAY_COLOR)0);
+          }
+          display.drawString(64, 32, fields[curr_field].label);
+          display.setColor((OLEDDISPLAY_COLOR)1);
+          if(next_field != curr_field)
+            display.drawString(64, 42, fields[next_field].label);
+        }
+      break;
+      case Display_ShowBoolMenu:
+        display.drawStringMaxWidth(0, 0, 128, fields[curr_field].label + ": ");
+        display.setTextAlignment(TEXT_ALIGN_CENTER);
+        display.drawRect(32, 28, 28, 28);
+        display.drawRect(68, 28, 28, 28);
+        display.setFont(ArialMT_Plain_16);
+        if(val)
+        {
+          display.setColor((OLEDDISPLAY_COLOR)1);
+          display.drawString(46, 32, "Off");  
+          display.fillRect(68, 28, 28, 28);
+          display.setColor((OLEDDISPLAY_COLOR)0);
+          display.drawString(82, 32, "On");  
+          display.setColor((OLEDDISPLAY_COLOR)1);
+        }
+        else
+        {
+          
+          display.setColor((OLEDDISPLAY_COLOR)1);
+          display.fillRect(32, 28, 28, 28);
+          display.setColor((OLEDDISPLAY_COLOR)0);
+          display.drawString(46, 32, "Off");  
+          display.setColor((OLEDDISPLAY_COLOR)1);
+          display.drawString(82, 32, "On");  
+          display.setColor((OLEDDISPLAY_COLOR)1);
+        }
+      break;
+      case Display_ShowNumberMenu:
+        display.drawStringMaxWidth(0, 0, 128, fields[curr_field].label + ": ");
+        display.setTextAlignment(TEXT_ALIGN_RIGHT);
+        display.setFont(ArialMT_Plain_16);
+        display.drawProgressBar(0, 28, 127, 20, map(val, fields[curr_field].min, fields[curr_field].max, 0, 100));
+        display.setTextAlignment(TEXT_ALIGN_CENTER);
+        display.setColor((OLEDDISPLAY_COLOR)2);
+        display.drawString(64, 30, fields[curr_field].getValue());
+        display.setColor((OLEDDISPLAY_COLOR)1);
+        display.setFont(ArialMT_Plain_10);
+        display.setTextAlignment(TEXT_ALIGN_LEFT);
+        display.drawString(0, 54, String(fields[curr_field].min));
+        display.setTextAlignment(TEXT_ALIGN_RIGHT); 
+        display.drawString(128, 54, String(fields[curr_field].max));
+          
+      break;
+      case Display_ShowSelectMenue:
+      {
+        display.drawStringMaxWidth(0, 0, 128, fields[curr_field].label + ": ");
+        StaticJsonBuffer<1600> myJsonBuffer;
+        String json = "[";
+        json += fields[curr_field].getOptions();
+        json += "]";
 
+        JsonArray& myValues = myJsonBuffer.parseArray(json.c_str(),2);
+        
+        //display.drawString(128, 20, myValues[val]);
+        display.setTextAlignment(TEXT_ALIGN_LEFT);
+        uint16_t p_val = 0;
+        uint16_t n_val = 0;
+        if(val > fields[curr_field].min)
+        {
+          p_val = val - 1;
+        }
+        else
+        {
+          p_val = val; //fields[curr_field].max;
+        }
+        if(val < fields[curr_field].max)
+        {
+          n_val = val + 1;
+        }
+        else
+        {
+          n_val = val;
+        }
+        if(val != p_val) {
+          display.drawStringMaxWidth(0, 25, 128, " -");
+          display.drawStringMaxWidth(10, 25, 128, myValues[p_val]);
+        }
+        if(val != n_val) {
+          display.drawStringMaxWidth(0, 45, 128, " +");
+          display.drawStringMaxWidth(10, 45, 128, myValues[n_val]);
+        }
+        if(toggle)
+        {
+          display.fillRect(0,36,128,11);
+          display.setColor((OLEDDISPLAY_COLOR)0);
+        }
+        display.drawStringMaxWidth(0, 35, 128, " >");
+        display.drawStringMaxWidth(10, 35, 128, myValues[  val]);
+      }
+      break;
+      case Display_ShowSectionMenue:
+        display.drawStringMaxWidth(0, 30, 128, fields[curr_field].label);
+
+      break;
+      case Display_ShowInfo:
+        display.setTextAlignment(TEXT_ALIGN_LEFT);
+        display.drawString(0,  0, LED_NAME);
+
+        if(WiFiConnected)
+        {
+          int32_t rssi = WiFi.RSSI();
+          uint8_t bars = map(rssi, -100, -55, 0, 5);
+          for(uint8_t i=0; i<=bars; i++)
+          {
+            display.drawVerticalLine(115+2*i, -i*2, i*2);
+          }
+          display.setTextAlignment(TEXT_ALIGN_LEFT);
+          display.drawString(0,   15, WiFi.SSID());
+        }
+        else
+        {
+          display.drawString(0,   15, "No Network");
+        }
+        display.setTextAlignment(TEXT_ALIGN_CENTER);
+        display.setFont(ArialMT_Plain_16);
+        display.drawString(64,  30, strip->getModeName(strip->getMode()));
+        display.drawString(64,  46, strip->getTargetPaletteName());
+      default:
+        display.displayOn();
+      break;
+    }
+  }
+  display.drawHorizontalLine(64-(TimeoutBar/2),63, TimeoutBar);
+  display.setColor((OLEDDISPLAY_COLOR)1);
+  display.setFont(ArialMT_Plain_10);
+  display.setTextAlignment(TEXT_ALIGN_LEFT);
+  display.display();
+}
 
 
 void knob_service(uint32_t now)
@@ -2966,69 +3122,46 @@ void knob_service(uint32_t now)
   static bool in_submenu = false;
   static bool newfield_selected = false;
   static bool display_was_off = false;
-
-  bool apply_new_val = false;
   
-  if(now > last_control_operation + KNOB_TIMEOUT_DISPLAY)
-  {
-    display.displayOff();
-    display_was_off = true;
-  }
-  else
-  {
-    display.displayOn();
-  }
-
-  if(knob_operated)
-  {
-    knob_operated = false;
-    last_control_operation = now;
-
-  }
 
   if (digitalRead(KNOB_C_BTN) == LOW && now > last_btn_press + KNOB_BTN_DEBOUNCE)
   {
     last_btn_press = now;
-    knob_operated = false;
+    
     if(display_was_off)
     {
       display_was_off = false;
       last_control_operation = now + KNOB_TIMEOUT_OPERATION;
+      mDisplayState = Display_ShowInfo;
       return;
+    }
+    last_control_operation = now;
+    in_submenu = !in_submenu;
+
+    if(!in_submenu)
+    {
+      maxVal = fieldCount-1;
+      minVal = 0;
+      steps = 1;
+      curVal  = curr_field;
+      old_val = curr_field;
     }
     else
     {
-      in_submenu = !in_submenu;
-      if(!in_submenu)
-      {
-        maxVal = fieldCount-1;
-        minVal = 0;
-        steps = 1;
-        curVal  = curr_field;
-        old_val = curr_field;
-      }
-      else
-      {
-        old_val = setEncoderValues(curr_field, m_fieldtypes);
-      }
+      old_val = setEncoderValues(curr_field, m_fieldtypes);
     }
   }
   EVERY_N_MILLISECONDS(KNOB_ROT_DEBOUNCE)
   {  
     uint16_t val = 0;
     int8_t add = myEnc.direction();
-    static bool toggle = false;
-    EVERY_N_MILLISECONDS(300)
-    {
-      toggle = !toggle;
-    }
-    
     if(add != 0)
     {
       if(display_was_off)
       {
         display_was_off = false;
         last_control_operation = now + KNOB_TIMEOUT_OPERATION;
+        mDisplayState = Display_ShowInfo;
         return;
       }
       last_control_operation = now;
@@ -3050,16 +3183,22 @@ void knob_service(uint32_t now)
 
     if(old_val != val)
     {
+      if(display_was_off)
+      {
+        display_was_off = false;
+        last_control_operation = now + KNOB_TIMEOUT_OPERATION;
+        old_val = val;
+        mDisplayState = Display_ShowInfo;
+        return;
+      }
       if(!in_submenu)
       {
         if(val > curr_field)
         {
-
           val = get_next_field(curr_field, true, m_fieldtypes);
         }
         else
         {
-
           val = get_next_field(curr_field, false, m_fieldtypes);
         }
         curr_field = val;
@@ -3072,196 +3211,58 @@ void knob_service(uint32_t now)
           old_val = setEncoderValues(curr_field, m_fieldtypes);
           newfield_selected = false;
         }
-        apply_new_val = true;
+        if(fields[curr_field].setValue)
+        {
+          fields[curr_field].setValue(val);
+        }
       }
       old_val = val;
     }
     curVal = val;
-    if(!in_submenu)
+    
+    if(now > last_control_operation + KNOB_TIMEOUT_DISPLAY)
     {
-      uint8_t prev_field = get_next_field(curr_field, false, m_fieldtypes);
-      uint8_t next_field = get_next_field(curr_field, true, m_fieldtypes);
-      display.clear();
-      display.setTextAlignment(TEXT_ALIGN_LEFT);
-      display.drawString(0,  0, F(LED_NAME)); 
-      display.setTextAlignment(TEXT_ALIGN_RIGHT);
-      display.drawString(128,  53, myIP.toString());    
-      display.setTextAlignment(TEXT_ALIGN_CENTER);
-      if(prev_field != curr_field)
-        display.drawString(64, 22, fields[prev_field].label);
-      if(toggle)
-      {
-        display.fillRect(2, 34, 124, 10); 
-        display.setColor((OLEDDISPLAY_COLOR)0);
-      }
-      display.drawString(64, 32, fields[curr_field].label);
-      display.setColor((OLEDDISPLAY_COLOR)1);
-      if(next_field != curr_field)
-        display.drawString(64, 42, fields[next_field].label);
-      display.setTextAlignment(TEXT_ALIGN_LEFT);
+      mDisplayState = Display_Off;
+      display_was_off = true;
+    }
+    else if(now > last_control_operation + KNOB_TIMEOUT_OPERATION)
+    {
+      TimeoutBar = map(now-last_control_operation, 0, KNOB_TIMEOUT_DISPLAY, 127,0);
+      curr_field = get_next_field(0, true, m_fieldtypes);
+      in_submenu = true;
+      old_val = setEncoderValues(curr_field, m_fieldtypes);
+      mDisplayState = Display_ShowInfo;
     }
     else
     {
-      display.clear();
-      //display.drawString(0,  0, LED_NAME);
-      display.setTextAlignment(TEXT_ALIGN_LEFT);
-      if(fields[curr_field].getValue != NULL && m_fieldtypes[curr_field] < ColorFieldType) // fields[curr_field].type != "Section" && fields[curr_field].type != "Title")
+      TimeoutBar = map(now-last_control_operation, 0, KNOB_TIMEOUT_OPERATION, 127,0);
+      if(!in_submenu)
       {
-        
-        display.drawStringMaxWidth(0, 0, 128, fields[curr_field].label + ": ");
-        uint16_t val = (uint16_t)strtoul(fields[curr_field].getValue().c_str(), NULL, 10);
-        
-        switch(m_fieldtypes[curr_field])
+        mDisplayState = Display_ShowMenu;
+      }
+      else
+      {
+        switch (m_fieldtypes[curr_field])
         {
-          case TitleFieldType :
-            // nothing?
+          case TitleFieldType : 
+          case SectionFieldType :
+          case ColorFieldType : 
+          mDisplayState = Display_ShowInfo;
           break;
           case NumberFieldType :
-            display.setTextAlignment(TEXT_ALIGN_RIGHT);
-            display.setFont(ArialMT_Plain_16);
-            display.drawProgressBar(0, 28, 127, 20, map(val, fields[curr_field].min, fields[curr_field].max, 0, 100));
-            display.setTextAlignment(TEXT_ALIGN_CENTER);
-            display.setColor((OLEDDISPLAY_COLOR)2);
-            display.drawString(64, 30, fields[curr_field].getValue());
-            display.setColor((OLEDDISPLAY_COLOR)1);
-            display.setFont(ArialMT_Plain_10);
-            display.setTextAlignment(TEXT_ALIGN_LEFT);
-            display.drawString(0, 54, String(fields[curr_field].min));
-            display.setTextAlignment(TEXT_ALIGN_RIGHT); 
-            display.drawString(128, 54, String(fields[curr_field].max));
-            display.setTextAlignment(TEXT_ALIGN_LEFT);  
-            
+          mDisplayState = Display_ShowNumberMenu;
           break;
           case BooleanFieldType :
-            display.setTextAlignment(TEXT_ALIGN_CENTER);
-            display.drawRect(32, 28, 28, 28);
-            display.drawRect(68, 28, 28, 28);
-            display.setFont(ArialMT_Plain_16);
-            if(val)
-            {
-              display.setColor((OLEDDISPLAY_COLOR)1);
-              display.drawString(46, 32, "Off");  
-              display.fillRect(68, 28, 28, 28);
-              display.setColor((OLEDDISPLAY_COLOR)0);
-              display.drawString(82, 32, "On");  
-              display.setColor((OLEDDISPLAY_COLOR)1);
-            }
-            else
-            {
-              
-              display.setColor((OLEDDISPLAY_COLOR)1);
-              display.fillRect(32, 28, 28, 28);
-              display.setColor((OLEDDISPLAY_COLOR)0);
-              display.drawString(46, 32, "Off");  
-              display.setColor((OLEDDISPLAY_COLOR)1);
-              display.drawString(82, 32, "On");  
-              display.setColor((OLEDDISPLAY_COLOR)1);
-            }
-            display.setTextAlignment(TEXT_ALIGN_LEFT);   
-            display.setFont(ArialMT_Plain_10);
+          mDisplayState = Display_ShowBoolMenu;
           break;
           case SelectFieldType :
-          {
-            StaticJsonBuffer<1600> myJsonBuffer;
-            String json = "[";
-            json += fields[curr_field].getOptions();
-            json += "]";
-
-            JsonArray& myValues = myJsonBuffer.parseArray(json.c_str(),2);
-            
-            //display.drawString(128, 20, myValues[val]);
-            display.setTextAlignment(TEXT_ALIGN_LEFT);
-            uint16_t p_val = 0;
-            uint16_t n_val = 0;
-            if(val > fields[curr_field].min)
-            {
-              p_val = val - 1;
-            }
-            else
-            {
-              p_val = fields[curr_field].max;
-            }
-            if(val < fields[curr_field].max)
-            {
-              n_val = val + 1;
-            }
-            else
-            {
-              n_val = fields[curr_field].min;
-            }
-            display.drawStringMaxWidth(0, 25, 128, " -");
-            display.drawStringMaxWidth(0, 45, 128, " +");
-            display.drawStringMaxWidth(10, 25, 128, myValues[p_val]);
-            if(toggle)
-            {
-              display.fillRect(0,36,128,11);
-              display.setColor((OLEDDISPLAY_COLOR)0);
-            }
-            display.drawStringMaxWidth(0, 35, 128, " >");
-            display.drawStringMaxWidth(10, 35, 128, myValues[  val]);
-            display.setColor((OLEDDISPLAY_COLOR)1);
-            display.drawStringMaxWidth(10, 45, 128, myValues[n_val]);
-          }
-          break;
-          case ColorFieldType :
-            // nothing? - to be done later...
-          break;
-          case SectionFieldType :
-            // nothing?
-          break;
+          mDisplayState = Display_ShowSelectMenue;
           default:
           break;
         }
       }
-      else
-      {
-        display.drawStringMaxWidth(0, 30, 128, fields[curr_field].label);
-      }
     }
-    if(now > last_control_operation + KNOB_TIMEOUT_OPERATION)
-    {
-      curr_field = get_next_field(0, true, m_fieldtypes);
-      in_submenu = true;
-      old_val = setEncoderValues(curr_field, m_fieldtypes);
-
-      display.clear();
-      display.setTextAlignment(TEXT_ALIGN_LEFT);
-      display.drawString(0,  0, LED_NAME);
-      
-      if(WiFiConnected)
-      {
-        int32_t rssi = WiFi.RSSI();
-        uint8_t bars = map(rssi, -100, -55, 0, 5);
-        for(uint8_t i=0; i<=bars; i++)
-        {
-          display.drawVerticalLine(115+2*i, -i*2, i*2);
-        }
-        display.setTextAlignment(TEXT_ALIGN_LEFT);
-        display.drawString(0,   15, WiFi.SSID());
-      }
-      else
-      {
-        display.drawString(0,   15, "No Network");
-      }
-      display.setTextAlignment(TEXT_ALIGN_CENTER);
-      display.setFont(ArialMT_Plain_16);
-      display.drawString(64,  30, strip->getModeName(strip->getMode()));
-      display.drawString(64,  46, strip->getTargetPaletteName());
-      display.setTextAlignment(TEXT_ALIGN_LEFT);
-      display.setFont(ArialMT_Plain_10);
-    }
-
-    
-
-    display.display();
-    if(apply_new_val)
-    {
-      apply_new_val = false;
-      if(fields[curr_field].setValue)
-      {
-        fields[curr_field].setValue(val);
-      }
-    }
+    showDisplay(curr_field, m_fieldtypes);
   }
 }
 #endif

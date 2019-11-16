@@ -10,7 +10,7 @@
 
 //#error "check version first"
 #ifdef HAS_KNOB_CONTROL 
-#define BUILD_VERSION ("LED_Control_0.9.42_KNOB")
+#define BUILD_VERSION ("LED_Control_0.9.44_KNOB")
 #else
 #define BUILD_VERSION ("LED_Control_0.9.4")
 #endif
@@ -135,6 +135,8 @@
   #define KNOB_BOOT_DELAY 10
   #define KNOB_TIMEOUT_OPERATION 15000
   #define KNOB_TIMEOUT_DISPLAY   120000
+  #define KNOB_DISPLAY_FPS       25
+  #define KNOB_CURSOR_BLINK      500
 #endif
 
 #endif

@@ -3418,9 +3418,6 @@ uint16_t WS2812FX::mode_ring_ring(void)
       _segment_runtime.modevars.ring_ring.isPause = true;
     }
   }
-
-  
-  
   
   return STRIP_MIN_DELAY;
 }
