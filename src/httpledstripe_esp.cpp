@@ -93,7 +93,7 @@ SSD1306Brzo display(0x3c, 4, 5);
 
 
 #ifdef DEBUG
-const String build_version = BUILD_VERSION + String("DEBUG ") + String(__TIMESTAMP__);
+const String build_version = (String(BUILD_VERSION) + String("DEBUG ") + String(__TIMESTAMP__);
 #else
 #ifdef HAS_KNOB_CONTROL
 const String build_version = (String(BUILD_VERSION) + String("_KNOB")); // + String(__TIMESTAMP__);
