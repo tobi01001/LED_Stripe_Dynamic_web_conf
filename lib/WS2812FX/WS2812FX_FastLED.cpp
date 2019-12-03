@@ -1509,6 +1509,7 @@ uint16_t WS2812FX::getLedsOn(void)
     }
     return leds_on;
   }
+  return 0;
 }
 
 uint8_t WS2812FX::getModeCount(void)

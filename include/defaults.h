@@ -9,10 +9,11 @@
 #endif
 
 //#error "check version first"
+#define VERSION_BASE_BUILD "LED_Control_0.9.46"
 #ifdef HAS_KNOB_CONTROL 
-#define BUILD_VERSION ("LED_Control_0.9.45_KNOB")
+#define BUILD_VERSION (VERSION_BASE_BUILD + "_KNOB")
 #else
-#define BUILD_VERSION ("LED_Control_0.9.4")
+#define BUILD_VERSION (VERSION_BASE_BUILD)
 #endif
 #ifndef BUILD_VERSION
 #error "We need a SW Version and Build Version!"
