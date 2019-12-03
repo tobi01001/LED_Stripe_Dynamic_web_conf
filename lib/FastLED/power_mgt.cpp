@@ -22,10 +22,10 @@ FASTLED_NAMESPACE_BEGIN
 // for changing these on the fly, but it saves codespace and RAM to have them
 // be compile-time constants.
 
-static const uint8_t gRed_mW   = 12 * 5; // 16 * 5; // 16mA @ 5v = 80mW
-static const uint8_t gGreen_mW = 12 * 5; // 11 * 5; // 11mA @ 5v = 55mW
-static const uint8_t gBlue_mW  = 12 * 5; // 15 * 5; // 15mA @ 5v = 75mW
-static const uint8_t gDark_mW  =  1 * 5; //  1mA @ 5v =  5mW
+#define gRed_mW   (12 * 5) //static const uint8_t gRed_mW   = 12 * 5; // 16 * 5; // 16mA @ 5v = 80mW
+#define gGreen_mW (12 * 5) //static const uint8_t gGreen_mW = 12 * 5; // 11 * 5; // 11mA @ 5v = 55mW
+#define gBlue_mW  (12 * 5) //static const uint8_t gBlue_mW  = 12 * 5; // 15 * 5; // 15mA @ 5v = 75mW
+#define gDark_mW  ( 1 * 5) //static const uint8_t gDark_mW  =  1 * 5; //  1mA @ 5v =  5mW
 
 // Alternate calibration by RAtkins via pre-PSU wattage measurments;
 // these are all probably about 20%-25% too high due to PSU heat losses,

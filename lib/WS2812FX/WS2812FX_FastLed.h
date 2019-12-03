@@ -727,6 +727,7 @@ public:
   uint16_t
       getSunriseTimeToFinish(void),
       getStripLength(void),
+      getLedsOn(void),
       getLength(void);
 
   static unsigned int calc_CRC16(unsigned int crc, unsigned char *buf, int len);

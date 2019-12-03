@@ -1498,6 +1498,19 @@ uint16_t WS2812FX::getStripLength(void)
   return LED_COUNT;
 }
 
+uint16_t WS2812FX::getLedsOn(void)               
+{ 
+  uint16_t leds_on = 0; 
+  for(uint16_t i=0; i<getStripLength(); i++)
+  {
+    if(leds[i])
+    {
+      leds_on++;
+    }
+    return leds_on;
+  }
+}
+
 uint8_t WS2812FX::getModeCount(void)
 {
   return MODE_COUNT;
@@ -3347,7 +3360,7 @@ void WS2812FX::m_sunrise_sunset(bool isSunrise)
       else
       {
         // we switch off - this should fix issue #6
-        
+        setMode(DEFAULT_MODE);
         setIsRunning(false);
         setPower(false);
       }
