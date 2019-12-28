@@ -9,10 +9,13 @@
 #endif
 
 //#error "check version first"
-#define BUILD_VERSION ("LED_Control_0.9.46")
+#define BUILD_VERSION ("LED_Control_0.9.47")
 
 #ifndef BUILD_VERSION
 #error "We need a SW Version and Build Version!"
+#endif
+#ifndef PIO_SRC_REV
+  #define PIO_SRC_REV "no_git_rev"
 #endif
 #define BUILD_GITREV PIO_SRC_REV
 
@@ -132,7 +135,7 @@
   #define KNOB_C_PNB 13
   #define KNOB_C_I2C 0x3c
   #define KNOB_BTN_DEBOUNCE 200
-  #define KNOB_ROT_DEBOUNCE 2
+  #define KNOB_ROT_DEBOUNCE 20
   #define KNOB_BOOT_DELAY 10
   #define KNOB_TIMEOUT_OPERATION 15000 //0
   #define KNOB_TIMEOUT_DISPLAY   240000 //0

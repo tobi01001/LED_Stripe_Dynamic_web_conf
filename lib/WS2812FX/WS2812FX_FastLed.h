@@ -624,9 +624,9 @@ public:
   inline void setCRC                  (uint16_t CRC)    { _segment.CRC = CRC; }
   inline void setIsRunning            (bool isRunning)  { _segment.isRunning = isRunning; if(isRunning) { _transition = true; _blend = 0; } }
   inline void setPower                (bool power)      { _segment.power = power; setTransition(); } // this should fix reopened issue #6
-  inline void setReverse              (bool rev)        { _segment.reverse = rev; }
-  inline void setInverse              (bool inv)        { _segment.inverse = inv; }
-  inline void setMirror               (bool mirror)     { _segment.mirror = mirror; }
+  inline void setReverse              (bool rev)        { _segment.reverse = rev; setTransition(); }
+  inline void setInverse              (bool inv)        { _segment.inverse = inv; setTransition(); }
+  inline void setMirror               (bool mirror)     { _segment.mirror = mirror; setTransition(); }
   inline void setAddGlitter           (bool addGlitter) { _segment.addGlitter = addGlitter; }
   inline void setWhiteGlitter         (bool whiteGlitter) { _segment.whiteGlitter = whiteGlitter; }
   inline void setOnBlackOnly          (bool onBlackOnly){ _segment.onBlackOnly = onBlackOnly; }

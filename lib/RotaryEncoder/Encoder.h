@@ -29,14 +29,7 @@
 #ifndef Encoder_h_
 #define Encoder_h_
 
-#if defined(ARDUINO) && ARDUINO >= 100
-#include "Arduino.h"
-#elif defined(WIRING)
-#include "Wiring.h"
-#else
-#include "WProgram.h"
-#include "pins_arduino.h"
-#endif
+#include <Arduino.h>
 
 #include "utility/direct_pin_read.h"
 

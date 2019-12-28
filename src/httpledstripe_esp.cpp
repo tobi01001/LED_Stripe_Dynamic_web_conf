@@ -514,11 +514,6 @@ void checkSegmentChanges(void) {
     broadcastInt("dithering", seg.dithering);
     shouldSaveRuntime = true;
   }
-
-
-    
-    
-    
   if(seg.addGlitter != strip->getAddGlitter())
   {
     seg.addGlitter= strip->getAddGlitter();
@@ -2531,28 +2526,6 @@ uint8_t drawtxtline10(uint8_t y, uint8_t fontheight, String txt)
   return y;
 }
 
-
-//#include "../lib/Menu_structure/menu.h"
-//menu_item * first_item = NULL;
-
-/* 
-void create_menu(fieldtypes * m_fts)
-{
-  //if(m_item != NULL) return;
-  first_item = new menu_item(fields[0].label.c_str(), m_fts[0],0, NULL, NULL, NULL);
-  menu_item * n_item = first_item;
-  for(uint8_t i=1; i<fieldCount; i++)
-  {
-    if(n_item->getFieldType() == fieldtypes::SectionFieldType)
-    {
-      n_item = new menu_item(fields[i].label.c_str(), m_fts[i], i, NULL, n_item, NULL);
-    }
-    else
-    {
-      n_item = new menu_item(fields[i].label.c_str(), m_fts[i], i, n_item, NULL, NULL);
-    }
-  }
-} */
 #endif
 
 enum displayStates {
