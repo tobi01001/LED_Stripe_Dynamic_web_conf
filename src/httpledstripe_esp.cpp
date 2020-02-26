@@ -3145,7 +3145,7 @@ void showDisplay(uint8_t curr_field, fieldtypes *fieldtype)
         } */
         display.setTextAlignment(TEXT_ALIGN_LEFT);
         display.setFont(ArialMT_Plain_10);
-        display.drawString(0,  20, "Lamp is:");
+        display.drawString(0,  20, "FPS:");
         display.drawString(0,  30, "Leds on:");
         display.drawString(0,  40, "M:");
         display.drawString(0,  50, "C:");
@@ -3163,7 +3163,8 @@ void showDisplay(uint8_t curr_field, fieldtypes *fieldtype)
                 num_leds_on++;
             }
           }
-          display.drawString(127,  20, "ON");
+          FastLED.getFPS();
+          display.drawString(127,  20, String(FastLED.getFPS()));
           display.drawString(127,  30, String(num_leds_on));
         }
         else
