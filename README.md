@@ -8,6 +8,15 @@ So thanks to:
    - WS2812FX library https://github.com/kitesurfer1404/WS2812FX
    - fhem esp8266 implementation - Idea from https://github.com/sw-home/FHEM-LEDStripe 
 
+
+# Kindly introducing KNOB Control!!
+Now this is awesome as it provides a direct haptic feedback and direct control to the LEDs with a nice and shiny display. :-)
+Using platformio, this should be ready to be used rightaway.
+- Still need to post a HW list and some schematics 
+(debouncing the rotary encoder was a bit tricky but I found a good combination of HW and SW solution which is quick enough to not disturbe the "look and feel".
+- Fotos (maybe Video) to follow
+- some instructions for building it...
+
 # LED_Stripe_Dynamic_web_conf
 LED Stripe including simple Web Server, basics from the ws2812fx library - but different effects etc... 
 FHEM control is possible with the related perl fhem module...
