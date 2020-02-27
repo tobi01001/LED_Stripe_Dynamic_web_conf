@@ -56,6 +56,13 @@
 #include <EEPROM.h>
 #include <ESP8266mDNS.h>
 
+#ifdef HAS_KNOB_CONTROL
+  
+  #include "Encoder.h"
+  #include "SSD1306Brzo.h"
+  bool WiFiConnected = true;
+#endif
+
 #define FASTLED_ESP8266_RAW_PIN_ORDER
 #define FASTLED_ESP8266_DMA
 #define FASTLED_USE_PROGMEM 1
@@ -72,10 +79,27 @@ extern "C"
 // new approach starts here:
 #include "led_strip.h"
 
+#ifdef HAS_KNOB_CONTROL
+
+Encoder myEnc(KNOB_C_PNA, KNOB_C_PNB);
+
+//SSD1306Brzo display(KNOB_C_I2C, KNOB_C_SDA, KNOB_C_SCL);
+SSD1306Brzo display(0x3c, 4, 5);
+
+
+
+
+#endif
+
+
 #ifdef DEBUG
-const String build_version = BUILD_VERSION + String("DEBUG ") + String(__TIMESTAMP__);
+const String build_version = (String(BUILD_VERSION) + String("DEBUG ") + String(__TIMESTAMP__);
 #else
-const String build_version = BUILD_VERSION; // + String(__TIMESTAMP__);
+#ifdef HAS_KNOB_CONTROL
+const String build_version = (String(BUILD_VERSION) + String("_KNOB")); // + String(__TIMESTAMP__);
+#else
+const String build_version = (String(BUILD_VERSION));; // + String(__TIMESTAMP__);
+#endif
 #endif
 const String git_revision  = BUILD_GITREV;
 
@@ -83,7 +107,7 @@ const String git_revision  = BUILD_GITREV;
 /* maybe move all wifi stuff to separate files.... */
 
 ESP8266WebServer server(80);
-WebSocketsServer *webSocketsServer; // webSocketsServer = WebSocketsServer(81);
+WebSocketsServer *webSocketsServer = NULL; // webSocketsServer = WebSocketsServer(81);
 
 const String AP_SSID = LED_NAME + String("-") + String(ESP.getChipId());
 
@@ -130,6 +154,43 @@ pals_setup(void);
 
 uint32
 getResetReason(void);
+
+#ifdef HAS_KNOB_CONTROL
+
+enum fieldtypes {
+    NumberFieldType,
+    BooleanFieldType,
+    SelectFieldType,
+    ColorFieldType,
+    TitleFieldType,
+    SectionFieldType,
+    InvalidFieldType
+  };
+
+
+fieldtypes *m_fieldtypes;
+  
+void set_fieldTypes(fieldtypes *m_fieldtypes) {
+  if(!m_fieldtypes) return;
+  for(uint8_t i=0; i<fieldCount; i++)
+  {
+    m_fieldtypes[i] = InvalidFieldType;
+    if(fields[i].type == "Title")
+      m_fieldtypes[i] = TitleFieldType;
+    if(fields[i].type == "Number")
+      m_fieldtypes[i] = NumberFieldType;
+    if(fields[i].type == "Boolean")
+      m_fieldtypes[i] = BooleanFieldType;
+    if(fields[i].type == "Select")
+      m_fieldtypes[i] = SelectFieldType;
+    if(fields[i].type == "Color")
+      m_fieldtypes[i] = ColorFieldType;
+    if(fields[i].type == "Section")
+      m_fieldtypes[i] = SectionFieldType;
+  }
+}
+#endif
+
 
 // used to send an answer as INT to the calling http request
 // TODO: Use one answer function with parameters being overloaded
@@ -211,6 +272,10 @@ void sendAnswer(String jsonAnswer)
 // broadcasts the name and value to all websocket clients
 void broadcastInt(String name, uint16_t value)
 {
+  if(webSocketsServer == NULL)
+  {
+    return;
+  }
   /*
   String json = "{\"name\":\"" + name + "\",\"value\":" + String(value) + "}";
   DEBUGPRNT("Send websocket broadcast with value: " + json);
@@ -240,6 +305,10 @@ void broadcastInt(String name, uint16_t value)
 // TODO: One function with parameters being overloaded.
 void broadcastString(String name, String value)
 {
+  if(webSocketsServer == NULL)
+  {
+    return;
+  }
   /*
   String json = "{\"name\":\"" + name + "\",\"value\":\"" + String(value) + "\"}";
   DEBUGPRNT("Send websocket broadcast with value: " + json);
@@ -445,11 +514,6 @@ void checkSegmentChanges(void) {
     broadcastInt("dithering", seg.dithering);
     shouldSaveRuntime = true;
   }
-
-
-    
-    
-    
   if(seg.addGlitter != strip->getAddGlitter())
   {
     seg.addGlitter= strip->getAddGlitter();
@@ -614,6 +678,103 @@ bool OTAisRunning = false;
 
 void initOverTheAirUpdate(void)
 {
+  #ifdef HAS_KNOB_CONTROL
+  DEBUGPRNT("Initializing OTA capabilities....");
+  /* init OTA */
+  // Port defaults to 8266
+  ArduinoOTA.setPort(8266);
+
+  ArduinoOTA.setRebootOnSuccess(true);
+
+  // TODO: Implement Hostname in config and WIFI Settings?
+
+  // Hostname defaults to esp8266-[ChipID]
+  ArduinoOTA.setHostname(LED_NAME);
+
+  // No authentication by default
+  // ArduinoOTA.setPassword((const char *)"123");
+
+  ArduinoOTA.onStart([]() {
+    DEBUGPRNT("OTA start");
+    display.clear();
+    display.drawString(0, 0, "Starte OTA...");
+    display.displayOn();
+    display.display();
+    // we need to delete the websocket server in order to have OTA correctly running.
+    delete webSocketsServer;
+    // we stop the webserver to not get interrupted....
+    server.stop();
+    // we indicate our sktch that OTA is currently running (should actually not be required)
+    OTAisRunning = true;
+  });
+
+  // what to do if OTA is finished...
+  ArduinoOTA.onEnd([]() {
+    DEBUGPRNT("OTA end");
+    // OTA finished.
+    display.drawString(0, 53, "OTA beendet!");
+    display.displayOn();
+    display.display();
+    // indicate that OTA is no longer running.
+    OTAisRunning = false;
+    // no need to reset ESP as this is done by the OTA handler by default
+  });
+  // show the progress on the strips as well to be informed if anything gets stuck...
+  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+    DEBUGPRNT("Progress: " + String((progress / (total / 100))));
+
+    unsigned int prog = (progress / (total / 100));
+    display.clear();
+    display.drawString(0, 0, "Starte OTA...");
+    display.drawStringMaxWidth(0, 12, 128, "Prog: " + String(progress) + " / " + String(total));
+    display.drawProgressBar(1,33, 126, 7, prog);
+    display.displayOn();
+    display.display();
+
+    
+  });
+
+  // something went wrong, we gonna show an error "message" via LEDs.
+  ArduinoOTA.onError([](ota_error_t error) {
+    String err = "OTA Fehler: ";
+
+    DEBUGPRNT("Error[%u]: " + String(error));
+    if (error == OTA_AUTH_ERROR) {
+      DEBUGPRNT("Auth Failed");
+      err = err + "Auth Failed";
+    }
+    else if (error == OTA_BEGIN_ERROR) {
+      DEBUGPRNT("Begin Failed");
+      err = err + "Begin Failed";
+    }
+    else if (error == OTA_CONNECT_ERROR) {
+      DEBUGPRNT("Connect Failed");
+      err = err + ("Connect Failed");
+    }
+    else if (error == OTA_RECEIVE_ERROR) {
+      DEBUGPRNT("Receive Failed");
+      err = err + ("Receive Failed");
+    }
+    else if (error == OTA_END_ERROR) {
+      DEBUGPRNT("End Failed");
+      err = err + ("End Failed");
+    }
+
+    display.clear();
+    display.drawStringMaxWidth(0, 0,  128, "Update fehlgeschlagen!");
+    display.drawStringMaxWidth(0, 22, 128, err);
+    display.drawStringMaxWidth(0, 43, 128, "Reset in 10 Sek");
+    delay(KNOB_BOOT_DELAY);
+    ESP.restart();
+  });
+  // start the service
+  ArduinoOTA.begin();
+  DEBUGPRNT("OTA capabilities initialized....");
+  showInitColor(CRGB::Green);
+  delay(INITDELAY);
+  showInitColor(CRGB::Black);
+  delay(INITDELAY);
+  #else // HAS_KNOB_CONTROL
   DEBUGPRNT("Initializing OTA capabilities....");
   showInitColor(CRGB::Blue);
   delay(INITDELAY);
@@ -741,6 +902,7 @@ void initOverTheAirUpdate(void)
   delay(INITDELAY);
   showInitColor(CRGB::Black);
   delay(INITDELAY);
+  #endif // HAS_KNOB_CONTROL
 }
 
 // for DEBUG purpose without Serial connection...
@@ -772,6 +934,7 @@ void setupWiFi(void)
 
   WiFiManager wifiManager;
 
+#ifndef HAS_KNOB_CONTROL
   // 4 Minutes should be sufficient.
   // Especially in case of WiFi loss...
   wifiManager.setConfigPortalTimeout(240);
@@ -781,7 +944,6 @@ void setupWiFi(void)
 
 //tries to connect to last known settings
 //if it does not connect it starts an access point with the specified name
-//here  "AutoConnectAP" with password "password"
 //and goes into a blocking loop awaiting configuration
   DEBUGPRNT("Going to autoconnect and/or Start AP");
   if (!wifiManager.autoConnect(AP_SSID.c_str()))
@@ -803,6 +965,44 @@ void setupWiFi(void)
 //if we get here we have connected to the WiFi
   DEBUGPRNT("local ip: ");
   DEBUGPRNT(WiFi.localIP());
+
+
+#else // We have a control knob / button
+
+  // If we are in button control mode
+  // we only need WiFi for "convenience"
+  if(WiFiConnected)
+    wifiManager.setConfigPortalTimeout(120);
+  else
+    wifiManager.setConfigPortalTimeout(10);
+ 
+  // we reset after configuration to not have AP and STA in parallel...
+  wifiManager.setBreakAfterConfig(true);
+
+//tries to connect to last known settings
+//if it does not connect it starts an access point with the specified name
+//and goes into a blocking loop awaiting configuration
+  DEBUGPRNT("Going to autoconnect and/or Start AP");
+  if (!wifiManager.autoConnect(AP_SSID.c_str()))
+  {
+    DEBUGPRNT("Config saved (or timed out), we should reset as see if it connects");
+    WiFiConnected = false;
+  }
+  else
+  {
+    WiFiConnected = true;
+    if(WiFi.getMode() != WIFI_STA)
+    {
+      WiFi.mode(WIFI_STA);
+    }
+
+    WiFi.setAutoReconnect(true);
+  //if we get here we have connected to the WiFi
+    DEBUGPRNT("local ip: ");
+    DEBUGPRNT(WiFi.localIP());
+  }
+
+#endif
 
   showInitColor(CRGB::Green);
   delay(INITDELAY);
@@ -1793,28 +1993,18 @@ String message = "";
 
 void handleStatus(void)
 {
-  #ifdef DEBUG
-  uint32_t answer_time = micros();
-  JsonObject& debugAnswer = answerObj.createNestedObject("ESP_Data");
-  #endif
   
   JsonObject& answerObj = jsonBuffer.createObject();
   JsonObject& currentStateAnswer = answerObj.createNestedObject("currentState");
   JsonObject& sunriseAnswer = answerObj.createNestedObject("sunRiseState");
   JsonObject& statsAnswer = answerObj.createNestedObject("Stats");
+  #ifdef DEBUG
+  uint32_t answer_time = micros();
+  JsonObject& debugAnswer = answerObj.createNestedObject("ESP_Data");
+  #endif
 
-  uint16_t num_leds_on = 0;
-  // if brightness = 0, no LED can be lid.
-  if (strip->getBrightness())
-  {
-    // count the number of active LEDs
-    // in rare occassions, this can still be 0, depending on the effect.
-    for (uint16_t i = 0; i < strip->getStripLength(); i++)
-    {
-      if (strip->leds[i])
-        num_leds_on++;
-    }
-  }
+  uint16_t num_leds_on = strip->getLedsOn();
+
   currentStateAnswer["power"] = strip->getPower();
   if (strip->getPower())
   {
@@ -2224,6 +2414,10 @@ void setupWebServer(void)
 
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
 {
+  if(webSocketsServer == NULL)
+  {
+    return;
+  }
   DEBUGPRNT("Checking the websocket event!");
   server.arg(1);
   if(type == WStype_TEXT)
@@ -2285,14 +2479,78 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
   }
 }
 
+#ifdef HAS_KNOB_CONTROL
+
+uint16_t maxVal = 65535;
+uint16_t minVal = 0;
+uint16_t curVal = 0;
+uint16_t steps  = 1;
+
+void setupKnobControl(void)
+{ 
+
+
+  DEBUGPRNT("setup display...");
+  display.init();
+
+  display.flipScreenVertically();
+  display.setFont(ArialMT_Plain_10);
+
+  // Filedtypes:
+  m_fieldtypes = new fieldtypes[fieldCount];
+  set_fieldTypes(m_fieldtypes);
+  DEBUGPRNT("setup done...");
+
+
+}
+#endif
+
+#ifdef HAS_KNOB_CONTROL
+uint8_t drawtxtline10(uint8_t y, uint8_t fontheight, String txt)
+{
+  if(txt == "") return y;
+  uint8_t txtLines = 1;
+  txtLines = (((display.getStringWidth(txt) - 1) / 128) + 1) * fontheight;
+  display.drawStringMaxWidth (0,  y, 128, txt);
+  y+=txtLines;
+  return y;
+}
+
+#endif
+
+enum displayStates {
+  Display_Off,
+  Display_ShowInfo,
+  Display_ShowMenu,
+  Display_ShowSectionMenue,
+  Display_ShowBoolMenu,
+  Display_ShowNumberMenu,
+  Display_ShowSelectMenue
+} mDisplayState;
+
+
 // setup network and output pins
 void setup()
 {
   // Sanity delay to get everything settled....
-  delay(500);
+  delay(50);
 
+  #ifdef HAS_KNOB_CONTROL
+  const uint8_t font_height = 12;
+  setupKnobControl();
+  uint8_t cursor = 0;
+  display.clear();
+  display.setTextAlignment(TEXT_ALIGN_LEFT);
+  display.setFont(ArialMT_Plain_10);
+  cursor = drawtxtline10(cursor, font_height, F("Booting... Bitte Warten"));
+  display.display();
+
+  #ifdef DEBUG
   // Open serial communications and wait for port to open:
   Serial.begin(115200);
+  #endif
+
+  mDisplayState = Display_ShowInfo;
 
   DEBUGPRNT("\n");
   DEBUGPRNT(F("Booting"));
@@ -2300,40 +2558,58 @@ void setup()
   DEBUGPRNT("");
   DEBUGPRNT(F("Checking boot cause:"));
 
+ 
+
   switch (getResetReason())
   {
   case REASON_DEFAULT_RST:
     DEBUGPRNT(F("\tREASON_DEFAULT_RST: Normal boot"));
+    cursor = drawtxtline10(cursor, font_height, F("REASON_DEFAULT_RST"));
+    display.display();
     break;
   case REASON_WDT_RST:
     DEBUGPRNT(F("\tREASON_WDT_RST"));
+    cursor = drawtxtline10(cursor, font_height, F("REASON_WDT_RST"));
+    display.display();
     clearCRC(); // should enable default start in case of
     break;
   case REASON_EXCEPTION_RST:
     DEBUGPRNT(F("\tREASON_EXCEPTION_RST"));
+    cursor = drawtxtline10(cursor, font_height, F("REASON_EXCEPTION_RST"));
+    display.display();
     clearCRC();
     break;
   case REASON_SOFT_WDT_RST:
     DEBUGPRNT(F("\tREASON_SOFT_WDT_RST"));
+    cursor = drawtxtline10(cursor, font_height, F("REASON_SOFT_WDT_RST"));
+    display.display();
     clearCRC();
     break;
   case REASON_SOFT_RESTART:
     DEBUGPRNT(F("\tREASON_SOFT_RESTART"));
+    cursor = drawtxtline10(cursor, font_height, F("REASON_SOFT_RESTART"));
+    display.display();
     break;
   case REASON_DEEP_SLEEP_AWAKE:
     DEBUGPRNT(F("\tREASON_DEEP_SLEEP_AWAKE"));
+    cursor = drawtxtline10(cursor, font_height, F("REASON_DEEP_SLEEP_AWAKE"));
+    display.display();
     break;
   case REASON_EXT_SYS_RST:
     DEBUGPRNT(F("\n\tREASON_EXT_SYS_RST: External trigger..."));
+    cursor = drawtxtline10(cursor, font_height, F("REASON_EXT_SYS_RST"));
+    display.display();
     break;
 
   default:
     DEBUGPRNT(F("\tUnknown cause..."));
+    cursor = drawtxtline10 (cursor, 10, F("Unknown cause..."));
+    display.display();
     break;
   }
-
+  cursor = drawtxtline10 (cursor, 10, F("LED Stripe init"));
+  display.display();
   
-
 
   stripe_setup(LED_COUNT,
                STRIP_MAX_FPS,
@@ -2343,11 +2619,115 @@ void setup()
                F("Rainbow Colors"),
                UncorrectedColor); //TypicalLEDStrip);
 
-  // internal LED can be light up when current is limited by FastLED
-  pinMode(2, OUTPUT);
-
   EEPROM.begin(strip->getSegmentSize());
 
+  cursor = drawtxtline10(cursor, font_height, F("WiFi-Setup"));
+  display.display();
+  setupWiFi();
+  cursor = drawtxtline10(cursor, font_height, F("WebServer Setup"));
+  display.display();
+  setupWebServer();
+
+  if (!MDNS.begin(LED_NAME)) {
+    DEBUGPRNT("Error setting up MDNS responder!");
+    //ESP.restart();
+  }
+  else
+  {
+    MDNS.addService("http", "tcp", 80);
+    DEBUGPRNT("mDNS responder started");
+  }
+  cursor = drawtxtline10(cursor, font_height, F("OTA Setup"));
+  display.display();
+  initOverTheAirUpdate();
+    
+  readRuntimeDataEEPROM(); 
+  
+  myIP = WiFi.localIP();
+  DEBUGPRNT("Going to show IP Address " + myIP.toString()); 
+
+  delay(KNOB_BOOT_DELAY);
+  display.clear();
+  cursor = 0;
+  cursor = drawtxtline10(cursor, font_height, "Boot von " + String(LED_NAME) + " fertig!");
+  cursor = drawtxtline10(cursor, font_height, "Name: " + String(LED_NAME));
+  cursor = drawtxtline10(cursor, font_height, "IP: " + myIP.toString());
+  cursor = drawtxtline10(cursor, font_height, "LEDs: " + String(LED_COUNT));
+  display.display();
+  delay(KNOB_BOOT_DELAY);
+
+#else // HAS_KNOB_CONTROL
+  #ifdef DEBUG
+  // Open serial communications and wait for port to open:
+  Serial.begin(115200);
+  #endif
+
+  DEBUGPRNT("\n");
+  DEBUGPRNT(F("Booting"));
+
+  DEBUGPRNT("");
+  DEBUGPRNT(F("Checking boot cause:"));
+  
+  switch (getResetReason())
+  {
+  case REASON_DEFAULT_RST:
+    DEBUGPRNT(F("\tREASON_DEFAULT_RST: Normal boot"));
+    
+    break;
+  case REASON_WDT_RST:
+    DEBUGPRNT(F("\tREASON_WDT_RST"));
+    
+    clearCRC(); // should enable default start in case of
+    break;
+  case REASON_EXCEPTION_RST:
+    DEBUGPRNT(F("\tREASON_EXCEPTION_RST"));
+    
+    clearCRC();
+    break;
+  case REASON_SOFT_WDT_RST:
+    DEBUGPRNT(F("\tREASON_SOFT_WDT_RST"));
+    
+    clearCRC();
+    break;
+  case REASON_SOFT_RESTART:
+    DEBUGPRNT(F("\tREASON_SOFT_RESTART"));
+    
+    break;
+  case REASON_DEEP_SLEEP_AWAKE:
+    DEBUGPRNT(F("\tREASON_DEEP_SLEEP_AWAKE"));
+    
+    break;
+  case REASON_EXT_SYS_RST:
+    DEBUGPRNT(F("\n\tREASON_EXT_SYS_RST: External trigger..."));
+    
+    break;
+
+  default:
+    DEBUGPRNT(F("\tUnknown cause..."));
+    
+    break;
+  }
+  delay(1000);
+   
+
+  stripe_setup(LED_COUNT,
+               STRIP_MAX_FPS,
+               STRIP_VOLTAGE,
+               STRIP_MILLIAMPS,
+               RainbowColors_p,
+               F("Rainbow Colors"),
+               UncorrectedColor); //TypicalLEDStrip);
+
+  EEPROM.begin(strip->getSegmentSize());
+  
+  // internal LED can be light up when current is limited by FastLED
+  
+  pinMode(2, OUTPUT);
+
+
+  //EEPROM.begin(strip->getSegmentSize());
+  delay(1000);
+  
   setupWiFi();
 
   setupWebServer();
@@ -2366,6 +2746,8 @@ void setup()
 
 
   initOverTheAirUpdate();
+
+
 
   // if we got that far, we show by a nice little animation
   // as setup finished signal....
@@ -2442,7 +2824,534 @@ void setup()
   FastLED.countFPS();
 #endif
   //setEffect(FX_NO_FX);
+#endif // HAS_KNOB_CONTROL
+
 }
+
+#ifdef HAS_KNOB_CONTROL
+
+
+uint8_t get_next_field(uint8_t curr_field, bool up, fieldtypes *m_fieldtypes)
+{
+  uint8_t ret = curr_field;
+  uint8_t first_field = 0;
+  uint8_t last_field = fieldCount-1;
+  for(uint8_t i=0; i<fieldCount; i++)
+  {
+    if(m_fieldtypes[i] <= SelectFieldType)
+    {
+      last_field = i;
+    }
+    if(m_fieldtypes[fieldCount-1-i] <= SelectFieldType)
+    {
+      first_field = fieldCount-1-i;
+    }
+  }
+  uint8_t sanity = 0;
+  while(ret == curr_field || m_fieldtypes[ret] > SelectFieldType)
+  {
+    // sanity break....
+    if(sanity++ > fieldCount) break;
+
+    if(up)
+    {
+      ret++;
+      if(ret >= last_field)
+      {
+        ret = last_field;
+        //ret = fieldCount-1;
+      }
+    }
+    else
+    {
+      if(ret > first_field) 
+      {
+        ret--;
+      }
+      else
+      {
+        ret = first_field; //fieldCount-1;
+      } 
+    }
+  }
+  return ret;
+}
+
+
+uint16_t setEncoderValues(uint8_t curr_field, fieldtypes * m_fieldtypes)
+{
+  uint16_t curr_value = 0;
+  switch (m_fieldtypes[curr_field])
+  {
+    case TitleFieldType :
+      // nothing?
+    break;
+    case NumberFieldType :
+      curr_value = (uint16_t)strtoul(fields[curr_field].getValue().c_str(), NULL, 10);
+      steps = (fields[curr_field].max - fields[curr_field].min) / 100;
+      if(steps == 0) steps = 1;
+      maxVal = fields[curr_field].max;
+      minVal = fields[curr_field].min;
+      curVal = curr_value;
+    break;
+    case BooleanFieldType :
+      curr_value = (uint16_t)strtoul(fields[curr_field].getValue().c_str(), NULL, 10);
+      steps = 1;
+      maxVal = 1;
+      minVal = 0;
+      curVal = curr_value;
+    break;
+    case SelectFieldType :
+      curr_value =(uint16_t)strtoul(fields[curr_field].getValue().c_str(), NULL, 10);
+      steps = 1;
+      maxVal = fields[curr_field].max;
+      minVal = fields[curr_field].min;
+      curVal = curr_value;
+    break;
+    case ColorFieldType :
+      // nothing? - to be done later...
+    break;
+    case SectionFieldType :
+      // nothing?
+    break;
+    default:
+    break;
+  }
+  return curr_value;
+}
+
+
+uint32_t last_control_operation = 0;
+bool display_was_off = false;
+uint8_t TimeoutBar = 0;
+
+void showDisplay(uint8_t curr_field, fieldtypes *fieldtype)
+{
+  static bool toggle;
+  EVERY_N_MILLISECONDS(KNOB_CURSOR_BLINK)
+  {
+    toggle = !toggle;
+  }
+  EVERY_N_MILLISECONDS(1000/KNOB_DISPLAY_FPS)
+  {
+    uint16_t val = (uint16_t)strtoul(fields[curr_field].getValue().c_str(), NULL, 10);
+    display.clear();
+    display.setTextAlignment(TEXT_ALIGN_LEFT);
+    if(mDisplayState) display.displayOn();
+    else display.displayOff();
+    switch(mDisplayState)
+    {
+      case Display_Off:
+        display.displayOff();
+        display_was_off = true;
+      break;
+      case Display_ShowMenu:
+        {
+          uint8_t prev_field = get_next_field(curr_field, false, fieldtype);
+          uint8_t pre_prev_field = get_next_field(prev_field, false, fieldtype);
+          uint8_t next_field = get_next_field(curr_field, true, fieldtype);
+          uint8_t next_next_field = get_next_field(next_field, true, fieldtype);
+          display.setTextAlignment(TEXT_ALIGN_LEFT);
+          display.drawString(0,  0, F("Menu:")); 
+          //display.setTextAlignment(TEXT_ALIGN_RIGHT);
+          //display.drawString(128,  53, myIP.toString());    
+          display.setTextAlignment(TEXT_ALIGN_CENTER);
+          
+          int16_t width = display.getStringWidth(fields[prev_field].label);
+          
+          if(width > 128) width = width - 128;
+          else width = 0;
+
+          if(prev_field != curr_field)
+            display.drawString(64+width, 20, fields[prev_field].label);
+          
+          width = display.getStringWidth(fields[pre_prev_field].label);
+          
+          if(width > 128) width = width - 128;
+          else width = 0;
+          
+          if(pre_prev_field != prev_field)
+            display.drawString(64+width, 10, fields[pre_prev_field].label);
+          
+          if(toggle)
+          {
+            display.fillRect(2, 32, 124, 10); 
+            display.setColor((OLEDDISPLAY_COLOR)0);
+          }
+          static bool left = false;
+          static int16_t offset = 0;
+          width = display.getStringWidth(fields[curr_field].label);
+          EVERY_N_MILLISECONDS(30)
+          {
+            left?offset--:offset++;
+          }
+          if (width > 128)
+          {
+            if(left)
+            {
+              if(offset < 0-(10 + width - 128)) left = false;
+            }
+            else
+            {
+              if(offset > (10)) left = true;
+            }
+            display.setTextAlignment(TEXT_ALIGN_LEFT);
+            display.drawString(offset, 30, fields[curr_field].label);
+            
+          }
+          else
+          {
+            left = true;
+            offset = 20;
+            display.drawString(64, 30, fields[curr_field].label);
+          }
+          display.setColor((OLEDDISPLAY_COLOR)1);
+          display.setTextAlignment(TEXT_ALIGN_CENTER);
+          
+          width = display.getStringWidth(fields[next_field].label);
+          
+          if(width > 128) width = width - 128;
+          else width = 0;
+
+          if(next_field != curr_field)
+            display.drawString(64+width, 40, fields[next_field].label);
+
+          width = display.getStringWidth(fields[next_next_field].label);
+          
+          if(width > 128) width = width - 128;
+          else width = 0;
+
+          if(next_next_field != next_field)
+            display.drawString(64+width, 50, fields[next_next_field].label);
+        }
+      break;
+      case Display_ShowBoolMenu:
+        display.drawStringMaxWidth(0, 0, 128, fields[curr_field].label + ": ");
+        display.setTextAlignment(TEXT_ALIGN_CENTER);
+        display.drawRect(32, 28, 28, 28);
+        display.drawRect(68, 28, 28, 28);
+        display.setFont(ArialMT_Plain_16);
+        if(val)
+        {
+          display.setColor((OLEDDISPLAY_COLOR)1);
+          display.drawString(46, 32, "Off");  
+          display.fillRect(68, 28, 28, 28);
+          display.setColor((OLEDDISPLAY_COLOR)0);
+          display.drawString(82, 32, "On");  
+          display.setColor((OLEDDISPLAY_COLOR)1);
+        }
+        else
+        {
+          
+          display.setColor((OLEDDISPLAY_COLOR)1);
+          display.fillRect(32, 28, 28, 28);
+          display.setColor((OLEDDISPLAY_COLOR)0);
+          display.drawString(46, 32, "Off");  
+          display.setColor((OLEDDISPLAY_COLOR)1);
+          display.drawString(82, 32, "On");  
+          display.setColor((OLEDDISPLAY_COLOR)1);
+        }
+      break;
+      case Display_ShowNumberMenu:
+        display.drawStringMaxWidth(0, 0, 128, fields[curr_field].label + ": ");
+        display.setTextAlignment(TEXT_ALIGN_RIGHT);
+        display.setFont(ArialMT_Plain_16);
+        display.drawProgressBar(0, 28, 127, 20, map(val, fields[curr_field].min, fields[curr_field].max, 0, 100));
+        display.setTextAlignment(TEXT_ALIGN_CENTER);
+        display.setColor((OLEDDISPLAY_COLOR)2);
+        display.drawString(63, 30, fields[curr_field].getValue());
+        display.setColor((OLEDDISPLAY_COLOR)1);
+        display.setFont(ArialMT_Plain_10);
+        display.setTextAlignment(TEXT_ALIGN_LEFT);
+        display.drawString(0, 52, String(fields[curr_field].min));
+        display.setTextAlignment(TEXT_ALIGN_RIGHT); 
+        display.drawString(127, 52, String(fields[curr_field].max));
+          
+      break;
+      case Display_ShowSelectMenue:
+      {
+        display.drawStringMaxWidth(0, 0, 128, fields[curr_field].label + ": ");
+        StaticJsonBuffer<1600> myJsonBuffer;
+        String json = "[";
+        json += fields[curr_field].getOptions();
+        json += "]";
+
+        JsonArray& myValues = myJsonBuffer.parseArray(json.c_str(),2);
+        
+        //display.drawString(128, 20, myValues[val]);
+        display.setTextAlignment(TEXT_ALIGN_LEFT);
+        uint16_t p_val = 0;
+        uint16_t n_val = 0;
+        if(val > fields[curr_field].min)
+        {
+          p_val = val - 1;
+        }
+        else
+        {
+          p_val = val; //fields[curr_field].max;
+        }
+        if(val < fields[curr_field].max)
+        {
+          n_val = val + 1;
+        }
+        else
+        {
+          n_val = val;
+        }
+        if(val != p_val) {
+          display.drawStringMaxWidth(0, 25, 128, " -");
+          display.drawStringMaxWidth(10, 25, 128, myValues[p_val]);
+        }
+        if(val != n_val) {
+          display.drawStringMaxWidth(0, 45, 128, " +");
+          display.drawStringMaxWidth(10, 45, 128, myValues[n_val]);
+        }
+        if(toggle)
+        {
+          display.fillRect(0,36,128,11);
+          display.setColor((OLEDDISPLAY_COLOR)0);
+        }
+        display.drawStringMaxWidth(0, 35, 128, " >");
+        display.drawStringMaxWidth(10, 35, 128, myValues[  val]);
+        display.setColor((OLEDDISPLAY_COLOR)1); 
+      }
+      break;
+      case Display_ShowSectionMenue:
+        display.drawStringMaxWidth(0, 30, 128, fields[curr_field].label);
+
+      break;
+      case Display_ShowInfo:
+        display.setTextAlignment(TEXT_ALIGN_LEFT);
+        display.drawString(0,  0, LED_NAME);
+
+       /*  if(WiFiConnected)
+        {
+          display.setTextAlignment(TEXT_ALIGN_LEFT);
+          display.drawString(0,   10, WiFi.SSID());
+        }
+        else
+        {
+          display.drawString(0,   10, "No Network");
+        } */
+        display.setTextAlignment(TEXT_ALIGN_LEFT);
+        display.setFont(ArialMT_Plain_10);
+        display.drawString(0,  20, "FPS:");
+        display.drawString(0,  30, "Leds on:");
+        display.drawString(0,  40, "M:");
+        display.drawString(0,  50, "C:");
+
+        display.setTextAlignment(TEXT_ALIGN_RIGHT);
+        if(strip->getPower())
+        {
+          uint16_t num_leds_on = strip->getLedsOn(); // fixes issue #18
+          display.drawString(127,  20, String(FastLED.getFPS()));
+          display.drawString(127,  30, String(num_leds_on));
+        }
+        else
+        {
+          display.drawString(127,  20, "Off");
+          display.drawString(127,  30, "Off");
+        }
+        display.drawString(127,  40, strip->getModeName(strip->getMode()));
+        display.drawString(127,  50, strip->getTargetPaletteName());
+      default:
+        display.displayOn();
+      break;
+    }
+    if(WiFiConnected)
+    {
+      int32_t rssi = WiFi.RSSI();
+      uint8_t bars = 0; //map(rssi, -110, -55, 0, 5);
+      if(rssi >= -55)
+        bars = 5;
+      else if (rssi >= -70)
+        bars = 4;
+      else if (rssi >= -85)
+        bars = 3;
+      else if (rssi >= -100)
+        bars = 2;
+      else if (rssi >= -110)
+        bars = 1;
+      else
+        bars = 0;
+      
+      for(uint8_t i=0; i<=bars; i++)
+      {
+        display.drawVerticalLine(115+2*i, 10-i*2, i*2);
+      }
+    }
+    else
+    {
+      display.drawLine(115, 10, 125, 0);
+      display.drawLine(125, 10, 115, 0);
+    }
+    /* 
+    uint8_t br64 =          map8(strip->getBrightness(), 0, 64);
+    uint8_t sp64 = (uint8_t)map (strip->getSpeed(), BEAT88_MIN, BEAT88_MAX, 0, 64);
+    display.drawVerticalLine(0,   63-br64, br64);
+    display.drawVerticalLine(127, 63-sp64, sp64); 
+    */
+    display.drawHorizontalLine(64-(TimeoutBar/2),63, TimeoutBar);
+    display.setColor((OLEDDISPLAY_COLOR)1);
+    display.setFont(ArialMT_Plain_10);
+    display.setTextAlignment(TEXT_ALIGN_LEFT);
+    display.display();
+  }
+}
+
+
+void knob_service(uint32_t now)
+{
+ 
+
+  
+
+  static uint8_t curr_field = get_next_field(0, true, m_fieldtypes);
+  static uint32_t last_btn_press = 0;
+  
+  static uint16_t old_val = 0;
+
+  static bool in_submenu = false;
+  static bool newfield_selected = false;
+ 
+  if (digitalRead(KNOB_C_BTN) == LOW && now > last_btn_press + KNOB_BTN_DEBOUNCE)
+  {
+    last_btn_press = now;
+    
+    if(display_was_off)
+    {
+      display_was_off = false;
+      last_control_operation = now - KNOB_TIMEOUT_OPERATION - (KNOB_TIMEOUT_OPERATION/10);
+      mDisplayState = Display_ShowInfo;
+      showDisplay(curr_field, m_fieldtypes);
+      return;
+    }
+    last_control_operation = now;
+    in_submenu = !in_submenu;
+
+    if(!in_submenu)
+    {
+      maxVal = fieldCount-1;
+      minVal = 0;
+      steps = 1;
+      curVal  = curr_field;
+      old_val = curr_field;
+    }
+    else
+    {
+      old_val = setEncoderValues(curr_field, m_fieldtypes);
+    }
+  }
+  EVERY_N_MILLISECONDS(KNOB_ROT_DEBOUNCE)
+  {  
+    uint16_t val = 0;
+    int8_t add = myEnc.direction();
+    if(add != 0)
+    {
+      if(display_was_off)
+      {
+        display_was_off = false;
+        last_control_operation = now - KNOB_TIMEOUT_OPERATION - (KNOB_TIMEOUT_OPERATION/10);
+        mDisplayState = Display_ShowInfo;
+        return;
+      }
+      last_control_operation = now;
+    } 
+
+    if(add < 0 && (curVal <= (minVal + steps)))
+    {
+      curVal = minVal;
+    }
+    else if(add > 0 && curVal >= (maxVal-steps))
+    {
+      curVal = maxVal;
+    }
+    else
+    {
+      curVal = curVal + add * steps;
+    }
+    val = curVal;
+
+    if(old_val != val)
+    {
+      if(!in_submenu)
+      {
+        if(val > curr_field)
+        {
+          val = get_next_field(curr_field, true, m_fieldtypes);
+        }
+        else
+        {
+          val = get_next_field(curr_field, false, m_fieldtypes);
+        }
+        curr_field = val;
+        newfield_selected = true;
+      }
+      else
+      {
+        if(newfield_selected)
+        {
+          old_val = setEncoderValues(curr_field, m_fieldtypes);
+          newfield_selected = false;
+        }
+        if(fields[curr_field].setValue)
+        {
+          fields[curr_field].setValue(val);
+        }
+      }
+      old_val = val;
+    }
+    curVal = val;
+    
+    if(now > last_control_operation + KNOB_TIMEOUT_DISPLAY)
+    {
+      mDisplayState = Display_Off;
+      display_was_off = true;
+    }
+    else if(now > last_control_operation + KNOB_TIMEOUT_OPERATION)
+    {
+      TimeoutBar = map(now-last_control_operation, 0, KNOB_TIMEOUT_DISPLAY, 127,0);
+      curr_field = get_next_field(0, true, m_fieldtypes);
+      in_submenu = true;
+      old_val = setEncoderValues(curr_field, m_fieldtypes);
+      mDisplayState = Display_ShowInfo;
+      if((strip->getAutoplay() || strip->getAutopal()) && strip->getPower()) last_control_operation = now - KNOB_TIMEOUT_OPERATION - (KNOB_TIMEOUT_OPERATION/10); // keeps the display on as long as we change automatically the mode or the palette
+    }
+    else
+    {
+      TimeoutBar = map(now-last_control_operation, 0, KNOB_TIMEOUT_OPERATION, 127,0);
+      if(!in_submenu)
+      {
+        mDisplayState = Display_ShowMenu;
+      }
+      else
+      {
+        switch (m_fieldtypes[curr_field])
+        {
+          case TitleFieldType : 
+          case SectionFieldType :
+          case ColorFieldType : 
+          mDisplayState = Display_ShowInfo;
+          break;
+          case NumberFieldType :
+          mDisplayState = Display_ShowNumberMenu;
+          break;
+          case BooleanFieldType :
+          mDisplayState = Display_ShowBoolMenu;
+          break;
+          case SelectFieldType :
+          mDisplayState = Display_ShowSelectMenue;
+          default:
+          break;
+        }
+      }
+    }
+    showDisplay(curr_field, m_fieldtypes);
+  }
+}
+#endif
+
+
 
 // request receive loop
 void loop()
@@ -2487,6 +3396,7 @@ void loop()
   }
 #endif
 
+  #ifndef HAS_KNOB_CONTROL
   // Checking WiFi state every WIFI_TIMEOUT
   // Reset on disconnection
   if (now > wifi_check_time)
@@ -2549,4 +3459,65 @@ void loop()
     saveEEPROMData();
     shouldSaveRuntime = false;
   }
+  #else
+
+    
+    
+    // Checking WiFi state every WIFI_TIMEOUT
+    // since we have Knob-Control. We do not care about "No Connection"
+  if (now > wifi_check_time)
+  {
+    //DEBUGPRNT("Checking WiFi... ");
+    if (WiFi.status() != WL_CONNECTED)
+    {
+      last_control_operation = now;
+      DEBUGPRNT("Lost Wifi Connection. Counter is " + String(wifi_err_counter));
+      wifi_err_counter+=2;
+      wifi_disconnect_counter+=4;
+      WiFiConnected = false;
+    }
+    else
+    {
+      if(wifi_err_counter > 0) wifi_err_counter--;
+      if(wifi_disconnect_counter > 0) wifi_disconnect_counter--;
+      WiFiConnected = true;
+    }
+
+    if(wifi_err_counter > 20)
+    {
+      DEBUGPRNT("Trying to reconnect now...");
+      WiFi.mode(WIFI_OFF);
+      setupWiFi();
+    }
+    wifi_check_time = now + (WIFI_TIMEOUT);
+  }
+
+  if(WiFiConnected)
+  {
+    ArduinoOTA.handle(); // check and handle OTA updates of the code....
+    
+    if(webSocketsServer != NULL)
+      webSocketsServer->loop();
+
+    server.handleClient();
+
+    MDNS.update();
+  }
+
+  strip->service();
+
+  EVERY_N_MILLIS(50)
+  {
+    checkSegmentChanges();
+  }
+
+  EVERY_N_MILLIS(EEPROM_SAVE_INTERVAL_MS)
+  {
+    saveEEPROMData();
+    shouldSaveRuntime = false;
+  }
+
+  knob_service(now);
+
+  #endif
 }

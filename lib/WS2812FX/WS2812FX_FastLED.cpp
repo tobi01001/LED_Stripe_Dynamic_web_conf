@@ -322,7 +322,7 @@ void WS2812FX::service()
   unsigned long now = millis(); // Be aware, millis() rolls over every 49 days
   
   if ((_segment.segments != old_segs) || _segment_runtime.modeinit)
-  {
+  { 
     _segment_runtime.start = 0;
     _segment_runtime.length = (LED_COUNT / _segment.segments);
     _segment_runtime.stop = _segment_runtime.start + _segment_runtime.length - 1;
@@ -371,17 +371,18 @@ void WS2812FX::service()
     {
       SEGMENT_RUNTIME.next_time = now + (uint32_t)(STRIP_DELAY_MICROSEC/1000);
       // no need to write data if nothing is shown (safeguard)
-      bool stillOn = false;
+      
+      // new version: Will fade rightaway once active led found.
       for(uint16_t i = 0; i < LED_COUNT; i++)
       {
-        if(_bleds[i] || leds[i]) stillOn = true;
+        if(_bleds[i] || leds[i]) {
+          fadeToBlackBy(_bleds, LED_COUNT, 16);
+          fadeToBlackBy(  leds, LED_COUNT, 16);
+          FastLED.show();
+          return;
+        }
       }
-      if(stillOn)
-      {
-        fadeToBlackBy(_bleds, LED_COUNT, 4);
-        fadeToBlackBy(  leds, LED_COUNT, 4);
-        FastLED.show();
-      }
+      
     }
     return;
   }
@@ -425,45 +426,53 @@ void WS2812FX::service()
     }
   }
 
-  // the following constuct looks a bit weired and contains many loops
-  // but I preferred to not have multiple if - else conditions within a loop
-  // so depending on the logical combination only one loop is run.
-  // the inverse loop could be separated but this may affect performance
-  // so we loop only once.
+  // Thanks to some discussions on Github, I do still not use any memmove 
+  // but I relaized that I need to nblend from the calculated frames to the led data.
+  // this could be simplified within the following nested loop which does now all at once and svaes 2 loops + 
+  // one nblend over the complete strip data....
+  // as the combination of "mirror" and "reverse" is a bit redundant, this could maybe be simplified as well (later)
 
-  if (_segment.reverse)
-  {
-    CRGB temp;
-    for (uint16_t i = 0; i <= _segment_runtime.length / 2; i++)
-    {
-      temp = leds[i];
-      leds[i] = leds[_segment_runtime.stop - i];
-      leds[_segment_runtime.stop - i] = temp;
-    }
-  }
-
-  for (uint16_t j = 1; j < _segment.segments; j++)
+  for (uint16_t j = 0; j < _segment.segments; j++)
   {
     for (uint16_t i = 0; i < _segment_runtime.length; i++)
     {
       if (_segment.mirror && (j & 0x01))
       {
-        leds[j * _segment_runtime.length + i] = leds[_segment_runtime.stop - i];
+        if(_segment.reverse)
+        {
+          nblend(_bleds[j * _segment_runtime.length + i], leds[i], l_blend);
+        }
+        else
+        {
+          nblend(_bleds[j * _segment_runtime.length + i], leds[_segment_runtime.stop - i], l_blend);
+        }
       }
       else
       {
-        leds[j * _segment_runtime.length + i] = leds[i];
+        if(_segment.reverse)
+        {
+          nblend(_bleds[j * _segment_runtime.length + i], leds[_segment_runtime.stop - i], l_blend);
+        }
+        else
+        {
+          nblend(_bleds[j * _segment_runtime.length + i], leds[i], l_blend);
+        }
+        
       }
     }
   }
 
   // Write the data
+  // the value of 300 microseconds is the average between two service routine calls....
   #define FRAME_CALC_WAIT_MICROINTERVAL ((uint32_t)300)
   static uint32_t next_show = 0;
   uint32_t now_micros = micros();
-
+  // if there is time left for another service call, we do not write the led data yet...
   if(doShow && ((now_micros - next_show) > ((uint32_t)(STRIP_DELAY_MICROSEC) - FRAME_CALC_WAIT_MICROINTERVAL)))
   {
+    // okay, the time budget is within the remaining (300) microseconds
+    // we wait until this time is over befor writing the leds
+    // this should give a wuite stable frame rate...
     if(((next_show + FRAME_CALC_WAIT_MICROINTERVAL) < now_micros) )
     // && ((now_micros - (next_show + FRAME_CALC_WAIT_MICROINTERVAL)) < FRAME_CALC_WAIT_MICROINTERVAL))
     {
@@ -471,14 +480,14 @@ void WS2812FX::service()
       //delayMicroseconds(now_micros - (next_show + FRAME_CALC_WAIT_MICROINTERVAL));
     }
 
-    nblend(_bleds, leds, LED_COUNT, l_blend); // Only blend when actually writing the LEDs... 
+    //nblend(_bleds, leds, LED_COUNT, l_blend); // Only blend when actually writing the LEDs... 
 
     next_show = now_micros; 
     // Write the data
     FastLED.show();
   }
 
-
+/*
   if (_segment.reverse)
   {
     CRGB temp;
@@ -489,7 +498,7 @@ void WS2812FX::service()
       leds[_segment_runtime.stop - i] = temp;
     }
   }
-
+*/
   EVERY_N_MILLISECONDS(STRIP_MIN_DELAY) //(10)
   {
     if(_segment.isRunning) fadeToBlackBy(_bleds, LED_COUNT, 1);
@@ -1161,7 +1170,7 @@ uint16_t WS2812FX::pride(bool glitter = false)
   SEGMENT_RUNTIME.modevars.pride.sHue16 += deltams * beatsin88((SEGMENT.beat88 / 5) * 2 + 1, 5, 9);
   uint16_t brightnesstheta16 = SEGMENT_RUNTIME.modevars.pride.sPseudotime;
 
-  for (uint16_t i = _segment_runtime.start; i < _segment_runtime.stop; i++)
+  for (uint16_t i = _segment_runtime.start; i < _segment_runtime.length; i++)
   {
     hue16 += hueinc16;
     uint8_t hue8 = hue16 / 256;
@@ -1181,7 +1190,7 @@ uint16_t WS2812FX::pride(bool glitter = false)
     uint16_t pixelnumber = i;
     pixelnumber = (_segment_runtime.stop) - pixelnumber;
     */
-    uint16_t pixelnumber = (_segment_runtime.stop-1) - i;
+    uint16_t pixelnumber = (_segment_runtime.stop) - i;
 
     nblend(leds[pixelnumber], newcolor, 64);
   }
@@ -1496,6 +1505,23 @@ uint16_t WS2812FX::getLength(void)
 uint16_t WS2812FX::getStripLength(void)
 {
   return LED_COUNT;
+}
+
+uint16_t WS2812FX::getLedsOn(void)               
+{ 
+  if(this->getBrightness())
+  {
+    uint16_t leds_on = 0; 
+    for(uint16_t i=0; i<_segment_runtime.length; i++)
+    {
+      if(leds[i] || _bleds[i])
+      {
+        leds_on++;
+      }
+    }
+    return (leds_on * _segment.segments);
+  }
+  return 0;
 }
 
 uint8_t WS2812FX::getModeCount(void)
@@ -3347,7 +3373,7 @@ void WS2812FX::m_sunrise_sunset(bool isSunrise)
       else
       {
         // we switch off - this should fix issue #6
-        
+        setMode(DEFAULT_MODE);
         setIsRunning(false);
         setPower(false);
       }
@@ -3418,9 +3444,6 @@ uint16_t WS2812FX::mode_ring_ring(void)
       _segment_runtime.modevars.ring_ring.isPause = true;
     }
   }
-
-  
-  
   
   return STRIP_MIN_DELAY;
 }

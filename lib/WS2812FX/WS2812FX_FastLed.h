@@ -623,10 +623,10 @@ public:
 
   inline void setCRC                  (uint16_t CRC)    { _segment.CRC = CRC; }
   inline void setIsRunning            (bool isRunning)  { _segment.isRunning = isRunning; if(isRunning) { _transition = true; _blend = 0; } }
-  inline void setPower                (bool power)      { _segment.power = power; }
-  inline void setReverse              (bool rev)        { _segment.reverse = rev; }
-  inline void setInverse              (bool inv)        { _segment.inverse = inv; }
-  inline void setMirror               (bool mirror)     { _segment.mirror = mirror; }
+  inline void setPower                (bool power)      { _segment.power = power; setTransition(); } // this should fix reopened issue #6
+  inline void setReverse              (bool rev)        { _segment.reverse = rev; setTransition(); }
+  inline void setInverse              (bool inv)        { _segment.inverse = inv; setTransition(); }
+  inline void setMirror               (bool mirror)     { _segment.mirror = mirror; setTransition(); }
   inline void setAddGlitter           (bool addGlitter) { _segment.addGlitter = addGlitter; }
   inline void setWhiteGlitter         (bool whiteGlitter) { _segment.whiteGlitter = whiteGlitter; }
   inline void setOnBlackOnly          (bool onBlackOnly){ _segment.onBlackOnly = onBlackOnly; }
@@ -656,6 +656,7 @@ public:
   inline void setTargetPaletteNumber  (uint8_t p)       { setTargetPalette(p); }
   inline void setCurrentPaletteNumber (uint8_t p)       { setCurrentPalette(p); }
   inline void setColorTemp            (uint8_t c)       { setColorTemperature(c); }
+
 
  
 
@@ -726,6 +727,7 @@ public:
   uint16_t
       getSunriseTimeToFinish(void),
       getStripLength(void),
+      getLedsOn(void),
       getLength(void);
 
   static unsigned int calc_CRC16(unsigned int crc, unsigned char *buf, int len);

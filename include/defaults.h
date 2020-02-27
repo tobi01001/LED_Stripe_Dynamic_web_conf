@@ -9,9 +9,13 @@
 #endif
 
 //#error "check version first"
-#define BUILD_VERSION ("LED_Control_0.9.29")
+#define BUILD_VERSION ("LED_Control_0.9.49")
+
 #ifndef BUILD_VERSION
 #error "We need a SW Version and Build Version!"
+#endif
+#ifndef PIO_SRC_REV
+  #define PIO_SRC_REV "no_git_rev"
 #endif
 #define BUILD_GITREV PIO_SRC_REV
 
@@ -22,6 +26,8 @@
 
 #ifndef LED_COUNT
 #error "You need to define the number of Leds by LED_COUNT (build flag e.g. -DLED_COUNT=50)"
+#elif LED_COUNT < 11
+#error "You need to define more than 10 LEDs by LED_COUNT (build flag e.g. -DLED_COUNT=50)"
 #endif
 
 // Other parameters being used
@@ -68,19 +74,22 @@
 #define BRIGHTNESS_MAX 255
 
 #define LED_PIN 3 // Needs to be 3 (raw value) for ESP8266 because of DMA
-#define DEFAULT_CURRENT_MAX 4000
-#define DEFAULT_CURRENT 2800
+#define LED_MAX_CURRENT 37 // the current one (RGB) LED is drawing at full brightness incl. controller
+#define DEFAULT_PS_MAX_CURRENT  4000 // the maximum rated current of the power supply inc. cabling to the leds
+#define DEFAULT_CURRENT_MAX ((LED_COUNT * LED_MAX_CURRENT) < DEFAULT_PS_MAX_CURRENT ? (LED_COUNT * LED_MAX_CURRENT) : DEFAULT_PS_MAX_CURRENT)
+#define DEFAULT_CURRENT ((LED_COUNT * LED_MAX_CURRENT) < 2800 ? (LED_COUNT * LED_MAX_CURRENT) : 2800)
 #define STRIP_MIN_FPS  (10)
-#define STRIP_MAX_FPS  (LED_COUNT < 276 ? 120 : ((1000*1000)/(30 * LED_COUNT + 50)))        // Depends on LED count...
+#define STRIP_MAX_FPS  (((((1000*1000)/(30 * LED_COUNT + 50))*3)/5)<120 ? ((((1000*1000)/(30 * LED_COUNT + 50))*3)/5) : 120)        // Depends on LED count...
+#define DEFAULT_WIFI_ENABLED    (true)
 #define STRIP_VOLTAGE 5            // fixed to 5 volts
-#define STRIP_MILLIAMPS ((LED_COUNT * 60) < DEFAULT_CURRENT ? LED_COUNT * 60 : DEFAULT_CURRENT) // can be changed during runtime
+#define STRIP_MILLIAMPS (DEFAULT_CURRENT) // can be changed during runtime
 #define NUM_INFORMATION_LEDS (10<LED_COUNT?10:LED_COUNT)
 
 
 
 #define DEFAULT_RUNNING 1
 #define DEFAULT_POWER 0 // starts being switched off
-#define DEFAULT_MODE 0
+#define DEFAULT_MODE 0 // Static
 #define DEFAULT_BRIGHTNESS 200        // 0 to 255
 #define DEFAULT_EFFECT 0              // 0 to modecount
 #define DEFAULT_PALETTE 0             // 0 is rainbow colors
@@ -116,5 +125,22 @@
 //#define RND_PAL_MIN_SAT 224
 #define RND_PAL_CHANGE_INT 200 
 #define RND_PAL_MIN_BRIGHT 128
+
+#ifdef HAS_KNOB_CONTROL
+#define DEFAULT_WIFI_ENABLED    (true)
+  #define KNOB_C_SDA 4
+  #define KNOB_C_SCL 5
+  #define KNOB_C_BTN 2
+  #define KNOB_C_PNA 12
+  #define KNOB_C_PNB 13
+  #define KNOB_C_I2C 0x3c
+  #define KNOB_BTN_DEBOUNCE 200
+  #define KNOB_ROT_DEBOUNCE 20
+  #define KNOB_BOOT_DELAY 10
+  #define KNOB_TIMEOUT_OPERATION 15000 //0
+  #define KNOB_TIMEOUT_DISPLAY   240000 //0
+  #define KNOB_DISPLAY_FPS       25
+  #define KNOB_CURSOR_BLINK      500
+#endif
 
 #endif

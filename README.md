@@ -8,6 +8,33 @@ So thanks to:
    - WS2812FX library https://github.com/kitesurfer1404/WS2812FX
    - fhem esp8266 implementation - Idea from https://github.com/sw-home/FHEM-LEDStripe 
 
+
+# Kindly introducing KNOB Control!!
+Now this is awesome as it provides a direct haptic feedback and direct control to the LEDs with a nice and shiny display. :-)
+Using platformio, this should be ready to be used rightaway.
+
+HW used (in addition to the LED stripe and the WEMOD D1 mini (or other ESP8266) of course): 
+- Rotary Encoder KY-040
+- 0.96 128x64 I2C OLED
+- 2x Capacitors 6n8
+- 1x Capacitor 1µF
+- 2x Resistor 1700 Ohm
+- 1x Resistor 980 Ohm
+Schematics:
+![Knob Control Schematics](https://github.com/tobi01001/LED_Stripe_Dynamic_web_conf/blob/KnobControl/circuit.png)
+The debouncing circuits (RC part) may not be required but makes the rotary input quite stable.
+
+The rest of the Project can be modified to your needs in platformio. See the Build flags in [platformio.ini]( https://github.com/tobi01001/LED_Stripe_Dynamic_web_conf/blob/KnobControl/platformio.ini) to see how to define the number of LEDs, the Controller / LED lamp name and if it has Knob control.
+
+Have fun and let me know if theres anything not working as expected....
+
+Pictures:
+![Status Screen](https://github.com/tobi01001/LED_Stripe_Dynamic_web_conf/blob/KnobControl/20200227_210857.jpg)
+Switches Off after some time to be not "disturbing" and switches on if one uses the rotary encoder and on some other conditions.
+![Menu Screen](https://github.com/tobi01001/LED_Stripe_Dynamic_web_conf/blob/KnobControl/20200227_210707.jpg)
+Sub Menu screen for a boolean parameter. Numbers are represented as progress bar and value. Text selection as scrollable list.
+The menu Screen follows the same structure as the online version and is derived from the code...
+
 # LED_Stripe_Dynamic_web_conf
 LED Stripe including simple Web Server, basics from the ws2812fx library - but different effects etc... 
 FHEM control is possible with the related perl fhem module...
