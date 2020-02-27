@@ -2003,18 +2003,8 @@ void handleStatus(void)
   JsonObject& debugAnswer = answerObj.createNestedObject("ESP_Data");
   #endif
 
-  uint16_t num_leds_on = 0;
-  // if brightness = 0, no LED can be lid.
-  if (strip->getBrightness())
-  {
-    // count the number of active LEDs
-    // in rare occassions, this can still be 0, depending on the effect.
-    for (uint16_t i = 0; i < strip->getStripLength(); i++)
-    {
-      if (strip->leds[i])
-        num_leds_on++;
-    }
-  }
+  uint16_t num_leds_on = strip->getLedsOn();
+
   currentStateAnswer["power"] = strip->getPower();
   if (strip->getPower())
   {
@@ -3153,24 +3143,14 @@ void showDisplay(uint8_t curr_field, fieldtypes *fieldtype)
         display.setTextAlignment(TEXT_ALIGN_RIGHT);
         if(strip->getPower())
         {
-          static uint16_t num_leds_on=0;
-          EVERY_N_MILLISECONDS(200)
-          {
-            num_leds_on = 0;
-            for (uint16_t i = 0; i < strip->getStripLength(); i++)
-            {
-              if (strip->leds[i])
-                num_leds_on++;
-            }
-          }
-          FastLED.getFPS();
+          uint16_t num_leds_on = strip->getLedsOn(); // fixes issue #18
           display.drawString(127,  20, String(FastLED.getFPS()));
           display.drawString(127,  30, String(num_leds_on));
         }
         else
         {
-          display.drawString(127,  20, "OFF");
-          display.drawString(127,  30, "0");
+          display.drawString(127,  20, "Off");
+          display.drawString(127,  30, "Off");
         }
         display.drawString(127,  40, strip->getModeName(strip->getMode()));
         display.drawString(127,  50, strip->getTargetPaletteName());

@@ -1509,14 +1509,17 @@ uint16_t WS2812FX::getStripLength(void)
 
 uint16_t WS2812FX::getLedsOn(void)               
 { 
-  uint16_t leds_on = 0; 
-  for(uint16_t i=0; i<getStripLength(); i++)
+  if(this->getBrightness())
   {
-    if(leds[i])
+    uint16_t leds_on = 0; 
+    for(uint16_t i=0; i<_segment_runtime.length; i++)
     {
-      leds_on++;
+      if(leds[i] || _bleds[i])
+      {
+        leds_on++;
+      }
     }
-    return leds_on;
+    return (leds_on * _segment.segments);
   }
   return 0;
 }
