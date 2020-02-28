@@ -337,7 +337,6 @@ void WS2812FX::service()
     setTransition();
     old_segs = _segment.segments;
   }
-  bool doShow = true;//false;
   if (_segment.power)
   {
     if (_segment.isRunning || _triggered)
@@ -353,8 +352,7 @@ void WS2812FX::service()
           addSparks(_segment.chanceOfGlitter, _segment.onBlackOnly, _segment.whiteGlitter);
         }
 
-        SEGMENT_RUNTIME.next_time = now + (uint32_t)delay; //STRIP_MIN_DELAY;
-        doShow = true;
+        SEGMENT_RUNTIME.next_time = now + (uint32_t)delay; 
       }
       // reset trigger...
       _triggered = false;
@@ -418,12 +416,10 @@ void WS2812FX::service()
     if (_segment.targetBrightness > b)
     {
       FastLED.setBrightness(b + 1);
-      doShow = true;
     }
     else if (_segment.targetBrightness < b)
     {
       FastLED.setBrightness(b - 1);
-      doShow = true;
     }
   }
 
@@ -465,69 +461,33 @@ void WS2812FX::service()
 
   // Write the data
   
-  if(doShow)
-  {
-    //uint32_t now_micros = micros();
-
-    // if there is time left for another service call, we do not write the led data yet...
-    // but if there is less than 300 microseconds left, we do write..
-    if(micros() < (last_show + STRIP_DELAY_MICROSEC - FRAME_CALC_WAIT_MICROINTERVAL))
-    {
-      // we have the time for another calc cycle and do nothing.
-    }
-    else
-    {
     
-      while(micros() < (last_show + STRIP_DELAY_MICROSEC)) {
-        yield();
-      } // just wait until "sync"
-      myFPS = 1000000 / (micros() - last_show);
-      last_show = micros();
-      
-      //int32_t time_budget = min(next_show - now_micros, FRAME_CALC_WAIT_MICROINTERVAL);
-      //while(time_budget > 0)
-      //{
-      //  time_budget = next_show - micros();
-      //  yield();
-      //}
-      /*
-        // okay, the time budget is within the remaining (300) microseconds
-        // we wait until this time is over befor writing the leds
-        // this should give a wuite stable frame rate...
-        if(((next_show + FRAME_CALC_WAIT_MICROINTERVAL) < now_micros) )
-        // && ((now_micros - (next_show + FRAME_CALC_WAIT_MICROINTERVAL)) < FRAME_CALC_WAIT_MICROINTERVAL))
-        {
-          while((micros() - (next_show + FRAME_CALC_WAIT_MICROINTERVAL)) < FRAME_CALC_WAIT_MICROINTERVAL);
-          //delayMicroseconds(now_micros - (next_show + FRAME_CALC_WAIT_MICROINTERVAL));
-        }
 
-        //nblend(_bleds, leds, LED_COUNT, l_blend); // Only blend when actually writing the LEDs... 
-
-        */
-        // Write the data
-        FastLED.show();
-        // sanity check:
-
-      
-    }
-  }
-
-/*
-  if (_segment.reverse)
+  // if there is time left for another service call, we do not write the led data yet...
+  // but if there is less than 300 microseconds left, we do write..
+  if(micros() < (last_show + STRIP_DELAY_MICROSEC - FRAME_CALC_WAIT_MICROINTERVAL))
   {
-    CRGB temp;
-    for (uint16_t i = 0; i <= _segment_runtime.length / 2; i++)
-    {
-      temp = leds[i];
-      leds[i] = leds[_segment_runtime.stop - i];
-      leds[_segment_runtime.stop - i] = temp;
-    }
+    // we have the time for another calc cycle and do nothing.
   }
-*/
+  else
+  {
+
+    while(micros() < (last_show + STRIP_DELAY_MICROSEC)) {
+      yield();
+    } // just wait until time is "synced"
+    
+    // for FPS calculation
+    _service_Interval_microseconds = (micros() - last_show);
+    last_show = micros();
+    
+    // Write the data
+    FastLED.show();
+  }
+
+  // Fade to avoid artefacts...
   EVERY_N_MILLISECONDS(STRIP_MIN_DELAY) //(10)
   {
     if(_segment.isRunning) fadeToBlackBy(_bleds, LED_COUNT, 1);
-    //fadeToBlackBy(leds,   LED_COUNT, 1);
   }
 
   // every "hueTime" we set either the deltaHue (fixed offset)
@@ -2998,7 +2958,7 @@ uint16_t WS2812FX::mode_popcorn(void)
 {
 #define LEDS_PER_METER 60
   const double segmentLength = ((double)_segment_runtime.length / (double)LEDS_PER_METER) * (double)1000.0; // physical length in mm
-  const double gravity = _segment.beat88 / -11019367.9918;                                          // -0.00981; // gravity in mm per ms²
+  const double gravity = (double)_segment.beat88 / (double)-1019367.99184506;                                          // -0.00981; // gravity in mm per ms²
   const double v0_max = sqrt(-2 * gravity * segmentLength);
 
   
@@ -3027,7 +2987,7 @@ uint16_t WS2812FX::mode_popcorn(void)
     {
       if (_segment_runtime.pops[i].v0 <= 0.01)
       {
-        if (random8() < 2)
+        if (random8() < 1)
         {
           _segment_runtime.pops[i].v0 = (double)random((long)(v0_max * 850), (long)(v0_max * 1000)) / 1000.0; //v0_max - random(v0_max*100)/400;
           _segment_runtime.pops[i].pos = 0.00001;
@@ -3102,7 +3062,7 @@ uint16_t WS2812FX::mode_firework2(void)
 {
 
   const double segmentLength = ((double)_segment_runtime.length / (double)LEDS_PER_METER) * (double)1000.0; // physical length in mm
-  const double gravity = _segment.beat88 / -11019367.9918;                                          // -0.00981; // gravity in mm per ms²
+  const double gravity = (double)_segment.beat88 / (double)-1019367.99184506;                                          // -0.00981; // gravity in mm per ms²
   const double v0_max = sqrt(-2 * gravity * segmentLength);
 
   uint32_t now = millis();
@@ -3471,4 +3431,68 @@ uint16_t WS2812FX::mode_ring_ring(void)
   }
   
   return STRIP_MIN_DELAY;
+}
+
+
+/*
+ *
+ * Heartbeat Effect based on
+ * https://github.com/kitesurfer1404/WS2812FX/blob/master/src/custom/Heartbeat.h
+ * https://github.com/kitesurfer1404/WS2812FX/commit/abece9a2a5a23027243851767c55cb8d2e19ff05 
+ */
+uint16_t WS2812FX::mode_heartbeat(void) {
+  
+  #define BEATS_PER_MINUTE (_segment.beat88>20?_segment.beat88 / 20 : 1)
+  #define MS_PER_BEAT (60000 / BEATS_PER_MINUTE)
+  #define SECOND_BEAT (MS_PER_BEAT / 3)
+  #define M_HEARTBEAT_RT _segment_runtime.modevars.heartBeat
+  
+  if(_segment_runtime.modeinit)
+  {
+    _segment_runtime.modeinit = false;
+    M_HEARTBEAT_RT.lastBeat = 0;
+    M_HEARTBEAT_RT.secondBeatActive = false; 
+  }
+
+  
+  // Get and translate the segment's size option
+  uint8_t size = map(_segment_runtime.length, 10, 300, 2, 16);
+
+  // copy pixels from the middle of the segment to the edges
+  uint16_t centerOffset = (_segment_runtime.length / 2);
+  uint16_t pCount = centerOffset - size;
+  for(uint16_t i = 0; i < pCount; i++)
+  {
+    leds[i] = leds[i + size];
+    leds[i + centerOffset + size] = leds[i+centerOffset];
+  }
+
+  fade_out(64);
+
+  unsigned long beatTimer = millis() - M_HEARTBEAT_RT.lastBeat;
+  if((beatTimer > SECOND_BEAT) && !M_HEARTBEAT_RT.secondBeatActive) { // time for the second beat?
+    mode_heartbeat_beatIt(size, _segment_runtime.baseHue); // create the second beat
+    M_HEARTBEAT_RT.secondBeatActive = true;
+  }
+  if(beatTimer > MS_PER_BEAT) { // time to reset the beat timer?
+    mode_heartbeat_beatIt(size, _segment_runtime.baseHue); // create the first beat
+    M_HEARTBEAT_RT.secondBeatActive = false;
+    M_HEARTBEAT_RT.lastBeat = millis();
+  }
+  
+  
+  return STRIP_MIN_DELAY;
+
+  #undef BEATS_PER_MINUTE
+  #undef MS_PER_BEAT 
+  #undef SECOND_BEAT 
+  #undef M_HEARTBEAT_RT
+
+}
+
+// light up ('size' * 2) LEDs in the middle of the segment (starts a beat)
+void WS2812FX::mode_heartbeat_beatIt(uint8_t size, uint8_t col_index) {
+  
+  uint16_t startLed = _segment_runtime.start + (_segment_runtime.length / 2) - size;
+  fill_solid(&leds[startLed], size*2, ColorFromPalette(_currentPalette, col_index));
 }

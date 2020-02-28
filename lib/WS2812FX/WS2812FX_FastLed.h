@@ -135,6 +135,7 @@ enum MODES
   FX_MODE_PIXEL_STACK,
   FX_MODE_POPCORN,
   FX_MODE_FIREWORKROCKETS,
+  FX_MODE_HEARTBEAT,
  
   FX_MODE_VOID,
   
@@ -142,8 +143,6 @@ enum MODES
   FX_MODE_RING_RING,
   FX_MODE_SUNRISE,
   FX_MODE_SUNSET,
-
-  
 
   // has to be the final entry!
   MODE_COUNT
@@ -373,6 +372,11 @@ public:
       bool toggle;
       uint32_t next;
     } sunrise_step;
+    struct heartBeat
+    {
+      uint32_t lastBeat;
+      bool secondBeatActive;
+    } heartBeat;
   } mode_variables;
 
   // to save some memory, all the "static" variables are now in unions
@@ -460,6 +464,7 @@ public:
     _mode[FX_MODE_POPCORN]                = &WS2812FX::mode_popcorn;
     _mode[FX_MODE_FIREWORKROCKETS]        = &WS2812FX::mode_firework2;
     _mode[FX_MODE_RING_RING]              = &WS2812FX::mode_ring_ring;
+    _mode[FX_MODE_HEARTBEAT]              = &WS2812FX::mode_heartbeat;
     _mode[FX_MODE_VOID]                   = &WS2812FX::mode_void;
     _mode[FX_MODE_SUNRISE]                = &WS2812FX::mode_sunrise;
     _mode[FX_MODE_SUNSET]                 = &WS2812FX::mode_sunset;
@@ -511,6 +516,7 @@ public:
     _name[FX_MODE_POPCORN]                = F("Popcorn");
     _name[FX_MODE_FIREWORKROCKETS]        = F("Firework with Rockets");
     _name[FX_MODE_RING_RING]              = F("Phone Ringing");
+    _name[FX_MODE_HEARTBEAT]              = F("Heart Beat");
     _name[FX_MODE_VOID]                   = F("Void - literally not changing anything");
     _name[FX_MODE_SUNRISE]                = F("Sunrise");
     _name[FX_MODE_SUNSET]                 = F("Sunset");
@@ -710,6 +716,7 @@ public:
   inline size_t getSegmentSize(void) { return sizeof(_segment); }
 
   inline uint16_t getCurrentSunriseStep(void) { return _segment_runtime.sunRiseStep; }
+  inline uint16_t getFPS(void) { if(_service_Interval_microseconds > 0) { return ((1000000 / _service_Interval_microseconds) + 1) ; } else { return 65535; } }
 
   uint8_t
   getMode(void),
@@ -750,7 +757,6 @@ public:
   String getCurrentPaletteName(void) { return _currentPaletteName; };
   String getTargetPaletteName(void) { return _targetPaletteName; };
 
-  uint16_t myFPS = 0;
 private:
   void
   strip_off(void),
@@ -761,6 +767,7 @@ private:
       brightenOrDarkenEachPixel(fract8 fadeUpAmount, fract8 fadeDownAmount, uint8_t *directionFlags),
       draw_sunrise_step(uint16_t step),
       m_sunrise_sunset(bool isSunrise),
+      mode_heartbeat_beatIt(uint8_t size, uint8_t col_index),
       addSparks(uint8_t probability, bool onBlackOnly, bool white);
 
   uint8_t attackDecayWave8(uint8_t i);
@@ -829,6 +836,7 @@ private:
       mode_sunrise(void),
       mode_sunset(void),
       mode_ring_ring(void),
+      mode_heartbeat(void),
       quadbeat(uint16_t in);
 
   CRGB
@@ -891,6 +899,8 @@ private:
       _pblur,
       _brightness;
 
+  uint16_t 
+      _service_Interval_microseconds = 0;
 
   const __FlashStringHelper *
       _name[MODE_COUNT]; // SRAM footprint: 2 bytes per element

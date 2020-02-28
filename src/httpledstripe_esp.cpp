@@ -3147,12 +3147,13 @@ void showDisplay(uint8_t curr_field, fieldtypes *fieldtype)
         static uint16_t num_leds_on = strip->getLedsOn(); // fixes issue #18
         EVERY_N_MILLISECONDS(200)
         {
-          FPS = strip->myFPS;
+          FPS = strip->getFPS();
           num_leds_on = strip->getLedsOn();
         }
+        FastLED.getFPS();
         if(strip->getPower())
         {        
-          display.drawString(127,  20, String(strip->myFPS));
+          display.drawString(127,  20, String(FPS));
           display.drawString(127,  30, String(num_leds_on));
         }
         else
