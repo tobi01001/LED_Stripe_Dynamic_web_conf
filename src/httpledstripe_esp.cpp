@@ -696,6 +696,7 @@ void initOverTheAirUpdate(void)
 
   ArduinoOTA.onStart([]() {
     DEBUGPRNT("OTA start");
+    FastLED.clear(true);
     display.clear();
     display.drawString(0, 0, "Starte OTA...");
     display.displayOn();
