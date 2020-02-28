@@ -337,7 +337,7 @@ void WS2812FX::service()
     setTransition();
     old_segs = _segment.segments;
   }
-  bool doShow = false;
+  bool doShow = true;//false;
   if (_segment.power)
   {
     if (_segment.isRunning || _triggered)
@@ -463,28 +463,53 @@ void WS2812FX::service()
   }
 
   // Write the data
-  // the value of 300 microseconds is the average between two service routine calls....
-  #define FRAME_CALC_WAIT_MICROINTERVAL ((uint32_t)300)
-  static uint32_t next_show = 0;
-  uint32_t now_micros = micros();
-  // if there is time left for another service call, we do not write the led data yet...
-  if(doShow && ((now_micros - next_show) > ((uint32_t)(STRIP_DELAY_MICROSEC) - FRAME_CALC_WAIT_MICROINTERVAL)))
+  static uint32_t last_show = 0;
+  
+  if(doShow)
   {
-    // okay, the time budget is within the remaining (300) microseconds
-    // we wait until this time is over befor writing the leds
-    // this should give a wuite stable frame rate...
-    if(((next_show + FRAME_CALC_WAIT_MICROINTERVAL) < now_micros) )
-    // && ((now_micros - (next_show + FRAME_CALC_WAIT_MICROINTERVAL)) < FRAME_CALC_WAIT_MICROINTERVAL))
+    //uint32_t now_micros = micros();
+
+    // if there is time left for another service call, we do not write the led data yet...
+    // but if there is less than 300 microseconds left, we do write..
+    if(micros() < (last_show + STRIP_DELAY_MICROSEC - FRAME_CALC_WAIT_MICROINTERVAL))
     {
-      while((micros() - (next_show + FRAME_CALC_WAIT_MICROINTERVAL)) < FRAME_CALC_WAIT_MICROINTERVAL);
-      //delayMicroseconds(now_micros - (next_show + FRAME_CALC_WAIT_MICROINTERVAL));
+      // we have the time for another calc cycle and do nothing.
     }
+    else
+    {
+    
+      while(micros() < (last_show + STRIP_DELAY_MICROSEC)) {
+        yield();
+      } // just wait until "sync"
+      myFPS = 1000000 / (micros() - last_show);
+      last_show = micros();
+      
+      //int32_t time_budget = min(next_show - now_micros, FRAME_CALC_WAIT_MICROINTERVAL);
+      //while(time_budget > 0)
+      //{
+      //  time_budget = next_show - micros();
+      //  yield();
+      //}
+      /*
+        // okay, the time budget is within the remaining (300) microseconds
+        // we wait until this time is over befor writing the leds
+        // this should give a wuite stable frame rate...
+        if(((next_show + FRAME_CALC_WAIT_MICROINTERVAL) < now_micros) )
+        // && ((now_micros - (next_show + FRAME_CALC_WAIT_MICROINTERVAL)) < FRAME_CALC_WAIT_MICROINTERVAL))
+        {
+          while((micros() - (next_show + FRAME_CALC_WAIT_MICROINTERVAL)) < FRAME_CALC_WAIT_MICROINTERVAL);
+          //delayMicroseconds(now_micros - (next_show + FRAME_CALC_WAIT_MICROINTERVAL));
+        }
 
-    //nblend(_bleds, leds, LED_COUNT, l_blend); // Only blend when actually writing the LEDs... 
+        //nblend(_bleds, leds, LED_COUNT, l_blend); // Only blend when actually writing the LEDs... 
 
-    next_show = now_micros; 
-    // Write the data
-    FastLED.show();
+        */
+        // Write the data
+        FastLED.show();
+        // sanity check:
+
+      
+    }
   }
 
 /*

@@ -2826,6 +2826,8 @@ void setup()
   //setEffect(FX_NO_FX);
 #endif // HAS_KNOB_CONTROL
 
+  //FastLED.setMaxRefreshRate(120);
+
 }
 
 #ifdef HAS_KNOB_CONTROL
@@ -3141,10 +3143,16 @@ void showDisplay(uint8_t curr_field, fieldtypes *fieldtype)
         display.drawString(0,  50, "C:");
 
         display.setTextAlignment(TEXT_ALIGN_RIGHT);
-        if(strip->getPower())
+        static uint16_t FPS = 0;
+        static uint16_t num_leds_on = strip->getLedsOn(); // fixes issue #18
+        EVERY_N_MILLISECONDS(200)
         {
-          uint16_t num_leds_on = strip->getLedsOn(); // fixes issue #18
-          display.drawString(127,  20, String(FastLED.getFPS()));
+          FPS = strip->myFPS;
+          num_leds_on = strip->getLedsOn();
+        }
+        if(strip->getPower())
+        {        
+          display.drawString(127,  20, String(strip->myFPS));
           display.drawString(127,  30, String(num_leds_on));
         }
         else

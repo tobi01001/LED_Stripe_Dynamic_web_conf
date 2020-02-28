@@ -50,8 +50,8 @@
 #define LED_PIN 3
 #endif
 
-#define STRIP_MIN_DELAY max((1000 / (_segment.fps)), ((30 * LED_COUNT + 50) / 1000))
-#define STRIP_DELAY_MICROSEC  ((uint32_t)max((1000000 / (_segment.fps)), ((30 * LED_COUNT + 50))))
+#define STRIP_MIN_DELAY max((uint32_t)((1000000 - FRAME_CALC_WAIT_MICROINTERVAL) / (_segment.fps * 1000)), (uint32_t)((MIN_LED_WRITE_CYCLE-FRAME_CALC_WAIT_MICROINTERVAL) / 1000))
+#define STRIP_DELAY_MICROSEC  ((uint32_t)max((uint32_t)(1000000 / (_segment.fps)), (uint32_t)(MIN_LED_WRITE_CYCLE)))
 
 #define FASTLED_INTERNAL
 #include "FastLED.h"
@@ -750,6 +750,7 @@ public:
   String getCurrentPaletteName(void) { return _currentPaletteName; };
   String getTargetPaletteName(void) { return _targetPaletteName; };
 
+  uint16_t myFPS = 0;
 private:
   void
   strip_off(void),

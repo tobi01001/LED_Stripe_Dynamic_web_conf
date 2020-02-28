@@ -9,7 +9,7 @@
 #endif
 
 //#error "check version first"
-#define BUILD_VERSION ("LED_Control_0.10.00")
+#define BUILD_VERSION ("LED_Control_0.10.01")
 
 #ifndef BUILD_VERSION
 #error "We need a SW Version and Build Version!"
@@ -78,8 +78,11 @@
 #define DEFAULT_PS_MAX_CURRENT  4000 // the maximum rated current of the power supply inc. cabling to the leds
 #define DEFAULT_CURRENT_MAX ((LED_COUNT * LED_MAX_CURRENT) < DEFAULT_PS_MAX_CURRENT ? (LED_COUNT * LED_MAX_CURRENT) : DEFAULT_PS_MAX_CURRENT)
 #define DEFAULT_CURRENT ((LED_COUNT * LED_MAX_CURRENT) < 2800 ? (LED_COUNT * LED_MAX_CURRENT) : 2800)
+// the value of 300 microseconds is the average between two service routine calls....
+#define FRAME_CALC_WAIT_MICROINTERVAL ((uint32_t)400)
+#define MIN_LED_WRITE_CYCLE (10 * LED_COUNT + 50 + FRAME_CALC_WAIT_MICROINTERVAL)
 #define STRIP_MIN_FPS  (10)
-#define STRIP_MAX_FPS  (((((1000*1000)/(30 * LED_COUNT + 50))*3)/5)<120 ? ((((1000*1000)/(30 * LED_COUNT + 50))*3)/5) : 120)        // Depends on LED count...
+#define STRIP_MAX_FPS  (((((1000*1000)/MIN_LED_WRITE_CYCLE))) < 120 ? ((((1000*1000)/MIN_LED_WRITE_CYCLE))) : 120)        // Depends on LED count...
 #define DEFAULT_WIFI_ENABLED    (true)
 #define STRIP_VOLTAGE 5            // fixed to 5 volts
 #define STRIP_MILLIAMPS (DEFAULT_CURRENT) // can be changed during runtime
