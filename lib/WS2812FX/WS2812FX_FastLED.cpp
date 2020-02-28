@@ -320,7 +320,7 @@ unsigned int WS2812FX::calc_CRC16(unsigned int crc, unsigned char *buf, int len)
 void WS2812FX::service()
 {
   unsigned long now = millis(); // Be aware, millis() rolls over every 49 days
-  
+  static uint32_t last_show = 0;
   if ((_segment.segments != old_segs) || _segment_runtime.modeinit)
   { 
     _segment_runtime.start = 0;
@@ -367,6 +367,7 @@ void WS2812FX::service()
   }
   else
   {
+    last_show = 0;
     if (now > SEGMENT_RUNTIME.next_time || _triggered)
     {
       SEGMENT_RUNTIME.next_time = now + (uint32_t)(STRIP_DELAY_MICROSEC/1000);
@@ -463,7 +464,6 @@ void WS2812FX::service()
   }
 
   // Write the data
-  static uint32_t last_show = 0;
   
   if(doShow)
   {
