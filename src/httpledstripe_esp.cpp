@@ -366,10 +366,13 @@ void checkSegmentChanges(void) {
     broadcastInt("pa", seg.targetPaletteNum);
     shouldSaveRuntime = true;
   }
-  if(seg.beat88 != strip->getBeat88()) {
-    seg.beat88 = strip->getBeat88();
-    broadcastInt("sp", seg.beat88);
-    shouldSaveRuntime = true;
+  for(uint8_t i = 0; i<MODE_COUNT; i++)
+  {
+    if(seg.beat88[i] != strip->getBeat88()) {
+      seg.beat88[i] = strip->getBeat88();
+      broadcastInt("sp", seg.beat88[seg.mode]);
+      shouldSaveRuntime = true;
+    }
   }
   if(seg.blendType != strip->getBlendType()) {
     seg.blendType = strip->getBlendType();

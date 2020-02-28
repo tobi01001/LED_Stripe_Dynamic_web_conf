@@ -241,7 +241,7 @@ public:
     uint8_t currentPaletteNum;
     AUTOPLAYMODES autoplay;
     AUTOPLAYMODES autoPal;
-    uint16_t beat88;
+    uint16_t beat88[MODE_COUNT];
     uint16_t hueTime;
     uint16_t milliamps;
     uint16_t autoplayDuration;
@@ -633,8 +633,10 @@ public:
   inline void setChanceOfGlitter      (uint8_t glitProp){ _segment.chanceOfGlitter = constrain(glitProp, DEFAULT_GLITTER_CHANCE_MIN, DEFAULT_GLITTER_CHANCE_MAX); }
   inline void setAutoplay             (AUTOPLAYMODES m) { _segment.autoplay = m; }
   inline void setAutopal              (AUTOPLAYMODES p) { _segment.autoPal = p; }
-  inline void setBeat88               (uint16_t b)      { _segment.beat88 = constrain(b, BEAT88_MIN, BEAT88_MAX); _segment_runtime.timebase = millis(); }
+  inline void setBeat88               (uint16_t b)      { _segment.beat88[_segment.mode] = constrain(b, BEAT88_MIN, BEAT88_MAX); _segment_runtime.timebase = millis(); }
+  inline void setBeat88               (uint16_t b, uint8_t m)      { _segment.beat88[m] = constrain(b, BEAT88_MIN, BEAT88_MAX); _segment_runtime.timebase = millis(); }
   inline void setSpeed                (uint16_t s)      { setBeat88(s); }
+  inline void setSpeed                (uint16_t s, uint8_t m)      { setBeat88(s, m); }
   inline void setHuetime              (uint16_t t)      { _segment.hueTime = t; SEGMENT_RUNTIME.nextHue = 0; }
   inline void setMilliamps            (uint16_t m)      { _segment.milliamps = constrain(m, 100, DEFAULT_CURRENT_MAX); FastLED.setMaxPowerInVoltsAndMilliamps(_volts, _segment.milliamps); }
   inline void setAutoplayDuration     (uint16_t t)      { _segment.autoplayDuration = t; SEGMENT_RUNTIME.nextAuto = 0; }
@@ -678,7 +680,8 @@ public:
   inline AUTOPLAYMODES  getAutoplay(void)             { return _segment.autoplay; }
   inline AUTOPLAYMODES  getAutopal(void)              { return _segment.autoPal; }
   inline uint16_t       getSpeed(void)                { return getBeat88(); }
-  inline uint16_t       getBeat88(void)               { return _segment.beat88; }
+  inline uint16_t       getBeat88(void)               { return _segment.beat88[_segment.mode]; }
+  inline uint16_t       getBeat88(uint8_t m)          { return _segment.beat88[m]; }
   inline uint16_t       getHueTime(void)              { return _segment.hueTime; }
   inline uint16_t       getMilliamps(void)            { return _segment.milliamps; }
   inline uint16_t       getAutoplayDuration(void)     { return _segment.autoplayDuration; }
