@@ -992,6 +992,7 @@ void setupWiFi(void)
   else
   {
     WiFiConnected = true;
+    wifi_disconnect_counter++;// number of times we (re-)connected // = 0; // reset only in case we actually reconnected via setup routine
     if(WiFi.getMode() != WIFI_STA)
     {
       WiFi.mode(WIFI_STA);
@@ -1002,6 +1003,7 @@ void setupWiFi(void)
     DEBUGPRNT("local ip: ");
     DEBUGPRNT(WiFi.localIP());
   }
+  wifi_err_counter = 0; // need to reset this regardless the connected state. Otherwise we try to reconntect every loop....
 
 #endif
 
@@ -3192,8 +3194,8 @@ void showDisplay(uint8_t curr_field, fieldtypes *fieldtype)
     }
     else
     {
-      display.drawLine(115, 10, 125, 0);
-      display.drawLine(125, 10, 115, 0);
+      display.drawLine(115, 11, 125, 1);
+      display.drawLine(125, 11, 115, 1);
     }
     /* 
     uint8_t br64 =          map8(strip->getBrightness(), 0, 64);
@@ -3212,9 +3214,6 @@ void showDisplay(uint8_t curr_field, fieldtypes *fieldtype)
 
 void knob_service(uint32_t now)
 {
- 
-
-  
 
   static uint8_t curr_field = get_next_field(0, true, m_fieldtypes);
   static uint32_t last_btn_press = 0;
@@ -3480,20 +3479,22 @@ void loop()
     //DEBUGPRNT("Checking WiFi... ");
     if (WiFi.status() != WL_CONNECTED)
     {
-      last_control_operation = now;
+      if(!WiFiConnected) last_control_operation = now;    // Will switch the display on. Only needed when we had connection and now lose it...
       DEBUGPRNT("Lost Wifi Connection. Counter is " + String(wifi_err_counter));
-      wifi_err_counter+=2;
-      wifi_disconnect_counter+=4;
+      wifi_err_counter+=1;
+      //wifi_disconnect_counter+=2;
       WiFiConnected = false;
     }
     else
     {
       if(wifi_err_counter > 0) wifi_err_counter--;
-      if(wifi_disconnect_counter > 0) wifi_disconnect_counter--;
+      // if(wifi_disconnect_counter > 0) wifi_disconnect_counter--;
+      // Maybe we implement one line as status message (e.g. "WiFi Reconnected")
+      if(!WiFiConnected) last_control_operation = now;  // Will switch the display on (also on reconnection (once)..
       WiFiConnected = true;
     }
 
-    if(wifi_err_counter > 20)
+    if(wifi_err_counter > (10 * (wifi_disconnect_counter%12)))
     {
       DEBUGPRNT("Trying to reconnect now...");
       WiFi.mode(WIFI_OFF);

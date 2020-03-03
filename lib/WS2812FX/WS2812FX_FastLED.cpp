@@ -347,6 +347,7 @@ void WS2812FX::service()
 
         uint16_t delay = (this->*_mode[SEGMENT.mode])();
 
+
         if(_segment.addGlitter)
         {
           addSparks(_segment.chanceOfGlitter, _segment.onBlackOnly, _segment.whiteGlitter);
@@ -2131,7 +2132,7 @@ uint16_t WS2812FX::mode_firework(void)
   if (_segment_runtime.modevars.firework.colors == NULL || _segment_runtime.modevars.firework.keeps == NULL)
     return STRIP_MIN_DELAY;
 
-  blur1d(&leds[_segment_runtime.start], _segment_runtime.length, 172); //qadd8(255-(SEGMENT.beat88 >> 8), 32)%172); //was 2 instead of 16 before!
+  blur1d(&leds[_segment_runtime.start], _segment_runtime.length, qadd8(255-(SEGMENT.beat88 >> 8), 32)%172); // 172); //qadd8(255-(SEGMENT.beat88 >> 8), 32)%172); //was 2 instead of 16 before!
 
   for (uint16_t i = _segment_runtime.start; i < _segment_runtime.length; i++)
   {
@@ -2145,7 +2146,7 @@ uint16_t WS2812FX::mode_firework(void)
 
   if (random8(max(6, _segment_runtime.length / 7)) <= max(3, _segment_runtime.length / 14))
   {
-    uint8_t lind = random16(dist + _segment_runtime.start, _segment_runtime.stop - dist);
+    uint16_t lind = random16(dist + _segment_runtime.start, _segment_runtime.stop - dist);
     uint8_t cind = random8() + SEGMENT_RUNTIME.baseHue;
     for (int8_t i = 0 - dist; i <= dist; i++)
     {
@@ -2157,10 +2158,10 @@ uint16_t WS2812FX::mode_firework(void)
     }
     _segment_runtime.modevars.firework.colors[lind] = cind;
     leds[lind] = ColorFromPalette(_currentPalette, cind, 255, SEGMENT.blendType);
-    _segment_runtime.modevars.firework.keeps[lind] = random8(2, 30);
+    _segment_runtime.modevars.firework.keeps[lind] = random8(10, 30);
   }
 
-  addSparks(100, true, true);
+  //addSparks(100, true, true);
 
   return STRIP_MIN_DELAY; // (BEAT88_MAX - SEGMENT.beat88) / 256; // STRIP_MIN_DELAY;
 }
@@ -3061,7 +3062,7 @@ uint16_t WS2812FX::mode_popcorn(void)
 uint16_t WS2812FX::mode_firework2(void)
 {
 
-  const double segmentLength = ((double)_segment_runtime.length / (double)LEDS_PER_METER) * (double)1000.0; // physical length in mm
+  const double segmentLength = ((double)(_segment_runtime.length-BLENDWIDTH) / (double)LEDS_PER_METER) * (double)1000.0; // physical length in mm
   const double gravity = (double)_segment.beat88 / (double)-1019367.99184506;                                          // -0.00981; // gravity in mm per ms²
   const double v0_max = sqrt(-2 * gravity * segmentLength);
 
@@ -3128,7 +3129,8 @@ uint16_t WS2812FX::mode_firework2(void)
       if ((_segment_runtime.pops[i].explodeTime > STRIP_MIN_DELAY) && (_segment_runtime.pops[i].prev_pos > _segment_runtime.length/2)) {
         _segment_runtime.pops[i].explodeTime -= STRIP_MIN_DELAY/2; //STRIP_MIN_DELAY;
         //_segment_runtime.pops[i].ignite = true;
-        _segment_runtime.pops[i].dist[BLENDWIDTH / 2] += ColorFromPalette(_currentPalette, _segment_runtime.pops[i].color_index);
+        _segment_runtime.pops[i].dist[BLENDWIDTH / 2-1] += ColorFromPalette(_currentPalette, _segment_runtime.pops[i].color_index);
+        _segment_runtime.pops[i].dist[BLENDWIDTH / 2+1] += ColorFromPalette(_currentPalette, _segment_runtime.pops[i].color_index);
       } else {
         //_segment_runtime.pops[i].ignite = false;
       }
@@ -3138,29 +3140,30 @@ uint16_t WS2812FX::mode_firework2(void)
         //fade_out(64);
         if (pos != _segment_runtime.pops[i].prev_pos) {
           if (pos > _segment_runtime.pops[i].prev_pos) {
-            uint16_t width = max((pos - _segment_runtime.pops[i].prev_pos) / 16, 2);
-            drawFractionalBar(_segment_runtime.pops[i].prev_pos, width, _currentPalette, _segment_runtime.pops[i].color_index, _brightness, true);
+            uint16_t width = max((pos - _segment_runtime.pops[i].prev_pos) / 16, 1);
+            drawFractionalBar(_segment_runtime.pops[i].prev_pos, width, _currentPalette, 0, 255, true);// _segment_runtime.pops[i].color_index, _brightness, true);
           } else {
-            uint16_t width = max((_segment_runtime.pops[i].prev_pos - pos) / 16, 2);
-            drawFractionalBar(pos, width, _currentPalette, _segment_runtime.pops[i].color_index, _brightness, true);
+            uint16_t width = max((_segment_runtime.pops[i].prev_pos - pos) / 16, 1);
+            drawFractionalBar(pos, width, _currentPalette, 0, 255, true);// _segment_runtime.pops[i].color_index, _brightness, true);
           }
         } else {
-          drawFractionalBar(pos, 2, _currentPalette, _segment_runtime.pops[i].color_index, _brightness, true);
+          drawFractionalBar(pos, 2, _currentPalette, 0, 255, true);// _segment_runtime.pops[i].color_index, _brightness, true);
         }
       } else {
         //fade_out(4);
-        blur1d(_segment_runtime.pops[i].dist, BLENDWIDTH, 172);
+        blur1d(_segment_runtime.pops[i].dist, BLENDWIDTH, 192);
+        fadeToBlackBy(_segment_runtime.pops[i].dist, BLENDWIDTH, 64);
         if ((pos / 16 + 1) >= (_segment_runtime.start + BLENDWIDTH / 2) && (pos / 16 + 1) <= (_segment_runtime.stop - BLENDWIDTH / 2))
         {
-          nblend(&leds[pos / 16 + 1 - BLENDWIDTH / 2], _segment_runtime.pops[i].dist, BLENDWIDTH, 128);
+          nblend(&leds[pos / 16 + 1 - BLENDWIDTH / 2], _segment_runtime.pops[i].dist, BLENDWIDTH, 32);
         }
         else if ((pos / 16 + 1) > (_segment_runtime.stop - BLENDWIDTH / 2))
         {
-          nblend(&leds[pos / 16 + 1 - BLENDWIDTH / 2], _segment_runtime.pops[i].dist, _segment_runtime.stop - pos / 16 + 1, 128);
+          nblend(&leds[pos / 16 + 1 - BLENDWIDTH / 2], _segment_runtime.pops[i].dist, _segment_runtime.stop - pos / 16 + 1, 32);
         }
         else
         {
-          nblend(&leds[_segment_runtime.start], &_segment_runtime.pops[i].dist[BLENDWIDTH / 2 - pos / 16 + 1], BLENDWIDTH / 2 + (BLENDWIDTH / 2 - pos / 16 + 1), 128);
+          nblend(&leds[_segment_runtime.start], &_segment_runtime.pops[i].dist[BLENDWIDTH / 2 - pos / 16 + 1], BLENDWIDTH / 2 + (BLENDWIDTH / 2 - pos / 16 + 1), 32);
         }
         if (!leds[pos / 16] && !leds[pos / 16 + 1])
         {
@@ -3456,8 +3459,8 @@ uint16_t WS2812FX::mode_heartbeat(void) {
 
   
   // Get and translate the segment's size option
-  uint8_t size = map(_segment_runtime.length, 10, 300, 2, 16);
-
+  uint8_t size = map(_segment_runtime.length, 25, 300, 1, 6);
+  //uint8_t size = map(_segment.damping, 10, 100, 2, 32);
   // copy pixels from the middle of the segment to the edges
   uint16_t centerOffset = (_segment_runtime.length / 2);
   uint16_t pCount = centerOffset - size;
@@ -3467,7 +3470,7 @@ uint16_t WS2812FX::mode_heartbeat(void) {
     leds[i + centerOffset + size] = leds[i+centerOffset];
   }
 
-  fade_out(64);
+  fadeToBlackBy(leds, _segment_runtime.length, (SEGMENT.beat88 >> 8) | 32);
 
   unsigned long beatTimer = millis() - M_HEARTBEAT_RT.lastBeat;
   if((beatTimer > SECOND_BEAT) && !M_HEARTBEAT_RT.secondBeatActive) { // time for the second beat?
