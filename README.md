@@ -58,7 +58,8 @@ Major differences to WS2812FX / ESPWebserver:
 
 If you intend to use, compile and run this code you need to:
 - have a WS2812FX strip on **Pin 3 (RX)** on a ESP8266 (nodemcu / wemos D1 mini)
-- set necessary build flags: e.g.: https://github.com/tobi01001/LED_Stripe_Dynamic_web_conf/blob/104365b7201e178d758255fcc8b8eab150287510/platformio.ini#L20 / **'-DLED_NAME="LED Development Board"' -DLED_COUNT=250** defining the LED_NAME (the web page and hostname is set to this) and the number of LEDs (LED_COUNT) on the stripe (theoretically limited to 65535 but for performance reasons rather limited to 300 (max fps you can get with 300 LEDs will be around 111)
+- set necessary build flags: e.g.: https://github.com/tobi01001/LED_Stripe_Dynamic_web_conf/blob/f0b13fc76f681254713509b9c1da90bc5ba5ca40/platformio.ini#L21-L26
+defining the LED_NAME (the web page and hostname is set to this) and the number of LEDs (LED_COUNT) on the stripe (theoretically limited to 65535 but for performance reasons rather limited to 300 (max fps you can get with 300 LEDs will be around 111)
 - upload the data file system image
 - upload the compiled code
 
