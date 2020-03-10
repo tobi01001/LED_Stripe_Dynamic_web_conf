@@ -6,7 +6,7 @@ So thanks to:
    - ESPWebserver - see https://github.com/jasoncoon/esp8266-fastled-webserver
    - Adafruit Neopixel https://github.com/adafruit/Adafruit_NeoPixel
    - WS2812FX library https://github.com/kitesurfer1404/WS2812FX
-   - fhem esp8266 implementation - Idea from https://github.com/sw-home/FHEM-LEDStripe 
+   - fhem esp8266 implementation (see https://github.com/tobi01001/FHEM-LED_CONTROL-) - Idea from https://github.com/sw-home/FHEM-LEDStripe 
 
 
 # Kindly introducing KNOB Control!!
