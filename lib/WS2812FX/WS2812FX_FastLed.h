@@ -221,6 +221,9 @@ public:
     bool addGlitter;
     bool whiteGlitter;
     bool onBlackOnly;
+    #ifdef HAS_KNOB_CONTROL
+    bool wifiEnabled;
+    #endif
     uint8_t chanceOfGlitter;
     uint8_t segments;
     uint8_t cooling;
@@ -549,24 +552,6 @@ public:
     FastLED.setBrightness(DEFAULT_BRIGHTNESS);
 
     resetDefaults();
-
-    #ifdef DEBUG_PERFORMANCE
-    service_interval = 0;
-    service_interval_max = 0;
-    service_interval_min = 65535;
-    service_interval_sum = 0;
-    service_interval_cnt = 0;
-    show_interval = 0;
-    show_interval_max = 0;
-    show_interval_min = 65535;
-    show_interval_sum = 0;
-    show_interval_cnt = 0;
-    service_duration = 0;
-    service_duration_max = 0;
-    service_duration_min = 65535;
-    service_duration_sum = 0;
-    service_duration_cnt = 0;
-    #endif
   }
 
   ~WS2812FX()
@@ -574,24 +559,6 @@ public:
     delete leds;
     delete _bleds;
   }
-
-  #ifdef DEBUG_PERFORMANCE
-  uint32_t service_interval;
-  uint32_t service_interval_max;
-  uint32_t service_interval_min;
-  uint32_t service_interval_sum;
-  uint32_t service_interval_cnt;
-  uint16_t show_interval;
-  uint16_t show_interval_max;
-  uint16_t show_interval_min;
-  uint32_t show_interval_sum;
-  uint16_t show_interval_cnt;
-  uint32_t service_duration;
-  uint32_t service_duration_max;
-  uint32_t service_duration_min;
-  uint32_t service_duration_sum;
-  uint32_t service_duration_cnt;
-  #endif
 
   CRGB *leds;
   CRGB *_bleds;
@@ -626,7 +593,6 @@ public:
    * _segment set functions
    */ 
   // setters
-
   inline void setCRC                  (uint16_t CRC)    { _segment.CRC = CRC; }
   inline void setIsRunning            (bool isRunning)  { _segment.isRunning = isRunning; if(isRunning) { _transition = true; _blend = 0; } }
   inline void setPower                (bool power)      { _segment.power = power; setTransition(); } // this should fix reopened issue #6
@@ -636,6 +602,9 @@ public:
   inline void setAddGlitter           (bool addGlitter) { _segment.addGlitter = addGlitter; }
   inline void setWhiteGlitter         (bool whiteGlitter) { _segment.whiteGlitter = whiteGlitter; }
   inline void setOnBlackOnly          (bool onBlackOnly){ _segment.onBlackOnly = onBlackOnly; }
+  #ifdef HAS_KNOB_CONTROL
+  inline void setWiFiEnabled          (bool wifiEnabled){ _segment.wifiEnabled = wifiEnabled; }
+  #endif
   inline void setChanceOfGlitter      (uint8_t glitProp){ _segment.chanceOfGlitter = constrain(glitProp, DEFAULT_GLITTER_CHANCE_MIN, DEFAULT_GLITTER_CHANCE_MAX); }
   inline void setAutoplay             (AUTOPLAYMODES m) { _segment.autoplay = m; }
   inline void setAutopal              (AUTOPLAYMODES p) { _segment.autoPal = p; }
@@ -663,9 +632,6 @@ public:
   inline void setCurrentPaletteNumber (uint8_t p)       { setCurrentPalette(p); }
   inline void setColorTemp            (uint8_t c)       { setColorTemperature(c); }
 
-
- 
-
   inline void setTransition           (void)            { _transition = true; _segment_runtime.modeinit = true; _blend = 0; }
   
   // getters
@@ -677,9 +643,12 @@ public:
   inline bool           getReverse(void)              { return _segment.reverse; }
   inline bool           getInverse(void)              { return _segment.inverse; }
   inline bool           getMirror(void)               { return _segment.mirror; }
-  inline bool           getAddGlitter(void)           { return _segment.addGlitter ; }
-  inline bool           getWhiteGlitter(void)         { return _segment.whiteGlitter ; }
-  inline bool           getOnBlackOnly(void)          { return _segment.onBlackOnly ; }
+  inline bool           getAddGlitter(void)           { return _segment.addGlitter; }
+  inline bool           getWhiteGlitter(void)         { return _segment.whiteGlitter; }
+  inline bool           getOnBlackOnly(void)          { return _segment.onBlackOnly; }
+  #ifdef HAS_KNOB_CONTROL
+  inline bool           getWiFiEnabled(void)          { return _segment.wifiEnabled; }
+  #endif
   inline uint8_t        getChanceOfGlitter(void)      { return _segment.chanceOfGlitter; }
   inline AUTOPLAYMODES  getAutoplay(void)             { return _segment.autoplay; }
   inline AUTOPLAYMODES  getAutopal(void)              { return _segment.autoPal; }

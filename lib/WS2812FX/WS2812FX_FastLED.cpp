@@ -225,6 +225,10 @@ void WS2812FX::init()
   setOnBlackOnly(_segment.onBlackOnly);
   setChanceOfGlitter(_segment.chanceOfGlitter);
 
+  #ifdef HAS_KNOB_CONTROL
+  setWiFiEnabled(_segment.wifiEnabled);
+  #endif
+
   old_segs = 0;
 
   // should start with tranistion after init
@@ -284,7 +288,9 @@ void WS2812FX::resetDefaults(void)
   setWhiteGlitter(true);
   setOnBlackOnly(false);
   setChanceOfGlitter(DEFAULT_GLITTER_CHANCE_NORMAL);
-
+  #ifdef HAS_KNOB_CONTROL
+  setWiFiEnabled(DEFAULT_WIFI_ENABLED);
+  #endif
   FastLED.setBrightness(DEFAULT_BRIGHTNESS);
 
   setTransition();
@@ -2895,7 +2901,7 @@ uint16_t WS2812FX::mode_beatsin_glow(void)
 uint16_t WS2812FX::mode_pixel_stack(void)
 {
   #define SRMVPS _segment_runtime.modevars.pixel_stack
-  const uint16_t framedelay = map(_segment.beat88, 10000, 0, 0, 50) + map(_segment_runtime.length, 300, 0, 0, 25);
+  const uint16_t framedelay = map(_segment.beat88, 10000, 0, 0, 50);// + map(_segment_runtime.length, 300, 0, 0, 25);
 
   const uint16_t cStartPos = _segment_runtime.length / 2 - 1;
   if (_segment_runtime.modeinit)

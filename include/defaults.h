@@ -5,11 +5,11 @@
 #ifdef DEBUG
 #define INITDELAY 500
 #else
-#define INITDELAY 2
+#define INITDELAY 50
 #endif
 
 //#error "check version first"
-#define BUILD_VERSION ("LED_Control_0.10.03")
+#define BUILD_VERSION ("LED_Control_0.10.03_Knob_branch_01")
 
 #ifndef BUILD_VERSION
 #error "We need a SW Version and Build Version!"
@@ -130,7 +130,7 @@
 #define RND_PAL_MIN_BRIGHT 128
 
 #ifdef HAS_KNOB_CONTROL
-#define DEFAULT_WIFI_ENABLED    (true)
+  #define DEFAULT_WIFI_ENABLED    (true)
   #define KNOB_C_SDA 4
   #define KNOB_C_SCL 5
   #define KNOB_C_BTN 2
@@ -139,7 +139,7 @@
   #define KNOB_C_I2C 0x3c
   #define KNOB_BTN_DEBOUNCE 200
   #define KNOB_ROT_DEBOUNCE 20
-  #define KNOB_BOOT_DELAY 10
+  #define KNOB_BOOT_DELAY 100
   #define KNOB_TIMEOUT_OPERATION 15000 //0
   #define KNOB_TIMEOUT_DISPLAY   240000 //0
   #define KNOB_DISPLAY_FPS       25

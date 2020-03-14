@@ -131,7 +131,7 @@ StaticJsonBuffer<3000> jsonBuffer;
 // function Definitions
 void saveEEPROMData(void),
     initOverTheAirUpdate(void),
-    setupWiFi(void),
+    setupWiFi(uint16_t timeout),
     handleSet(void),
     handleNotFound(void),
     handleGetModes(void),
@@ -196,6 +196,9 @@ void set_fieldTypes(fieldtypes *m_fieldtypes) {
 // TODO: Use one answer function with parameters being overloaded
 void sendInt(String name, uint16_t value)
 {
+  #ifdef HAS_KNOB_CONTROL
+  if(!strip->getWiFiEnabled()) return;
+  #endif
   JsonObject& answerObj = jsonBuffer.createObject();
   JsonObject& answer = answerObj.createNestedObject("returnState");
   answer[name] = value;
@@ -228,6 +231,9 @@ void sendInt(String name, uint16_t value)
 // TODO: Use one answer function with parameters being overloaded
 void sendString(String name, String value)
 {
+  #ifdef HAS_KNOB_CONTROL
+  if(!strip->getWiFiEnabled()) return;
+  #endif
   /*
   String answer = F("{ ");
   answer += F("\"currentState\" : { \"");
@@ -262,6 +268,9 @@ void sendString(String name, String value)
 // send answer can embed a complete json string instead of a single name / value pair.
 void sendAnswer(String jsonAnswer)
 {
+  #ifdef HAS_KNOB_CONTROL
+  if(!strip->getWiFiEnabled()) return;
+  #endif
   String answer = "{ \"returnState\": { " + jsonAnswer + "} }";
   server.sendHeader("Access-Control-Allow-Methods", "*");
   server.sendHeader("Access-Control-Allow-Headers", "*");
@@ -272,7 +281,11 @@ void sendAnswer(String jsonAnswer)
 // broadcasts the name and value to all websocket clients
 void broadcastInt(String name, uint16_t value)
 {
+  #ifdef HAS_KNOB_CONTROL
+  if(webSocketsServer == NULL  || !strip->getWiFiEnabled())
+  #else
   if(webSocketsServer == NULL)
+  #endif
   {
     return;
   }
@@ -305,7 +318,11 @@ void broadcastInt(String name, uint16_t value)
 // TODO: One function with parameters being overloaded.
 void broadcastString(String name, String value)
 {
+  #ifdef HAS_KNOB_CONTROL
+  if(webSocketsServer == NULL  || !strip->getWiFiEnabled())
+  #else
   if(webSocketsServer == NULL)
+  #endif
   {
     return;
   }
@@ -539,6 +556,14 @@ void checkSegmentChanges(void) {
     shouldSaveRuntime = true;
   }
 
+  #ifdef HAS_KNOB_CONTROL
+  if(seg.wifiEnabled != strip->getWiFiEnabled())
+  {
+    seg.wifiEnabled = strip->getWiFiEnabled();
+    broadcastInt("wifiEnabled", seg.wifiEnabled);
+    shouldSaveRuntime = true;
+  }
+  #endif
 
   #ifdef DEBUG  
     if(save != shouldSaveRuntime)
@@ -915,11 +940,15 @@ void showInitColor(CRGB Color)
   Color.b = Color.b&0x20;
   fill_solid(strip->leds, NUM_INFORMATION_LEDS, Color);
   strip->show();
+  delay(500);
+#else
+  delay(50);
 #endif
+
 }
 
 // setup the Wifi connection with Wifi Manager...
-void setupWiFi(void)
+void setupWiFi(uint16_t timeout = 240)
 {
 
   showInitColor(CRGB::Blue);
@@ -938,7 +967,7 @@ void setupWiFi(void)
 #ifndef HAS_KNOB_CONTROL
   // 4 Minutes should be sufficient.
   // Especially in case of WiFi loss...
-  wifiManager.setConfigPortalTimeout(240);
+  wifiManager.setConfigPortalTimeout(timeout);
  
   // we reset after configuration to not have AP and STA in parallel...
   wifiManager.setBreakAfterConfig(true);
@@ -972,10 +1001,7 @@ void setupWiFi(void)
 
   // If we are in button control mode
   // we only need WiFi for "convenience"
-  if(WiFiConnected)
-    wifiManager.setConfigPortalTimeout(120);
-  else
-    wifiManager.setConfigPortalTimeout(10);
+  wifiManager.setConfigPortalTimeout(timeout);
  
   // we reset after configuration to not have AP and STA in parallel...
   wifiManager.setBreakAfterConfig(true);
@@ -1036,6 +1062,11 @@ void handleSet(void)
   }
   DEBUGPRNT("<End> Server Args");
   #endif
+
+  #ifdef HAS_KNOB_CONTROL
+  if(!strip->getWiFiEnabled()) return;
+  #endif
+
   // to be completed in general
   // TODO: question: is there enough memory to store color and "timing" per pixel?
   // i.e. uint32_t onColor, OffColor, uint16_t ontime, offtime
@@ -1886,16 +1917,27 @@ void handleSet(void)
   }
 #endif
 
-  // parameter for number of segemts
+  // parameter for number of segments
   if (server.hasArg("segments"))
   {
     uint16_t value = String(server.arg("segments")).toInt();
-    //sendInt("segments", value);
-    //broadcastInt("segments", value);
     strip->getSegment()->segments = constrain(value, 1, MAX_NUM_SEGMENTS);
     strip->setTransition();
     answer["Segments"] = strip->getSegments();
   }
+
+  #ifdef HAS_KNOB_CONTROL
+  if (server.hasArg("wifiEnabled"))
+  {
+    uint16_t value = String(server.arg("wifiEnabled")).toInt();
+    if(value)
+      strip->setWiFiEnabled(true);
+    else
+      strip->setWiFiEnabled(false);    
+
+    answer["wifiEnabled"] = strip->getWiFiEnabled();
+  }
+  #endif
 
   // new parameters, it's time to save
   //shouldSaveRuntime = true;
@@ -2400,9 +2442,19 @@ void setupWebServer(void)
 #ifdef DEBUG
   DEBUGPRNT("HTTP server started.\n");
 #endif
-  webSocketsServer = new WebSocketsServer(81);
+  if(webSocketsServer == NULL) webSocketsServer = new WebSocketsServer(81);
   webSocketsServer->begin();
   webSocketsServer->onEvent(webSocketEvent);
+
+  if (!MDNS.begin(LED_NAME)) {
+    DEBUGPRNT("Error setting up MDNS responder!");
+    //ESP.restart();
+  }
+  else
+  {
+    MDNS.addService("http", "tcp", 80);
+    DEBUGPRNT("mDNS responder started");
+  }
 
   showInitColor(CRGB::Green);
   delay(INITDELAY);
@@ -2417,7 +2469,11 @@ void setupWebServer(void)
 
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
 {
+  #ifdef HAS_KNOB_CONTROL
+  if(webSocketsServer == NULL || !strip->getWiFiEnabled()) return;
+  #else
   if(webSocketsServer == NULL)
+  #endif
   {
     return;
   }
@@ -2513,7 +2569,7 @@ uint8_t drawtxtline10(uint8_t y, uint8_t fontheight, String txt)
 {
   if(txt == "") return y;
   uint8_t txtLines = 1;
-  txtLines = (((display.getStringWidth(txt) - 1) / 128) + 1) * fontheight;
+  txtLines = (((display.getStringWidth(txt) - 2) / 128) + 1) * fontheight;
   display.drawStringMaxWidth (0,  y, 128, txt);
   y+=txtLines;
   return y;
@@ -2624,41 +2680,39 @@ void setup()
 
   EEPROM.begin(strip->getSegmentSize());
 
-  cursor = drawtxtline10(cursor, font_height, F("WiFi-Setup"));
-  display.display();
-  setupWiFi();
-  cursor = drawtxtline10(cursor, font_height, F("WebServer Setup"));
-  display.display();
-  setupWebServer();
+  EEPROM.get(0, seg);
 
-  if (!MDNS.begin(LED_NAME)) {
-    DEBUGPRNT("Error setting up MDNS responder!");
-    //ESP.restart();
-  }
-  else
+  if(seg.wifiEnabled)
   {
-    MDNS.addService("http", "tcp", 80);
-    DEBUGPRNT("mDNS responder started");
-  }
-  cursor = drawtxtline10(cursor, font_height, F("OTA Setup"));
-  display.display();
-  initOverTheAirUpdate();
-    
+    cursor = drawtxtline10(cursor, font_height, F("WiFi-Setup"));
+    display.display();
+    setupWiFi();
+    cursor = drawtxtline10(cursor, font_height, F("WebServer Setup"));
+    display.display();
+    setupWebServer();
+    cursor = drawtxtline10(cursor, font_height, F("OTA Setup"));
+    display.display();
+    initOverTheAirUpdate();
+    myIP = WiFi.localIP();
+  }  
+  
   readRuntimeDataEEPROM(); 
   
-  myIP = WiFi.localIP();
+  
   DEBUGPRNT("Going to show IP Address " + myIP.toString()); 
 
   delay(KNOB_BOOT_DELAY);
   display.clear();
   cursor = 0;
-  cursor = drawtxtline10(cursor, font_height, "Boot von " + String(LED_NAME) + " fertig!");
+  cursor = drawtxtline10(cursor, font_height, "Boot fertig!");
   cursor = drawtxtline10(cursor, font_height, "Name: " + String(LED_NAME));
   cursor = drawtxtline10(cursor, font_height, "IP: " + myIP.toString());
   cursor = drawtxtline10(cursor, font_height, "LEDs: " + String(LED_COUNT));
   display.display();
   delay(KNOB_BOOT_DELAY);
 
+  display.clear();  
+  
 #else // HAS_KNOB_CONTROL
   #ifdef DEBUG
   // Open serial communications and wait for port to open:
@@ -3470,7 +3524,46 @@ void loop()
   }
   #else
 
-    
+  static bool oldWiFiState = strip->getWiFiEnabled();
+  
+  EVERY_N_MILLISECONDS(100)
+  {
+    bool wifiEnabled = strip->getWiFiEnabled();
+    if(wifiEnabled != oldWiFiState)
+    {
+      if(wifiEnabled)
+      {
+        /*
+        shouldSaveRuntime = true;
+        saveEEPROMData();
+        ESP.restart();
+        */
+        delay(INITDELAY);
+        setupWiFi();
+        delay(INITDELAY);
+        if(WiFiConnected)
+        {
+          setupWebServer();
+          delay(INITDELAY);
+          initOverTheAirUpdate();
+          delay(INITDELAY);
+          myIP = WiFi.localIP();
+        }
+      }
+      else
+      {
+        delete webSocketsServer;
+        delay(INITDELAY);
+        WiFi.mode(WIFI_OFF);
+      }
+      oldWiFiState = wifiEnabled;
+    }
+  }
+  if(!oldWiFiState)
+  {
+    WiFiConnected = false;
+    wifi_check_time = now;
+  } 
     
     // Checking WiFi state every WIFI_TIMEOUT
     // since we have Knob-Control. We do not care about "No Connection"
