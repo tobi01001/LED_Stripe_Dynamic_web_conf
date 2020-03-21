@@ -555,6 +555,24 @@ void checkSegmentChanges(void) {
     broadcastInt("glitterChance", seg.chanceOfGlitter);
     shouldSaveRuntime = true;
   }
+  if(seg.backgroundHue != strip->getBckndHue())
+  {
+    seg.backgroundHue = strip->getBckndHue();
+    broadcastInt("BckndHue", seg.chanceOfGlitter);
+    shouldSaveRuntime = true;
+  }
+  if(seg.backgroundHue != strip->getBckndHue())
+  {
+    seg.backgroundHue = strip->getBckndHue();
+    broadcastInt("BckndHue", seg.chanceOfGlitter);
+    shouldSaveRuntime = true;
+  }
+  if(seg.backgroundHue != strip->getBckndHue())
+  {
+    seg.backgroundHue = strip->getBckndHue();
+    broadcastInt("BckndHue", seg.chanceOfGlitter);
+    shouldSaveRuntime = true;
+  }
 
   #ifdef HAS_KNOB_CONTROL
   if(seg.wifiEnabled != strip->getWiFiEnabled())
@@ -1925,6 +1943,26 @@ void handleSet(void)
     strip->setTransition();
     answer["Segments"] = strip->getSegments();
   }
+
+  if (server.hasArg("BckndHue"))
+  {
+    uint8_t value = String(server.arg("BckndHue")).toInt();
+    strip->setBckndHue(value);
+    answer["BckndHue"] = strip->getBckndHue();
+  }
+  if (server.hasArg("BckndSat"))
+  {
+    uint8_t value = String(server.arg("BckndSat")).toInt();
+    strip->setBckndSat(value);
+    answer["BckndSat"] = strip->getBckndSat();
+  }
+  if (server.hasArg("BckndBri"))
+  {
+    uint8_t value = String(server.arg("BckndBri")).toInt();
+    strip->setBckndBri(value);
+    answer["BckndBri"] = strip->getBckndBri();
+  }
+
 
   #ifdef HAS_KNOB_CONTROL
   if (server.hasArg("wifiEnabled"))
@@ -3360,6 +3398,7 @@ void knob_service(uint32_t now)
         if(fields[curr_field].setValue)
         {
           fields[curr_field].setValue(val);
+          
         }
       }
       old_val = val;

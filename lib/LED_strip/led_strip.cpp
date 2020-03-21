@@ -246,6 +246,18 @@ String getDithering(void) {
 String getResetDefaults(void) {
   return String(0);
 }
+String getBckndHue() {
+  return String(strip->getBckndHue());
+}
+String getBckndSat() {
+  return String(strip->getBckndSat());
+}
+String getBckndBri() {
+  return String(strip->getBckndBri());
+}
+
+
+
 #ifdef HAS_KNOB_CONTROL
 String getWiFiEnabled(void) {
   return String(strip->getWiFiEnabled());
@@ -424,6 +436,16 @@ void setDithering(uint16_t val) {
 void setResetDefaults(uint16_t val) {
   strip->resetDefaults();
 }
+void setBckndHue(uint16_t val) {
+  strip->setBckndHue(val);
+}
+void setBckndSat(uint16_t val) {
+  strip->setBckndSat(val);
+}
+void setBckndBri(uint16_t val) {
+  strip->setBckndBri(val);
+}
+
 #ifdef HAS_KNOB_CONTROL
 void setWiFiEnabled(uint16_t val) {
   if(val)
@@ -471,6 +493,11 @@ FieldList fields = {
   //  {"autopal",           "Color Palette Autoplay",                 SectionFieldType,   NULL,                                   NULL,                                             NULL,           NULL,          NULL          },
     {"autopal",           "Automatic color palette change",         SelectFieldType,    (uint16_t)AUTO_MODE_OFF,                (uint16_t)AUTO_MODE_RANDOM,                       getAutopal,     getAutoplayModes, setAutopal },
     {"autopalDuration",   "Automatic palette change interval (s)",  NumberFieldType,    (uint16_t)5,                            (uint16_t)1000,                                   getAutopalDuration, NULL, setAutopalDuration            },
+    {"BackGroundColor",   "Background Color",                       SectionFieldType,   NULL,                                   NULL,                                             NULL,               NULL,           NULL          },
+    {"BckndHue",          "Background Hue",                         NumberFieldType,    (uint16_t)0,                            (uint16_t)255,                                    getBckndHue,       NULL,           setBckndHue  },
+    {"BckndSat",          "Background Sat",                         NumberFieldType,    (uint16_t)0,                            (uint16_t)255,                                    getBckndSat,       NULL,           setBckndSat  },
+    {"BckndBri",          "Background Bri",                         NumberFieldType,    (uint16_t)30,                           (uint16_t)100,                                    getBckndBri,       NULL,           setBckndBri  },
+    
     {"advancedControl",   "Advanced control",                       SectionFieldType,   NULL,                                   NULL,                                             NULL,               NULL,           NULL          },
     {"blendType",         "Color blend type",                       SelectFieldType,    (uint16_t)NOBLEND,                      (uint16_t)LINEARBLEND,                            getBlendType,       getBlendTypes,  setBlendType  },
     {"ColorTemperature",  "Color temperature",                      SelectFieldType,    (uint16_t)0,                            (uint16_t)20,                                     getColorTemp,       getColorTemps,  setColorTemp  },

@@ -9,7 +9,7 @@
 #endif
 
 //#error "check version first"
-#define BUILD_VERSION ("LED_Control_0.10.03_Knob_branch_01")
+#define BUILD_VERSION ("LED_Control_0.10.03_Knob_branch_02")
 
 #ifndef BUILD_VERSION
 #error "We need a SW Version and Build Version!"
@@ -129,6 +129,14 @@
 #define RND_PAL_CHANGE_INT 200 
 #define RND_PAL_MIN_BRIGHT 128
 
+// Background Color
+#define DEFAULT_BCKND_HUE 0
+#define DEFAULT_BCKND_SAT 255
+#define DEFAULT_BCKND_BRI 0 //means OFF
+#define BCKND_MIN_BRI     0
+#define BCKND_MAX_BRI     100
+
+// KNOB CONTROL
 #ifdef HAS_KNOB_CONTROL
   #define DEFAULT_WIFI_ENABLED    (true)
   #define KNOB_C_SDA 4

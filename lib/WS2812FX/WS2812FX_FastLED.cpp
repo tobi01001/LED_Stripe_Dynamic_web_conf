@@ -224,6 +224,9 @@ void WS2812FX::init()
   setWhiteGlitter(_segment.whiteGlitter);
   setOnBlackOnly(_segment.onBlackOnly);
   setChanceOfGlitter(_segment.chanceOfGlitter);
+  setBckndHue(_segment.backgroundHue);
+  setBckndSat(_segment.backgroundSat);
+  setBckndBri(_segment.backgroundBri);
 
   #ifdef HAS_KNOB_CONTROL
   setWiFiEnabled(_segment.wifiEnabled);
@@ -284,6 +287,9 @@ void WS2812FX::resetDefaults(void)
   setTargetBrightness     (DEFAULT_BRIGHTNESS);
   setBlendType            (DEFAULT_BLEND);
   setColorTemp            (DEFAULT_COLOR_TEMP);
+  setBckndBri(DEFAULT_BCKND_BRI);
+  setBckndHue(DEFAULT_BCKND_HUE);
+  setBckndSat(DEFAULT_BCKND_SAT);
   setAddGlitter(false);
   setWhiteGlitter(true);
   setOnBlackOnly(false);
@@ -430,9 +436,10 @@ void WS2812FX::service()
     }
   }
 
+  
   // Thanks to some discussions on Github, I do still not use any memmove 
   // but I relaized that I need to nblend from the calculated frames to the led data.
-  // this could be simplified within the following nested loop which does now all at once and svaes 2 loops + 
+  // this could be simplified within the following nested loop which does now all at once and saves 2 loops + 
   // one nblend over the complete strip data....
   // as the combination of "mirror" and "reverse" is a bit redundant, this could maybe be simplified as well (later)
 
@@ -466,9 +473,19 @@ void WS2812FX::service()
     }
   }
 
+
+
+  CRGB BackGroundColor = CHSV(_segment.backgroundHue, _segment.backgroundSat, min(_segment.backgroundBri, _segment.targetBrightness));  // 0; //0x100000;
+  if(BackGroundColor)
+  {
+    for(uint8_t i=0; i<LED_COUNT; i++)
+    {
+      if(BackGroundColor > _bleds[i])
+      _bleds[i] |= BackGroundColor;
+    }
+  }
+
   // Write the data
-  
-    
 
   // if there is time left for another service call, we do not write the led data yet...
   // but if there is less than 300 microseconds left, we do write..
@@ -2338,7 +2355,7 @@ uint16_t WS2812FX::mode_running_lights(void)
   for (uint16_t i = 0; i < _segment_runtime.length; i++)
   {
     uint8_t lum = qsub8(sin8_C(map(i, 0, _segment_runtime.length - 1, 0, 255)), 2);
-    uint16_t offset = map(beat88(SEGMENT.beat88, SEGMENT_RUNTIME.timebase), 0, 65535, 0, _segment_runtime.length - 1);
+    uint16_t offset = map(beat88(SEGMENT.beat88, SEGMENT_RUNTIME.timebase), 0, 65535, 0, _segment_runtime.length * 10); //map(beat88(SEGMENT.beat88, SEGMENT_RUNTIME.timebase), 0, 65535, 0, _segment_runtime.length - 1);
     offset = (offset + i) % _segment_runtime.length;
 
     CRGB newColor = CRGB::Black;

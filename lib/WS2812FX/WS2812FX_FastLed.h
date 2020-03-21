@@ -241,6 +241,9 @@ public:
     uint8_t targetBrightness;
     uint8_t targetPaletteNum;
     uint8_t currentPaletteNum;
+    uint8_t backgroundHue;
+    uint8_t backgroundSat;
+    uint8_t backgroundBri;
     AUTOPLAYMODES autoplay;
     AUTOPLAYMODES autoPal;
     uint16_t beat88;
@@ -631,6 +634,9 @@ public:
   inline void setTargetPaletteNumber  (uint8_t p)       { setTargetPalette(p); }
   inline void setCurrentPaletteNumber (uint8_t p)       { setCurrentPalette(p); }
   inline void setColorTemp            (uint8_t c)       { setColorTemperature(c); }
+  inline void setBckndSat             (uint8_t s)       { _segment.backgroundSat = s; }
+  inline void setBckndHue             (uint8_t h)       { _segment.backgroundHue = h; }
+  inline void setBckndBri             (uint8_t b)       { _segment.backgroundBri = constrain(b, BCKND_MIN_BRI, BCKND_MAX_BRI); }
 
   inline void setTransition           (void)            { _transition = true; _segment_runtime.modeinit = true; _blend = 0; }
   
@@ -675,6 +681,10 @@ public:
   inline uint8_t        getTargetBrightness(void)     { return _segment.targetBrightness; }
   inline uint8_t        getTargetPaletteNumber(void)  { return _segment.targetPaletteNum; }
   inline uint8_t        getCurrentPaletteNumber(void) { return _segment.currentPaletteNum; }
+  inline uint8_t        getBckndSat(void)             { return _segment.backgroundSat; }
+  inline uint8_t        getBckndHue(void)             { return _segment.backgroundHue; }
+  inline uint8_t        getBckndBri(void)             { return _segment.backgroundBri; }
+
   inline TBlendType     getBlendType(void)            { return _segment.blendType; }
          uint8_t        getColorTemp(void);
   inline ColorTemperature getColorTemperature(void)   { return _segment.colorTemp; }
