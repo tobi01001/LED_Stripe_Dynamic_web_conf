@@ -876,6 +876,9 @@ private:
       _volts,
       _blend,
       _pblur,
+      _c_bck_h = 0,
+      _c_bck_s = 0,
+      _c_bck_b = 0,
       _brightness;
 
   uint16_t 

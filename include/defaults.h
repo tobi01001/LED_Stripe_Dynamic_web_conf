@@ -9,7 +9,7 @@
 #endif
 
 //#error "check version first"
-#define BUILD_VERSION ("LED_Control_0.10.03_Knob_branch_02")
+#define BUILD_VERSION ("LED_Control_0.10.04_Knob_branch_02")
 
 #ifndef BUILD_VERSION
 #error "We need a SW Version and Build Version!"
@@ -118,7 +118,7 @@
 #define DEFAULT_LED_BARS ((LED_COUNT / 40) > 0 ? LED_COUNT / 40 : 1) // half of the possible bars will be used
 #define DEFAULT_DAMPING 90
 #define DEFAULT_SUNRISETIME 15
-#define DEFAULT_DITHER 1
+#define DEFAULT_DITHER 0
 #define DEFAULT_PALETTE 0
 #define DEFAULT_COLOR_TEMP 19
 #define DEFAULT_GLITTER_CHANCE_MIN 0
@@ -134,7 +134,7 @@
 #define DEFAULT_BCKND_SAT 255
 #define DEFAULT_BCKND_BRI 0 //means OFF
 #define BCKND_MIN_BRI     0
-#define BCKND_MAX_BRI     100
+#define BCKND_MAX_BRI     80
 
 // KNOB CONTROL
 #ifdef HAS_KNOB_CONTROL

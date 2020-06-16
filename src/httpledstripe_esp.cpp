@@ -558,19 +558,19 @@ void checkSegmentChanges(void) {
   if(seg.backgroundHue != strip->getBckndHue())
   {
     seg.backgroundHue = strip->getBckndHue();
-    broadcastInt("BckndHue", seg.chanceOfGlitter);
+    broadcastInt("BckndHue", seg.backgroundHue);
     shouldSaveRuntime = true;
   }
-  if(seg.backgroundHue != strip->getBckndHue())
+  if(seg.backgroundSat != strip->getBckndSat())
   {
-    seg.backgroundHue = strip->getBckndHue();
-    broadcastInt("BckndHue", seg.chanceOfGlitter);
+    seg.backgroundSat = strip->getBckndSat();
+    broadcastInt("BckndSat", seg.backgroundSat);
     shouldSaveRuntime = true;
   }
-  if(seg.backgroundHue != strip->getBckndHue())
+  if(seg.backgroundBri != strip->getBckndBri())
   {
-    seg.backgroundHue = strip->getBckndHue();
-    broadcastInt("BckndHue", seg.chanceOfGlitter);
+    seg.backgroundBri = strip->getBckndBri();
+    broadcastInt("BckndBri", seg.backgroundBri);
     shouldSaveRuntime = true;
   }
 

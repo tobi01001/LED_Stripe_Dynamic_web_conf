@@ -496,7 +496,7 @@ FieldList fields = {
     {"BackGroundColor",   "Background Color",                       SectionFieldType,   NULL,                                   NULL,                                             NULL,               NULL,           NULL          },
     {"BckndHue",          "Background Hue",                         NumberFieldType,    (uint16_t)0,                            (uint16_t)255,                                    getBckndHue,       NULL,           setBckndHue  },
     {"BckndSat",          "Background Sat",                         NumberFieldType,    (uint16_t)0,                            (uint16_t)255,                                    getBckndSat,       NULL,           setBckndSat  },
-    {"BckndBri",          "Background Bri",                         NumberFieldType,    (uint16_t)30,                           (uint16_t)100,                                    getBckndBri,       NULL,           setBckndBri  },
+    {"BckndBri",          "Background Bri",                         NumberFieldType,    (uint16_t)BCKND_MIN_BRI,                (uint16_t)BCKND_MAX_BRI,                          getBckndBri,       NULL,           setBckndBri  },
     
     {"advancedControl",   "Advanced control",                       SectionFieldType,   NULL,                                   NULL,                                             NULL,               NULL,           NULL          },
     {"blendType",         "Color blend type",                       SelectFieldType,    (uint16_t)NOBLEND,                      (uint16_t)LINEARBLEND,                            getBlendType,       getBlendTypes,  setBlendType  },
