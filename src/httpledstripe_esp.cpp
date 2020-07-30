@@ -124,7 +124,7 @@ bool shouldSaveRuntime = false;
 
 WS2812FX::segment seg;
 
-StaticJsonBuffer<3000> jsonBuffer;
+StaticJsonBuffer<9000> jsonBuffer;
 
 #include "FSBrowser.h"
 
@@ -2017,7 +2017,7 @@ void handleNotFound(void)
 void handleGetModes(void)
 {
   const size_t bufferSize = JSON_OBJECT_SIZE(1) + JSON_OBJECT_SIZE(2) + JSON_OBJECT_SIZE(56) + 1070;
-  DynamicJsonBuffer jsonBuffer(bufferSize);
+  //DynamicJsonBuffer jsonBuffer(bufferSize);
 
   JsonObject &root = jsonBuffer.createObject();
 
