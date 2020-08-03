@@ -244,7 +244,7 @@ void WS2812FX::init()
 void WS2812FX::resetDefaults(void)
 {
   DEBUGPRNT("Resetting to Default values");
-  RESET_RUNTIME;
+  
 
   _segment_runtime.start = 0;
   _segment_runtime.stop = LED_COUNT - 1;
@@ -298,7 +298,7 @@ void WS2812FX::resetDefaults(void)
   setWiFiEnabled(DEFAULT_WIFI_ENABLED);
   #endif
   FastLED.setBrightness(DEFAULT_BRIGHTNESS);
-
+  RESET_RUNTIME;
   setTransition();
 }
 

@@ -60,7 +60,7 @@
   
   #include "Encoder.h"
   #include "SSD1306Brzo.h"
-  bool WiFiConnected = true;
+  bool WiFiConnected = false;
 #endif
 
 #define FASTLED_ESP8266_RAW_PIN_ORDER
@@ -96,9 +96,9 @@ SSD1306Brzo display(0x3c, 4, 5);
 const String build_version = (String(BUILD_VERSION) + String("DEBUG ") + String(__TIMESTAMP__);
 #else
 #ifdef HAS_KNOB_CONTROL
-const String build_version = (String(BUILD_VERSION) + String("_KNOB")); // + String(__TIMESTAMP__);
+const String build_version = (String(BUILD_VERSION) + String("_") + String(PIO_SRC_BRANCH) + String("_KNOB")); // + String(__TIMESTAMP__);
 #else
-const String build_version = (String(BUILD_VERSION));; // + String(__TIMESTAMP__);
+const String build_version = (String(BUILD_VERSION) + String("_") + String(PIO_SRC_BRANCH)); // + String(__TIMESTAMP__);
 #endif
 #endif
 const String git_revision  = BUILD_GITREV;
@@ -197,7 +197,7 @@ void set_fieldTypes(fieldtypes *m_fieldtypes) {
 void sendInt(String name, uint16_t value)
 {
   #ifdef HAS_KNOB_CONTROL
-  if(!strip->getWiFiEnabled()) return;
+  if(!strip->getWiFiEnabled() || !WiFiConnected) return;
   #endif
   JsonObject& answerObj = jsonBuffer.createObject();
   JsonObject& answer = answerObj.createNestedObject("returnState");
@@ -232,7 +232,7 @@ void sendInt(String name, uint16_t value)
 void sendString(String name, String value)
 {
   #ifdef HAS_KNOB_CONTROL
-  if(!strip->getWiFiEnabled()) return;
+  if(!strip->getWiFiEnabled() || !WiFiConnected) return;
   #endif
   /*
   String answer = F("{ ");
@@ -269,7 +269,7 @@ void sendString(String name, String value)
 void sendAnswer(String jsonAnswer)
 {
   #ifdef HAS_KNOB_CONTROL
-  if(!strip->getWiFiEnabled()) return;
+  if(!strip->getWiFiEnabled() || !WiFiConnected) return;
   #endif
   String answer = "{ \"returnState\": { " + jsonAnswer + "} }";
   server.sendHeader("Access-Control-Allow-Methods", "*");
@@ -282,7 +282,7 @@ void sendAnswer(String jsonAnswer)
 void broadcastInt(String name, uint16_t value)
 {
   #ifdef HAS_KNOB_CONTROL
-  if(webSocketsServer == NULL  || !strip->getWiFiEnabled())
+  if(webSocketsServer == NULL  || !strip->getWiFiEnabled() || !WiFiConnected)
   #else
   if(webSocketsServer == NULL)
   #endif
@@ -319,7 +319,7 @@ void broadcastInt(String name, uint16_t value)
 void broadcastString(String name, String value)
 {
   #ifdef HAS_KNOB_CONTROL
-  if(webSocketsServer == NULL  || !strip->getWiFiEnabled())
+  if(webSocketsServer == NULL  || !strip->getWiFiEnabled() || !WiFiConnected)
   #else
   if(webSocketsServer == NULL)
   #endif
@@ -1082,7 +1082,7 @@ void handleSet(void)
   #endif
 
   #ifdef HAS_KNOB_CONTROL
-  if(!strip->getWiFiEnabled()) return;
+  if(!strip->getWiFiEnabled() || !WiFiConnected) return;
   #endif
 
   // to be completed in general
@@ -2016,7 +2016,7 @@ void handleNotFound(void)
 
 void handleGetModes(void)
 {
-  const size_t bufferSize = JSON_OBJECT_SIZE(1) + JSON_OBJECT_SIZE(2) + JSON_OBJECT_SIZE(56) + 1070;
+  //const size_t bufferSize = JSON_OBJECT_SIZE(1) + JSON_OBJECT_SIZE(2) + JSON_OBJECT_SIZE(56) + 1070;
   //DynamicJsonBuffer jsonBuffer(bufferSize);
 
   JsonObject &root = jsonBuffer.createObject();
@@ -2508,7 +2508,7 @@ void setupWebServer(void)
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
 {
   #ifdef HAS_KNOB_CONTROL
-  if(webSocketsServer == NULL || !strip->getWiFiEnabled()) return;
+  if(webSocketsServer == NULL || !strip->getWiFiEnabled() || !WiFiConnected) return;
   #else
   if(webSocketsServer == NULL)
   #endif
@@ -3314,6 +3314,7 @@ void knob_service(uint32_t now)
 
   static bool in_submenu = false;
   static bool newfield_selected = false;
+  static bool setnewValue = false;
  
   if (digitalRead(KNOB_C_BTN) == LOW && now > last_btn_press + KNOB_BTN_DEBOUNCE)
   {
@@ -3395,15 +3396,23 @@ void knob_service(uint32_t now)
           old_val = setEncoderValues(curr_field, m_fieldtypes);
           newfield_selected = false;
         }
-        if(fields[curr_field].setValue)
-        {
-          fields[curr_field].setValue(val);
-          
-        }
+        setnewValue = true;
+        
       }
       old_val = val;
     }
     curVal = val;
+    EVERY_N_MILLIS(KNOB_ROT_DEBOUNCE)
+    {
+      if(setnewValue)
+      {
+        setnewValue = false;
+        if(fields[curr_field].setValue)
+        {
+          fields[curr_field].setValue(val);
+        }
+      }
+    }
     
     if(now > last_control_operation + KNOB_TIMEOUT_DISPLAY)
     {
@@ -3565,39 +3574,39 @@ void loop()
 
   static bool oldWiFiState = strip->getWiFiEnabled();
   
-  EVERY_N_MILLISECONDS(100)
+  bool wifiEnabled = strip->getWiFiEnabled();
+  if(wifiEnabled != oldWiFiState)
   {
-    bool wifiEnabled = strip->getWiFiEnabled();
-    if(wifiEnabled != oldWiFiState)
+    if(wifiEnabled)
     {
-      if(wifiEnabled)
+      checkSegmentChanges();
+      shouldSaveRuntime = true;
+      saveEEPROMData();
+      ESP.restart();
+      
+      /*
+      delay(INITDELAY);
+      setupWiFi();
+      delay(INITDELAY);
+      if(WiFiConnected)
       {
-        /*
-        shouldSaveRuntime = true;
-        saveEEPROMData();
-        ESP.restart();
-        */
+        setupWebServer();
         delay(INITDELAY);
-        setupWiFi();
+        initOverTheAirUpdate();
         delay(INITDELAY);
-        if(WiFiConnected)
-        {
-          setupWebServer();
-          delay(INITDELAY);
-          initOverTheAirUpdate();
-          delay(INITDELAY);
-          myIP = WiFi.localIP();
-        }
+        myIP = WiFi.localIP();
       }
-      else
-      {
-        delete webSocketsServer;
-        delay(INITDELAY);
-        WiFi.mode(WIFI_OFF);
-      }
-      oldWiFiState = wifiEnabled;
+      */
     }
+    else
+    {
+      delete webSocketsServer;
+      delay(INITDELAY);
+      WiFi.mode(WIFI_OFF);
+    }
+    oldWiFiState = wifiEnabled;
   }
+  
   if(!oldWiFiState)
   {
     WiFiConnected = false;
@@ -3611,7 +3620,7 @@ void loop()
     //DEBUGPRNT("Checking WiFi... ");
     if (WiFi.status() != WL_CONNECTED)
     {
-      if(!WiFiConnected) last_control_operation = now;    // Will switch the display on. Only needed when we had connection and now lose it...
+      if(WiFiConnected) last_control_operation = now;    // Will switch the display on. Only needed when we had connection and now lose it...
       DEBUGPRNT("Lost Wifi Connection. Counter is " + String(wifi_err_counter));
       wifi_err_counter+=1;
       //wifi_disconnect_counter+=2;

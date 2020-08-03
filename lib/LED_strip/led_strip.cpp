@@ -434,7 +434,10 @@ void setDithering(uint16_t val) {
   strip->setDithering(val);
 }
 void setResetDefaults(uint16_t val) {
-  strip->resetDefaults();
+  if(val)
+  {
+    strip->resetDefaults();
+  }
 }
 void setBckndHue(uint16_t val) {
   strip->setBckndHue(val);
