@@ -323,7 +323,6 @@ unsigned int WS2812FX::calc_CRC16(unsigned int crc, unsigned char *buf, int len)
   return crc;
 }
 
-
 /*
  * the overall service task. To be called as often as possible / useful
  * (at least at the desired frame rate)
@@ -427,7 +426,7 @@ void WS2812FX::service()
   }
 
   // Smooth brightness change?
-  EVERY_N_MILLISECONDS(20)
+  EVERY_N_MILLISECONDS(5)
   {
     uint8_t b = FastLED.getBrightness();
     if (_segment.targetBrightness > b)
@@ -479,7 +478,7 @@ void WS2812FX::service()
 
   // Background Color: Good idea, but needs some improvement.
   // TODO: How to mix colors of different RGB values to remove the "glitch" when suddenly background switches to foreground.
-  // --> Needs to be done withoutnhaving to much backgroud at all.
+  // --> Needs to be done without having to much backgroud at all.
 
   EVERY_N_MILLISECONDS(10)
   {
@@ -512,7 +511,7 @@ void WS2812FX::service()
 
   if(BackGroundColor)
   {
-    for(uint8_t i=0; i<LED_COUNT; i++)
+    for(uint16_t i=0; i < LED_COUNT; i++)
     {
       uint8_t bk_blend = 0;
       #define LOCAL_SCALE_FACT 100

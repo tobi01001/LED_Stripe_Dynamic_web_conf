@@ -124,7 +124,8 @@ bool shouldSaveRuntime = false;
 
 WS2812FX::segment seg;
 
-StaticJsonBuffer<9000> jsonBuffer;
+DynamicJsonBuffer jsonBuffer(11000);
+//StaticJsonBuffer<11000> jsonBuffer;
 
 #include "FSBrowser.h"
 
@@ -761,6 +762,8 @@ void initOverTheAirUpdate(void)
     display.display();
     // indicate that OTA is no longer running.
     OTAisRunning = false;
+    delay(1000);
+    display.displayOff();
     // no need to reset ESP as this is done by the OTA handler by default
   });
   // show the progress on the strips as well to be informed if anything gets stuck...
@@ -2668,18 +2671,21 @@ void setup()
     DEBUGPRNT(F("\tREASON_WDT_RST"));
     cursor = drawtxtline10(cursor, font_height, F("REASON_WDT_RST"));
     display.display();
+    delay(2000);
     clearCRC(); // should enable default start in case of
     break;
   case REASON_EXCEPTION_RST:
     DEBUGPRNT(F("\tREASON_EXCEPTION_RST"));
     cursor = drawtxtline10(cursor, font_height, F("REASON_EXCEPTION_RST"));
     display.display();
+    delay(2000);
     clearCRC();
     break;
   case REASON_SOFT_WDT_RST:
     DEBUGPRNT(F("\tREASON_SOFT_WDT_RST"));
     cursor = drawtxtline10(cursor, font_height, F("REASON_SOFT_WDT_RST"));
     display.display();
+    delay(2000);
     clearCRC();
     break;
   case REASON_SOFT_RESTART:
@@ -3221,15 +3227,6 @@ void showDisplay(uint8_t curr_field, fieldtypes *fieldtype)
         display.setTextAlignment(TEXT_ALIGN_LEFT);
         display.drawString(0,  0, LED_NAME);
 
-       /*  if(WiFiConnected)
-        {
-          display.setTextAlignment(TEXT_ALIGN_LEFT);
-          display.drawString(0,   10, WiFi.SSID());
-        }
-        else
-        {
-          display.drawString(0,   10, "No Network");
-        } */
         display.setTextAlignment(TEXT_ALIGN_LEFT);
         display.setFont(ArialMT_Plain_10);
         display.drawString(0,  20, "FPS:");
@@ -3286,8 +3283,8 @@ void showDisplay(uint8_t curr_field, fieldtypes *fieldtype)
     }
     else
     {
-      display.drawLine(115, 11, 125, 1);
-      display.drawLine(125, 11, 115, 1);
+      display.drawLine(117, 9, 123, 3);
+      display.drawLine(123, 9, 117, 3);
     }
     /* 
     uint8_t br64 =          map8(strip->getBrightness(), 0, 64);

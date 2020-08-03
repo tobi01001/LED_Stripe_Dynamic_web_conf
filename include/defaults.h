@@ -9,7 +9,7 @@
 #endif
 
 //#error "check version first"
-#define BUILD_VERSION ("LED_Control_0.10.05")
+#define BUILD_VERSION ("LED_Control_0.10.06")
 
 #ifndef BUILD_VERSION
 #error "We need a SW Version and Build Version!"
@@ -32,6 +32,8 @@
 #error "You need to define the number of Leds by LED_COUNT (build flag e.g. -DLED_COUNT=50)"
 #elif LED_COUNT < 11
 #error "You need to define more than 10 LEDs by LED_COUNT (build flag e.g. -DLED_COUNT=50)"
+#elif LED_COUNT > 300
+#warning "This Code was written for up to 300 leds and was not tested for anything beyond"
 #endif
 
 // Other parameters being used
@@ -64,9 +66,9 @@
 
 #define EEPROM_SAVE_INTERVAL_MS 5000
 #define WIFI_TIMEOUT            5000 // changed for issue #13 
-#define MAX_NUM_SEGMENTS        (LED_COUNT / 25)
+#define MAX_NUM_SEGMENTS        ((LED_COUNT / 15)>10?10:(LED_COUNT / 15))
 #define MAX_NUM_BARS_FACTOR     15                    // Segment divided by this defines the maximum number of "bars"
-#define MAX_NUM_BARS            (LED_COUNT / MAX_NUM_BARS_FACTOR)
+#define MAX_NUM_BARS            ((LED_COUNT / MAX_NUM_BARS_FACTOR)>10?10:(LED_COUNT / MAX_NUM_BARS_FACTOR))
 
 // default strip / segment values below (before being stored / after "reset")
 

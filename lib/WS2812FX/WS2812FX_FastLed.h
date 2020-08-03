@@ -258,7 +258,7 @@ public:
   // segment runtime parameters
 
   typedef struct {
-  #define BLENDWIDTH 20
+  #define BLENDWIDTH 16 
     uint32_t timebase;
     uint16_t prev_pos;
     double pos;
