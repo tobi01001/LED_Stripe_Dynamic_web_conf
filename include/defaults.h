@@ -17,6 +17,10 @@
 #ifndef PIO_SRC_REV
   #define PIO_SRC_REV "no_git_rev"
 #endif
+#ifndef PIO_SRC_BRANCH
+  #define PIO_SRC_BRANCH "no_git_branch"
+#endif
+
 #define BUILD_GITREV PIO_SRC_REV
 
 /* use build flags to define these */
