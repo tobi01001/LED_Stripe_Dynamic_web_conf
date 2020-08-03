@@ -20,7 +20,7 @@ ws.debug = true;
 ws.onmessage = function(evt) {
   
   
-  if(evt.data != null)
+  if(evt.data !== null)
   {
     // added exception handling fro wrong json strings
     var data = null;

@@ -45,7 +45,7 @@
 #ifndef DEBUG
 # define FASTLED_INTERNAL
 #endif
-#include <FS.h>
+#include <LittleFS.h>
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <ESP8266WiFi.h>
@@ -2395,10 +2395,10 @@ void setupWebServer(void)
 {
   showInitColor(CRGB::Blue);
   delay(INITDELAY);
-  SPIFFS.begin();
+  LittleFS.begin();
   {
 #ifdef DEBUG
-    Dir dir = SPIFFS.openDir("/");
+    Dir dir = LittleFS.openDir("/");
     while (dir.next())
     {
       String fileName = dir.fileName();
@@ -2474,7 +2474,7 @@ void setupWebServer(void)
   });
 
 
-  server.serveStatic("/", SPIFFS, "/", "max-age=86400");
+  server.serveStatic("/", LittleFS, "/", "max-age=86400");
   delay(INITDELAY);
   server.begin();
 
