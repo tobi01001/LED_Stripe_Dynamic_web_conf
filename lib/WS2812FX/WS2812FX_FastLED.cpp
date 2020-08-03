@@ -224,6 +224,13 @@ void WS2812FX::init()
   setWhiteGlitter(_segment.whiteGlitter);
   setOnBlackOnly(_segment.onBlackOnly);
   setChanceOfGlitter(_segment.chanceOfGlitter);
+  setBckndHue(_segment.backgroundHue);
+  setBckndSat(_segment.backgroundSat);
+  setBckndBri(_segment.backgroundBri);
+
+  #ifdef HAS_KNOB_CONTROL
+  setWiFiEnabled(_segment.wifiEnabled);
+  #endif
 
   old_segs = 0;
 
@@ -237,7 +244,7 @@ void WS2812FX::init()
 void WS2812FX::resetDefaults(void)
 {
   DEBUGPRNT("Resetting to Default values");
-  RESET_RUNTIME;
+  
 
   _segment_runtime.start = 0;
   _segment_runtime.stop = LED_COUNT - 1;
@@ -280,13 +287,18 @@ void WS2812FX::resetDefaults(void)
   setTargetBrightness     (DEFAULT_BRIGHTNESS);
   setBlendType            (DEFAULT_BLEND);
   setColorTemp            (DEFAULT_COLOR_TEMP);
+  setBckndBri(DEFAULT_BCKND_BRI);
+  setBckndHue(DEFAULT_BCKND_HUE);
+  setBckndSat(DEFAULT_BCKND_SAT);
   setAddGlitter(false);
   setWhiteGlitter(true);
   setOnBlackOnly(false);
   setChanceOfGlitter(DEFAULT_GLITTER_CHANCE_NORMAL);
-
+  #ifdef HAS_KNOB_CONTROL
+  setWiFiEnabled(DEFAULT_WIFI_ENABLED);
+  #endif
   FastLED.setBrightness(DEFAULT_BRIGHTNESS);
-
+  RESET_RUNTIME;
   setTransition();
 }
 
@@ -336,6 +348,10 @@ void WS2812FX::service()
     fill_solid(leds, LED_COUNT, CRGB::Black);
     setTransition();
     old_segs = _segment.segments;
+
+    _c_bck_b = 0;
+    _c_bck_h = 0;
+    _c_bck_s = 0;
   }
   if (_segment.power)
   {
@@ -394,7 +410,7 @@ void WS2812FX::service()
   if (_transition)
   {
     l_blend = _blend < _segment.blur ? _blend : _segment.blur;
-    EVERY_N_MILLISECONDS(20)
+    EVERY_N_MILLISECONDS(10)
     {
       // quickly blend from "old" to "new"
       _blend = qadd8(_blend, 1);
@@ -424,9 +440,10 @@ void WS2812FX::service()
     }
   }
 
+  
   // Thanks to some discussions on Github, I do still not use any memmove 
   // but I relaized that I need to nblend from the calculated frames to the led data.
-  // this could be simplified within the following nested loop which does now all at once and svaes 2 loops + 
+  // this could be simplified within the following nested loop which does now all at once and saves 2 loops + 
   // one nblend over the complete strip data....
   // as the combination of "mirror" and "reverse" is a bit redundant, this could maybe be simplified as well (later)
 
@@ -460,9 +477,59 @@ void WS2812FX::service()
     }
   }
 
-  // Write the data
-  
+  // Background Color: Good idea, but needs some improvement.
+  // TODO: How to mix colors of different RGB values to remove the "glitch" when suddenly background switches to foreground.
+  // --> Needs to be done withoutnhaving to much backgroud at all.
+
+  EVERY_N_MILLISECONDS(10)
+  {
+    if(_c_bck_b < _segment.backgroundBri)
+      _c_bck_b++;
+    else if (_c_bck_b > _segment.backgroundBri)
+      _c_bck_b--;
+
+    if(_c_bck_s < _segment.backgroundSat)
+      _c_bck_s++;
+    else if (_c_bck_s > _segment.backgroundSat)
+      _c_bck_s--;
     
+    if(_c_bck_h < _segment.backgroundHue)
+      _c_bck_h++;
+    else if (_c_bck_h > _segment.backgroundHue)
+      _c_bck_h--;
+  }
+
+  if(l_blend < _segment.blur || (_segment.blur < 200))
+  {
+    _c_bck_b = 0;
+  }
+
+  CRGB BackGroundColor = CHSV(_c_bck_h, _c_bck_s, 255);  // 0; //0x100000;
+
+  BackGroundColor.nscale8(_c_bck_b);
+
+  
+
+  if(BackGroundColor)
+  {
+    for(uint8_t i=0; i<LED_COUNT; i++)
+    {
+      uint8_t bk_blend = 0;
+      #define LOCAL_SCALE_FACT 100
+      #define LOCAL_LUM_FACT 3
+
+      if((uint16_t)(BackGroundColor.getLuma() * LOCAL_SCALE_FACT) > (uint16_t)(_bleds[i].getLuma() * LOCAL_SCALE_FACT * LOCAL_LUM_FACT))
+      {
+        bk_blend = map((uint16_t)(_bleds[i].getLuma() * LOCAL_SCALE_FACT * LOCAL_LUM_FACT), 0, (uint16_t)(BackGroundColor.getLuma() * LOCAL_SCALE_FACT), 255, 0);
+      }
+      nblend(_bleds[i], BackGroundColor, bk_blend);
+      //_bleds[i] |= BackGroundColor;
+      #undef LOCAL_SCALE_FACT
+      #undef LOCAL_LUM_FACT
+    }
+  }
+
+  // Write the data
 
   // if there is time left for another service call, we do not write the led data yet...
   // but if there is less than 300 microseconds left, we do write..
@@ -2044,7 +2111,7 @@ uint16_t WS2812FX::mode_to_inner(void)
   }
   uint16_t led_up_to = (((_segment_runtime.length) / 2 + 1) + _segment_runtime.start);
   uint8_t fade = SEGMENT.beat88 * 5 <= 16320 ? (SEGMENT.beat88 * 5) >> 6 : 255;
-  SEGMENT.blur = max(fade, (uint8_t)16);
+ // SEGMENT.blur = max(fade, (uint8_t)16);
   fade_out(max(fade, (uint8_t)16)); //(64);
 
   fill_palette(&leds[_segment_runtime.start],
@@ -2332,7 +2399,7 @@ uint16_t WS2812FX::mode_running_lights(void)
   for (uint16_t i = 0; i < _segment_runtime.length; i++)
   {
     uint8_t lum = qsub8(sin8_C(map(i, 0, _segment_runtime.length - 1, 0, 255)), 2);
-    uint16_t offset = map(beat88(SEGMENT.beat88, SEGMENT_RUNTIME.timebase), 0, 65535, 0, _segment_runtime.length - 1);
+    uint16_t offset = map(beat88(SEGMENT.beat88, SEGMENT_RUNTIME.timebase), 0, 65535, 0, _segment_runtime.length * 10); //map(beat88(SEGMENT.beat88, SEGMENT_RUNTIME.timebase), 0, 65535, 0, _segment_runtime.length - 1);
     offset = (offset + i) % _segment_runtime.length;
 
     CRGB newColor = CRGB::Black;
@@ -2895,7 +2962,7 @@ uint16_t WS2812FX::mode_beatsin_glow(void)
 uint16_t WS2812FX::mode_pixel_stack(void)
 {
   #define SRMVPS _segment_runtime.modevars.pixel_stack
-  const uint16_t framedelay = map(_segment.beat88, 10000, 0, 0, 50) + map(_segment_runtime.length, 300, 0, 0, 25);
+  const uint16_t framedelay = map(_segment.beat88, 10000, 0, 0, 50);// + map(_segment_runtime.length, 300, 0, 0, 25);
 
   const uint16_t cStartPos = _segment_runtime.length / 2 - 1;
   if (_segment_runtime.modeinit)
@@ -3301,23 +3368,7 @@ CRGB WS2812FX::calcSunriseColorValue(uint16_t step)
                         (2  * (1.0 - uv) * uv   * SRSS_Mid3B)  + 
                         (uv * uv                * SRSS_EndB))  + 0.5) / 100.0;
   }
-  #ifdef DEBUG
-    EVERY_N_MILLISECONDS(500)
-    {
-      Serial.print("SRSS_Step: ");
-      Serial.print(step);
-      Serial.print("\tuv ");
-      Serial.print(uv);
-      Serial.print("\tred ");
-      Serial.print(red);
-      Serial.print("\tgreen ");
-      Serial.print(green);
-      Serial.print("\tblue ");
-      Serial.print(blue);
-      Serial.printf("\tr %d\tg %d\t b %d\n", (uint8_t)red, (uint8_t)green, (uint8_t)blue);
-    }
-    
-  #endif
+  
   return CRGB((uint8_t)red, (uint8_t)green, (uint8_t)blue);
 }
 
@@ -3326,6 +3377,10 @@ void WS2812FX::m_sunrise_sunset(bool isSunrise)
   #define SRMVSR _segment_runtime.modevars.sunrise_step
   const uint16_t sunriseSteps = DEFAULT_SUNRISE_STEPS;
   uint16_t stepInterval = (uint16_t)(_segment.sunrisetime * ((60 * 1000) / sunriseSteps));
+
+  // We do not need background color during sunrise / sunset.... Lets try to clear these:
+  _c_bck_b = 0;
+
   if (_segment_runtime.modeinit)
   {
     _segment_runtime.modeinit = false;

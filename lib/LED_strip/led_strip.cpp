@@ -246,6 +246,23 @@ String getDithering(void) {
 String getResetDefaults(void) {
   return String(0);
 }
+String getBckndHue() {
+  return String(strip->getBckndHue());
+}
+String getBckndSat() {
+  return String(strip->getBckndSat());
+}
+String getBckndBri() {
+  return String(strip->getBckndBri());
+}
+
+
+
+#ifdef HAS_KNOB_CONTROL
+String getWiFiEnabled(void) {
+  return String(strip->getWiFiEnabled());
+}
+#endif
 
 /*
  * Options
@@ -417,9 +434,29 @@ void setDithering(uint16_t val) {
   strip->setDithering(val);
 }
 void setResetDefaults(uint16_t val) {
-  strip->resetDefaults();
+  if(val)
+  {
+    strip->resetDefaults();
+  }
+}
+void setBckndHue(uint16_t val) {
+  strip->setBckndHue(val);
+}
+void setBckndSat(uint16_t val) {
+  strip->setBckndSat(val);
+}
+void setBckndBri(uint16_t val) {
+  strip->setBckndBri(val);
 }
 
+#ifdef HAS_KNOB_CONTROL
+void setWiFiEnabled(uint16_t val) {
+  if(val)
+    strip->setWiFiEnabled(true);
+  else
+    strip->setWiFiEnabled(false);
+}
+#endif
 
 #ifdef DEBUG
 String getReset() {
@@ -459,6 +496,11 @@ FieldList fields = {
   //  {"autopal",           "Color Palette Autoplay",                 SectionFieldType,   NULL,                                   NULL,                                             NULL,           NULL,          NULL          },
     {"autopal",           "Automatic color palette change",         SelectFieldType,    (uint16_t)AUTO_MODE_OFF,                (uint16_t)AUTO_MODE_RANDOM,                       getAutopal,     getAutoplayModes, setAutopal },
     {"autopalDuration",   "Automatic palette change interval (s)",  NumberFieldType,    (uint16_t)5,                            (uint16_t)1000,                                   getAutopalDuration, NULL, setAutopalDuration            },
+    {"BackGroundColor",   "Background Color",                       SectionFieldType,   NULL,                                   NULL,                                             NULL,               NULL,           NULL          },
+    {"BckndHue",          "Background Hue",                         NumberFieldType,    (uint16_t)0,                            (uint16_t)255,                                    getBckndHue,       NULL,           setBckndHue  },
+    {"BckndSat",          "Background Sat",                         NumberFieldType,    (uint16_t)0,                            (uint16_t)255,                                    getBckndSat,       NULL,           setBckndSat  },
+    {"BckndBri",          "Background Bri",                         NumberFieldType,    (uint16_t)BCKND_MIN_BRI,                (uint16_t)BCKND_MAX_BRI,                          getBckndBri,       NULL,           setBckndBri  },
+    
     {"advancedControl",   "Advanced control",                       SectionFieldType,   NULL,                                   NULL,                                             NULL,               NULL,           NULL          },
     {"blendType",         "Color blend type",                       SelectFieldType,    (uint16_t)NOBLEND,                      (uint16_t)LINEARBLEND,                            getBlendType,       getBlendTypes,  setBlendType  },
     {"ColorTemperature",  "Color temperature",                      SelectFieldType,    (uint16_t)0,                            (uint16_t)20,                                     getColorTemp,       getColorTemps,  setColorTemp  },
@@ -482,7 +524,10 @@ FieldList fields = {
     {"damping",           "damping for bounce",                     NumberFieldType,    (uint16_t)0,                            (uint16_t)100,                                    getDamping,   NULL, setDamping                    },
     // time provided in Minutes and capped at 60 minutes actually.
     {"sunriseset",        "sunrise and sunset time in minutes",     NumberFieldType,    (uint16_t)1,                            (uint16_t)60,                                     getSunRiseTime, NULL, setSunRiseTime                }, 
-    {"ohterSettings",      "Other settings",                         SectionFieldType,   NULL,                                   NULL,                                             NULL,           NULL,          NULL          },
+    {"otherSettings",      "Other settings",                        SectionFieldType,   NULL,                                   NULL,                                             NULL,           NULL,          NULL          },
+    #ifdef HAS_KNOB_CONTROL
+    {"wifiEnabled",        "WiFi On/Off",                           BooleanFieldType,   (uint16_t)0,                            (uint16_t)1,                                      getWiFiEnabled, NULL, setWiFiEnabled         },
+    #endif
     {"current",           "Current limit",                          NumberFieldType,    (uint16_t)100,                          (uint16_t)DEFAULT_CURRENT_MAX,                    getMilliamps, NULL, setMilliamps                  },
     // 111 max equals the minimum update time required for 300 pixels
     // this is the minimal delay being used anyway, so no use in being faster

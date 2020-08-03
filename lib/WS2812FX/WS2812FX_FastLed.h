@@ -221,6 +221,9 @@ public:
     bool addGlitter;
     bool whiteGlitter;
     bool onBlackOnly;
+    #ifdef HAS_KNOB_CONTROL
+    bool wifiEnabled;
+    #endif
     uint8_t chanceOfGlitter;
     uint8_t segments;
     uint8_t cooling;
@@ -238,6 +241,9 @@ public:
     uint8_t targetBrightness;
     uint8_t targetPaletteNum;
     uint8_t currentPaletteNum;
+    uint8_t backgroundHue;
+    uint8_t backgroundSat;
+    uint8_t backgroundBri;
     AUTOPLAYMODES autoplay;
     AUTOPLAYMODES autoPal;
     uint16_t beat88;
@@ -549,24 +555,6 @@ public:
     FastLED.setBrightness(DEFAULT_BRIGHTNESS);
 
     resetDefaults();
-
-    #ifdef DEBUG_PERFORMANCE
-    service_interval = 0;
-    service_interval_max = 0;
-    service_interval_min = 65535;
-    service_interval_sum = 0;
-    service_interval_cnt = 0;
-    show_interval = 0;
-    show_interval_max = 0;
-    show_interval_min = 65535;
-    show_interval_sum = 0;
-    show_interval_cnt = 0;
-    service_duration = 0;
-    service_duration_max = 0;
-    service_duration_min = 65535;
-    service_duration_sum = 0;
-    service_duration_cnt = 0;
-    #endif
   }
 
   ~WS2812FX()
@@ -574,24 +562,6 @@ public:
     delete leds;
     delete _bleds;
   }
-
-  #ifdef DEBUG_PERFORMANCE
-  uint32_t service_interval;
-  uint32_t service_interval_max;
-  uint32_t service_interval_min;
-  uint32_t service_interval_sum;
-  uint32_t service_interval_cnt;
-  uint16_t show_interval;
-  uint16_t show_interval_max;
-  uint16_t show_interval_min;
-  uint32_t show_interval_sum;
-  uint16_t show_interval_cnt;
-  uint32_t service_duration;
-  uint32_t service_duration_max;
-  uint32_t service_duration_min;
-  uint32_t service_duration_sum;
-  uint32_t service_duration_cnt;
-  #endif
 
   CRGB *leds;
   CRGB *_bleds;
@@ -626,7 +596,6 @@ public:
    * _segment set functions
    */ 
   // setters
-
   inline void setCRC                  (uint16_t CRC)    { _segment.CRC = CRC; }
   inline void setIsRunning            (bool isRunning)  { _segment.isRunning = isRunning; if(isRunning) { _transition = true; _blend = 0; } }
   inline void setPower                (bool power)      { _segment.power = power; setTransition(); } // this should fix reopened issue #6
@@ -636,6 +605,9 @@ public:
   inline void setAddGlitter           (bool addGlitter) { _segment.addGlitter = addGlitter; }
   inline void setWhiteGlitter         (bool whiteGlitter) { _segment.whiteGlitter = whiteGlitter; }
   inline void setOnBlackOnly          (bool onBlackOnly){ _segment.onBlackOnly = onBlackOnly; }
+  #ifdef HAS_KNOB_CONTROL
+  inline void setWiFiEnabled          (bool wifiEnabled){ _segment.wifiEnabled = wifiEnabled; }
+  #endif
   inline void setChanceOfGlitter      (uint8_t glitProp){ _segment.chanceOfGlitter = constrain(glitProp, DEFAULT_GLITTER_CHANCE_MIN, DEFAULT_GLITTER_CHANCE_MAX); }
   inline void setAutoplay             (AUTOPLAYMODES m) { _segment.autoplay = m; }
   inline void setAutopal              (AUTOPLAYMODES p) { _segment.autoPal = p; }
@@ -662,9 +634,9 @@ public:
   inline void setTargetPaletteNumber  (uint8_t p)       { setTargetPalette(p); }
   inline void setCurrentPaletteNumber (uint8_t p)       { setCurrentPalette(p); }
   inline void setColorTemp            (uint8_t c)       { setColorTemperature(c); }
-
-
- 
+  inline void setBckndSat             (uint8_t s)       { _segment.backgroundSat = s; }
+  inline void setBckndHue             (uint8_t h)       { _segment.backgroundHue = h; }
+  inline void setBckndBri             (uint8_t b)       { _segment.backgroundBri = constrain(b, BCKND_MIN_BRI, BCKND_MAX_BRI); }
 
   inline void setTransition           (void)            { _transition = true; _segment_runtime.modeinit = true; _blend = 0; }
   
@@ -677,9 +649,12 @@ public:
   inline bool           getReverse(void)              { return _segment.reverse; }
   inline bool           getInverse(void)              { return _segment.inverse; }
   inline bool           getMirror(void)               { return _segment.mirror; }
-  inline bool           getAddGlitter(void)           { return _segment.addGlitter ; }
-  inline bool           getWhiteGlitter(void)         { return _segment.whiteGlitter ; }
-  inline bool           getOnBlackOnly(void)          { return _segment.onBlackOnly ; }
+  inline bool           getAddGlitter(void)           { return _segment.addGlitter; }
+  inline bool           getWhiteGlitter(void)         { return _segment.whiteGlitter; }
+  inline bool           getOnBlackOnly(void)          { return _segment.onBlackOnly; }
+  #ifdef HAS_KNOB_CONTROL
+  inline bool           getWiFiEnabled(void)          { return _segment.wifiEnabled; }
+  #endif
   inline uint8_t        getChanceOfGlitter(void)      { return _segment.chanceOfGlitter; }
   inline AUTOPLAYMODES  getAutoplay(void)             { return _segment.autoplay; }
   inline AUTOPLAYMODES  getAutopal(void)              { return _segment.autoPal; }
@@ -706,6 +681,10 @@ public:
   inline uint8_t        getTargetBrightness(void)     { return _segment.targetBrightness; }
   inline uint8_t        getTargetPaletteNumber(void)  { return _segment.targetPaletteNum; }
   inline uint8_t        getCurrentPaletteNumber(void) { return _segment.currentPaletteNum; }
+  inline uint8_t        getBckndSat(void)             { return _segment.backgroundSat; }
+  inline uint8_t        getBckndHue(void)             { return _segment.backgroundHue; }
+  inline uint8_t        getBckndBri(void)             { return _segment.backgroundBri; }
+
   inline TBlendType     getBlendType(void)            { return _segment.blendType; }
          uint8_t        getColorTemp(void);
   inline ColorTemperature getColorTemperature(void)   { return _segment.colorTemp; }
@@ -897,6 +876,9 @@ private:
       _volts,
       _blend,
       _pblur,
+      _c_bck_h = 0,
+      _c_bck_s = 0,
+      _c_bck_b = 0,
       _brightness;
 
   uint16_t 

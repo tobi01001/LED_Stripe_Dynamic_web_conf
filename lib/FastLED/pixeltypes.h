@@ -452,9 +452,9 @@ struct CRGB {
         //Y' = 0.2126 R' + 0.7152 G' + 0.0722 B'
         //     54            183       18 (!)
 
-        uint8_t luma = scale8_LEAVING_R1_DIRTY( r, 54) + \
-        scale8_LEAVING_R1_DIRTY( g, 183) + \
-        scale8_LEAVING_R1_DIRTY( b, 18);
+        uint8_t luma = scale8_LEAVING_R1_DIRTY( r, 87) + \
+        scale8_LEAVING_R1_DIRTY( g, 96) + \
+        scale8_LEAVING_R1_DIRTY( b, 72);
         cleanup_R1();
         return luma;
     }

@@ -5,11 +5,11 @@
 #ifdef DEBUG
 #define INITDELAY 500
 #else
-#define INITDELAY 2
+#define INITDELAY 50
 #endif
 
 //#error "check version first"
-#define BUILD_VERSION ("LED_Control_0.10.04")
+#define BUILD_VERSION ("LED_Control_0.10.05")
 
 #ifndef BUILD_VERSION
 #error "We need a SW Version and Build Version!"
@@ -17,6 +17,10 @@
 #ifndef PIO_SRC_REV
   #define PIO_SRC_REV "no_git_rev"
 #endif
+#ifndef PIO_SRC_BRANCH
+  #define PIO_SRC_BRANCH "no_git_branch"
+#endif
+
 #define BUILD_GITREV PIO_SRC_REV
 
 /* use build flags to define these */
@@ -118,7 +122,7 @@
 #define DEFAULT_LED_BARS ((LED_COUNT / 40) > 0 ? LED_COUNT / 40 : 1) // half of the possible bars will be used
 #define DEFAULT_DAMPING 90
 #define DEFAULT_SUNRISETIME 15
-#define DEFAULT_DITHER 1
+#define DEFAULT_DITHER 0
 #define DEFAULT_PALETTE 0
 #define DEFAULT_COLOR_TEMP 19
 #define DEFAULT_GLITTER_CHANCE_MIN 0
@@ -129,8 +133,16 @@
 #define RND_PAL_CHANGE_INT 200 
 #define RND_PAL_MIN_BRIGHT 128
 
+// Background Color
+#define DEFAULT_BCKND_HUE 0
+#define DEFAULT_BCKND_SAT 255
+#define DEFAULT_BCKND_BRI 0 //means OFF
+#define BCKND_MIN_BRI     0
+#define BCKND_MAX_BRI     80
+
+// KNOB CONTROL
 #ifdef HAS_KNOB_CONTROL
-#define DEFAULT_WIFI_ENABLED    (true)
+  #define DEFAULT_WIFI_ENABLED    (true)
   #define KNOB_C_SDA 4
   #define KNOB_C_SCL 5
   #define KNOB_C_BTN 2
@@ -139,7 +151,7 @@
   #define KNOB_C_I2C 0x3c
   #define KNOB_BTN_DEBOUNCE 200
   #define KNOB_ROT_DEBOUNCE 20
-  #define KNOB_BOOT_DELAY 10
+  #define KNOB_BOOT_DELAY 100
   #define KNOB_TIMEOUT_OPERATION 15000 //0
   #define KNOB_TIMEOUT_DISPLAY   240000 //0
   #define KNOB_DISPLAY_FPS       25
