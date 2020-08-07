@@ -190,7 +190,7 @@ public:
 	// update() is not meant to be called from outside Encoder,
 	// but it is public to allow static interrupt routines.
 	// DO NOT call update() directly from sketches.
-	static void update(Encoder_internal_state_t *arg) {
+	static void ICACHE_RAM_ATTR update(Encoder_internal_state_t *arg) {
 #if defined(__AVR__)
 		// The compiler believes this is just 1 line of code, so
 		// it will inline this function into each interrupt
