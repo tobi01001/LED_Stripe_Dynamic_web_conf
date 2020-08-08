@@ -9,7 +9,7 @@
 #endif
 
 //#error "check version first"
-#define BUILD_VERSION ("LED_Control_0.10.08")
+#define BUILD_VERSION ("LED_Control_0.10.09")
 
 #ifndef BUILD_VERSION
 #error "We need a SW Version and Build Version!"

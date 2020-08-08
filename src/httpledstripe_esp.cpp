@@ -85,12 +85,7 @@ Encoder myEnc(KNOB_C_PNA, KNOB_C_PNB);
 
 //SSD1306Brzo display(KNOB_C_I2C, KNOB_C_SDA, KNOB_C_SCL);
 SSD1306Brzo display(0x3c, 4, 5);
-
-
-
-
 #endif
-
 
 #ifdef DEBUG
 const String build_version = (String(BUILD_VERSION) + String("DEBUG ") + String(__TIMESTAMP__);
@@ -124,10 +119,10 @@ bool shouldSaveRuntime = false;
 
 WS2812FX::segment seg;
 
-DynamicJsonBuffer jsonBuffer(11000);
+DynamicJsonBuffer jsonBuffer(20000);
 //StaticJsonBuffer<11000> jsonBuffer;
 
-#include "FSBrowser.h"
+// #include "FSBrowser.h" // may no longer need this... 
 
 // function Definitions
 void saveEEPROMData(void),
@@ -151,10 +146,10 @@ void saveEEPROMData(void),
     clearEEPROM(void);
 
 const String
-pals_setup(void);
+    pals_setup(void);
 
 uint32
-getResetReason(void);
+    getResetReason(void);
 
 #ifdef HAS_KNOB_CONTROL
 
@@ -176,17 +171,17 @@ void set_fieldTypes(fieldtypes *m_fieldtypes) {
   for(uint8_t i=0; i<fieldCount; i++)
   {
     m_fieldtypes[i] = InvalidFieldType;
-    if(fields[i].type == "Title")
+    if(fields[i].type == F("Title"))
       m_fieldtypes[i] = TitleFieldType;
-    if(fields[i].type == "Number")
+    if(fields[i].type == F("Number"))
       m_fieldtypes[i] = NumberFieldType;
-    if(fields[i].type == "Boolean")
+    if(fields[i].type == F("Boolean"))
       m_fieldtypes[i] = BooleanFieldType;
-    if(fields[i].type == "Select")
+    if(fields[i].type == F("Select"))
       m_fieldtypes[i] = SelectFieldType;
-    if(fields[i].type == "Color")
+    if(fields[i].type == F("Color"))
       m_fieldtypes[i] = ColorFieldType;
-    if(fields[i].type == "Section")
+    if(fields[i].type == F("Section"))
       m_fieldtypes[i] = SectionFieldType;
   }
 }
@@ -201,18 +196,10 @@ void sendInt(String name, uint16_t value)
   if(!strip->getWiFiEnabled() || !WiFiConnected) return;
   #endif
   JsonObject& answerObj = jsonBuffer.createObject();
-  JsonObject& answer = answerObj.createNestedObject("returnState");
+  JsonObject& answer = answerObj.createNestedObject(F("returnState"));
   answer[name] = value;
   String ret;
-  
-  /*
-  String answer = F("{ ");
-  answer += F("\"currentState\" : { \"");
-  answer += name;
-  answer += F("\": ");
-  answer += value;
-  answer += " } }";
-  */
+
   #ifdef DEBUG
     ret.reserve(answerObj.measurePrettyLength());
     answerObj.prettyPrintTo(ret);
@@ -222,10 +209,10 @@ void sendInt(String name, uint16_t value)
   #endif
   jsonBuffer.clear();
   DEBUGPRNT("Send HTML respone 200, application/json with value: " + ret);
-  server.sendHeader("Access-Control-Allow-Methods", "*");
-  server.sendHeader("Access-Control-Allow-Headers", "*");
-  server.sendHeader("Access-Control-Allow-Origin", "*");
-  server.send(200, "application/json", ret);
+  server.sendHeader(F("Access-Control-Allow-Methods"), "*");
+  server.sendHeader(F("Access-Control-Allow-Headers"), "*");
+  server.sendHeader(F("Access-Control-Allow-Origin"), "*");
+  server.send(200, F("application/json"), ret);
 }
 
 // used to send an answer as String to the calling http request
@@ -273,10 +260,10 @@ void sendAnswer(String jsonAnswer)
   if(!strip->getWiFiEnabled() || !WiFiConnected) return;
   #endif
   String answer = "{ \"returnState\": { " + jsonAnswer + "} }";
-  server.sendHeader("Access-Control-Allow-Methods", "*");
-  server.sendHeader("Access-Control-Allow-Headers", "*");
-  server.sendHeader("Access-Control-Allow-Origin", "*");
-  server.send(200, "application/json", answer);
+  server.sendHeader(F("Access-Control-Allow-Methods"), "*");
+  server.sendHeader(F("Access-Control-Allow-Headers"), "*");
+  server.sendHeader(F("Access-Control-Allow-Origin"), "*");
+  server.send(200, F("application/json"), answer);
 }
 
 // broadcasts the name and value to all websocket clients
@@ -296,9 +283,9 @@ void broadcastInt(String name, uint16_t value)
   webSocketsServer->broadcastTXT(json);
   */
   JsonObject& answerObj = jsonBuffer.createObject();
-  JsonObject& answer = answerObj.createNestedObject("currentState");
-  answer["name"] = name;
-  answer["value"] = value;
+  JsonObject& answer = answerObj.createNestedObject(F("currentState"));
+  answer[F("name")] = name;
+  answer[F("value")] = value;
 
   String json;
   
@@ -333,12 +320,9 @@ void broadcastString(String name, String value)
   webSocketsServer->broadcastTXT(json);
   */
   JsonObject& answerObj = jsonBuffer.createObject();
-  JsonObject& answer = answerObj.createNestedObject("currentState");
-  answer["name"] = name;
-  answer["value"] = value;
-
-  answer["name"] = name;
-  answer["value"] = value;
+  JsonObject& answer = answerObj.createNestedObject(F("currentState"));
+  answer[F("name")] = name;
+  answer[F("value")] = value;
   String json;
   
   #ifdef DEBUG
@@ -361,109 +345,109 @@ void checkSegmentChanges(void) {
 
   if(seg.power != strip->getPower()) {
     seg.power = strip->getPower();
-    broadcastInt("power", seg.power);
+    broadcastInt(F("power"), seg.power);
     shouldSaveRuntime = true;
   }
   if(seg.isRunning != strip->isRunning()) {
     seg.isRunning = strip->isRunning();
-    broadcastInt("isRunning", seg.isRunning);
+    broadcastInt(F("isRunning"), seg.isRunning);
     shouldSaveRuntime = true;
   }
   if(seg.targetBrightness != strip->getTargetBrightness()) {
     seg.targetBrightness = strip->getTargetBrightness();
-    broadcastInt("br", seg.targetBrightness);
+    broadcastInt(F("br"), seg.targetBrightness);
     shouldSaveRuntime = true;
   }
   if(seg.mode != strip->getMode()){
     seg.mode = strip->getMode();
-    broadcastInt("mo", seg.mode);
+    broadcastInt(F("mo"), seg.mode);
     shouldSaveRuntime = true;
   }
   if(seg.targetPaletteNum != strip->getTargetPaletteNumber()) {
     seg.targetPaletteNum = strip->getTargetPaletteNumber();
-    broadcastInt("pa", seg.targetPaletteNum);
+    broadcastInt(F("pa"), seg.targetPaletteNum);
     shouldSaveRuntime = true;
   }
   if(seg.beat88 != strip->getBeat88()) {
     seg.beat88 = strip->getBeat88();
-    broadcastInt("sp", seg.beat88);
+    broadcastInt(F("sp"), seg.beat88);
     shouldSaveRuntime = true;
   }
   if(seg.blendType != strip->getBlendType()) {
     seg.blendType = strip->getBlendType();
-    broadcastInt("blendType", seg.blendType);
+    broadcastInt(F("blendType"), seg.blendType);
     shouldSaveRuntime = true;
   }
   if(seg.colorTemp != strip->getColorTemperature())
   {
     seg.colorTemp = strip->getColorTemperature();
-    broadcastInt("ColorTemperature", strip->getColorTemp());
+    broadcastInt(F("ColorTemperature"), strip->getColorTemp());
     shouldSaveRuntime = true;
   }
   if(seg.blur != strip->getBlurValue())
   {
     seg.blur = strip->getBlurValue();
-    broadcastInt("LEDblur", seg.blur);
+    broadcastInt(F("LEDblur"), seg.blur);
     shouldSaveRuntime = true;
   }
   if(seg.reverse != strip->getReverse())
   {
     seg.reverse = strip->getReverse();
-    broadcastInt("reverse", seg.reverse);
+    broadcastInt(F("reverse"), seg.reverse);
     shouldSaveRuntime = true;
   }
   if(seg.segments != strip->getSegments())
   {
     seg.segments = strip->getSegments();
-    broadcastInt("segments", seg.segments);
+    broadcastInt(F("segments"), seg.segments);
     shouldSaveRuntime = true;
   }
   if(seg.mirror != strip->getMirror())
   {
     seg.mirror = strip->getMirror();
-    broadcastInt("mirror", seg.mirror);
+    broadcastInt(F("mirror"), seg.mirror);
     shouldSaveRuntime = true;
   }
   if(seg.inverse != strip->getInverse())
   {
     seg.inverse = strip->getInverse();
-    broadcastInt("inverse",seg.inverse);
+    broadcastInt(F("inverse"),seg.inverse);
     shouldSaveRuntime = true;
   }
   if(seg.hueTime != strip->getHueTime())
   {
     seg.hueTime = strip->getHueTime();
-    broadcastInt("huetime", seg.hueTime);
+    broadcastInt(F("huetime"), seg.hueTime);
     shouldSaveRuntime = true;
   }
   if(seg.deltaHue != strip->getDeltaHue())
   { 
     seg.deltaHue = strip->getDeltaHue();
-    broadcastInt("deltahue", seg.deltaHue);
+    broadcastInt(F("deltahue"), seg.deltaHue);
     shouldSaveRuntime = true;
   }
   if(seg.autoplay != strip->getAutoplay())
   {
     seg.autoplay = strip->getAutoplay();
-    broadcastInt("autoplay", seg.autoplay);
+    broadcastInt(F("autoplay"), seg.autoplay);
     shouldSaveRuntime = true;
   }
   if(seg.autoplayDuration != strip->getAutoplayDuration())
   {
     seg.autoplayDuration = strip->getAutoplayDuration();
-    broadcastInt("autoplayDuration", seg.autoplayDuration);
+    broadcastInt(F("autoplayDuration"), seg.autoplayDuration);
     shouldSaveRuntime = true;
   }
   if(seg.autoPal != strip->getAutopal())
   {
     seg.autoPal = strip->getAutopal();
-    broadcastInt("autopal", seg.autoPal);
+    broadcastInt(F("autopal"), seg.autoPal);
     shouldSaveRuntime = true;
   }
   if(seg.autoPalDuration != strip->getAutopalDuration())
   {
     seg.autoPalDuration = strip->getAutopalDuration();
-    broadcastInt("autopalDuration", seg.autoPalDuration);
+    broadcastInt(F("autopalDuration"), seg.autoPalDuration);
     shouldSaveRuntime = true;
   }
   /*
@@ -475,103 +459,103 @@ void checkSegmentChanges(void) {
   if(seg.cooling != strip->getCooling())
   {
     seg.cooling = strip->getCooling();
-    broadcastInt("cooling", seg.cooling);
+    broadcastInt(F("cooling"), seg.cooling);
     shouldSaveRuntime = true;
   }
   if(seg.sparking != strip->getSparking())
   {
     seg.sparking = strip->getSparking();
-    broadcastInt("sparking", seg.sparking);
+    broadcastInt(F("sparking"), seg.sparking);
     shouldSaveRuntime = true;
   }
   if(seg.twinkleSpeed != strip->getTwinkleSpeed())
   {
     seg.twinkleSpeed = strip->getTwinkleSpeed();
-    broadcastInt("twinkleSpeed", seg.twinkleSpeed);
+    broadcastInt(F("twinkleSpeed"), seg.twinkleSpeed);
     shouldSaveRuntime = true;
   }
   if(seg.twinkleDensity != strip->getTwinkleDensity())
   {
     seg.twinkleDensity = strip->getTwinkleDensity();
-    broadcastInt("twinkleDensity", seg.twinkleDensity);
+    broadcastInt(F("twinkleDensity"), seg.twinkleDensity);
     shouldSaveRuntime = true;
   }
   if(seg.numBars != strip->getNumBars())
   {
     seg.numBars = strip->getNumBars();
-    broadcastInt("numBars", seg.numBars);
+    broadcastInt(F("numBars"), seg.numBars);
     shouldSaveRuntime = true;
   }
   if(seg.damping != strip->getDamping())
   {
     seg.damping = strip->getDamping();
-    broadcastInt("damping", seg.damping);
+    broadcastInt(F("damping"), seg.damping);
     shouldSaveRuntime = true;
   }
   if(seg.sunrisetime != strip->getSunriseTime())
   {
     seg.sunrisetime = strip->getSunriseTime();
-    broadcastInt("sunriseset", seg.sunrisetime);
+    broadcastInt(F("sunriseset"), seg.sunrisetime);
     shouldSaveRuntime = true;
   }
   if(seg.milliamps != strip->getMilliamps())
   {
     seg.milliamps = strip->getMilliamps();
-    broadcastInt("current", seg.milliamps);
+    broadcastInt(F("current"), seg.milliamps);
     shouldSaveRuntime = true;
   }
   if(seg.fps != strip->getMaxFPS())
   {
     seg.fps = strip->getMaxFPS();
-    broadcastInt("fps", seg.fps);
+    broadcastInt(F("fps"), seg.fps);
     shouldSaveRuntime = true;
   }
   if(seg.dithering != strip->getDithering())
   {
     seg.dithering = strip->getDithering();
-    broadcastInt("dithering", seg.dithering);
+    broadcastInt(F("dithering"), seg.dithering);
     shouldSaveRuntime = true;
   }
   if(seg.addGlitter != strip->getAddGlitter())
   {
     seg.addGlitter= strip->getAddGlitter();
-    broadcastInt("addGlitter", seg.addGlitter);
+    broadcastInt(F("addGlitter"), seg.addGlitter);
     shouldSaveRuntime = true;
   }
   if(seg.whiteGlitter != strip->getWhiteGlitter())
   {
     seg.whiteGlitter= strip->getWhiteGlitter();
-    broadcastInt("WhiteOnly", seg.whiteGlitter);
+    broadcastInt(F("WhiteOnly"), seg.whiteGlitter);
     shouldSaveRuntime = true;
   }
   if(seg.onBlackOnly != strip->getOnBlackOnly())
   {
     seg.onBlackOnly = strip->getOnBlackOnly();
-    broadcastInt("onBlackOnly", seg.onBlackOnly);
+    broadcastInt(F("onBlackOnly"), seg.onBlackOnly);
     shouldSaveRuntime = true;
   }
   if(seg.chanceOfGlitter != strip->getChanceOfGlitter())
   {
     seg.chanceOfGlitter = strip->getChanceOfGlitter();
-    broadcastInt("glitterChance", seg.chanceOfGlitter);
+    broadcastInt(F("glitterChance"), seg.chanceOfGlitter);
     shouldSaveRuntime = true;
   }
   if(seg.backgroundHue != strip->getBckndHue())
   {
     seg.backgroundHue = strip->getBckndHue();
-    broadcastInt("BckndHue", seg.backgroundHue);
+    broadcastInt(F("BckndHue"), seg.backgroundHue);
     shouldSaveRuntime = true;
   }
   if(seg.backgroundSat != strip->getBckndSat())
   {
     seg.backgroundSat = strip->getBckndSat();
-    broadcastInt("BckndSat", seg.backgroundSat);
+    broadcastInt(F("BckndSat"), seg.backgroundSat);
     shouldSaveRuntime = true;
   }
   if(seg.backgroundBri != strip->getBckndBri())
   {
     seg.backgroundBri = strip->getBckndBri();
-    broadcastInt("BckndBri", seg.backgroundBri);
+    broadcastInt(F("BckndBri"), seg.backgroundBri);
     shouldSaveRuntime = true;
   }
 
@@ -579,7 +563,7 @@ void checkSegmentChanges(void) {
   if(seg.wifiEnabled != strip->getWiFiEnabled())
   {
     seg.wifiEnabled = strip->getWiFiEnabled();
-    broadcastInt("wifiEnabled", seg.wifiEnabled);
+    broadcastInt(F("wifiEnabled"), seg.wifiEnabled);
     shouldSaveRuntime = true;
   }
   #endif
@@ -742,7 +726,7 @@ void initOverTheAirUpdate(void)
     DEBUGPRNT("OTA start");
     FastLED.clear(true);
     display.clear();
-    display.drawString(0, 0, "Starte OTA...");
+    display.drawString(0, 0, F("Starting OTA..."));
     display.displayOn();
     display.display();
     // we need to delete the websocket server in order to have OTA correctly running.
@@ -757,7 +741,7 @@ void initOverTheAirUpdate(void)
   ArduinoOTA.onEnd([]() {
     DEBUGPRNT("OTA end");
     // OTA finished.
-    display.drawString(0, 53, "OTA beendet!");
+    display.drawString(0, 53, F("OTA finished!"));
     display.displayOn();
     display.display();
     // indicate that OTA is no longer running.
@@ -772,7 +756,7 @@ void initOverTheAirUpdate(void)
 
     unsigned int prog = (progress / (total / 100));
     display.clear();
-    display.drawString(0, 0, "Starte OTA...");
+    display.drawString(0, 0, F("Starte OTA..."));
     display.drawStringMaxWidth(0, 12, 128, "Prog: " + String(progress) + " / " + String(total));
     display.drawProgressBar(1,33, 126, 7, prog);
     display.displayOn();
@@ -783,35 +767,35 @@ void initOverTheAirUpdate(void)
 
   // something went wrong, we gonna show an error "message" via LEDs.
   ArduinoOTA.onError([](ota_error_t error) {
-    String err = "OTA Fehler: ";
+    String err = F("OTA Fehler: ");
 
     DEBUGPRNT("Error[%u]: " + String(error));
     if (error == OTA_AUTH_ERROR) {
       DEBUGPRNT("Auth Failed");
-      err = err + "Auth Failed";
+      err = err + F("Auth Failed");
     }
     else if (error == OTA_BEGIN_ERROR) {
       DEBUGPRNT("Begin Failed");
-      err = err + "Begin Failed";
+      err = err + F("Begin Failed");
     }
     else if (error == OTA_CONNECT_ERROR) {
       DEBUGPRNT("Connect Failed");
-      err = err + ("Connect Failed");
+      err = err + F("Connect Failed");
     }
     else if (error == OTA_RECEIVE_ERROR) {
       DEBUGPRNT("Receive Failed");
-      err = err + ("Receive Failed");
+      err = err + F("Receive Failed");
     }
     else if (error == OTA_END_ERROR) {
       DEBUGPRNT("End Failed");
-      err = err + ("End Failed");
+      err = err + F("End Failed");
     }
 
     display.clear();
-    display.drawStringMaxWidth(0, 0,  128, "Update fehlgeschlagen!");
+    display.drawStringMaxWidth(0, 0,  128, F("Update fehlgeschlagen!"));
     display.drawStringMaxWidth(0, 22, 128, err);
-    display.drawStringMaxWidth(0, 43, 128, "Reset in 10 Sek");
-    delay(KNOB_BOOT_DELAY);
+    display.drawStringMaxWidth(0, 43, 128, F("Reset in 5 Secs"));
+    delay(5000);
     ESP.restart();
   });
   // start the service
@@ -1110,9 +1094,9 @@ void handleSet(void)
   // here we set a new mode if we have the argument mode
 
   JsonObject& answerObj = jsonBuffer.createObject();
-  JsonObject& answer = answerObj.createNestedObject("currentState");
+  JsonObject& answer = answerObj.createNestedObject(F("currentState"));
   
-  if (server.hasArg("mo"))
+  if (server.hasArg(F("mo")))
   {
     // flag to decide if this is an library effect
     bool isWS2812FX = false;
@@ -1122,7 +1106,7 @@ void handleSet(void)
     DEBUGPRNT("got Argument mo....");
 
     // just switch to the next if we get an "u" for up
-    if (server.arg("mo")[0] == 'u')
+    if (server.arg(F("mo"))[0] == 'u')
     {
       DEBUGPRNT("got Argument mode up....");
       //effect = effect + 1;
@@ -1130,7 +1114,7 @@ void handleSet(void)
       effect = strip->nextMode(AUTO_MODE_UP);
     }
     // switch to the previous one if we get a "d" for down
-    else if (server.arg("mo")[0] == 'd')
+    else if (server.arg(F("mo"))[0] == 'd')
     {
       DEBUGPRNT("got Argument mode down....");
       //effect = effect - 1;
@@ -1138,7 +1122,7 @@ void handleSet(void)
       effect = strip->nextMode(AUTO_MODE_DOWN);
     }
     // if we get an "o" for off, we switch off
-    else if (server.arg("mo")[0] == 'o')
+    else if (server.arg(F("mo"))[0] == 'o')
     {
       DEBUGPRNT("got Argument mode Off....");
       strip->setPower(false);
@@ -1147,7 +1131,7 @@ void handleSet(void)
     }
     // for backward compatibility and FHEM:
     // --> activate fire flicker
-    else if (server.arg("mo")[0] == 'f')
+    else if (server.arg(F("mo"))[0] == 'f')
     {
 
       DEBUGPRNT("got Argument fire....");
@@ -1157,7 +1141,7 @@ void handleSet(void)
     }
     // for backward compatibility and FHEM:
     // --> activate rainbow effect
-    else if (server.arg("mo")[0] == 'r')
+    else if (server.arg(F("mo"))[0] == 'r')
     {
       DEBUGPRNT("got Argument mode rainbow cycle....");
       effect = FX_MODE_RAINBOW_CYCLE;
@@ -1165,7 +1149,7 @@ void handleSet(void)
     }
     // for backward compatibility and FHEM:
     // --> activate the K.I.T.T. (larson scanner)
-    else if (server.arg("mo")[0] == 'k')
+    else if (server.arg(F("mo"))[0] == 'k')
     {
       DEBUGPRNT("got Argument mode KITT....");
       effect = FX_MODE_LARSON_SCANNER;
@@ -1173,7 +1157,7 @@ void handleSet(void)
     }
     // for backward compatibility and FHEM:
     // --> activate Twinkle Fox
-    else if (server.arg("mo")[0] == 's')
+    else if (server.arg(F("mo"))[0] == 's')
     {
       DEBUGPRNT("got Argument mode Twinkle Fox....");
       effect = FX_MODE_TWINKLE_FOX;
@@ -1181,7 +1165,7 @@ void handleSet(void)
     }
     // for backward compatibility and FHEM:
     // --> activate Twinkle Fox in white...
-    else if (server.arg("mo")[0] == 'w')
+    else if (server.arg(F("mo"))[0] == 'w')
     {
       DEBUGPRNT("got Argument mode White Twinkle....");
       strip->setColor(CRGBPalette16(CRGB::White));
@@ -1189,46 +1173,46 @@ void handleSet(void)
       isWS2812FX = true;
     }
     // sunrise effect
-    else if (server.arg("mo") == "Sunrise")
+    else if (server.arg(F("mo")) == F("Sunrise"))
     {
       DEBUGPRNT("got Argument mode sunrise....");
       // sunrise time in seconds
-      if (server.hasArg("sec"))
+      if (server.hasArg(F("sec")))
       {
         DEBUGPRNT("got Argument sec....");
-        strip->setSunriseTime(((uint16_t)strtoul(server.arg("sec").c_str(), NULL, 10)) / 60);
+        strip->setSunriseTime(((uint16_t)strtoul(server.arg(F("sec")).c_str(), NULL, 10)) / 60);
       }
       // sunrise time in minutes
-      else if (server.hasArg("min"))
+      else if (server.hasArg(F("min")))
       {
         DEBUGPRNT("got Argument min....");
-        strip->setSunriseTime(((uint16_t)strtoul(server.arg("min").c_str(), NULL, 10)));
+        strip->setSunriseTime(((uint16_t)strtoul(server.arg(F("min")).c_str(), NULL, 10)));
       }
       isWS2812FX = true;
       effect = FX_MODE_SUNRISE;
       strip->setTransition();
-      answer.set("sunRiseTime", strip->getSunriseTime());
-      answer.set("sunRiseTimeToFinish", strip->getSunriseTimeToFinish());
-      answer.set("sunRiseMode", "sunrise");
-      answer.set("sunRiseActive", "on");
+      answer.set(F("sunRiseTime"), strip->getSunriseTime());
+      answer.set(F("sunRiseTimeToFinish"), strip->getSunriseTimeToFinish());
+      answer.set(F("sunRiseMode"), F("sunrise"));
+      answer.set(F("sunRiseActive"), F("on"));
       //broadcastInt("sunriseset", strip->getSunriseTime());
       //sendStatus = true;
     }
     // the same for sunset....
-    else if (server.arg("mo") == "Sunset")
+    else if (server.arg(F("mo")) == F("Sunset"))
     {
       DEBUGPRNT("got Argument mode sunset....");
       // sunrise time in seconds
-      if (server.hasArg("sec"))
+      if (server.hasArg(F("sec")))
       {
         DEBUGPRNT("got Argument sec....");
-        strip->setSunriseTime(((uint16_t)strtoul(server.arg("sec").c_str(), NULL, 10)) / 60);
+        strip->setSunriseTime(((uint16_t)strtoul(server.arg(F("sec")).c_str(), NULL, 10)) / 60);
       }
       // sunrise time in minutes
-      else if (server.hasArg("min"))
+      else if (server.hasArg(F("min")))
       {
         DEBUGPRNT("got Argument min....");
-        strip->setSunriseTime( ((uint16_t)strtoul(server.arg("min").c_str(), NULL, 10)));
+        strip->setSunriseTime( ((uint16_t)strtoul(server.arg(F("min")).c_str(), NULL, 10)));
       }
 
       // answer for the "calling" party
@@ -1237,10 +1221,10 @@ void handleSet(void)
       strip->setTransition();
       //broadcastInt("sunriseset", strip->getSunriseTime());
       //sendStatus = true;
-      answer.set("sunRiseTime", strip->getSunriseTime());
-      answer.set("sunRiseTimeToFinish", strip->getSunriseTimeToFinish());
-      answer.set("sunRiseMode", "sunset");
-      answer.set("sunRiseActive", "on");
+      answer.set(F("sunRiseTime"), strip->getSunriseTime());
+      answer.set(F("sunRiseTimeToFinish"), strip->getSunriseTimeToFinish());
+      answer.set(F("sunRiseMode"), F("sunset"));
+      answer.set(F("sunRiseActive"), F("on"));
     }
     // finally - if nothing matched before - we switch to the effect  being provided.
     // we don't care if its actually an int or not
@@ -1248,7 +1232,7 @@ void handleSet(void)
     else
     {
       DEBUGPRNT("got Argument mode and seems to be an Effect....");
-      effect = (uint8_t)strtoul(server.arg("mo").c_str(), NULL, 10);
+      effect = (uint8_t)strtoul(server.arg(F("mo")).c_str(), NULL, 10);
       isWS2812FX = true;
     }
     // sanity only, actually handled in the library...
@@ -1268,23 +1252,23 @@ void handleSet(void)
       DEBUGPRNT("gonna send mo response....");
       //sendInt("mo", strip->getMode() );
       //broadcastInt("power", true);
-      answer.set("wsfxmode_Num", effect);
-      answer.set("wsfxmode", strip->getModeName(effect));
-      answer.set("state", strip->getPower() ? "on" : "off");
-      answer.set("power", strip->getPower());
+      answer.set(F("wsfxmode_Num"), effect);
+      answer.set(F("wsfxmode"), strip->getModeName(effect));
+      answer.set(F("state"), strip->getPower() ? F("on") : F("off"));
+      answer.set(F("power"), strip->getPower());
     }
     else
     {
-      answer.set("state", strip->getPower() ? "on" : "off");
-      answer.set("power", strip->getPower());
+      answer.set(F("state"), strip->getPower() ? F("on") : F("off"));
+      answer.set(F("power"), strip->getPower());
     }
     
   }
   // global on/off
-  if (server.hasArg("power"))
+  if (server.hasArg(F("power")))
   {
     DEBUGPRNT("got Argument power....");
-    if (server.arg("power")[0] == '0')
+    if (server.arg(F("power"))[0] == '0')
     {
       strip->setPower(false);
     }
@@ -1293,14 +1277,14 @@ void handleSet(void)
       strip->setPower(true);
       strip->setMode(strip->getMode());
     }
-    answer.set("state", strip->getPower() ? "on" : "off");
-    answer.set("power", strip->getPower());
+    answer.set(F("state"), strip->getPower() ? F("on") : F("off"));
+    answer.set(F("power"), strip->getPower());
   }
 
-  if(server.hasArg("isRunning"))
+  if(server.hasArg(F("isRunning")))
   {
     DEBUGPRNT("got Argument \"isRunning\"....");
-    if (server.arg("isRunning")[0] == '0')
+    if (server.arg(F("isRunning"))[0] == '0')
     {
       strip->setIsRunning(false);
     }
@@ -1308,65 +1292,65 @@ void handleSet(void)
     {
       strip->setIsRunning(true);
     }
-    answer.set("isRunning", strip->isRunning() ? "running" : "paused");
+    answer.set(F("isRunning"), strip->isRunning() ? F("running") : F("paused"));
     //sendString("isRunning", strip->isRunning() ? "running" : "paused");
   }
 
   // if we got a palette change
-  if (server.hasArg("pa"))
+  if (server.hasArg(F("pa")))
   {
     // TODO: Possibility to setColors and new Palettes...
-    uint8_t pal = (uint8_t)strtoul(server.arg("pa").c_str(), NULL, 10);
+    uint8_t pal = (uint8_t)strtoul(server.arg(F("pa")).c_str(), NULL, 10);
     DEBUGPRNT("New palette with value: " + String(pal));
     strip->setTargetPalette(pal);
     //  sendAnswer(   "\"palette\": " + String(pal) + ", \"palette name\": \"" +
     //                (String)strip->getPalName(pal) + "\"");
     //  broadcastInt("pa", pal);
-    answer.set("palette_num", strip->getTargetPaletteNumber());
-    answer.set("palette_name", strip->getTargetPaletteName());
-    answer.set("palette_count", strip->getPalCount());
+    answer.set(F("palette_num"), strip->getTargetPaletteNumber());
+    answer.set(F("palette_name"), strip->getTargetPaletteName());
+    answer.set(F("palette_count"), strip->getPalCount());
   }
 
   // if we got a new brightness value
-  if (server.hasArg("br"))
+  if (server.hasArg(F("br")))
   {
     DEBUGPRNT("got Argument brightness....");
     uint8_t brightness = strip->getBrightness();
-    if (server.arg("br")[0] == 'u')
+    if (server.arg(F("br"))[0] == 'u')
     {
       brightness = changebypercentage(brightness, 110);
     }
-    else if (server.arg("br")[0] == 'd')
+    else if (server.arg(F("br"))[0] == 'd')
     {
       brightness = changebypercentage(brightness, 90);
     }
     else
     {
-      brightness = constrain((uint8_t)strtoul(server.arg("br").c_str(), NULL, 10), BRIGHTNESS_MIN, BRIGHTNESS_MAX);
+      brightness = constrain((uint8_t)strtoul(server.arg(F("br")).c_str(), NULL, 10), BRIGHTNESS_MIN, BRIGHTNESS_MAX);
     }
     strip->setBrightness(brightness);
     //sendInt("brightness", brightness);
     //broadcastInt("br", strip->getBrightness());
-    answer.set("brightness", strip->getBrightness());
+    answer.set(F("brightness"), strip->getBrightness());
   }
 
   // if we got a speed value
   // for backward compatibility.
   // is beat88 value anyway
-  if (server.hasArg("sp"))
+  if (server.hasArg(F("sp")))
   {
 #ifdef DEBUG
     DEBUGPRNT("got Argument speed....");
 #endif
     uint16_t speed = strip->getBeat88();
-    if (server.arg("sp")[0] == 'u')
+    if (server.arg(F("sp"))[0] == 'u')
     {
       uint16_t ret = max((speed * 115) / 100, 10);
       if (ret > BEAT88_MAX)
         ret = BEAT88_MAX;
       speed = ret;
     }
-    else if (server.arg("sp")[0] == 'd')
+    else if (server.arg(F("sp"))[0] == 'd')
     {
       uint16_t ret = max((speed * 80) / 100, 10);
       if (ret > BEAT88_MAX)
@@ -1375,32 +1359,32 @@ void handleSet(void)
     }
     else
     {
-      speed = constrain((uint16_t)strtoul(server.arg("sp").c_str(), NULL, 10), BEAT88_MIN, BEAT88_MAX);
+      speed = constrain((uint16_t)strtoul(server.arg(F("sp")).c_str(), NULL, 10), BEAT88_MIN, BEAT88_MAX);
     }
     strip->setSpeed(speed);
     strip->show();
     //sendAnswer("\"speed\": " + String(speed) + ", \"beat88\": \"" + String(speed));
-    answer.set("speed", strip->getSpeed());
-    answer.set("beat88", strip->getSpeed());
+    answer.set(F("speed"), strip->getSpeed());
+    answer.set(F("beat88"), strip->getSpeed());
     //broadcastInt("sp", strip->getBeat88());
     strip->setTransition();
   }
 
   // if we got a speed value (as beat88)
-  if (server.hasArg("be"))
+  if (server.hasArg(F("be")))
   {
 #ifdef DEBUG
     DEBUGPRNT("got Argument speed (beat)....");
 #endif
     uint16_t speed = strip->getBeat88();
-    if (server.arg("be")[0] == 'u')
+    if (server.arg(F("be"))[0] == 'u')
     {
       uint16_t ret = max((speed * 115) / 100, 10);
       if (ret > BEAT88_MAX)
         ret = BEAT88_MAX;
       speed = ret;
     }
-    else if (server.arg("be")[0] == 'd')
+    else if (server.arg(F("be"))[0] == 'd')
     {
       uint16_t ret = max((speed * 80) / 100, 10);
       if (ret > BEAT88_MAX)
@@ -1409,12 +1393,12 @@ void handleSet(void)
     }
     else
     {
-      speed = constrain((uint16_t)strtoul(server.arg("be").c_str(), NULL, 10), BEAT88_MIN, BEAT88_MAX);
+      speed = constrain((uint16_t)strtoul(server.arg(F("be")).c_str(), NULL, 10), BEAT88_MIN, BEAT88_MAX);
     }
     strip->setSpeed(speed);
     strip->show();
-    answer.set("speed", strip->getSpeed());
-    answer.set("beat88", strip->getSpeed());
+    answer.set(F("speed"), strip->getSpeed());
+    answer.set(F("beat88"), strip->getSpeed());
     //sendAnswer("\"speed\": " + String(speed) + ", \"beat88\": \"" + String(speed));
     //broadcastInt("sp", strip->getBeat88());
     strip->setTransition();
@@ -1427,91 +1411,91 @@ void handleSet(void)
   uint32_t color = strip->getColor(0);
   bool setColor = false;
   // we got red
-  if (server.hasArg("re"))
+  if (server.hasArg(F("re")))
   {
     setColor = true;
 #ifdef DEBUG
     DEBUGPRNT("got Argument red....");
 #endif
     uint8_t re = Red(color);
-    if (server.arg("re")[0] == 'u')
+    if (server.arg(F("re"))[0] == 'u')
     {
       re = changebypercentage(re, 110);
     }
-    else if (server.arg("re")[0] == 'd')
+    else if (server.arg(F("re"))[0] == 'd')
     {
       re = changebypercentage(re, 90);
     }
     else
     {
-      re = constrain((uint8_t)strtoul(server.arg("re").c_str(), NULL, 10), 0, 255);
+      re = constrain((uint8_t)strtoul(server.arg(F("re")).c_str(), NULL, 10), 0, 255);
     }
     color = (color & 0x00ffff) | (re << 16);
   }
   // we got green
-  if (server.hasArg("gr"))
+  if (server.hasArg(F("gr")))
   {
     setColor = true;
 #ifdef DEBUG
     DEBUGPRNT("got Argument green....");
 #endif
     uint8_t gr = Green(color);
-    if (server.arg("gr")[0] == 'u')
+    if (server.arg(F("gr"))[0] == 'u')
     {
       gr = changebypercentage(gr, 110);
     }
-    else if (server.arg("gr")[0] == 'd')
+    else if (server.arg(F("gr"))[0] == 'd')
     {
       gr = changebypercentage(gr, 90);
     }
     else
     {
-      gr = constrain((uint8_t)strtoul(server.arg("gr").c_str(), NULL, 10), 0, 255);
+      gr = constrain((uint8_t)strtoul(server.arg(F("gr")).c_str(), NULL, 10), 0, 255);
     }
     color = (color & 0xff00ff) | (gr << 8);
   }
   // we got blue
-  if (server.hasArg("bl"))
+  if (server.hasArg(F("bl")))
   {
     setColor = true;
 #ifdef DEBUG
     DEBUGPRNT("got Argument blue....");
 #endif
     uint8_t bl = Blue(color);
-    if (server.arg("bl")[0] == 'u')
+    if (server.arg(F("bl"))[0] == 'u')
     {
       bl = changebypercentage(bl, 110);
     }
-    else if (server.arg("bl")[0] == 'd')
+    else if (server.arg(F("bl"))[0] == 'd')
     {
       bl = changebypercentage(bl, 90);
     }
     else
     {
-      bl = constrain((uint8_t)strtoul(server.arg("bl").c_str(), NULL, 10), 0, 255);
+      bl = constrain((uint8_t)strtoul(server.arg(F("bl")).c_str(), NULL, 10), 0, 255);
     }
     color = (color & 0xffff00) | (bl << 0);
   }
   // we got a 32bit color value (24 actually)
-  if (server.hasArg("co"))
+  if (server.hasArg(F("co")))
   {
     setColor = true;
 #ifdef DEBUG
     DEBUGPRNT("got Argument color....");
 #endif
-    color = constrain((uint32_t)strtoul(server.arg("co").c_str(), NULL, 16), 0, 0xffffff);
+    color = constrain((uint32_t)strtoul(server.arg(F("co")).c_str(), NULL, 16), 0, 0xffffff);
   }
   // we got one solid color value as r, g, b
-  if (server.hasArg("solidColor"))
+  if (server.hasArg(F("solidColor")))
   {
     setColor = true;
 #ifdef DEBUG
     DEBUGPRNT("got Argument solidColor....");
 #endif
     uint8_t r, g, b;
-    r = constrain((uint8_t)strtoul(server.arg("r").c_str(), NULL, 10), 0, 255);
-    g = constrain((uint8_t)strtoul(server.arg("g").c_str(), NULL, 10), 0, 255);
-    b = constrain((uint8_t)strtoul(server.arg("b").c_str(), NULL, 10), 0, 255);
+    r = constrain((uint8_t)strtoul(server.arg(F("r")).c_str(), NULL, 10), 0, 255);
+    g = constrain((uint8_t)strtoul(server.arg(F("g")).c_str(), NULL, 10), 0, 255);
+    b = constrain((uint8_t)strtoul(server.arg(F("b")).c_str(), NULL, 10), 0, 255);
     color = (r << 16) | (g << 8) | (b << 0);
     // CRGB solidColor(color); // obsolete?
 
@@ -1519,45 +1503,45 @@ void handleSet(void)
   }
   // a signle pixel...
   //FIXME: Does not yet work. Lets simplyfy all of this!
-  if (server.hasArg("pi"))
+  if (server.hasArg(F("pi")))
   {
 #ifdef DEBUG
     DEBUGPRNT("got Argument pixel....");
 #endif
     //setEffect(FX_NO_FX);
-    uint16_t pixel = constrain((uint16_t)strtoul(server.arg("pi").c_str(), NULL, 10), 0, strip->getStripLength() - 1);
+    uint16_t pixel = constrain((uint16_t)strtoul(server.arg(F("pi")).c_str(), NULL, 10), 0, strip->getStripLength() - 1);
 
     strip->setMode(FX_MODE_VOID);
     strip->leds[pixel] = CRGB(color);
     //sendStatus = true;
     // a range of pixels from start rnS to end rnE
-    answer.set("wsfxmode_Num", FX_MODE_VOID);
-    answer.set("wsfxmode", strip->getModeName(FX_MODE_VOID));
-    answer.set("state", strip->getPower() ? "on" : "off");
-    answer.set("power", strip->getPower());
+    answer.set(F("wsfxmode_Num"), FX_MODE_VOID);
+    answer.set(F("wsfxmode"), strip->getModeName(FX_MODE_VOID));
+    answer.set(F("state"), strip->getPower() ? "on" : "off");
+    answer.set(F("power"), strip->getPower());
   }
   //FIXME: Does not yet work. Lets simplyfy all of this!
-  else if (server.hasArg("rnS") && server.hasArg("rnE"))
+  else if (server.hasArg(F("rnS")) && server.hasArg(F("rnE")))
   {
 #ifdef DEBUG
     DEBUGPRNT("got Argument range start / range end....");
 #endif
-    uint16_t start = constrain((uint16_t)strtoul(server.arg("rnS").c_str(), NULL, 10), 0, strip->getStripLength());
-    uint16_t end = constrain((uint16_t)strtoul(server.arg("rnE").c_str(), NULL, 10), start, strip->getStripLength());
+    uint16_t start = constrain((uint16_t)strtoul(server.arg(F("rnS")).c_str(), NULL, 10), 0, strip->getStripLength());
+    uint16_t end = constrain((uint16_t)strtoul(server.arg(F("rnE")).c_str(), NULL, 10), start, strip->getStripLength());
 
     strip->setMode(FX_MODE_VOID);
     for (uint16_t i = start; i <= end; i++)
     {
       strip->leds[i] = CRGB(color);
     }
-    answer.set("wsfxmode_Num", FX_MODE_VOID);
-    answer.set("wsfxmode", strip->getModeName(FX_MODE_VOID));
-    answer.set("state", strip->getPower() ? "on" : "off");
-    answer.set("power", strip->getPower());
+    answer.set(F("wsfxmode_Num"), FX_MODE_VOID);
+    answer.set(F("wsfxmode"), strip->getModeName(FX_MODE_VOID));
+    answer.set(F("state"), strip->getPower() ? F("on") : F("off"));
+    answer.set(F("power"), strip->getPower());
     //sendStatus = true;
     // one color for the complete strip
   }
-  else if (server.hasArg("rgb"))
+  else if (server.hasArg(F("rgb")))
   {
 #ifdef DEBUG
     DEBUGPRNT("got Argument rgb....");
@@ -1565,300 +1549,300 @@ void handleSet(void)
     strip->setColor(color);
     strip->setMode(FX_MODE_STATIC);
     // finally set a new color
-    answer.set("wsfxmode_Num", FX_MODE_STATIC);
-    answer.set("wsfxmode", strip->getModeName(FX_MODE_STATIC));
-    answer.set("state", strip->getPower() ? "on" : "off");
-    answer.set("power", strip->getPower());
+    answer.set(F("wsfxmode_Num"), FX_MODE_STATIC);
+    answer.set(F("wsfxmode"), strip->getModeName(FX_MODE_STATIC));
+    answer.set(F("state"), strip->getPower() ? F("on") : F("off"));
+    answer.set(F("power"), strip->getPower());
   }
   else
   {
     if (setColor)
     {
       strip->setColor(color);
-      answer.set("rgb", color);
-      answer.set("rgb_blue", Blue(color));
-      answer.set("rgb_green", Green(color));
-      answer.set("rgb_red", Red(color));
+      answer.set(F("rgb"), color);
+      answer.set(F("rgb_blue"), Blue(color));
+      answer.set(F("rgb_green"), Green(color));
+      answer.set(F("rgb_red"), Red(color));
       //sendStatus = true;
     }
   }
 
   // autoplay flag changes
-  if (server.hasArg("autoplay"))
+  if (server.hasArg(F("autoplay")))
   {
-    uint16_t value = String(server.arg("autoplay")).toInt();
+    uint16_t value = String(server.arg(F("autoplay"))).toInt();
     strip->setAutoplay((AUTOPLAYMODES)value);
     //sendInt("Autoplay Mode", value);
     //broadcastInt("autoplay", value);
     switch(strip->getAutoplay())
   {
     case AUTO_MODE_OFF:
-      answer["AutoPlayMode"] = "Off";
+      answer[F("AutoPlayMode")] = F("Off");
     break;
     case AUTO_MODE_UP:
-      answer["AutoPlayMode"] = "Up";
+      answer[F("AutoPlayMode")] = F("Up");
     break;
     case AUTO_MODE_DOWN:
-      answer["AutoPlayMode"] = "Down";
+      answer[F("AutoPlayMode")] = F("Down");
     break;
     case AUTO_MODE_RANDOM:
-      answer["AutoPlayMode"] = "Random";
+      answer[F("AutoPlayMode")] = F("Random");
     break;
     default:
-      answer["AutoPlayMode"] = "unknown error";
+      answer[F("AutoPlayMode")] = F("unknown error");
     break;
   }
   
   }
 
   // autoplay duration changes
-  if (server.hasArg("autoplayDuration"))
+  if (server.hasArg(F("autoplayDuration")))
   {
-    uint16_t value = String(server.arg("autoplayDuration")).toInt();
+    uint16_t value = String(server.arg(F("autoplayDuration"))).toInt();
     strip->setAutoplayDuration(value);
     //sendInt("Autoplay Mode Interval", value);
     //broadcastInt("autoplayDuration", value);
-    answer["AutoPlayModeIntervall"] = strip->getAutoplayDuration();
+    answer[F("AutoPlayModeIntervall")] = strip->getAutoplayDuration();
  
   }
 
   // auto plaette change
-  if (server.hasArg("autopal"))
+  if (server.hasArg(F("autopal")))
   {
-    uint16_t value = String(server.arg("autopal")).toInt();
+    uint16_t value = String(server.arg(F("autopal"))).toInt();
     strip->setAutopal((AUTOPLAYMODES)value);
     //sendInt("Autoplay Palette", value);
     //broadcastInt("autopal", value);
     switch(strip->getAutopal())
     {
       case AUTO_MODE_OFF:
-        answer["AutoPalette"] = "Off";
+        answer[F("AutoPalette")] = F("Off");
       break;
       case AUTO_MODE_UP:
-        answer["AutoPalette"] = "Up";
+        answer[F("AutoPalette")] = F("Up");
       break;
       case AUTO_MODE_DOWN:
-        answer["AutoPalette"] = "Down";
+        answer[F("AutoPalette")] = F("Down");
       break;
       case AUTO_MODE_RANDOM:
-        answer["AutoPalette"] = "Random";
+        answer[F("AutoPalette")] = F("Random");
       break;
       default:
-        answer["AutoPalette"] = "unknown error";
+        answer[F("AutoPalette")] = F("unknown error");
       break;
     }
   }
 
   // auto palette change duration changes
-  if (server.hasArg("autopalDuration"))
+  if (server.hasArg(F("autopalDuration")))
   {
-    uint16_t value = String(server.arg("autopalDuration")).toInt();
+    uint16_t value = String(server.arg(F("autopalDuration"))).toInt();
     strip->setAutopalDuration(value);
     //sendInt("Autoplay Palette Interval", value);
     //broadcastInt("autopalDuration", value);
-    answer["AutoPaletteInterval"] = strip->getAutoplayDuration();
+    answer[F("AutoPaletteInterval")] = strip->getAutoplayDuration();
   }
 
   // time for cycling through the basehue value changes
-  if (server.hasArg("huetime"))
+  if (server.hasArg(F("huetime")))
   {
-    uint16_t value = String(server.arg("huetime")).toInt();
+    uint16_t value = String(server.arg(F("huetime"))).toInt();
     //sendInt("Hue change time", value);
     //broadcastInt("huetime", value);
     strip->setHuetime(value);
-    answer["HueChangeInt"] = strip->getHueTime();
+    answer[F("HueChangeInt")] = strip->getHueTime();
   }
 
 #pragma message "We could implement a value to change how a palette is distributed accross the strip"
 
   // the hue offset for a given effect (if - e.g. not spread across the whole strip)
-  if (server.hasArg("deltahue"))
+  if (server.hasArg(F("deltahue")))
   {
-    uint16_t value = constrain(String(server.arg("deltahue")).toInt(), 0, 255);
+    uint16_t value = constrain(String(server.arg(F("deltahue"))).toInt(), 0, 255);
     //sendInt("Delta hue per change", value);
     //broadcastInt("deltahue", value);
     strip->setDeltaHue(value);
     strip->setTransition();
-    answer["HueDeltaHue"] = strip->getDeltaHue();
+    answer[F("HueDeltaHue")] = strip->getDeltaHue();
   }
 
   // parameter for teh "fire" - flame cooldown
-  if (server.hasArg("cooling"))
+  if (server.hasArg(F("cooling")))
   {
-    uint16_t value = String(server.arg("cooling")).toInt();
+    uint16_t value = String(server.arg(F("cooling"))).toInt();
     //sendInt("Fire Cooling", value);
     //broadcastInt("cooling", value);
     strip->setCooling(value);
     strip->setTransition();
-    answer["Cooling"] = strip->getCooling();
+    answer[F("Cooling")] = strip->getCooling();
   }
 
   // parameter for the sparking - new flames
-  if (server.hasArg("sparking"))
+  if (server.hasArg(F("sparking")))
   {
-    uint16_t value = String(server.arg("sparking")).toInt();
+    uint16_t value = String(server.arg(F("sparking"))).toInt();
     //sendInt("Fire sparking", value);
     //broadcastInt("sparking", value);
     strip->setSparking(value);
     strip->setTransition();
-    answer["Sparking"] = strip->getSparking();
+    answer[F("Sparking")] = strip->getSparking();
   }
 
   // parameter for twinkle fox (speed)
-  if (server.hasArg("twinkleSpeed"))
+  if (server.hasArg(F("twinkleSpeed")))
   {
-    uint16_t value = String(server.arg("twinkleSpeed")).toInt();
+    uint16_t value = String(server.arg(F("twinkleSpeed"))).toInt();
     //sendInt("Twinkle Speed", value);
     //broadcastInt("twinkleSpeed", value);
     strip->setTwinkleSpeed(value);
     strip->setTransition();
-    answer["TwinkleSpeed"] = strip->getTwinkleSpeed();
+    answer[F("TwinkleSpeed")] = strip->getTwinkleSpeed();
   }
 
   // parameter for twinkle fox (density)
-  if (server.hasArg("twinkleDensity"))
+  if (server.hasArg(F("twinkleDensity")))
   {
-    uint16_t value = String(server.arg("twinkleDensity")).toInt();
+    uint16_t value = String(server.arg(F("twinkleDensity"))).toInt();
     //sendInt("Twinkle Density", value);
     //broadcastInt("twinkleDensity", value);
     strip->setTwinkleDensity(value);
     strip->setTransition();
-    answer["TwinkleDensity"] = strip->getTwinkleDensity();
+    answer[F("TwinkleDensity")] = strip->getTwinkleDensity();
   }
 
   // parameter for number of bars (beat sine glows etc...)
-  if (server.hasArg("numBars"))
+  if (server.hasArg(F("numBars")))
   {
-    uint16_t value = String(server.arg("numBars")).toInt();
+    uint16_t value = String(server.arg(F("numBars"))).toInt();
     if (value > MAX_NUM_BARS)
       value = max(MAX_NUM_BARS, 1);
     //sendInt("Number of Bars", value);
     //broadcastInt("numBars", value);
     strip->setNumBars(value);
     strip->setTransition();
-    answer["NumBars"] = strip->getNumBars();
+    answer[F("NumBars")] = strip->getNumBars();
   }
 
   // parameter to change the palette blend type for cetain effects
-  if (server.hasArg("blendType"))
+  if (server.hasArg(F("blendType")))
   {
-    uint16_t value = String(server.arg("blendType")).toInt();
+    uint16_t value = String(server.arg(F("blendType"))).toInt();
 
     //broadcastInt("blendType", value);
     if (value)
     {
       strip->setBlendType(LINEARBLEND);
       //sendString("BlendType", "LINEARBLEND");
-      answer["BlendType"] = "Linear Blend";
+      answer[F("BlendType")] = F("Linear Blend");
     }
     else
     {
       strip->setBlendType(NOBLEND);
       //sendString("BlendType", "NOBLEND");
-      answer["BlendType"] = "No Blend";
+      answer[F("BlendType")] = F("No Blend");
     }
     strip->setTransition();
   }
 
   // parameter to change the Color Temperature of the Strip
-  if (server.hasArg("ColorTemperature"))
+  if (server.hasArg(F("ColorTemperature")))
   {
-    uint8_t value = String(server.arg("ColorTemperature")).toInt();
+    uint8_t value = String(server.arg(F("ColorTemperature"))).toInt();
 
     //broadcastInt("ColorTemperature", value);
     //sendString("ColorTemperature", strip->getColorTempName(value));
     strip->setColorTemperature(value);
     strip->setTransition();
-    answer["ColorTemperature"] = strip->getColorTempName(strip->getColorTemp());
+    answer[F("ColorTemperature")] = strip->getColorTempName(strip->getColorTemp());
   }
 
   // parameter to change direction of certain effects..
-  if (server.hasArg("reverse"))
+  if (server.hasArg(F("reverse")))
   {
-    uint16_t value = String(server.arg("reverse")).toInt();
+    uint16_t value = String(server.arg(F("reverse"))).toInt();
     //sendInt("reverse", value);
     //broadcastInt("reverse", value);
     strip->getSegment()->reverse = value;
     strip->setTransition();
-    answer["Reverse"] = strip->getReverse();
+    answer[F("Reverse")] = strip->getReverse();
   }
 
   // parameter to invert colors of all effects..
-  if (server.hasArg("inverse"))
+  if (server.hasArg(F("inverse")))
   {
-    uint16_t value = String(server.arg("inverse")).toInt();
+    uint16_t value = String(server.arg(F("inverse"))).toInt();
     //sendInt("inverse", value);
     //broadcastInt("inverse", value);
     strip->setInverse(value);
     strip->setTransition();
-    answer["Inverse"] = strip->getInverse();
+    answer[F("Inverse")] = strip->getInverse();
   }
 
   // parameter to divide LEDS into two equal halfs...
-  if (server.hasArg("mirror"))
+  if (server.hasArg(F("mirror")))
   {
-    uint16_t value = String(server.arg("mirror")).toInt();
+    uint16_t value = String(server.arg(F("mirror"))).toInt();
     //sendInt("mirror", value);
     //broadcastInt("mirror", value);
     strip->setMirror(value);
     strip->setTransition();
-    answer["Mirrored"] = strip->getMirror();
+    answer[F("Mirrored")] = strip->getMirror();
   }
 
   // parameter so set the max current the leds will draw
-  if (server.hasArg("current"))
+  if (server.hasArg(F("current")))
   {
-    uint16_t value = String(server.arg("current")).toInt();
+    uint16_t value = String(server.arg(F("current"))).toInt();
     //sendInt("Lamp Max Current", value);
     //broadcastInt("current", value);
     strip->setMilliamps(value);
-    answer["Lamp_max_current"] = strip->getMilliamps();
+    answer[F("Lamp_max_current")] = strip->getMilliamps();
   }
 
   // parameter for the blur against the previous LED values
-  if (server.hasArg("LEDblur"))
+  if (server.hasArg(F("LEDblur")))
   {
-    uint8_t value = String(server.arg("LEDblur")).toInt();
+    uint8_t value = String(server.arg(F("LEDblur"))).toInt();
     //sendInt("LEDblur", value);
     //broadcastInt("LEDblur", value);
     strip->setBlur(value);
     strip->setTransition();
-    answer["Led_blur"] = strip->getBlurValue();
+    answer[F("Led_blur")] = strip->getBlurValue();
   }
 
   // parameter for the frames per second (FPS)
-  if (server.hasArg("fps"))
+  if (server.hasArg(F("fps")))
   {
-    uint8_t value = String(server.arg("fps")).toInt();
+    uint8_t value = String(server.arg(F("fps"))).toInt();
     //sendInt("fps", value);
     //broadcastInt("fps", value);
     strip->setMaxFPS(value);
     strip->setTransition();
-    answer["max_FPS"] = strip->getMaxFPS();
+    answer[F("max_FPS")] = strip->getMaxFPS();
   }
 
-  if (server.hasArg("dithering"))
+  if (server.hasArg(F("dithering")))
   {
-    uint8_t value = String(server.arg("dithering")).toInt();
+    uint8_t value = String(server.arg(F("dithering"))).toInt();
     //sendInt("dithering", value);
     //broadcastInt("dithering", value);
     strip->setDithering(value);
-    answer["Dithering"] = strip->getDithering();
+    answer[F("Dithering")] = strip->getDithering();
   }
 
-  if (server.hasArg("sunriseset"))
+  if (server.hasArg(F("sunriseset")))
   {
-    uint8_t value = String(server.arg("sunriseset")).toInt();
+    uint8_t value = String(server.arg(F("sunriseset"))).toInt();
     //sendInt("sunriseset", value);
     //broadcastInt("sunriseset", value);
     strip->getSegment()->sunrisetime = value;
-    answer["sunRiseTime"] = strip->getSunriseTime();
+    answer[F("sunRiseTime")] = strip->getSunriseTime();
   }
 
   // reset to default values
-  if (server.hasArg("resetdefaults"))
+  if (server.hasArg(F("resetdefaults")))
   {
-    uint8_t value = String(server.arg("resetdefaults")).toInt();
+    uint8_t value = String(server.arg(F("resetdefaults"))).toInt();
     if (value)
       strip->resetDefaults();
     //sendInt("resetdefaults", 0);
@@ -1867,47 +1851,47 @@ void handleSet(void)
     strip->setTransition();
   }
 
-  if (server.hasArg("damping"))
+  if (server.hasArg(F("damping")))
   {
-    uint8_t value = constrain(String(server.arg("damping")).toInt(), 0, 100);
+    uint8_t value = constrain(String(server.arg(F("damping"))).toInt(), 0, 100);
     //sendInt("damping", value);
     //broadcastInt("damping", value);
     strip->getSegment()->damping = value;
-    answer["Damping"] = strip->getDamping();
+    answer[F("Damping")] = strip->getDamping();
   }
 
-  if (server.hasArg("addGlitter"))
+  if (server.hasArg(F("addGlitter")))
   {
-    uint8_t value = constrain(String(server.arg("addGlitter")).toInt(), 0, 100);
+    uint8_t value = constrain(String(server.arg(F("addGlitter"))).toInt(), 0, 100);
     strip->setAddGlitter(value);
-    answer["Glitter_Add"] = strip->getAddGlitter();
+    answer[F("Glitter_Add")] = strip->getAddGlitter();
   }
-  if (server.hasArg("WhiteOnly"))
+  if (server.hasArg(F("WhiteOnly")))
   {
-    uint8_t value = constrain(String(server.arg("WhiteOnly")).toInt(), 0, 100);
+    uint8_t value = constrain(String(server.arg(F("WhiteOnly"))).toInt(), 0, 100);
     strip->setWhiteGlitter(value);
-    answer["Glitter_White"] = strip->getWhiteGlitter();
+    answer[F("Glitter_White")] = strip->getWhiteGlitter();
   }
-  if (server.hasArg("onBlackOnly"))
+  if (server.hasArg(F("onBlackOnly")))
   {
-    uint8_t value = constrain(String(server.arg("onBlackOnly")).toInt(), 0, 100);
+    uint8_t value = constrain(String(server.arg(F("onBlackOnly"))).toInt(), 0, 100);
     strip->setOnBlackOnly(value);
-    answer["Glitter_OnBlackOnly"] = strip->getOnBlackOnly();
+    answer[F("Glitter_OnBlackOnly")] = strip->getOnBlackOnly();
   }
-  if (server.hasArg("glitterChance"))
+  if (server.hasArg(F("glitterChance")))
   {
-    uint8_t value = constrain(String(server.arg("glitterChance")).toInt(), 0, 100);
+    uint8_t value = constrain(String(server.arg(F("glitterChance"))).toInt(), 0, 100);
     strip->setChanceOfGlitter(value);
-    answer["Glitter_Chance"] = strip->getChanceOfGlitter();
+    answer[F("Glitter_Chance")] = strip->getChanceOfGlitter();
   }
 
 
 #ifdef DEBUG
   // Testing different Resets
   // can then be triggered via web interface (at the very bottom)
-  if (server.hasArg("resets"))
+  if (server.hasArg(F("resets")))
   {
-    uint8_t value = String(server.arg("resets")).toInt();
+    uint8_t value = String(server.arg("resets"))).toInt();
     volatile uint8_t d = 1;
     switch (value)
     {
@@ -1939,44 +1923,44 @@ void handleSet(void)
 #endif
 
   // parameter for number of segments
-  if (server.hasArg("segments"))
+  if (server.hasArg(F("segments")))
   {
-    uint16_t value = String(server.arg("segments")).toInt();
+    uint16_t value = String(server.arg(F("segments"))).toInt();
     strip->getSegment()->segments = constrain(value, 1, MAX_NUM_SEGMENTS);
     strip->setTransition();
-    answer["Segments"] = strip->getSegments();
+    answer[F("Segments")] = strip->getSegments();
   }
 
-  if (server.hasArg("BckndHue"))
+  if (server.hasArg(F("BckndHue")))
   {
-    uint8_t value = String(server.arg("BckndHue")).toInt();
+    uint8_t value = String(server.arg(F("BckndHue"))).toInt();
     strip->setBckndHue(value);
-    answer["BckndHue"] = strip->getBckndHue();
+    answer[F("BckndHue")] = strip->getBckndHue();
   }
-  if (server.hasArg("BckndSat"))
+  if (server.hasArg(F("BckndSat")))
   {
-    uint8_t value = String(server.arg("BckndSat")).toInt();
+    uint8_t value = String(server.arg(F("BckndSat"))).toInt();
     strip->setBckndSat(value);
-    answer["BckndSat"] = strip->getBckndSat();
+    answer[F("BckndSat")] = strip->getBckndSat();
   }
-  if (server.hasArg("BckndBri"))
+  if (server.hasArg(F("BckndBri")))
   {
-    uint8_t value = String(server.arg("BckndBri")).toInt();
+    uint8_t value = String(server.arg(F("BckndBri"))).toInt();
     strip->setBckndBri(value);
-    answer["BckndBri"] = strip->getBckndBri();
+    answer[F("BckndBri")] = strip->getBckndBri();
   }
 
 
   #ifdef HAS_KNOB_CONTROL
-  if (server.hasArg("wifiEnabled"))
+  if (server.hasArg(F("wifiEnabled")))
   {
-    uint16_t value = String(server.arg("wifiEnabled")).toInt();
+    uint16_t value = String(server.arg(F("wifiEnabled"))).toInt();
     if(value)
       strip->setWiFiEnabled(true);
     else
       strip->setWiFiEnabled(false);    
 
-    answer["wifiEnabled"] = strip->getWiFiEnabled();
+    answer[F("wifiEnabled")] = strip->getWiFiEnabled();
   }
   #endif
 
@@ -2002,19 +1986,19 @@ void handleSet(void)
 // if something unknown was called...
 void handleNotFound(void)
 {
-  String message = "File Not Found\n\n";
-  message += "URI: ";
+  String message = F("File Not Found\n\n");
+  message += F("URI: ");
   message += server.uri();
-  message += "\nMethod: ";
+  message += F("\nMethod: ");
   message += (server.method() == HTTP_GET) ? "GET" : "POST";
-  message += "\nArguments: ";
+  message += F("\nArguments: ");
   message += server.args();
-  message += "\n";
+  message += F("\n");
   for (uint8_t i = 0; i < server.args(); i++)
   {
     message += " " + server.argName(i) + ": " + server.arg(i) + "\n";
   }
-  server.send(404, "text/plain", message);
+  server.send(404, F("text/plain"), message);
 }
 
 void handleGetModes(void)
@@ -2024,10 +2008,10 @@ void handleGetModes(void)
 
   JsonObject &root = jsonBuffer.createObject();
 
-  JsonObject &modeinfo = root.createNestedObject("modeinfo");
-  modeinfo["count"] = strip->getModeCount();
+  JsonObject &modeinfo = root.createNestedObject(F("modeinfo"));
+  modeinfo[F("count")] = strip->getModeCount();
 
-  JsonObject &modeinfo_modes = modeinfo.createNestedObject("modes");
+  JsonObject &modeinfo_modes = modeinfo.createNestedObject(F("modes"));
   for (uint8_t i = 0; i < strip->getModeCount(); i++)
   {
     modeinfo_modes[strip->getModeName(i)] = i;
@@ -2054,10 +2038,10 @@ void handleGetPals(void)
 
   JsonObject &root = jsonBuffer.createObject();
 
-  JsonObject &modeinfo = root.createNestedObject("palinfo");
-  modeinfo["count"] = strip->getPalCount();
+  JsonObject &modeinfo = root.createNestedObject(F("palinfo"));
+  modeinfo[F("count")] = strip->getPalCount();
 
-  JsonObject &modeinfo_modes = modeinfo.createNestedObject("pals");
+  JsonObject &modeinfo_modes = modeinfo.createNestedObject(F("pals"));
   for (uint8_t i = 0; i < strip->getPalCount(); i++)
   {
     modeinfo_modes[strip->getPalName(i)] = i;
@@ -2081,49 +2065,49 @@ void handleStatus(void)
 {
   
   JsonObject& answerObj = jsonBuffer.createObject();
-  JsonObject& currentStateAnswer = answerObj.createNestedObject("currentState");
-  JsonObject& sunriseAnswer = answerObj.createNestedObject("sunRiseState");
-  JsonObject& statsAnswer = answerObj.createNestedObject("Stats");
+  JsonObject& currentStateAnswer = answerObj.createNestedObject(F("currentState"));
+  JsonObject& sunriseAnswer = answerObj.createNestedObject(F("sunRiseState"));
+  JsonObject& statsAnswer = answerObj.createNestedObject(F("Stats"));
   #ifdef DEBUG
   uint32_t answer_time = micros();
-  JsonObject& debugAnswer = answerObj.createNestedObject("ESP_Data");
+  JsonObject& debugAnswer = answerObj.createNestedObject(F("ESP_Data"));
   #endif
 
   uint16_t num_leds_on = strip->getLedsOn();
 
-  currentStateAnswer["power"] = strip->getPower();
+  currentStateAnswer[F("power")] = strip->getPower();
   if (strip->getPower())
   {
-    currentStateAnswer["state"] = "on";
+    currentStateAnswer[F("state")] = F("on");
   }
   else
   {
-    currentStateAnswer["state"] = "off";
+    currentStateAnswer[F("state")] = F("off");
   }
   #ifdef DEBUG
   
-  debugAnswer["AnswerTime_ms_01"] = (float)((float)(micros()-answer_time)/1000.0);
+  debugAnswer[F("AnswerTime_ms_01")] = (float)((float)(micros()-answer_time)/1000.0);
   #endif
 
-  currentStateAnswer["Buildversion"] = build_version;
-  currentStateAnswer["Git_Revision"] = git_revision;
-  currentStateAnswer["Lampname"] = LED_NAME;
-  currentStateAnswer["LED_Count"] = strip->getStripLength();
-  currentStateAnswer["Lamp_max_current"] = strip->getMilliamps();
-  currentStateAnswer["Lamp_max_power"] = strip->getVoltage() * strip->getMilliamps();
-  currentStateAnswer["Lamp_current_power"] = strip->getCurrentPower();
-  currentStateAnswer["LEDs_On"] = num_leds_on;
-  currentStateAnswer["mode_Name"] = strip->getModeName(strip->getMode());
-  currentStateAnswer["wsfxmode"] = strip->getModeName(strip->getMode());
-  currentStateAnswer["wsfxmode_Num"] = strip->getMode();
-  currentStateAnswer["wsfxmode_count"] = strip->getModeCount();
-  currentStateAnswer["beat88"] = strip->getBeat88();
-  currentStateAnswer["speed"] = strip->getBeat88();
-  currentStateAnswer["brightness"] = strip->getBrightness();
+  currentStateAnswer[F("Buildversion")] = build_version;
+  currentStateAnswer[F("Git_Revision")] = git_revision;
+  currentStateAnswer[F("Lampname")] = LED_NAME;
+  currentStateAnswer[F("LED_Count")] = strip->getStripLength();
+  currentStateAnswer[F("Lamp_max_current")] = strip->getMilliamps();
+  currentStateAnswer[F("Lamp_max_power")] = strip->getVoltage() * strip->getMilliamps();
+  currentStateAnswer[F("Lamp_current_power")] = strip->getCurrentPower();
+  currentStateAnswer[F("LEDs_On")] = num_leds_on;
+  currentStateAnswer[F("mode_Name")] = strip->getModeName(strip->getMode());
+  currentStateAnswer[F("wsfxmode")] = strip->getModeName(strip->getMode());
+  currentStateAnswer[F("wsfxmode_Num")] = strip->getMode();
+  currentStateAnswer[F("wsfxmode_count")] = strip->getModeCount();
+  currentStateAnswer[F("beat88")] = strip->getBeat88();
+  currentStateAnswer[F("speed")] = strip->getBeat88();
+  currentStateAnswer[F("brightness")] = strip->getBrightness();
   // Palettes and Colors
-  currentStateAnswer["palette_count"] = strip->getPalCount();
-  currentStateAnswer["palette_num"] = strip->getTargetPaletteNumber();
-  currentStateAnswer["palette_name"] = strip->getTargetPaletteName();
+  currentStateAnswer[F("palette_count")] = strip->getPalCount();
+  currentStateAnswer[F("palette_num")] = strip->getTargetPaletteNumber();
+  currentStateAnswer[F("palette_name")] = strip->getTargetPaletteName();
   CRGB col = CRGB::Black;
   // We return either black (strip effectively off)
   // or the color of the first pixel....
@@ -2135,10 +2119,10 @@ void handleStatus(void)
       break;
     }
   }
-  currentStateAnswer["rgb"] = (((col.r << 16) | (col.g << 8) | (col.b << 0)) & 0xffffff);
-  currentStateAnswer["rgb_red"] = col.r;
-  currentStateAnswer["rgb_green"] = col.g;
-  currentStateAnswer["rgb_blue"] = col.b;
+  currentStateAnswer[F("rgb")] = (((col.r << 16) | (col.g << 8) | (col.b << 0)) & 0xffffff);
+  currentStateAnswer[F("rgb_red")] = col.r;
+  currentStateAnswer[F("rgb_green")] = col.g;
+  currentStateAnswer[F("rgb_blue")] = col.b;
 
   #ifdef DEBUG
   debugAnswer["AnswerTime_ms_02"] = (float)((float)(micros()-answer_time)/1000.0);
@@ -2146,151 +2130,149 @@ void handleStatus(void)
 
   if (strip->getSegment()->blendType == NOBLEND)
   {
-    currentStateAnswer["BlendType"] = "No Blend";
+    currentStateAnswer[F("BlendType")] = F("No Blend");
   }
   else if (strip->getSegment()->blendType == LINEARBLEND)
   {
-    currentStateAnswer["BlendType"] = "Linear Blend";
+    currentStateAnswer[F("BlendType")] = F("Linear Blend");
   }
   else
   {
-    currentStateAnswer["BlendType"] = "Unknown Blend";
+    currentStateAnswer[F("BlendType")] = F("Unknown Blend");
   }
 
-  currentStateAnswer["Reverse"] = strip->getReverse();;
-  currentStateAnswer["HueChangeInt"] = strip->getHueTime();
-  currentStateAnswer["HueDeltaHue"] = strip->getDeltaHue();
+  currentStateAnswer[F("Reverse")] = strip->getReverse();;
+  currentStateAnswer[F("HueChangeInt")] = strip->getHueTime();
+  currentStateAnswer[F("HueDeltaHue")] = strip->getDeltaHue();
   switch(strip->getAutoplay())
   {
     case AUTO_MODE_OFF:
-      currentStateAnswer["AutoPlayMode"] = "Off";
+      currentStateAnswer[F("AutoPlayMode")] = F("Off");
     break;
     case AUTO_MODE_UP:
-      currentStateAnswer["AutoPlayMode"] = "Up";
+      currentStateAnswer[F("AutoPlayMode")] = F("Up");
     break;
     case AUTO_MODE_DOWN:
-      currentStateAnswer["AutoPlayMode"] = "Down";
+      currentStateAnswer[F("AutoPlayMode")] = F("Down");
     break;
     case AUTO_MODE_RANDOM:
-      currentStateAnswer["AutoPlayMode"] = "Random";
+      currentStateAnswer[F("AutoPlayMode")] = F("Random");
     break;
     default:
-      currentStateAnswer["AutoPlayMode"] = "unknown error";
+      currentStateAnswer[F("AutoPlayMode")] = F("unknown error");
     break;
   }
-  currentStateAnswer["AutoPlayModeIntervall"] = strip->getAutoplayDuration();
+  currentStateAnswer[F("AutoPlayModeIntervall")] = strip->getAutoplayDuration();
   switch(strip->getAutopal())
   {
     case AUTO_MODE_OFF:
-      currentStateAnswer["AutoPalette"] = "Off";
+      currentStateAnswer[F("AutoPalette")] = F("Off");
     break;
     case AUTO_MODE_UP:
-      currentStateAnswer["AutoPalette"] = "Up";
+      currentStateAnswer[F("AutoPalette")] = F("Up");
     break;
     case AUTO_MODE_DOWN:
-      currentStateAnswer["AutoPalette"] = "Down";
+      currentStateAnswer[F("AutoPalette")] = F("Down");
     break;
     case AUTO_MODE_RANDOM:
-      currentStateAnswer["AutoPalette"] = "Random";
+      currentStateAnswer[F("AutoPalette")] = F("Random");
     break;
     default:
-      currentStateAnswer["AutoPalette"] = "unknown error";
+      currentStateAnswer[F("AutoPalette")] = F("unknown error");
     break;
   }
-  currentStateAnswer["AutoPaletteInterval"] = strip->getAutoplayDuration();
+  currentStateAnswer[F("AutoPaletteInterval")] = strip->getAutoplayDuration();
 
   #ifdef DEBUG
-  debugAnswer["AnswerTime_ms_03"] = (float)((float)(micros()-answer_time)/1000.0);
+  debugAnswer[F("AnswerTime_ms_03")] = (float)((float)(micros()-answer_time)/1000.0);
   #endif
 
   if (strip->getMode() == FX_MODE_SUNRISE)
   {
-    sunriseAnswer["sunRiseMode"] = "Sunrise";
+    sunriseAnswer[F("sunRiseMode")] = F("Sunrise");
   }
   else if (strip->getMode() == FX_MODE_SUNSET)
   {
-    sunriseAnswer["sunRiseMode"] = "Sunset";
+    sunriseAnswer[F("sunRiseMode")] = F("Sunset");
   }
   else
   {
-    sunriseAnswer["sunRiseMode"] = "None";
+    sunriseAnswer[F("sunRiseMode")] = F("None");
   }
   
   if (strip->getMode() == FX_MODE_SUNRISE || strip->getMode() == FX_MODE_SUNSET)
   {
     if(num_leds_on)
     {
-      sunriseAnswer["sunRiseActive"] = "on";
+      sunriseAnswer[F("sunRiseActive")] = F("on");
     }
     else
     {
-      sunriseAnswer["sunRiseActive"] = "off";
+      sunriseAnswer[F("sunRiseActive")] = F("off");
     }
   }
   else
   {
-    sunriseAnswer["sunRiseActive"] = "off";
+    sunriseAnswer[F("sunRiseActive")] = F("off");
   }
-    sunriseAnswer["sunRiseCurrStep"] = strip->getCurrentSunriseStep();
+    sunriseAnswer[F("sunRiseCurrStep")] = strip->getCurrentSunriseStep();
     
-    sunriseAnswer["sunRiseTotalSteps"] = DEFAULT_SUNRISE_STEPS;
+    sunriseAnswer[F("sunRiseTotalSteps")] = DEFAULT_SUNRISE_STEPS;
     
-    sunriseAnswer["sunRiseTimeToFinish"] = strip->getSunriseTimeToFinish();
+    sunriseAnswer[F("sunRiseTimeToFinish")] = strip->getSunriseTimeToFinish();
 
-    sunriseAnswer["sunRiseTime"] = strip->getSunriseTime();
+    sunriseAnswer[F("sunRiseTime")] = strip->getSunriseTime();
     
   #ifdef DEBUG
-  debugAnswer["DBG_Debug code"] = "On";
-  debugAnswer["Chip_CPU_FRQ"] = ESP.getCpuFreqMHz();
-  debugAnswer["DBG_Flash Real Size"] = ESP.getFlashChipRealSize();
-  debugAnswer["Chip_Free_RAM"] = ESP.getFreeHeap();
-  debugAnswer["DBG_Free Sketch Space"] = ESP.getFreeSketchSpace();
-  debugAnswer["DBG_Sketch Size"] = ESP.getSketchSize();
+  debugAnswer[F("DBG_Debug code")] = F("On");
+  debugAnswer[F("Chip_CPU_FRQ")] = ESP.getCpuFreqMHz();
+  debugAnswer[F("DBG_Flash Real Size")] = ESP.getFlashChipRealSize();
+  debugAnswer[F("Chip_Free_RAM")] = ESP.getFreeHeap();
+  debugAnswer[F("DBG_Free Sketch Space")] = ESP.getFreeSketchSpace();
+  debugAnswer[F("DBG_Sketch Size")] = ESP.getSketchSize();
   #endif
   
   switch (getResetReason())
   {
   case REASON_DEFAULT_RST:
     
-    statsAnswer["Chip_ResetReason"] = "Normal Boot";
+    statsAnswer[F("Chip_ResetReason")] = F("Normal Boot");
     break;
   case REASON_WDT_RST:
-    statsAnswer["Chip_ResetReason"] = "WDT Reset";
+    statsAnswer[F("Chip_ResetReason")] = F("WDT Reset");
     break;
   case REASON_EXCEPTION_RST:
-    statsAnswer["Chip_ResetReason"] = "Exception";
+    statsAnswer[F("Chip_ResetReason")] = F("Exception");
     break;
   case REASON_SOFT_WDT_RST:
-    statsAnswer["Chip_ResetReason"] = "Soft WDT Reset";
+    statsAnswer[F("Chip_ResetReason")] = F("Soft WDT Reset");
     break;
   case REASON_SOFT_RESTART:
-    statsAnswer["Chip_ResetReason"] = "Restart";
+    statsAnswer[F("Chip_ResetReason")] = F("Restart");
     break;
   case REASON_DEEP_SLEEP_AWAKE:
-    statsAnswer["Chip_ResetReason"] = "Sleep Awake";
+    statsAnswer[F("Chip_ResetReason")] = F("Sleep Awake");
     break;
   case REASON_EXT_SYS_RST:
-    statsAnswer["Chip_ResetReason"] = "External Trigger";
+    statsAnswer[F("Chip_ResetReason")] = F("External Trigger");
     break;
 
   default:
-    statsAnswer["Chip_ResetReason"] = "Unknown Cause";
+    statsAnswer[F("Chip_ResetReason")] = F("Unknown Cause");
     break;
   }
-  statsAnswer["Chip_ID"] = String(ESP.getChipId());
-  statsAnswer["WIFI_IP"] =  myIP.toString();
-  statsAnswer["WIFI_CONNECT_ERR_COUNT"] = wifi_disconnect_counter;
-  statsAnswer["WIFI_SIGNAL"] = String(WiFi.RSSI());  // for #14
-  statsAnswer["WIFI_CHAN"] = String(WiFi.channel());  // for #14
+  statsAnswer[F("Chip_ID")] = String(ESP.getChipId());
+  statsAnswer[F("WIFI_IP")] =  myIP.toString();
+  statsAnswer[F("WIFI_CONNECT_ERR_COUNT")] = wifi_disconnect_counter;
+  statsAnswer[F("WIFI_SIGNAL")] = String(WiFi.RSSI());  // for #14
+  statsAnswer[F("WIFI_CHAN")] = String(WiFi.channel());  // for #14
   
   #ifdef DEBUG
   answer_time = micros() - answer_time;
-  debugAnswer["AnswerTime_ms"] = (float)((float)(answer_time)/1000.0);
+  debugAnswer[F("AnswerTime_ms")] = (float)((float)(answer_time)/1000.0);
   #endif
-  statsAnswer["FPS"] = FastLED.getFPS();
-
+  statsAnswer[F("FPS")] = FastLED.getFPS();
   String message;
-
 #ifdef DEBUG
   message.reserve(answerObj.measurePrettyLength());
   answerObj.prettyPrintTo(message);
@@ -2374,19 +2356,19 @@ void clearEEPROM(void)
 // To be sure we check the related parameter....
 void handleResetRequest(void)
 {
-  if (server.arg("rst") == "FactoryReset")
+  if (server.arg(F("rst")) == F("FactoryReset"))
   {
-    server.send(200, "text/plain", "Will now Reset to factory settings. You need to connect to the WLAN AP afterwards....");
+    server.send(200, F("text/plain"), F("Will now Reset to factory settings. You need to connect to the WLAN AP afterwards...."));
     factoryReset();
   }
-  else if (server.arg("rst") == "Defaults")
+  else if (server.arg(F("rst")) == F("Defaults"))
   {
 
     strip->setTargetPalette(0);
     strip->setMode(0);
     strip->stop();
     strip->resetDefaults();
-    server.send(200, "text/plain", "Strip was reset to the default values...");
+    server.send(200, F("text/plain"), F("Strip was reset to the default values..."));
     shouldSaveRuntime = true;
   }
 }
@@ -2409,31 +2391,80 @@ void setupWebServer(void)
 #endif
   }
 
-  server.on("/all", HTTP_GET, []() {
+  server.on(F("/all"), HTTP_GET, []() {
 #ifdef DEBUG
     DEBUGPRNT("Called /all!");
 #endif
-    String json = getFieldsJson(fields, fieldCount);
-    server.sendHeader("Access-Control-Allow-Methods", "*");
-    server.sendHeader("Access-Control-Allow-Headers", "*");
-    server.sendHeader("Access-Control-Allow-Origin", "*");
-    server.send(200, "text/json", json);
+    server.sendHeader(F("Access-Control-Allow-Methods"), "*");
+    server.sendHeader(F("Access-Control-Allow-Headers"), "*");
+    server.sendHeader(F("Access-Control-Allow-Origin"), "*");
+    server.send(200, F("text/json"), getFieldsJson(fields, fieldCount));
+    
+/* does not work even if the JSON output is simliar / equal
+ * Don't know why yet, so we go with the old for now :-(
+ * 
+    JsonArray& root = jsonBuffer.createArray();
+    for(uint16_t i=0; i< fieldCount; i++)
+    {
+      Field field = fields[i];
+      JsonObject& obj = root.createNestedObject();
+      obj[F("name")] = field.name;
+      obj[F("label")] = field.label;
+      obj[F("type")] = field.type;
+
+      if (field.getValue)
+      {
+        if(field.type == "Color" || field.type == "String")
+        {
+          obj[F("value")] = field.getValue();
+        }
+        else
+        {
+          obj[F("value")] = field.getValue().toInt();
+        }
+      }
+
+      if (field.type == "Number")
+      {
+        obj[F("min")] = field.min;
+        obj[F("max")] = field.max;
+      }
+
+      if (field.getOptions)
+      {
+        JsonArray& arr = jsonBuffer.parseArray("[" + field.getOptions() + "]");
+        obj[F("options")] = obj.createNestedArray(F("options"));
+        obj[F("options")] = arr;
+
+      }
+    }
+    server.sendHeader(F("Access-Control-Allow-Methods"), "*");
+    server.sendHeader(F("Access-Control-Allow-Headers"), "*");
+    server.sendHeader(F("Access-Control-Allow-Origin"), "*");
+    server.setContentLength(root.measureLength());
+    server.send(200, F("application/json"), "");
+
+    WiFiClientPrint<> p(server.client());
+    root.printTo(p);
+    p.stop(); // Calls p.flush() and WifiClient.stop()
+    jsonBuffer.clear();
+   */ 
   });
 
-  server.on("/fieldValue", HTTP_GET, []() {
-    String name = server.arg("name");
+  server.on(F("/fieldValue"), HTTP_GET, []() {
+    String name = server.arg(F("name"));
 #ifdef DEBUG
     DEBUGPRNT("Called /fieldValue with arg name =");
     DEBUGPRNT(name);
 #endif
 
-    String value = getFieldValue(name, fields, fieldCount);
-    server.sendHeader("Access-Control-Allow-Methods", "*");
-    server.sendHeader("Access-Control-Allow-Headers", "*");
-    server.sendHeader("Access-Control-Allow-Origin", "*");
-    server.send(200, "text/plain", value);
+    server.sendHeader(F("Access-Control-Allow-Methods"), "*");
+    server.sendHeader(F("Access-Control-Allow-Headers"), "*");
+    server.sendHeader(F("Access-Control-Allow-Origin"), "*");
+    server.send(200, F("text/plain"), getFieldValue(name, fields, fieldCount));
   });
 
+  /*
   //list directory
   server.on("/list", HTTP_GET, handleFileList);
   //load editor
@@ -2441,12 +2472,13 @@ void setupWebServer(void)
     if (!handleFileRead("/edit.htm"))
       server.send(404, "text/plain", "FileNotFound");
   });
-
+  */
   // keepAlive
-  server.on("/ping", HTTP_GET, []() {
-    server.send(200, "text/plain", "OK");
+  server.on(F("/ping"), HTTP_GET, []() {
+    server.send(200, F("text/plain"), F("OK"));
   });
 
+  /*
   //create file
   server.on("/edit", HTTP_PUT, handleFileCreate);
   //delete file
@@ -2457,20 +2489,20 @@ void setupWebServer(void)
     server.send(200, "text/plain", "");
   },
             handleFileUpload);
-
-  server.on("/set", handleSet);
-  server.on("/getmodes", handleGetModes);
-  server.on("/getpals", handleGetPals);
-  server.on("/status", handleStatus);
-  server.on("/reset", handleResetRequest);
+  */
+  server.on(F("/set"), handleSet);
+  server.on(F("/getmodes"), handleGetModes);
+  server.on(F("/getpals"), handleGetPals);
+  server.on(F("/status"), handleStatus);
+  server.on(F("/reset"), handleResetRequest);
   server.onNotFound(handleNotFound);
 
   server.on("/", HTTP_OPTIONS, []() {
-    server.sendHeader("Access-Control-Max-Age", "10000");
-    server.sendHeader("Access-Control-Allow-Methods", "*");
-    server.sendHeader("Access-Control-Allow-Headers", "*");
-    server.sendHeader("Access-Control-Allow-Origin", "*");
-    server.send(200, "text/plain", "" );
+    server.sendHeader(F("Access-Control-Max-Age"), "10000");
+    server.sendHeader(F("Access-Control-Allow-Methods"), "*");
+    server.sendHeader(F("Access-Control-Allow-Headers"), "*");
+    server.sendHeader(F("Access-Control-Allow-Origin"), "*");
+    server.send(200,  F("text/plain"), "" );
   });
 
 
@@ -3202,11 +3234,11 @@ void showDisplay(uint8_t curr_field, fieldtypes *fieldtype)
           n_val = val;
         }
         if(val != p_val) {
-          display.drawStringMaxWidth(0, 25, 128, " -");
+          display.drawStringMaxWidth(0, 25, 128, F(" -"));
           display.drawStringMaxWidth(10, 25, 128, myValues[p_val]);
         }
         if(val != n_val) {
-          display.drawStringMaxWidth(0, 45, 128, " +");
+          display.drawStringMaxWidth(0, 45, 128, F(" +"));
           display.drawStringMaxWidth(10, 45, 128, myValues[n_val]);
         }
         if(toggle)
@@ -3214,7 +3246,7 @@ void showDisplay(uint8_t curr_field, fieldtypes *fieldtype)
           display.fillRect(0,36,128,11);
           display.setColor((OLEDDISPLAY_COLOR)0);
         }
-        display.drawStringMaxWidth(0, 35, 128, " >");
+        display.drawStringMaxWidth(0, 35, 128, F(" >"));
         display.drawStringMaxWidth(10, 35, 128, myValues[  val]);
         display.setColor((OLEDDISPLAY_COLOR)1); 
       }
@@ -3229,10 +3261,10 @@ void showDisplay(uint8_t curr_field, fieldtypes *fieldtype)
 
         display.setTextAlignment(TEXT_ALIGN_LEFT);
         display.setFont(ArialMT_Plain_10);
-        display.drawString(0,  20, "FPS:");
-        display.drawString(0,  30, "Leds on:");
-        display.drawString(0,  40, "M:");
-        display.drawString(0,  50, "C:");
+        display.drawString(0,  20, F("FPS:"));
+        display.drawString(0,  30, F("Leds on:"));
+        display.drawString(0,  40, F("M:"));
+        display.drawString(0,  50, F("C:"));
 
         display.setTextAlignment(TEXT_ALIGN_RIGHT);
         static uint16_t FPS = 0;
@@ -3250,8 +3282,8 @@ void showDisplay(uint8_t curr_field, fieldtypes *fieldtype)
         }
         else
         {
-          display.drawString(127,  20, "Off");
-          display.drawString(127,  30, "Off");
+          display.drawString(127,  20, F("Off"));
+          display.drawString(127,  30, F("Off"));
         }
         display.drawString(127,  40, strip->getModeName(strip->getMode()));
         display.drawString(127,  50, strip->getTargetPaletteName());
