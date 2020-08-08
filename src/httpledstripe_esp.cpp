@@ -49,9 +49,13 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <ESP8266WiFi.h>
-#include <ESP8266WebServer.h>
-#include <WebSocketsServer.h>
-#include <WiFiManager.h>
+#include <ESPAsyncTCP.h>
+#include <ESPAsyncWebServer.h>
+#include <AsyncJson.h>
+//#include <ESP8266WebServer.h>
+//#include <WebSocketsServer.h>
+//#include <WiFiManager.h>
+#include <ESPAsyncWiFiManager.h>
 #include <ArduinoOTA.h>
 #include <EEPROM.h>
 #include <ESP8266mDNS.h>
@@ -101,8 +105,9 @@ const String git_revision  = BUILD_GITREV;
 /* Definitions for network usage */
 /* maybe move all wifi stuff to separate files.... */
 
-ESP8266WebServer server(80);
-WebSocketsServer *webSocketsServer = NULL; // webSocketsServer = WebSocketsServer(81);
+AsyncWebServer server(80);
+
+//WebSocketsServer *webSocketsServer = NULL; // webSocketsServer = WebSocketsServer(81);
 
 const String AP_SSID = LED_NAME + String("-") + String(ESP.getChipId());
 
@@ -128,12 +133,12 @@ DynamicJsonBuffer jsonBuffer(20000);
 void saveEEPROMData(void),
     initOverTheAirUpdate(void),
     setupWiFi(uint16_t timeout),
-    handleSet(void),
-    handleNotFound(void),
-    handleGetModes(void),
-    handleStatus(void),
+    handleSet(AsyncWebServerRequest *request),
+    handleNotFound(AsyncWebServerRequest *request),
+    handleGetModes(AsyncWebServerRequest *request),
+    handleStatus(AsyncWebServerRequest *request),
     factoryReset(void),
-    handleResetRequest(void),
+    handleResetRequest(AsyncWebServerRequest *request),
     setupWebServer(void),
     showInitColor(CRGB Color),
     sendInt(String name, uint16_t value),
@@ -141,7 +146,7 @@ void saveEEPROMData(void),
     sendAnswer(String jsonAnswer),
     broadcastInt(String name, uint16_t value),
     broadcastString(String name, String value),
-    webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length),
+//  webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length),
     checkSegmentChanges(void),
     clearEEPROM(void);
 
@@ -190,85 +195,65 @@ void set_fieldTypes(fieldtypes *m_fieldtypes) {
 
 // used to send an answer as INT to the calling http request
 // TODO: Use one answer function with parameters being overloaded
-void sendInt(String name, uint16_t value)
+void sendInt(String name, uint16_t value, AsyncWebServerRequest *request)
 {
   #ifdef HAS_KNOB_CONTROL
   if(!strip->getWiFiEnabled() || !WiFiConnected) return;
   #endif
-  JsonObject& answerObj = jsonBuffer.createObject();
-  JsonObject& answer = answerObj.createNestedObject(F("returnState"));
-  answer[name] = value;
-  String ret;
+  
+  AsyncResponseStream *response = request->beginResponseStream("application/json");
+  DynamicJsonBuffer jBuf; 
+  JsonObject &root = jBuf.createObject();
+  JsonObject &sInt = root.createNestedObject(F("returnState"));
+  sInt[name] = value;
 
-  #ifdef DEBUG
-    ret.reserve(answerObj.measurePrettyLength());
-    answerObj.prettyPrintTo(ret);
-  #else
-    ret.reserve(answerObj.measureLength());
-    answerObj.printTo(ret);
-  #endif
-  jsonBuffer.clear();
-  DEBUGPRNT("Send HTML respone 200, application/json with value: " + ret);
-  server.sendHeader(F("Access-Control-Allow-Methods"), "*");
-  server.sendHeader(F("Access-Control-Allow-Headers"), "*");
-  server.sendHeader(F("Access-Control-Allow-Origin"), "*");
-  server.send(200, F("application/json"), ret);
+  response->addHeader(F("Access-Control-Allow-Methods"), "*");
+  response->addHeader(F("Access-Control-Allow-Headers"), "*");
+  response->addHeader(F("Access-Control-Allow-Origin"), "*");
+  root.printTo(*response);
+  request->send(response);
 }
 
 // used to send an answer as String to the calling http request
 // TODO: Use one answer function with parameters being overloaded
-void sendString(String name, String value)
+void sendString(String name, String value, AsyncWebServerRequest *request)
 {
   #ifdef HAS_KNOB_CONTROL
   if(!strip->getWiFiEnabled() || !WiFiConnected) return;
   #endif
-  /*
-  String answer = F("{ ");
-  answer += F("\"currentState\" : { \"");
-  answer += name;
-  answer += F("\": \"");
-  answer += value;
-  answer += "\" } }";
-  */
-  JsonObject& answerObj = jsonBuffer.createObject();
-  JsonObject& answer = answerObj.createNestedObject("returnState");
-  answer[name] = value;
-  String ret;
-  
-  #ifdef DEBUG
-    ret.reserve(answerObj.measurePrettyLength());
-    answerObj.prettyPrintTo(ret);
-  #else
-    ret.reserve(answerObj.measureLength());
-    answerObj.printTo(ret);
-  #endif
+  AsyncResponseStream *response = request->beginResponseStream("application/json");
+  DynamicJsonBuffer jBuf; 
+  JsonObject &root = jBuf.createObject();
+  JsonObject &sInt = root.createNestedObject(F("returnState"));
+  sInt[name] = value;
 
-  jsonBuffer.clear();
-
-  DEBUGPRNT("Send HTML respone 200, application/json with value: " + ret);
-  server.sendHeader("Access-Control-Allow-Methods", "*");
-  server.sendHeader("Access-Control-Allow-Headers", "*");
-  server.sendHeader("Access-Control-Allow-Origin", "*");
-  server.send(200, "application/json", ret);
+  response->addHeader(F("Access-Control-Allow-Methods"), "*");
+  response->addHeader(F("Access-Control-Allow-Headers"), "*");
+  response->addHeader(F("Access-Control-Allow-Origin"), "*");
+  root.printTo(*response);
+  request->send(response);
 }
 
 // used to send an answer as JSONString to the calling http request
 // send answer can embed a complete json string instead of a single name / value pair.
-void sendAnswer(String jsonAnswer)
+void sendAnswer(String jsonAnswer, AsyncWebServerRequest *request)
 {
   #ifdef HAS_KNOB_CONTROL
   if(!strip->getWiFiEnabled() || !WiFiConnected) return;
   #endif
   String answer = "{ \"returnState\": { " + jsonAnswer + "} }";
-  server.sendHeader(F("Access-Control-Allow-Methods"), "*");
-  server.sendHeader(F("Access-Control-Allow-Headers"), "*");
-  server.sendHeader(F("Access-Control-Allow-Origin"), "*");
-  server.send(200, F("application/json"), answer);
+  AsyncWebServerResponse *response = request->beginResponse(200, "application/json", answer);
+  response->addHeader(F("Access-Control-Allow-Methods"), "*");
+  response->addHeader(F("Access-Control-Allow-Headers"), "*");
+  response->addHeader(F("Access-Control-Allow-Origin"), "*");
+  response->addHeader(F("Access-Control-Allow-Origin"), "*");
+  request->send(response);
 }
 
 // broadcasts the name and value to all websocket clients
 void broadcastInt(String name, uint16_t value)
 {
+  /*
   #ifdef HAS_KNOB_CONTROL
   if(webSocketsServer == NULL  || !strip->getWiFiEnabled() || !WiFiConnected)
   #else
@@ -277,11 +262,7 @@ void broadcastInt(String name, uint16_t value)
   {
     return;
   }
-  /*
-  String json = "{\"name\":\"" + name + "\",\"value\":" + String(value) + "}";
-  DEBUGPRNT("Send websocket broadcast with value: " + json);
-  webSocketsServer->broadcastTXT(json);
-  */
+  
   JsonObject& answerObj = jsonBuffer.createObject();
   JsonObject& answer = answerObj.createNestedObject(F("currentState"));
   answer[F("name")] = name;
@@ -299,13 +280,14 @@ void broadcastInt(String name, uint16_t value)
   jsonBuffer.clear();
   DEBUGPRNT("Send websocket broadcast with value: " + json);
   webSocketsServer->broadcastTXT(json);
-
+  */
 }
 
 // broadcasts the name and value to all websocket clients
 // TODO: One function with parameters being overloaded.
 void broadcastString(String name, String value)
 {
+  /*
   #ifdef HAS_KNOB_CONTROL
   if(webSocketsServer == NULL  || !strip->getWiFiEnabled() || !WiFiConnected)
   #else
@@ -314,11 +296,7 @@ void broadcastString(String name, String value)
   {
     return;
   }
-  /*
-  String json = "{\"name\":\"" + name + "\",\"value\":\"" + String(value) + "\"}";
-  DEBUGPRNT("Send websocket broadcast with value: " + json);
-  webSocketsServer->broadcastTXT(json);
-  */
+  
   JsonObject& answerObj = jsonBuffer.createObject();
   JsonObject& answer = answerObj.createNestedObject(F("currentState"));
   answer[F("name")] = name;
@@ -335,6 +313,7 @@ void broadcastString(String name, String value)
   jsonBuffer.clear();
   DEBUGPRNT("Send websocket broadcast with value: " + json);
   webSocketsServer->broadcastTXT(json);
+  */
 }
 
 void checkSegmentChanges(void) {
@@ -730,9 +709,9 @@ void initOverTheAirUpdate(void)
     display.displayOn();
     display.display();
     // we need to delete the websocket server in order to have OTA correctly running.
-    delete webSocketsServer;
+    //delete webSocketsServer;
     // we stop the webserver to not get interrupted....
-    server.stop();
+    server.end();
     // we indicate our sktch that OTA is currently running (should actually not be required)
     OTAisRunning = true;
   });
@@ -966,8 +945,8 @@ void setupWiFi(uint16_t timeout = 240)
   WiFi.setSleepMode(WIFI_NONE_SLEEP);
 
   WiFi.persistent(true);
-
-  WiFiManager wifiManager;
+  DNSServer dns;
+  AsyncWiFiManager wifiManager(&server, &dns);
 
 #ifndef HAS_KNOB_CONTROL
   // 4 Minutes should be sufficient.
@@ -1054,7 +1033,7 @@ uint8_t changebypercentage(uint8_t value, uint8_t percentage)
 }
 
 // if /set was called
-void handleSet(void)
+void handleSet(AsyncWebServerRequest *request)
 {
   // Debug only
   #ifdef DEBUG
@@ -1093,10 +1072,17 @@ void handleSet(void)
   // rnE = Range end Pixel;
   // here we set a new mode if we have the argument mode
 
-  JsonObject& answerObj = jsonBuffer.createObject();
+  AsyncJsonResponse * response = new AsyncJsonResponse();
+  response->addHeader("Access-Control-Allow-Methods", "*");
+  response->addHeader("Access-Control-Allow-Headers", "*");
+  response->addHeader("Access-Control-Allow-Origin", "*");
+
+  JsonObject& answerObj = response->getRoot();
   JsonObject& answer = answerObj.createNestedObject(F("currentState"));
   
-  if (server.hasArg(F("mo")))
+
+  
+  if (request->hasParam(F("mo")))
   {
     // flag to decide if this is an library effect
     bool isWS2812FX = false;
@@ -1104,9 +1090,9 @@ void handleSet(void)
     uint8_t effect = strip->getMode();
 
     DEBUGPRNT("got Argument mo....");
-
+    
     // just switch to the next if we get an "u" for up
-    if (server.arg(F("mo"))[0] == 'u')
+    if (request->getParam(F("mo"))->value().c_str()[0] == 'u')
     {
       DEBUGPRNT("got Argument mode up....");
       //effect = effect + 1;
@@ -1114,7 +1100,7 @@ void handleSet(void)
       effect = strip->nextMode(AUTO_MODE_UP);
     }
     // switch to the previous one if we get a "d" for down
-    else if (server.arg(F("mo"))[0] == 'd')
+    else if (request->getParam(F("mo"))->value().c_str()[0] == 'd')
     {
       DEBUGPRNT("got Argument mode down....");
       //effect = effect - 1;
@@ -1122,7 +1108,7 @@ void handleSet(void)
       effect = strip->nextMode(AUTO_MODE_DOWN);
     }
     // if we get an "o" for off, we switch off
-    else if (server.arg(F("mo"))[0] == 'o')
+    else if (request->getParam(F("mo"))->value().c_str()[0] == 'o')
     {
       DEBUGPRNT("got Argument mode Off....");
       strip->setPower(false);
@@ -1131,7 +1117,7 @@ void handleSet(void)
     }
     // for backward compatibility and FHEM:
     // --> activate fire flicker
-    else if (server.arg(F("mo"))[0] == 'f')
+    else if (request->getParam(F("mo"))->value().c_str()[0] == 'f')
     {
 
       DEBUGPRNT("got Argument fire....");
@@ -1141,7 +1127,7 @@ void handleSet(void)
     }
     // for backward compatibility and FHEM:
     // --> activate rainbow effect
-    else if (server.arg(F("mo"))[0] == 'r')
+    else if (request->getParam(F("mo"))->value().c_str()[0] == 'r')
     {
       DEBUGPRNT("got Argument mode rainbow cycle....");
       effect = FX_MODE_RAINBOW_CYCLE;
@@ -1149,7 +1135,7 @@ void handleSet(void)
     }
     // for backward compatibility and FHEM:
     // --> activate the K.I.T.T. (larson scanner)
-    else if (server.arg(F("mo"))[0] == 'k')
+    else if (request->getParam(F("mo"))->value().c_str()[0] == 'k')
     {
       DEBUGPRNT("got Argument mode KITT....");
       effect = FX_MODE_LARSON_SCANNER;
@@ -1157,7 +1143,7 @@ void handleSet(void)
     }
     // for backward compatibility and FHEM:
     // --> activate Twinkle Fox
-    else if (server.arg(F("mo"))[0] == 's')
+    else if (request->getParam(F("mo"))->value().c_str()[0] == 's')
     {
       DEBUGPRNT("got Argument mode Twinkle Fox....");
       effect = FX_MODE_TWINKLE_FOX;
@@ -1165,7 +1151,7 @@ void handleSet(void)
     }
     // for backward compatibility and FHEM:
     // --> activate Twinkle Fox in white...
-    else if (server.arg(F("mo"))[0] == 'w')
+    else if (request->getParam(F("mo"))->value().c_str()[0] == 'w')
     {
       DEBUGPRNT("got Argument mode White Twinkle....");
       strip->setColor(CRGBPalette16(CRGB::White));
@@ -1173,20 +1159,20 @@ void handleSet(void)
       isWS2812FX = true;
     }
     // sunrise effect
-    else if (server.arg(F("mo")) == F("Sunrise"))
+    else if (request->getParam(F("mo"))->value() == F("Sunrise"))
     {
       DEBUGPRNT("got Argument mode sunrise....");
       // sunrise time in seconds
-      if (server.hasArg(F("sec")))
+      if (request->hasParam(F("sec")))
       {
         DEBUGPRNT("got Argument sec....");
-        strip->setSunriseTime(((uint16_t)strtoul(server.arg(F("sec")).c_str(), NULL, 10)) / 60);
+        strip->setSunriseTime(((uint16_t)strtoul(request->getParam(F("sec"))->value().c_str(), NULL, 10)) / 60);
       }
       // sunrise time in minutes
-      else if (server.hasArg(F("min")))
+      else if (request->hasParam(F("min")))
       {
         DEBUGPRNT("got Argument min....");
-        strip->setSunriseTime(((uint16_t)strtoul(server.arg(F("min")).c_str(), NULL, 10)));
+        strip->setSunriseTime(((uint16_t)strtoul(request->getParam(F("min"))->value().c_str(), NULL, 10)));
       }
       isWS2812FX = true;
       effect = FX_MODE_SUNRISE;
@@ -1199,20 +1185,20 @@ void handleSet(void)
       //sendStatus = true;
     }
     // the same for sunset....
-    else if (server.arg(F("mo")) == F("Sunset"))
+    else if (request->getParam(F("mo"))->value() == F("Sunset"))
     {
       DEBUGPRNT("got Argument mode sunset....");
       // sunrise time in seconds
-      if (server.hasArg(F("sec")))
+      if (request->hasParam(F("sec")))
       {
         DEBUGPRNT("got Argument sec....");
-        strip->setSunriseTime(((uint16_t)strtoul(server.arg(F("sec")).c_str(), NULL, 10)) / 60);
+        strip->setSunriseTime(((uint16_t)strtoul(request->getParam(F("sec"))->value().c_str(), NULL, 10)) / 60);
       }
       // sunrise time in minutes
-      else if (server.hasArg(F("min")))
+      else if (request->hasParam(F("min")))
       {
         DEBUGPRNT("got Argument min....");
-        strip->setSunriseTime( ((uint16_t)strtoul(server.arg(F("min")).c_str(), NULL, 10)));
+        strip->setSunriseTime( ((uint16_t)strtoul(request->getParam(F("min"))->value().c_str(), NULL, 10)));
       }
 
       // answer for the "calling" party
@@ -1232,7 +1218,7 @@ void handleSet(void)
     else
     {
       DEBUGPRNT("got Argument mode and seems to be an Effect....");
-      effect = (uint8_t)strtoul(server.arg(F("mo")).c_str(), NULL, 10);
+      effect = (uint8_t)strtoul(request->getParam(F("mo"))->value().c_str(), NULL, 10);
       isWS2812FX = true;
     }
     // sanity only, actually handled in the library...
@@ -1265,10 +1251,10 @@ void handleSet(void)
     
   }
   // global on/off
-  if (server.hasArg(F("power")))
+  if (request->hasParam(F("power")))
   {
     DEBUGPRNT("got Argument power....");
-    if (server.arg(F("power"))[0] == '0')
+    if (request->getParam(F("power"))->value().c_str()[0] == '0')
     {
       strip->setPower(false);
     }
@@ -1281,10 +1267,10 @@ void handleSet(void)
     answer.set(F("power"), strip->getPower());
   }
 
-  if(server.hasArg(F("isRunning")))
+  if(request->hasParam(F("isRunning")))
   {
     DEBUGPRNT("got Argument \"isRunning\"....");
-    if (server.arg(F("isRunning"))[0] == '0')
+    if (request->getParam(F("isRunning"))->value().c_str()[0]  == '0')
     {
       strip->setIsRunning(false);
     }
@@ -1297,10 +1283,10 @@ void handleSet(void)
   }
 
   // if we got a palette change
-  if (server.hasArg(F("pa")))
+  if (request->hasParam(F("pa")))
   {
     // TODO: Possibility to setColors and new Palettes...
-    uint8_t pal = (uint8_t)strtoul(server.arg(F("pa")).c_str(), NULL, 10);
+    uint8_t pal = (uint8_t)strtoul(request->getParam(F("pa"))->value().c_str(), NULL, 10);
     DEBUGPRNT("New palette with value: " + String(pal));
     strip->setTargetPalette(pal);
     //  sendAnswer(   "\"palette\": " + String(pal) + ", \"palette name\": \"" +
@@ -1312,21 +1298,21 @@ void handleSet(void)
   }
 
   // if we got a new brightness value
-  if (server.hasArg(F("br")))
+  if (request->hasParam(F("br")))
   {
     DEBUGPRNT("got Argument brightness....");
     uint8_t brightness = strip->getBrightness();
-    if (server.arg(F("br"))[0] == 'u')
+    if (request->getParam(F("br"))->value().c_str()[0] == 'u')
     {
       brightness = changebypercentage(brightness, 110);
     }
-    else if (server.arg(F("br"))[0] == 'd')
+    else if (request->getParam(F("br"))->value().c_str()[0] == 'd')
     {
       brightness = changebypercentage(brightness, 90);
     }
     else
     {
-      brightness = constrain((uint8_t)strtoul(server.arg(F("br")).c_str(), NULL, 10), BRIGHTNESS_MIN, BRIGHTNESS_MAX);
+      brightness = constrain((uint8_t)strtoul(request->getParam(F("br"))->value().c_str(), NULL, 10), BRIGHTNESS_MIN, BRIGHTNESS_MAX);
     }
     strip->setBrightness(brightness);
     //sendInt("brightness", brightness);
@@ -1337,20 +1323,20 @@ void handleSet(void)
   // if we got a speed value
   // for backward compatibility.
   // is beat88 value anyway
-  if (server.hasArg(F("sp")))
+  if (request->hasParam(F("sp")))
   {
 #ifdef DEBUG
     DEBUGPRNT("got Argument speed....");
 #endif
     uint16_t speed = strip->getBeat88();
-    if (server.arg(F("sp"))[0] == 'u')
+    if (request->getParam(F("sp"))->value().c_str()[0] == 'u')
     {
       uint16_t ret = max((speed * 115) / 100, 10);
       if (ret > BEAT88_MAX)
         ret = BEAT88_MAX;
       speed = ret;
     }
-    else if (server.arg(F("sp"))[0] == 'd')
+    else if (request->getParam(F("sp"))->value().c_str()[0] == 'd')
     {
       uint16_t ret = max((speed * 80) / 100, 10);
       if (ret > BEAT88_MAX)
@@ -1359,7 +1345,7 @@ void handleSet(void)
     }
     else
     {
-      speed = constrain((uint16_t)strtoul(server.arg(F("sp")).c_str(), NULL, 10), BEAT88_MIN, BEAT88_MAX);
+      speed = constrain((uint16_t)strtoul(request->getParam(F("sp"))->value().c_str(), NULL, 10), BEAT88_MIN, BEAT88_MAX);
     }
     strip->setSpeed(speed);
     strip->show();
@@ -1371,20 +1357,20 @@ void handleSet(void)
   }
 
   // if we got a speed value (as beat88)
-  if (server.hasArg(F("be")))
+  if (request->hasParam(F("be")))
   {
 #ifdef DEBUG
     DEBUGPRNT("got Argument speed (beat)....");
 #endif
     uint16_t speed = strip->getBeat88();
-    if (server.arg(F("be"))[0] == 'u')
+    if (request->getParam(F("be"))->value().c_str()[0] == 'u')
     {
       uint16_t ret = max((speed * 115) / 100, 10);
       if (ret > BEAT88_MAX)
         ret = BEAT88_MAX;
       speed = ret;
     }
-    else if (server.arg(F("be"))[0] == 'd')
+    else if (request->getParam(F("be"))->value().c_str()[0] == 'd')
     {
       uint16_t ret = max((speed * 80) / 100, 10);
       if (ret > BEAT88_MAX)
@@ -1393,7 +1379,7 @@ void handleSet(void)
     }
     else
     {
-      speed = constrain((uint16_t)strtoul(server.arg(F("be")).c_str(), NULL, 10), BEAT88_MIN, BEAT88_MAX);
+      speed = constrain((uint16_t)strtoul(request->getParam(F("be"))->value().c_str(), NULL, 10), BEAT88_MIN, BEAT88_MAX);
     }
     strip->setSpeed(speed);
     strip->show();
@@ -1411,91 +1397,91 @@ void handleSet(void)
   uint32_t color = strip->getColor(0);
   bool setColor = false;
   // we got red
-  if (server.hasArg(F("re")))
+  if (request->hasParam(F("re")))
   {
     setColor = true;
 #ifdef DEBUG
     DEBUGPRNT("got Argument red....");
 #endif
     uint8_t re = Red(color);
-    if (server.arg(F("re"))[0] == 'u')
+    if (request->getParam(F("re"))->value().c_str()[0] == 'u')
     {
       re = changebypercentage(re, 110);
     }
-    else if (server.arg(F("re"))[0] == 'd')
+    else if (request->getParam(F("re"))->value().c_str()[0] == 'd')
     {
       re = changebypercentage(re, 90);
     }
     else
     {
-      re = constrain((uint8_t)strtoul(server.arg(F("re")).c_str(), NULL, 10), 0, 255);
+      re = constrain((uint8_t)strtoul(request->getParam(F("re"))->value().c_str(), NULL, 10), 0, 255);
     }
     color = (color & 0x00ffff) | (re << 16);
   }
   // we got green
-  if (server.hasArg(F("gr")))
+  if (request->hasParam(F("gr")))
   {
     setColor = true;
 #ifdef DEBUG
     DEBUGPRNT("got Argument green....");
 #endif
     uint8_t gr = Green(color);
-    if (server.arg(F("gr"))[0] == 'u')
+    if (request->getParam(F("gr"))->value().c_str()[0] == 'u')
     {
       gr = changebypercentage(gr, 110);
     }
-    else if (server.arg(F("gr"))[0] == 'd')
+    else if (request->getParam(F("gr"))->value().c_str()[0] == 'd')
     {
       gr = changebypercentage(gr, 90);
     }
     else
     {
-      gr = constrain((uint8_t)strtoul(server.arg(F("gr")).c_str(), NULL, 10), 0, 255);
+      gr = constrain((uint8_t)strtoul(request->getParam(F("gr"))->value().c_str(), NULL, 10), 0, 255);
     }
     color = (color & 0xff00ff) | (gr << 8);
   }
   // we got blue
-  if (server.hasArg(F("bl")))
+  if (request->hasParam(F("bl")))
   {
     setColor = true;
 #ifdef DEBUG
     DEBUGPRNT("got Argument blue....");
 #endif
     uint8_t bl = Blue(color);
-    if (server.arg(F("bl"))[0] == 'u')
+    if (request->getParam(F("bl"))->value().c_str()[0] == 'u')
     {
       bl = changebypercentage(bl, 110);
     }
-    else if (server.arg(F("bl"))[0] == 'd')
+    else if (request->getParam(F("bl"))->value().c_str()[0] == 'd')
     {
       bl = changebypercentage(bl, 90);
     }
     else
     {
-      bl = constrain((uint8_t)strtoul(server.arg(F("bl")).c_str(), NULL, 10), 0, 255);
+      bl = constrain((uint8_t)strtoul(request->getParam(F("bl"))->value().c_str(), NULL, 10), 0, 255);
     }
     color = (color & 0xffff00) | (bl << 0);
   }
   // we got a 32bit color value (24 actually)
-  if (server.hasArg(F("co")))
+  if (request->hasParam(F("co")))
   {
     setColor = true;
 #ifdef DEBUG
     DEBUGPRNT("got Argument color....");
 #endif
-    color = constrain((uint32_t)strtoul(server.arg(F("co")).c_str(), NULL, 16), 0, 0xffffff);
+    color = constrain((uint32_t)strtoul(request->getParam(F("co"))->value().c_str(), NULL, 16), 0, 0xffffff);
   }
   // we got one solid color value as r, g, b
-  if (server.hasArg(F("solidColor")))
+  if (request->hasParam(F("solidColor")))
   {
     setColor = true;
 #ifdef DEBUG
     DEBUGPRNT("got Argument solidColor....");
 #endif
     uint8_t r, g, b;
-    r = constrain((uint8_t)strtoul(server.arg(F("r")).c_str(), NULL, 10), 0, 255);
-    g = constrain((uint8_t)strtoul(server.arg(F("g")).c_str(), NULL, 10), 0, 255);
-    b = constrain((uint8_t)strtoul(server.arg(F("b")).c_str(), NULL, 10), 0, 255);
+    r = constrain((uint8_t)strtoul(request->getParam(F("r"))->value().c_str(), NULL, 10), 0, 255);
+    g = constrain((uint8_t)strtoul(request->getParam(F("g"))->value().c_str(), NULL, 10), 0, 255);
+    b = constrain((uint8_t)strtoul(request->getParam(F("b"))->value().c_str(), NULL, 10), 0, 255);
     color = (r << 16) | (g << 8) | (b << 0);
     // CRGB solidColor(color); // obsolete?
 
@@ -1503,13 +1489,13 @@ void handleSet(void)
   }
   // a signle pixel...
   //FIXME: Does not yet work. Lets simplyfy all of this!
-  if (server.hasArg(F("pi")))
+  if (request->hasParam(F("pi")))
   {
 #ifdef DEBUG
     DEBUGPRNT("got Argument pixel....");
 #endif
     //setEffect(FX_NO_FX);
-    uint16_t pixel = constrain((uint16_t)strtoul(server.arg(F("pi")).c_str(), NULL, 10), 0, strip->getStripLength() - 1);
+    uint16_t pixel = constrain((uint16_t)strtoul(request->getParam(F("pi"))->value().c_str(), NULL, 10), 0, strip->getStripLength() - 1);
 
     strip->setMode(FX_MODE_VOID);
     strip->leds[pixel] = CRGB(color);
@@ -1521,13 +1507,13 @@ void handleSet(void)
     answer.set(F("power"), strip->getPower());
   }
   //FIXME: Does not yet work. Lets simplyfy all of this!
-  else if (server.hasArg(F("rnS")) && server.hasArg(F("rnE")))
+  else if (request->hasParam(F("rnS")) && request->hasParam(F("rnE")))
   {
 #ifdef DEBUG
     DEBUGPRNT("got Argument range start / range end....");
 #endif
-    uint16_t start = constrain((uint16_t)strtoul(server.arg(F("rnS")).c_str(), NULL, 10), 0, strip->getStripLength());
-    uint16_t end = constrain((uint16_t)strtoul(server.arg(F("rnE")).c_str(), NULL, 10), start, strip->getStripLength());
+    uint16_t start = constrain((uint16_t)strtoul(request->getParam(F("rnS"))->value().c_str(), NULL, 10), 0, strip->getStripLength());
+    uint16_t end = constrain((uint16_t)strtoul(request->getParam(F("rnE"))->value().c_str(), NULL, 10), start, strip->getStripLength());
 
     strip->setMode(FX_MODE_VOID);
     for (uint16_t i = start; i <= end; i++)
@@ -1541,7 +1527,7 @@ void handleSet(void)
     //sendStatus = true;
     // one color for the complete strip
   }
-  else if (server.hasArg(F("rgb")))
+  else if (request->hasParam(F("rgb")))
   {
 #ifdef DEBUG
     DEBUGPRNT("got Argument rgb....");
@@ -1568,9 +1554,9 @@ void handleSet(void)
   }
 
   // autoplay flag changes
-  if (server.hasArg(F("autoplay")))
+  if (request->hasParam(F("autoplay")))
   {
-    uint16_t value = String(server.arg(F("autoplay"))).toInt();
+    uint16_t value = request->getParam(F("autoplay"))->value().toInt();
     strip->setAutoplay((AUTOPLAYMODES)value);
     //sendInt("Autoplay Mode", value);
     //broadcastInt("autoplay", value);
@@ -1596,9 +1582,9 @@ void handleSet(void)
   }
 
   // autoplay duration changes
-  if (server.hasArg(F("autoplayDuration")))
+  if (request->hasParam(F("autoplayDuration")))
   {
-    uint16_t value = String(server.arg(F("autoplayDuration"))).toInt();
+    uint16_t value = request->getParam(F("autoplayDuration"))->value().toInt();
     strip->setAutoplayDuration(value);
     //sendInt("Autoplay Mode Interval", value);
     //broadcastInt("autoplayDuration", value);
@@ -1607,9 +1593,9 @@ void handleSet(void)
   }
 
   // auto plaette change
-  if (server.hasArg(F("autopal")))
+  if (request->hasParam(F("autopal")))
   {
-    uint16_t value = String(server.arg(F("autopal"))).toInt();
+    uint16_t value = request->getParam(F("autopal"))->value().toInt();
     strip->setAutopal((AUTOPLAYMODES)value);
     //sendInt("Autoplay Palette", value);
     //broadcastInt("autopal", value);
@@ -1634,9 +1620,9 @@ void handleSet(void)
   }
 
   // auto palette change duration changes
-  if (server.hasArg(F("autopalDuration")))
+  if (request->hasParam(F("autopalDuration")))
   {
-    uint16_t value = String(server.arg(F("autopalDuration"))).toInt();
+    uint16_t value = request->getParam(F("autopalDuration"))->value().toInt();
     strip->setAutopalDuration(value);
     //sendInt("Autoplay Palette Interval", value);
     //broadcastInt("autopalDuration", value);
@@ -1644,9 +1630,9 @@ void handleSet(void)
   }
 
   // time for cycling through the basehue value changes
-  if (server.hasArg(F("huetime")))
+  if (request->hasParam(F("huetime")))
   {
-    uint16_t value = String(server.arg(F("huetime"))).toInt();
+    uint16_t value = request->getParam(F("huetime"))->value().toInt();
     //sendInt("Hue change time", value);
     //broadcastInt("huetime", value);
     strip->setHuetime(value);
@@ -1656,9 +1642,9 @@ void handleSet(void)
 #pragma message "We could implement a value to change how a palette is distributed accross the strip"
 
   // the hue offset for a given effect (if - e.g. not spread across the whole strip)
-  if (server.hasArg(F("deltahue")))
+  if (request->hasParam(F("deltahue")))
   {
-    uint16_t value = constrain(String(server.arg(F("deltahue"))).toInt(), 0, 255);
+    uint16_t value = constrain(request->getParam(F("deltahue"))->value().toInt(), 0, 255);
     //sendInt("Delta hue per change", value);
     //broadcastInt("deltahue", value);
     strip->setDeltaHue(value);
@@ -1667,9 +1653,9 @@ void handleSet(void)
   }
 
   // parameter for teh "fire" - flame cooldown
-  if (server.hasArg(F("cooling")))
+  if (request->hasParam(F("cooling")))
   {
-    uint16_t value = String(server.arg(F("cooling"))).toInt();
+    uint16_t value = request->getParam(F("cooling"))->value().toInt();
     //sendInt("Fire Cooling", value);
     //broadcastInt("cooling", value);
     strip->setCooling(value);
@@ -1678,9 +1664,9 @@ void handleSet(void)
   }
 
   // parameter for the sparking - new flames
-  if (server.hasArg(F("sparking")))
+  if (request->hasParam(F("sparking")))
   {
-    uint16_t value = String(server.arg(F("sparking"))).toInt();
+    uint16_t value = request->getParam(F("sparking"))->value().toInt();
     //sendInt("Fire sparking", value);
     //broadcastInt("sparking", value);
     strip->setSparking(value);
@@ -1689,9 +1675,9 @@ void handleSet(void)
   }
 
   // parameter for twinkle fox (speed)
-  if (server.hasArg(F("twinkleSpeed")))
+  if (request->hasParam(F("twinkleSpeed")))
   {
-    uint16_t value = String(server.arg(F("twinkleSpeed"))).toInt();
+    uint16_t value = request->getParam(F("twinkleSpeed"))->value().toInt();
     //sendInt("Twinkle Speed", value);
     //broadcastInt("twinkleSpeed", value);
     strip->setTwinkleSpeed(value);
@@ -1700,9 +1686,9 @@ void handleSet(void)
   }
 
   // parameter for twinkle fox (density)
-  if (server.hasArg(F("twinkleDensity")))
+  if (request->hasParam(F("twinkleDensity")))
   {
-    uint16_t value = String(server.arg(F("twinkleDensity"))).toInt();
+    uint16_t value = request->getParam(F("twinkleDensity"))->value().toInt();
     //sendInt("Twinkle Density", value);
     //broadcastInt("twinkleDensity", value);
     strip->setTwinkleDensity(value);
@@ -1711,9 +1697,9 @@ void handleSet(void)
   }
 
   // parameter for number of bars (beat sine glows etc...)
-  if (server.hasArg(F("numBars")))
+  if (request->hasParam(F("numBars")))
   {
-    uint16_t value = String(server.arg(F("numBars"))).toInt();
+    uint16_t value = request->getParam(F("numBars"))->value().toInt();
     if (value > MAX_NUM_BARS)
       value = max(MAX_NUM_BARS, 1);
     //sendInt("Number of Bars", value);
@@ -1724,9 +1710,9 @@ void handleSet(void)
   }
 
   // parameter to change the palette blend type for cetain effects
-  if (server.hasArg(F("blendType")))
+  if (request->hasParam(F("blendType")))
   {
-    uint16_t value = String(server.arg(F("blendType"))).toInt();
+    uint16_t value = request->getParam(F("blendType"))->value().toInt();
 
     //broadcastInt("blendType", value);
     if (value)
@@ -1745,9 +1731,9 @@ void handleSet(void)
   }
 
   // parameter to change the Color Temperature of the Strip
-  if (server.hasArg(F("ColorTemperature")))
+  if (request->hasParam(F("ColorTemperature")))
   {
-    uint8_t value = String(server.arg(F("ColorTemperature"))).toInt();
+    uint8_t value = request->getParam(F("ColorTemperature"))->value().toInt();
 
     //broadcastInt("ColorTemperature", value);
     //sendString("ColorTemperature", strip->getColorTempName(value));
@@ -1757,9 +1743,9 @@ void handleSet(void)
   }
 
   // parameter to change direction of certain effects..
-  if (server.hasArg(F("reverse")))
+  if (request->hasParam(F("reverse")))
   {
-    uint16_t value = String(server.arg(F("reverse"))).toInt();
+    uint16_t value = request->getParam(F("reverse"))->value().toInt();
     //sendInt("reverse", value);
     //broadcastInt("reverse", value);
     strip->getSegment()->reverse = value;
@@ -1768,9 +1754,9 @@ void handleSet(void)
   }
 
   // parameter to invert colors of all effects..
-  if (server.hasArg(F("inverse")))
+  if (request->hasParam(F("inverse")))
   {
-    uint16_t value = String(server.arg(F("inverse"))).toInt();
+    uint16_t value = request->getParam(F("inverse"))->value().toInt();
     //sendInt("inverse", value);
     //broadcastInt("inverse", value);
     strip->setInverse(value);
@@ -1779,9 +1765,9 @@ void handleSet(void)
   }
 
   // parameter to divide LEDS into two equal halfs...
-  if (server.hasArg(F("mirror")))
+  if (request->hasParam(F("mirror")))
   {
-    uint16_t value = String(server.arg(F("mirror"))).toInt();
+    uint16_t value = request->getParam(F("mirror"))->value().toInt();
     //sendInt("mirror", value);
     //broadcastInt("mirror", value);
     strip->setMirror(value);
@@ -1790,9 +1776,9 @@ void handleSet(void)
   }
 
   // parameter so set the max current the leds will draw
-  if (server.hasArg(F("current")))
+  if (request->hasParam(F("current")))
   {
-    uint16_t value = String(server.arg(F("current"))).toInt();
+    uint16_t value = request->getParam(F("current"))->value().toInt();
     //sendInt("Lamp Max Current", value);
     //broadcastInt("current", value);
     strip->setMilliamps(value);
@@ -1800,9 +1786,9 @@ void handleSet(void)
   }
 
   // parameter for the blur against the previous LED values
-  if (server.hasArg(F("LEDblur")))
+  if (request->hasParam(F("LEDblur")))
   {
-    uint8_t value = String(server.arg(F("LEDblur"))).toInt();
+    uint8_t value = request->getParam(F("LEDblur"))->value().toInt();
     //sendInt("LEDblur", value);
     //broadcastInt("LEDblur", value);
     strip->setBlur(value);
@@ -1811,9 +1797,9 @@ void handleSet(void)
   }
 
   // parameter for the frames per second (FPS)
-  if (server.hasArg(F("fps")))
+  if (request->hasParam(F("fps")))
   {
-    uint8_t value = String(server.arg(F("fps"))).toInt();
+    uint8_t value = request->getParam(F("fps"))->value().toInt();
     //sendInt("fps", value);
     //broadcastInt("fps", value);
     strip->setMaxFPS(value);
@@ -1821,18 +1807,18 @@ void handleSet(void)
     answer[F("max_FPS")] = strip->getMaxFPS();
   }
 
-  if (server.hasArg(F("dithering")))
+  if (request->hasParam(F("dithering")))
   {
-    uint8_t value = String(server.arg(F("dithering"))).toInt();
+    uint8_t value = request->getParam(F("dithering"))->value().toInt();
     //sendInt("dithering", value);
     //broadcastInt("dithering", value);
     strip->setDithering(value);
     answer[F("Dithering")] = strip->getDithering();
   }
 
-  if (server.hasArg(F("sunriseset")))
+  if (request->hasParam(F("sunriseset")))
   {
-    uint8_t value = String(server.arg(F("sunriseset"))).toInt();
+    uint8_t value = request->getParam(F("sunriseset"))->value().toInt();
     //sendInt("sunriseset", value);
     //broadcastInt("sunriseset", value);
     strip->getSegment()->sunrisetime = value;
@@ -1840,9 +1826,9 @@ void handleSet(void)
   }
 
   // reset to default values
-  if (server.hasArg(F("resetdefaults")))
+  if (request->hasParam(F("resetdefaults")))
   {
-    uint8_t value = String(server.arg(F("resetdefaults"))).toInt();
+    uint8_t value = request->getParam(F("resetdefaults"))->value().toInt();
     if (value)
       strip->resetDefaults();
     //sendInt("resetdefaults", 0);
@@ -1851,36 +1837,36 @@ void handleSet(void)
     strip->setTransition();
   }
 
-  if (server.hasArg(F("damping")))
+  if (request->hasParam(F("damping")))
   {
-    uint8_t value = constrain(String(server.arg(F("damping"))).toInt(), 0, 100);
+    uint8_t value = constrain(request->getParam(F("damping"))->value().toInt(), 0, 100);
     //sendInt("damping", value);
     //broadcastInt("damping", value);
     strip->getSegment()->damping = value;
     answer[F("Damping")] = strip->getDamping();
   }
 
-  if (server.hasArg(F("addGlitter")))
+  if (request->hasParam(F("addGlitter")))
   {
-    uint8_t value = constrain(String(server.arg(F("addGlitter"))).toInt(), 0, 100);
+    uint8_t value = constrain(request->getParam(F("addGlitter"))->value().toInt(), 0, 100);
     strip->setAddGlitter(value);
     answer[F("Glitter_Add")] = strip->getAddGlitter();
   }
-  if (server.hasArg(F("WhiteOnly")))
+  if (request->hasParam(F("WhiteOnly")))
   {
-    uint8_t value = constrain(String(server.arg(F("WhiteOnly"))).toInt(), 0, 100);
+    uint8_t value = constrain(request->getParam(F("WhiteOnly"))->value().toInt(), 0, 100);
     strip->setWhiteGlitter(value);
     answer[F("Glitter_White")] = strip->getWhiteGlitter();
   }
-  if (server.hasArg(F("onBlackOnly")))
+  if (request->hasParam(F("onBlackOnly")))
   {
-    uint8_t value = constrain(String(server.arg(F("onBlackOnly"))).toInt(), 0, 100);
+    uint8_t value = constrain(request->getParam(F("onBlackOnly"))->value().toInt(), 0, 100);
     strip->setOnBlackOnly(value);
     answer[F("Glitter_OnBlackOnly")] = strip->getOnBlackOnly();
   }
-  if (server.hasArg(F("glitterChance")))
+  if (request->hasParam(F("glitterChance")))
   {
-    uint8_t value = constrain(String(server.arg(F("glitterChance"))).toInt(), 0, 100);
+    uint8_t value = constrain(request->getParam(F("glitterChance"))->value().toInt(), 0, 100);
     strip->setChanceOfGlitter(value);
     answer[F("Glitter_Chance")] = strip->getChanceOfGlitter();
   }
@@ -1889,9 +1875,9 @@ void handleSet(void)
 #ifdef DEBUG
   // Testing different Resets
   // can then be triggered via web interface (at the very bottom)
-  if (server.hasArg(F("resets")))
+  if (request->hasParam(F("resets")))
   {
-    uint8_t value = String(server.arg("resets"))).toInt();
+    uint8_t value = String(server.arg("resets"))->value().toInt();
     volatile uint8_t d = 1;
     switch (value)
     {
@@ -1923,38 +1909,38 @@ void handleSet(void)
 #endif
 
   // parameter for number of segments
-  if (server.hasArg(F("segments")))
+  if (request->hasParam(F("segments")))
   {
-    uint16_t value = String(server.arg(F("segments"))).toInt();
+    uint16_t value = request->getParam(F("segments"))->value().toInt();
     strip->getSegment()->segments = constrain(value, 1, MAX_NUM_SEGMENTS);
     strip->setTransition();
     answer[F("Segments")] = strip->getSegments();
   }
 
-  if (server.hasArg(F("BckndHue")))
+  if (request->hasParam(F("BckndHue")))
   {
-    uint8_t value = String(server.arg(F("BckndHue"))).toInt();
+    uint8_t value = request->getParam(F("BckndHue"))->value().toInt();
     strip->setBckndHue(value);
     answer[F("BckndHue")] = strip->getBckndHue();
   }
-  if (server.hasArg(F("BckndSat")))
+  if (request->hasParam(F("BckndSat")))
   {
-    uint8_t value = String(server.arg(F("BckndSat"))).toInt();
+    uint8_t value = request->getParam(F("BckndSat"))->value().toInt();
     strip->setBckndSat(value);
     answer[F("BckndSat")] = strip->getBckndSat();
   }
-  if (server.hasArg(F("BckndBri")))
+  if (request->hasParam(F("BckndBri")))
   {
-    uint8_t value = String(server.arg(F("BckndBri"))).toInt();
+    uint8_t value = request->getParam(F("BckndBri"))->value().toInt();
     strip->setBckndBri(value);
     answer[F("BckndBri")] = strip->getBckndBri();
   }
 
 
   #ifdef HAS_KNOB_CONTROL
-  if (server.hasArg(F("wifiEnabled")))
+  if (request->hasParam(F("wifiEnabled")))
   {
-    uint16_t value = String(server.arg(F("wifiEnabled"))).toInt();
+    uint16_t value = request->getParam(F("wifiEnabled"))->value().toInt();
     if(value)
       strip->setWiFiEnabled(true);
     else
@@ -1964,28 +1950,14 @@ void handleSet(void)
   }
   #endif
 
-  // new parameters, it's time to save
-  //shouldSaveRuntime = true;
-  /*
-  if (sendStatus)
-  {
-    handleStatus();
-  }
-  */
-  /// strip->setTransition();  <-- this is not wise as it removes the smooth fading for colors. So we need to set it case by case
-  String json = "";
-  json.reserve(answerObj.measureLength());
-  answerObj.printTo(json);
-  server.sendHeader("Access-Control-Allow-Methods", "*");
-  server.sendHeader("Access-Control-Allow-Headers", "*");
-  server.sendHeader("Access-Control-Allow-Origin", "*");
-  server.send(200, "application/json", json);
-  jsonBuffer.clear();
+  response->setLength();
+  request->send(response);
 }
 
 // if something unknown was called...
-void handleNotFound(void)
+void handleNotFound(AsyncWebServerRequest * request)
 {
+  /*
   String message = F("File Not Found\n\n");
   message += F("URI: ");
   message += server.uri();
@@ -1999,14 +1971,21 @@ void handleNotFound(void)
     message += " " + server.argName(i) + ": " + server.arg(i) + "\n";
   }
   server.send(404, F("text/plain"), message);
+  */
+  AsyncWebServerResponse *response = request->beginResponse(404); //Sends 404 File Not Found
+  response->addHeader("Server",LED_NAME);
+  request->send(response);
 }
 
-void handleGetModes(void)
+void handleGetModes(AsyncWebServerRequest *request)
 {
-  //const size_t bufferSize = JSON_OBJECT_SIZE(1) + JSON_OBJECT_SIZE(2) + JSON_OBJECT_SIZE(56) + 1070;
-  //DynamicJsonBuffer jsonBuffer(bufferSize);
 
-  JsonObject &root = jsonBuffer.createObject();
+  AsyncJsonResponse * response = new AsyncJsonResponse();
+  response->addHeader("Access-Control-Allow-Methods", "*");
+  response->addHeader("Access-Control-Allow-Headers", "*");
+  response->addHeader("Access-Control-Allow-Origin", "*");
+
+  JsonObject &root = response->getRoot();
 
   JsonObject &modeinfo = root.createNestedObject(F("modeinfo"));
   modeinfo[F("count")] = strip->getModeCount();
@@ -2016,27 +1995,18 @@ void handleGetModes(void)
   {
     modeinfo_modes[strip->getModeName(i)] = i;
   }
-  String message = "";
-#ifdef DEBUG
-  message.reserve(root.measurePrettyLength());
-  root.prettyPrintTo(message);
-#else
-  message.reserve(root.measureLength());
-  root.printTo(message);
-#endif
-  DEBUGPRNT(message);
-  server.sendHeader("Access-Control-Allow-Methods", "*");
-  server.sendHeader("Access-Control-Allow-Headers", "*");
-  server.sendHeader("Access-Control-Allow-Origin", "*");
-  server.send(200, "application/json", message);
+  response->setLength();
+  request->send(response);
 }
 
-void handleGetPals(void)
+void handleGetPals(AsyncWebServerRequest *request)
 {
-  const size_t bufferSize = JSON_OBJECT_SIZE(1) + JSON_OBJECT_SIZE(2) + JSON_OBJECT_SIZE(56) + 1070;
-  DynamicJsonBuffer jsonBuffer(bufferSize);
+  AsyncJsonResponse * response = new AsyncJsonResponse();
+  response->addHeader("Access-Control-Allow-Methods", "*");
+  response->addHeader("Access-Control-Allow-Headers", "*");
+  response->addHeader("Access-Control-Allow-Origin", "*");
 
-  JsonObject &root = jsonBuffer.createObject();
+  JsonObject &root = response->getRoot();
 
   JsonObject &modeinfo = root.createNestedObject(F("palinfo"));
   modeinfo[F("count")] = strip->getPalCount();
@@ -2046,25 +2016,18 @@ void handleGetPals(void)
   {
     modeinfo_modes[strip->getPalName(i)] = i;
   }
-String message = "";
-#ifdef DEBUG
-  message.reserve(root.measurePrettyLength());
-  root.prettyPrintTo(message);
-#else
-  message.reserve(root.measureLength());
-  root.printTo(message);
-#endif
-  DEBUGPRNT(message);
-  server.sendHeader("Access-Control-Allow-Methods", "*");
-  server.sendHeader("Access-Control-Allow-Headers", "*");
-  server.sendHeader("Access-Control-Allow-Origin", "*");
-  server.send(200, "application/json", message);
+  response->setLength();
+  request->send(response);
 }
 
-void handleStatus(void)
+void handleStatus(AsyncWebServerRequest *request)
 {
-  
-  JsonObject& answerObj = jsonBuffer.createObject();
+  AsyncJsonResponse * response = new AsyncJsonResponse();
+  response->addHeader("Access-Control-Allow-Methods", "*");
+  response->addHeader("Access-Control-Allow-Headers", "*");
+  response->addHeader("Access-Control-Allow-Origin", "*");
+
+  JsonObject &answerObj = response->getRoot();
   JsonObject& currentStateAnswer = answerObj.createNestedObject(F("currentState"));
   JsonObject& sunriseAnswer = answerObj.createNestedObject(F("sunRiseState"));
   JsonObject& statsAnswer = answerObj.createNestedObject(F("Stats"));
@@ -2272,20 +2235,8 @@ void handleStatus(void)
   debugAnswer[F("AnswerTime_ms")] = (float)((float)(answer_time)/1000.0);
   #endif
   statsAnswer[F("FPS")] = FastLED.getFPS();
-  String message;
-#ifdef DEBUG
-  message.reserve(answerObj.measurePrettyLength());
-  answerObj.prettyPrintTo(message);
-#else
-  message.reserve(answerObj.measureLength());
-  answerObj.printTo(message);
-#endif
-  DEBUGPRNT(message);
-  server.sendHeader("Access-Control-Allow-Methods", "*");
-  server.sendHeader("Access-Control-Allow-Headers", "*");
-  server.sendHeader("Access-Control-Allow-Origin", "*");
-  server.send(200, "application/json", message);
-  jsonBuffer.clear();
+  response->setLength();
+  request->send(response);
 }
 
 void factoryReset(void)
@@ -2300,7 +2251,8 @@ void factoryReset(void)
     delay(2);
   }
   strip->show();
-  WiFiManager wifimgr;
+  DNSServer dns;
+  AsyncWiFiManager wifimgr(&server, &dns);
   delay(INITDELAY);
   DEBUGPRNT("Reset WiFi Settings");
   wifimgr.resetSettings();
@@ -2354,21 +2306,21 @@ void clearEEPROM(void)
 
 // Received Factoryreset request.
 // To be sure we check the related parameter....
-void handleResetRequest(void)
+void handleResetRequest(AsyncWebServerRequest * request)
 {
-  if (server.arg(F("rst")) == F("FactoryReset"))
+  if (request->getParam(F("rst"))->value() == F("FactoryReset"))
   {
-    server.send(200, F("text/plain"), F("Will now Reset to factory settings. You need to connect to the WLAN AP afterwards...."));
+    request->send(200, F("text/plain"), F("Will now Reset to factory settings. You need to connect to the WLAN AP afterwards...."));
     factoryReset();
   }
-  else if (server.arg(F("rst")) == F("Defaults"))
+  else if (request->getParam(F("rst"))->value() == F("Defaults"))
   {
 
     strip->setTargetPalette(0);
     strip->setMode(0);
     strip->stop();
     strip->resetDefaults();
-    server.send(200, F("text/plain"), F("Strip was reset to the default values..."));
+    request->send(200, F("text/plain"), F("Strip was reset to the default values..."));
     shouldSaveRuntime = true;
   }
 }
@@ -2391,123 +2343,89 @@ void setupWebServer(void)
 #endif
   }
 
-  server.on(F("/all"), HTTP_GET, []() {
+  server.on("/all", HTTP_GET, [](AsyncWebServerRequest *request) {
 #ifdef DEBUG
     DEBUGPRNT("Called /all!");
 #endif
-    server.sendHeader(F("Access-Control-Allow-Methods"), "*");
-    server.sendHeader(F("Access-Control-Allow-Headers"), "*");
-    server.sendHeader(F("Access-Control-Allow-Origin"), "*");
-    server.send(200, F("text/json"), getFieldsJson(fields, fieldCount));
-    
-/* does not work even if the JSON output is simliar / equal
- * Don't know why yet, so we go with the old for now :-(
- * 
-    JsonArray& root = jsonBuffer.createArray();
-    for(uint16_t i=0; i< fieldCount; i++)
+//    request->send(200, F("text/json"), getFieldsJson(fields, fieldCount));
+    AsyncResponseStream *response = request->beginResponseStream("text/json");
+    response->print("[");
+
+    for (uint8_t i = 0; i < fieldCount; i++)
     {
       Field field = fields[i];
-      JsonObject& obj = root.createNestedObject();
-      obj[F("name")] = field.name;
-      obj[F("label")] = field.label;
-      obj[F("type")] = field.type;
 
+      response->print("{\"name\":\"" + field.name + "\",\"label\":\"" + field.label + "\",\"type\":\"" + field.type + "\"");
       if (field.getValue)
       {
-        if(field.type == "Color" || field.type == "String")
+        if (field.type == "Color" || field.type == "String")
         {
-          obj[F("value")] = field.getValue();
+          response->print(",\"value\":\"" + field.getValue() + "\"");
         }
         else
         {
-          obj[F("value")] = field.getValue().toInt();
+          response->print(",\"value\":" + field.getValue());
         }
       }
 
       if (field.type == "Number")
       {
-        obj[F("min")] = field.min;
-        obj[F("max")] = field.max;
+        response->print(",\"min\":" + String(field.min));
+        response->print(",\"max\":" + String(field.max));
       }
 
       if (field.getOptions)
       {
-        JsonArray& arr = jsonBuffer.parseArray("[" + field.getOptions() + "]");
-        obj[F("options")] = obj.createNestedArray(F("options"));
-        obj[F("options")] = arr;
-
+        response->print(",\"options\":[");
+        response->print(field.getOptions());
+        response->print("]");
       }
-    }
-    server.sendHeader(F("Access-Control-Allow-Methods"), "*");
-    server.sendHeader(F("Access-Control-Allow-Headers"), "*");
-    server.sendHeader(F("Access-Control-Allow-Origin"), "*");
-    server.setContentLength(root.measureLength());
-    server.send(200, F("application/json"), "");
 
-    WiFiClientPrint<> p(server.client());
-    root.printTo(p);
-    p.stop(); // Calls p.flush() and WifiClient.stop()
-    jsonBuffer.clear();
-   */ 
+      response->print("}");
+
+      if (i < fieldCount - 1)
+        response->print(",");
+      }
+      response->println("]");
+      request->send(response);
+
   });
 
-  server.on(F("/fieldValue"), HTTP_GET, []() {
-    String name = server.arg(F("name"));
+  server.on("/fieldValue", HTTP_GET, [](AsyncWebServerRequest *request) {
+    String name = request->getParam(F("name"))->value();
 #ifdef DEBUG
     DEBUGPRNT("Called /fieldValue with arg name =");
     DEBUGPRNT(name);
 #endif
-
-    server.sendHeader(F("Access-Control-Allow-Methods"), "*");
-    server.sendHeader(F("Access-Control-Allow-Headers"), "*");
-    server.sendHeader(F("Access-Control-Allow-Origin"), "*");
-    server.send(200, F("text/plain"), getFieldValue(name, fields, fieldCount));
+    request->send(200, F("text/plain"), getFieldValue(name, fields, fieldCount));
   });
 
-  /*
-  //list directory
-  server.on("/list", HTTP_GET, handleFileList);
-  //load editor
-  server.on("/edit", HTTP_GET, []() {
-    if (!handleFileRead("/edit.htm"))
-      server.send(404, "text/plain", "FileNotFound");
-  });
-  */
+  
   // keepAlive
-  server.on(F("/ping"), HTTP_GET, []() {
-    server.send(200, F("text/plain"), F("OK"));
+  server.on("/ping", HTTP_GET, [](AsyncWebServerRequest *request) {
+    request->send(200, F("text/plain"), F("OK"));
   });
 
-  /*
-  //create file
-  server.on("/edit", HTTP_PUT, handleFileCreate);
-  //delete file
-  server.on("/edit", HTTP_DELETE, handleFileDelete);
-  //first callback is called after the request has ended with all parsed arguments
-  //second callback handles file uploads at that location
-  server.on("/edit", HTTP_POST, []() {
-    server.send(200, "text/plain", "");
-  },
-            handleFileUpload);
-  */
-  server.on(F("/set"), handleSet);
-  server.on(F("/getmodes"), handleGetModes);
-  server.on(F("/getpals"), handleGetPals);
-  server.on(F("/status"), handleStatus);
-  server.on(F("/reset"), handleResetRequest);
+  server.on("/set", handleSet);
+  server.on("/getmodes", handleGetModes);
+  server.on("/getpals", handleGetPals);
+  server.on("/status", handleStatus);
+  server.on("/reset", handleResetRequest);
   server.onNotFound(handleNotFound);
 
-  server.on("/", HTTP_OPTIONS, []() {
-    server.sendHeader(F("Access-Control-Max-Age"), "10000");
-    server.sendHeader(F("Access-Control-Allow-Methods"), "*");
-    server.sendHeader(F("Access-Control-Allow-Headers"), "*");
-    server.sendHeader(F("Access-Control-Allow-Origin"), "*");
-    server.send(200,  F("text/plain"), "" );
+  server.on("/", HTTP_OPTIONS, [](AsyncWebServerRequest *request) {
+    request->send(200,  F("text/plain"), "" );
   });
 
 
-  server.serveStatic("/", LittleFS, "/", "max-age=86400");
+  server.serveStatic("/", LittleFS, "/").setCacheControl("max-age=86400");
   delay(INITDELAY);
+
+  DefaultHeaders::Instance().addHeader("Access-Control-Allow-Methods", "*");
+  DefaultHeaders::Instance().addHeader("Access-Control-Allow-Headers", "*");
+  DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
+  DefaultHeaders::Instance().addHeader("Access-Control-Max-Age", "10000");
+
   server.begin();
 
   showInitColor(CRGB::Yellow);
@@ -2515,10 +2433,11 @@ void setupWebServer(void)
 #ifdef DEBUG
   DEBUGPRNT("HTTP server started.\n");
 #endif
+  /*
   if(webSocketsServer == NULL) webSocketsServer = new WebSocketsServer(81);
   webSocketsServer->begin();
   webSocketsServer->onEvent(webSocketEvent);
-
+  */
   if (!MDNS.begin(LED_NAME)) {
     DEBUGPRNT("Error setting up MDNS responder!");
     //ESP.restart();
@@ -2539,9 +2458,10 @@ void setupWebServer(void)
 }
 
 
-
+/*
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
 {
+  
   #ifdef HAS_KNOB_CONTROL
   if(webSocketsServer == NULL || !strip->getWiFiEnabled() || !WiFiConnected) return;
   #else
@@ -2609,8 +2529,9 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
     webSocketsServer->sendTXT(num, "Don't know what you sent.");
     #endif
   }
+  
 }
-
+*/
 #ifdef HAS_KNOB_CONTROL
 
 uint16_t maxVal = 65535;
@@ -3629,7 +3550,7 @@ void loop()
     }
     else
     {
-      delete webSocketsServer;
+      //delete webSocketsServer;
       delay(INITDELAY);
       WiFi.mode(WIFI_OFF);
     }
@@ -3677,10 +3598,10 @@ void loop()
   {
     ArduinoOTA.handle(); // check and handle OTA updates of the code....
     
-    if(webSocketsServer != NULL)
-      webSocketsServer->loop();
+    //if(webSocketsServer != NULL)
+    //  webSocketsServer->loop();
 
-    server.handleClient();
+    
 
     MDNS.update();
   }
