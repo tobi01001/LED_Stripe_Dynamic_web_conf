@@ -173,7 +173,6 @@ const TProgmemRGBPalette16 Shades_Of_Blue_p FL_PROGMEM = {
 // Not much to be initialized...
 void WS2812FX::init()
 {
-  DEBUGPRNT("Initialising existing values...");
   //RESET_RUNTIME;            // this should be the only occurrence of RESET_RUNTIME now...
   fill_solid(_bleds, LED_COUNT, CRGB::Black);
   fill_solid(leds, LED_COUNT, CRGB::Black);
@@ -243,7 +242,6 @@ void WS2812FX::init()
 
 void WS2812FX::resetDefaults(void)
 {
-  DEBUGPRNT("Resetting to Default values");
   
 
   _segment_runtime.start = 0;
@@ -898,29 +896,8 @@ uint8_t WS2812FX::getColorTemp(void)
     return 7;
   case ClearBlueSky:
     return 8;
-  case WarmFluorescent:
-    return 9;
-  case StandardFluorescent:
-    return 10;
-  case CoolWhiteFluorescent:
-    return 11;
-  case FullSpectrumFluorescent:
-    return 12;
-  case GrowLightFluorescent:
-    return 13;
-  case BlackLightFluorescent:
-    return 14;
-  case MercuryVapor:
-    return 15;
-  case SodiumVapor:
-    return 16;
-  case MetalHalide:
-    return 17;
-  case HighPressureSodium:
-    return 18;
-
   default:
-    return 19;
+    return 9;
     break;
   }
 }
@@ -939,16 +916,6 @@ const __FlashStringHelper * WS2812FX::getColorTempName(uint8_t index)
       F("DirectSunlight"),
       F("OvercastSky"),
       F("ClearBlueSky"),
-      F("WarmFluorescent"),
-      F("StandardFluorescent"),
-      F("CoolWhiteFluorescent"),
-      F("FullSpectrumFluorescent"),
-      F("GrowLightFluorescent"),
-      F("BlackLightFluorescent"),
-      F("MercuryVapor"),
-      F("SodiumVapor"),
-      F("MetalHalide"),
-      F("HighPressureSodium"),
       F("UncorrectedTemperature")};
   return names[index];
 }

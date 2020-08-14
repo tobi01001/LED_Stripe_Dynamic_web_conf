@@ -52,9 +52,6 @@
 #include <ESPAsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include <AsyncJson.h>
-//#include <ESP8266WebServer.h>
-//#include <WebSocketsServer.h>
-//#include <WiFiManager.h>
 #include <ESPAsyncWiFiManager.h>
 #include <ArduinoOTA.h>
 #include <EEPROM.h>
@@ -71,8 +68,6 @@
 #define FASTLED_ESP8266_DMA
 #define FASTLED_USE_PROGMEM 1
 
-#include "debug_help.h"
-
 #include "defaults.h"
 
 extern "C"
@@ -87,29 +82,29 @@ extern "C"
 
 Encoder myEnc(KNOB_C_PNA, KNOB_C_PNB);
 
-//SSD1306Brzo display(KNOB_C_I2C, KNOB_C_SDA, KNOB_C_SCL);
-SSD1306Brzo display(0x3c, 4, 5);
+SSD1306Brzo display(KNOB_C_I2C, KNOB_C_SDA, KNOB_C_SCL);
+//SSD1306Brzo display(0x3c, 4, 5);
 #endif
 
 #ifdef DEBUG
-const String build_version = (String(BUILD_VERSION) + String("DEBUG ") + String(__TIMESTAMP__);
+  const char * build_version PROGMEM = BUILD_VERSION " DEBUG " __TIMESTAMP__;
 #else
-#ifdef HAS_KNOB_CONTROL
-const String build_version = (String(BUILD_VERSION) + String("_") + String(PIO_SRC_BRANCH) + String("_KNOB")); // + String(__TIMESTAMP__);
-#else
-const String build_version = (String(BUILD_VERSION) + String("_") + String(PIO_SRC_BRANCH)); // + String(__TIMESTAMP__);
+  #ifdef HAS_KNOB_CONTROL
+    const char * build_version PROGMEM = BUILD_VERSION "_" PIO_SRC_BRANCH "_KNOB"; 
+  #else
+    const char * build_version PROGMEM = BUILD_VERSION "_" PIO_SRC_BRANCH;
+  #endif
 #endif
-#endif
-const String git_revision  = BUILD_GITREV;
+const char * git_revision PROGMEM = BUILD_GITREV;
 
 /* Definitions for network usage */
 /* maybe move all wifi stuff to separate files.... */
 
 AsyncWebServer server(80);
 
-//WebSocketsServer *webSocketsServer = NULL; // webSocketsServer = WebSocketsServer(81);
+const char * AP_SSID PROGMEM = "Test"; // String(String (LED_NAME) + String("-") + String(ESP.getChipId())).c_str();
 
-const String AP_SSID = LED_NAME + String("-") + String(ESP.getChipId());
+//WebSocketsServer *webSocketsServer = NULL; // webSocketsServer = WebSocketsServer(81);
 
 IPAddress myIP;
 
@@ -123,9 +118,6 @@ uint16_t wifi_disconnect_counter = 0;
 bool shouldSaveRuntime = false;
 
 WS2812FX::segment seg;
-
-DynamicJsonBuffer jsonBuffer(20000);
-//StaticJsonBuffer<11000> jsonBuffer;
 
 // #include "FSBrowser.h" // may no longer need this... 
 
@@ -141,17 +133,13 @@ void saveEEPROMData(void),
     handleResetRequest(AsyncWebServerRequest *request),
     setupWebServer(void),
     showInitColor(CRGB Color),
-    sendInt(String name, uint16_t value),
-    sendString(String name, String value),
-    sendAnswer(String jsonAnswer),
-    broadcastInt(String name, uint16_t value),
-    broadcastString(String name, String value),
+    sendInt(const char * name, uint16_t value),
+    sendString(const char * name, const char * value),
+    broadcastInt(const __FlashStringHelper* name, uint16_t value),
 //  webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length),
     checkSegmentChanges(void),
+    updateConfigFile(void),
     clearEEPROM(void);
-
-const String
-    pals_setup(void);
 
 uint32
     getResetReason(void);
@@ -176,17 +164,17 @@ void set_fieldTypes(fieldtypes *m_fieldtypes) {
   for(uint8_t i=0; i<fieldCount; i++)
   {
     m_fieldtypes[i] = InvalidFieldType;
-    if(fields[i].type == F("Title"))
+    if(fields[i].type == (const char *)("Title"))
       m_fieldtypes[i] = TitleFieldType;
-    if(fields[i].type == F("Number"))
+    if(fields[i].type == (const char *)("Number"))
       m_fieldtypes[i] = NumberFieldType;
-    if(fields[i].type == F("Boolean"))
+    if(fields[i].type == (const char *)("Boolean"))
       m_fieldtypes[i] = BooleanFieldType;
-    if(fields[i].type == F("Select"))
+    if(fields[i].type == (const char *)("Select"))
       m_fieldtypes[i] = SelectFieldType;
-    if(fields[i].type == F("Color"))
+    if(fields[i].type == (const char *)("Color"))
       m_fieldtypes[i] = ColorFieldType;
-    if(fields[i].type == F("Section"))
+    if(fields[i].type == (const char *)("Section"))
       m_fieldtypes[i] = SectionFieldType;
   }
 }
@@ -195,7 +183,7 @@ void set_fieldTypes(fieldtypes *m_fieldtypes) {
 
 // used to send an answer as INT to the calling http request
 // TODO: Use one answer function with parameters being overloaded
-void sendInt(String name, uint16_t value, AsyncWebServerRequest *request)
+void sendInt(const char* name, uint16_t value, AsyncWebServerRequest *request)
 {
   #ifdef HAS_KNOB_CONTROL
   if(!strip->getWiFiEnabled() || !WiFiConnected) return;
@@ -216,7 +204,7 @@ void sendInt(String name, uint16_t value, AsyncWebServerRequest *request)
 
 // used to send an answer as String to the calling http request
 // TODO: Use one answer function with parameters being overloaded
-void sendString(String name, String value, AsyncWebServerRequest *request)
+void sendString(const char* name, const char* value, AsyncWebServerRequest *request)
 {
   #ifdef HAS_KNOB_CONTROL
   if(!strip->getWiFiEnabled() || !WiFiConnected) return;
@@ -234,24 +222,8 @@ void sendString(String name, String value, AsyncWebServerRequest *request)
   request->send(response);
 }
 
-// used to send an answer as JSONString to the calling http request
-// send answer can embed a complete json string instead of a single name / value pair.
-void sendAnswer(String jsonAnswer, AsyncWebServerRequest *request)
-{
-  #ifdef HAS_KNOB_CONTROL
-  if(!strip->getWiFiEnabled() || !WiFiConnected) return;
-  #endif
-  String answer = "{ \"returnState\": { " + jsonAnswer + "} }";
-  AsyncWebServerResponse *response = request->beginResponse(200, "application/json", answer);
-  response->addHeader(F("Access-Control-Allow-Methods"), "*");
-  response->addHeader(F("Access-Control-Allow-Headers"), "*");
-  response->addHeader(F("Access-Control-Allow-Origin"), "*");
-  response->addHeader(F("Access-Control-Allow-Origin"), "*");
-  request->send(response);
-}
-
 // broadcasts the name and value to all websocket clients
-void broadcastInt(String name, uint16_t value)
+void broadcastInt(const __FlashStringHelper* name, uint16_t value)
 {
   /*
   #ifdef HAS_KNOB_CONTROL
@@ -278,40 +250,6 @@ void broadcastInt(String name, uint16_t value)
     answer.printTo(json);
   #endif
   jsonBuffer.clear();
-  DEBUGPRNT("Send websocket broadcast with value: " + json);
-  webSocketsServer->broadcastTXT(json);
-  */
-}
-
-// broadcasts the name and value to all websocket clients
-// TODO: One function with parameters being overloaded.
-void broadcastString(String name, String value)
-{
-  /*
-  #ifdef HAS_KNOB_CONTROL
-  if(webSocketsServer == NULL  || !strip->getWiFiEnabled() || !WiFiConnected)
-  #else
-  if(webSocketsServer == NULL)
-  #endif
-  {
-    return;
-  }
-  
-  JsonObject& answerObj = jsonBuffer.createObject();
-  JsonObject& answer = answerObj.createNestedObject(F("currentState"));
-  answer[F("name")] = name;
-  answer[F("value")] = value;
-  String json;
-  
-  #ifdef DEBUG
-    json.reserve(answer.measurePrettyLength());
-    answer.prettyPrintTo(json);
-  #else
-    json.reserve(answer.measureLength());
-    answer.printTo(json);
-  #endif
-  jsonBuffer.clear();
-  DEBUGPRNT("Send websocket broadcast with value: " + json);
   webSocketsServer->broadcastTXT(json);
   */
 }
@@ -546,51 +484,6 @@ void checkSegmentChanges(void) {
     shouldSaveRuntime = true;
   }
   #endif
-
-  #ifdef DEBUG  
-    if(save != shouldSaveRuntime)
-    {
-      DEBUGPRNT("changes detected by checkSegmentChanges. EEPROM save at the next possibility...");
-    }
-  #endif
-}
-
-void print_segment(WS2812FX::segment * s) {
-  DEBUGPRNT("\nPrinting segment content");
-  #ifdef DEBUG
-  Serial.println("\t\tCRC:\t\t\t" + String(s->CRC));
-  Serial.println("\t\tPower:\t\t\t" + String(s->power));
-  Serial.println("\t\tisRunning:\t\t" + String(s->isRunning));
-  Serial.println("\t\tReverse:\t\t" + String(s->reverse));
-  Serial.println("\t\tInverse:\t\t" + String(s->inverse));
-  Serial.println("\t\tMirror:\t\t\t" + String(s->mirror));
-  Serial.println("\t\tAutoplay:\t\t" + String(s->autoplay));  
-  Serial.println("\t\tAutopal:\t\t" + String(s->autoPal));
-  Serial.println("\t\tbeat88:\t\t\t" + String(s->beat88));
-  Serial.println("\t\thueTime:\t\t" + String(s->hueTime));
-  Serial.println("\t\tmilliamps:\t\t" + String(s->milliamps));
-  Serial.println("\t\tautoplayduration:\t" + String(s->autoplayDuration));
-  Serial.println("\t\tautopalduration:\t" + String(s->autoPalDuration));
-  Serial.println("\t\tsegements:\t\t" + String(s->segments));
-  Serial.println("\t\tcooling:\t\t" + String(s->cooling));
-  Serial.println("\t\tsparking:\t\t" + String(s->sparking));
-  Serial.println("\t\ttwinkleSpeed:\t\t" + String(s->twinkleSpeed));
-  Serial.println("\t\ttwinkleDensity:\t\t" + String(s->twinkleDensity));
-  Serial.println("\t\tnumBars:\t\t" + String(s->numBars));
-  Serial.println("\t\tmode:\t\t\t" + String(s->mode));
-  Serial.println("\t\tfps:\t\t\t" + String(s->fps));
-  Serial.println("\t\tdeltaHue:\t\t" + String(s->deltaHue));
-  Serial.println("\t\tblur:\t\t\t" + String(s->blur));
-  Serial.println("\t\tdamping:\t\t" + String(s->damping));
-  Serial.println("\t\tdithering:\t\t" + String(s->dithering));
-  Serial.println("\t\tsunrisetime:\t\t" + String(s->sunrisetime));
-  Serial.println("\t\ttargetBrightness:\t" + String(s->targetBrightness));
-  Serial.println("\t\ttargetPaletteNum:\t" + String(s->targetPaletteNum));
-  Serial.println("\t\tcurrentPaletteNum:\t" + String(s->currentPaletteNum));
-  Serial.println("\t\tblendType:\t\t" + String(s->blendType));
-  Serial.println("\t\tcolorTemp:\t\t" + String(s->colorTemp));
-  Serial.println("\n\t\tDONE\n");
-  #endif
 }
 
 // write runtime data to EEPROM (when required by "shouldSave Runtime")
@@ -599,34 +492,17 @@ void saveEEPROMData(void)
   if (!shouldSaveRuntime)
     return;
   shouldSaveRuntime = false;
-  DEBUGPRNT("Going to store runtime on EEPROM...");
-  // we will store the complete segment data
-  
-  //now in "checkSegment"
-  //WS2812FX::segment seg = *strip->getSegment();
-
-  //DEBUGPRNT("WS2812 segment:");
-  //print_segment(strip->getSegment());
-  //DEBUGPRNT("copied segment:");
-  //print_segment(&seg);
-
 
   seg.CRC = (uint16_t)WS2812FX::calc_CRC16(0x5a5a,(unsigned char *)&seg + 2, sizeof(seg) - 2);
 
   strip->setCRC(seg.CRC);
 
-  DEBUGPRNT("\tSegment size: " + String(strip->getSegmentSize())+ "\tCRC size: " + String(strip->getCRCsize()));
-  DEBUGPRNT("\tCRC calculated " + String(seg.CRC) + "\tCRC stored " + String(strip->getCRC()));
 
-  //DEBUGPRNT("WS2812 segment with new CRC:");
-  //print_segment(strip->getSegment());
 
   // write the data to the EEPROM
   EEPROM.put(0, seg);
   // as we work on ESP, we also need to commit the written data.
   EEPROM.commit();
-
-  DEBUGPRNT("EEPROM write finished...");
 }
 
 
@@ -635,7 +511,6 @@ void saveEEPROMData(void)
 // otherwise this may terribly fail and could override what was read already
 void readRuntimeDataEEPROM(void)
 {
-  DEBUGPRNT("\tReading Config From EEPROM...");
   // copy segment...
   
   // now separate global....
@@ -644,27 +519,18 @@ void readRuntimeDataEEPROM(void)
   //read the configuration from EEPROM into RAM
   EEPROM.get(0, seg);
 
-  DEBUGPRNT("Segment after Reading:");
-  print_segment(&seg);
-
   // calculate the CRC over the data being stored in the EEPROM (except the CRC itself)
   uint16_t mCRC = (uint16_t)WS2812FX::calc_CRC16(0x5a5a, (unsigned char *)&seg + 2, sizeof(seg) - 2);
 
   
-  DEBUGPRNT("\tCRC calculated " + String(mCRC) + "\tCRC stored " + String(seg.CRC));
-  
   // we have a matching CRC, so we update the runtime data.
   if (seg.CRC == mCRC)
   {
-    DEBUGPRNT("\tWe got a CRC match!...");
-    
     (*strip->getSegment()) = seg;
     strip->init();
   }
   else // load defaults
   {
-    DEBUGPRNT("\tWe got NO NO NO CRC match!!!");
-    DEBUGPRNT("Loading default Data...");
     strip->resetDefaults();
   }
 
@@ -686,7 +552,6 @@ bool OTAisRunning = false;
 void initOverTheAirUpdate(void)
 {
   #ifdef HAS_KNOB_CONTROL
-  DEBUGPRNT("Initializing OTA capabilities....");
   /* init OTA */
   // Port defaults to 8266
   ArduinoOTA.setPort(8266);
@@ -702,7 +567,6 @@ void initOverTheAirUpdate(void)
   // ArduinoOTA.setPassword((const char *)"123");
 
   ArduinoOTA.onStart([]() {
-    DEBUGPRNT("OTA start");
     FastLED.clear(true);
     display.clear();
     display.drawString(0, 0, F("Starting OTA..."));
@@ -718,7 +582,6 @@ void initOverTheAirUpdate(void)
 
   // what to do if OTA is finished...
   ArduinoOTA.onEnd([]() {
-    DEBUGPRNT("OTA end");
     // OTA finished.
     display.drawString(0, 53, F("OTA finished!"));
     display.displayOn();
@@ -731,7 +594,6 @@ void initOverTheAirUpdate(void)
   });
   // show the progress on the strips as well to be informed if anything gets stuck...
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-    DEBUGPRNT("Progress: " + String((progress / (total / 100))));
 
     unsigned int prog = (progress / (total / 100));
     display.clear();
@@ -748,25 +610,19 @@ void initOverTheAirUpdate(void)
   ArduinoOTA.onError([](ota_error_t error) {
     String err = F("OTA Fehler: ");
 
-    DEBUGPRNT("Error[%u]: " + String(error));
     if (error == OTA_AUTH_ERROR) {
-      DEBUGPRNT("Auth Failed");
       err = err + F("Auth Failed");
     }
     else if (error == OTA_BEGIN_ERROR) {
-      DEBUGPRNT("Begin Failed");
       err = err + F("Begin Failed");
     }
     else if (error == OTA_CONNECT_ERROR) {
-      DEBUGPRNT("Connect Failed");
       err = err + F("Connect Failed");
     }
     else if (error == OTA_RECEIVE_ERROR) {
-      DEBUGPRNT("Receive Failed");
       err = err + F("Receive Failed");
     }
     else if (error == OTA_END_ERROR) {
-      DEBUGPRNT("End Failed");
       err = err + F("End Failed");
     }
 
@@ -779,13 +635,11 @@ void initOverTheAirUpdate(void)
   });
   // start the service
   ArduinoOTA.begin();
-  DEBUGPRNT("OTA capabilities initialized....");
   showInitColor(CRGB::Green);
   delay(INITDELAY);
   showInitColor(CRGB::Black);
   delay(INITDELAY);
   #else // HAS_KNOB_CONTROL
-  DEBUGPRNT("Initializing OTA capabilities....");
   showInitColor(CRGB::Blue);
   delay(INITDELAY);
   /* init OTA */
@@ -799,11 +653,7 @@ void initOverTheAirUpdate(void)
   // Hostname defaults to esp8266-[ChipID]
   ArduinoOTA.setHostname(LED_NAME);
 
-  // No authentication by default
-  // ArduinoOTA.setPassword((const char *)"123");
-
   ArduinoOTA.onStart([]() {
-    DEBUGPRNT("OTA start");
 
     strip->setIsRunning(false);
     strip->setPower(false);
@@ -839,7 +689,6 @@ void initOverTheAirUpdate(void)
 
   // what to do if OTA is finished...
   ArduinoOTA.onEnd([]() {
-    DEBUGPRNT("OTA end");
     // OTA finished.
     // We fade out the green Leds being activated during OTA.
     for (uint8_t i = strip->leds[0].green; i > 0; i--)
@@ -858,7 +707,6 @@ void initOverTheAirUpdate(void)
   });
   // show the progress on the strips as well to be informed if anything gets stuck...
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-    DEBUGPRNT("Progress: " + String((progress / (total / 100))));
 
     // OTA Update will show increasing green LEDs during progress:
     uint16_t progress_value = progress * 100 / (total / strip->getStripLength());
@@ -873,21 +721,15 @@ void initOverTheAirUpdate(void)
 
   // something went wrong, we gonna show an error "message" via LEDs.
   ArduinoOTA.onError([](ota_error_t error) {
-    DEBUGPRNT("Error[%u]: " + String(error));
     if (error == OTA_AUTH_ERROR) {
-      DEBUGPRNT("Auth Failed");
     }
     else if (error == OTA_BEGIN_ERROR) {
-      DEBUGPRNT("Begin Failed");
     }
     else if (error == OTA_CONNECT_ERROR) {
-      DEBUGPRNT("Connect Failed");
     }
     else if (error == OTA_RECEIVE_ERROR) {
-      DEBUGPRNT("Receive Failed");
     }
     else if (error == OTA_END_ERROR) {
-      DEBUGPRNT("End Failed");
     }
     // something went wrong during OTA.
     // We will fade in to red...
@@ -907,7 +749,6 @@ void initOverTheAirUpdate(void)
   });
   // start the service
   ArduinoOTA.begin();
-  DEBUGPRNT("OTA capabilities initialized....");
   showInitColor(CRGB::Green);
   delay(INITDELAY);
   showInitColor(CRGB::Black);
@@ -959,10 +800,9 @@ void setupWiFi(uint16_t timeout = 240)
 //tries to connect to last known settings
 //if it does not connect it starts an access point with the specified name
 //and goes into a blocking loop awaiting configuration
-  DEBUGPRNT("Going to autoconnect and/or Start AP");
-  if (!wifiManager.autoConnect(AP_SSID.c_str()))
+
+  if (!wifiManager.autoConnect(AP_SSID))
   {
-    DEBUGPRNT("Config saved (or timed out), we should reset as see if it connects");
     showInitColor(CRGB::Yellow);
     delay(3000);
     showInitColor(CRGB::Red);
@@ -976,9 +816,7 @@ void setupWiFi(uint16_t timeout = 240)
   }
 
   WiFi.setAutoReconnect(true);
-//if we get here we have connected to the WiFi
-  DEBUGPRNT("local ip: ");
-  DEBUGPRNT(WiFi.localIP());
+  //if we get here we have connected to the WiFi
 
 
 #else // We have a control knob / button
@@ -993,10 +831,8 @@ void setupWiFi(uint16_t timeout = 240)
 //tries to connect to last known settings
 //if it does not connect it starts an access point with the specified name
 //and goes into a blocking loop awaiting configuration
-  DEBUGPRNT("Going to autoconnect and/or Start AP");
-  if (!wifiManager.autoConnect(AP_SSID.c_str()))
+  if (!wifiManager.autoConnect(AP_SSID))
   {
-    DEBUGPRNT("Config saved (or timed out), we should reset as see if it connects");
     WiFiConnected = false;
   }
   else
@@ -1010,8 +846,6 @@ void setupWiFi(uint16_t timeout = 240)
 
     WiFi.setAutoReconnect(true);
   //if we get here we have connected to the WiFi
-    DEBUGPRNT("local ip: ");
-    DEBUGPRNT(WiFi.localIP());
   }
   wifi_err_counter = 0; // need to reset this regardless the connected state. Otherwise we try to reconntect every loop....
 
@@ -1035,18 +869,6 @@ uint8_t changebypercentage(uint8_t value, uint8_t percentage)
 // if /set was called
 void handleSet(AsyncWebServerRequest *request)
 {
-  // Debug only
-  #ifdef DEBUG
-  IPAddress add = server.client().remoteIP();
-  DEBUGPRNT("The HTTP Request was received by " + add.toString());
-  DEBUGPRNT("<Begin>Server Args:");
-  for (uint8_t i = 0; i < server.args(); i++)
-  {
-    DEBUGPRNT(server.argName(i) + "\t" + server.arg(i));
-  }
-  DEBUGPRNT("<End> Server Args");
-  #endif
-
   #ifdef HAS_KNOB_CONTROL
   if(!strip->getWiFiEnabled() || !WiFiConnected) return;
   #endif
@@ -1073,10 +895,7 @@ void handleSet(AsyncWebServerRequest *request)
   // here we set a new mode if we have the argument mode
 
   AsyncJsonResponse * response = new AsyncJsonResponse();
-  response->addHeader("Access-Control-Allow-Methods", "*");
-  response->addHeader("Access-Control-Allow-Headers", "*");
-  response->addHeader("Access-Control-Allow-Origin", "*");
-
+  
   JsonObject& answerObj = response->getRoot();
   JsonObject& answer = answerObj.createNestedObject(F("currentState"));
   
@@ -1089,47 +908,35 @@ void handleSet(AsyncWebServerRequest *request)
     // current library effect number
     uint8_t effect = strip->getMode();
 
-    DEBUGPRNT("got Argument mo....");
     
     // just switch to the next if we get an "u" for up
     if (request->getParam(F("mo"))->value().c_str()[0] == 'u')
     {
-      DEBUGPRNT("got Argument mode up....");
-      //effect = effect + 1;
       isWS2812FX = true;
       effect = strip->nextMode(AUTO_MODE_UP);
     }
     // switch to the previous one if we get a "d" for down
     else if (request->getParam(F("mo"))->value().c_str()[0] == 'd')
     {
-      DEBUGPRNT("got Argument mode down....");
-      //effect = effect - 1;
       isWS2812FX = true;
       effect = strip->nextMode(AUTO_MODE_DOWN);
     }
     // if we get an "o" for off, we switch off
     else if (request->getParam(F("mo"))->value().c_str()[0] == 'o')
     {
-      DEBUGPRNT("got Argument mode Off....");
       strip->setPower(false);
-      //sendString("state", "off");
-      //broadcastInt("power", false);
     }
     // for backward compatibility and FHEM:
     // --> activate fire flicker
     else if (request->getParam(F("mo"))->value().c_str()[0] == 'f')
     {
-
-      DEBUGPRNT("got Argument fire....");
-
-      effect = FX_MODE_FIRE_FLICKER;
+      effect = FX_MODE_FIRE_FLICKER_INTENSE;
       isWS2812FX = true;
     }
     // for backward compatibility and FHEM:
     // --> activate rainbow effect
     else if (request->getParam(F("mo"))->value().c_str()[0] == 'r')
     {
-      DEBUGPRNT("got Argument mode rainbow cycle....");
       effect = FX_MODE_RAINBOW_CYCLE;
       isWS2812FX = true;
     }
@@ -1137,7 +944,6 @@ void handleSet(AsyncWebServerRequest *request)
     // --> activate the K.I.T.T. (larson scanner)
     else if (request->getParam(F("mo"))->value().c_str()[0] == 'k')
     {
-      DEBUGPRNT("got Argument mode KITT....");
       effect = FX_MODE_LARSON_SCANNER;
       isWS2812FX = true;
     }
@@ -1145,7 +951,6 @@ void handleSet(AsyncWebServerRequest *request)
     // --> activate Twinkle Fox
     else if (request->getParam(F("mo"))->value().c_str()[0] == 's')
     {
-      DEBUGPRNT("got Argument mode Twinkle Fox....");
       effect = FX_MODE_TWINKLE_FOX;
       isWS2812FX = true;
     }
@@ -1153,7 +958,6 @@ void handleSet(AsyncWebServerRequest *request)
     // --> activate Twinkle Fox in white...
     else if (request->getParam(F("mo"))->value().c_str()[0] == 'w')
     {
-      DEBUGPRNT("got Argument mode White Twinkle....");
       strip->setColor(CRGBPalette16(CRGB::White));
       effect = FX_MODE_TWINKLE_FOX;
       isWS2812FX = true;
@@ -1161,17 +965,14 @@ void handleSet(AsyncWebServerRequest *request)
     // sunrise effect
     else if (request->getParam(F("mo"))->value() == F("Sunrise"))
     {
-      DEBUGPRNT("got Argument mode sunrise....");
       // sunrise time in seconds
       if (request->hasParam(F("sec")))
       {
-        DEBUGPRNT("got Argument sec....");
         strip->setSunriseTime(((uint16_t)strtoul(request->getParam(F("sec"))->value().c_str(), NULL, 10)) / 60);
       }
       // sunrise time in minutes
       else if (request->hasParam(F("min")))
       {
-        DEBUGPRNT("got Argument min....");
         strip->setSunriseTime(((uint16_t)strtoul(request->getParam(F("min"))->value().c_str(), NULL, 10)));
       }
       isWS2812FX = true;
@@ -1181,23 +982,18 @@ void handleSet(AsyncWebServerRequest *request)
       answer.set(F("sunRiseTimeToFinish"), strip->getSunriseTimeToFinish());
       answer.set(F("sunRiseMode"), F("sunrise"));
       answer.set(F("sunRiseActive"), F("on"));
-      //broadcastInt("sunriseset", strip->getSunriseTime());
-      //sendStatus = true;
     }
     // the same for sunset....
     else if (request->getParam(F("mo"))->value() == F("Sunset"))
     {
-      DEBUGPRNT("got Argument mode sunset....");
       // sunrise time in seconds
       if (request->hasParam(F("sec")))
       {
-        DEBUGPRNT("got Argument sec....");
         strip->setSunriseTime(((uint16_t)strtoul(request->getParam(F("sec"))->value().c_str(), NULL, 10)) / 60);
       }
       // sunrise time in minutes
       else if (request->hasParam(F("min")))
       {
-        DEBUGPRNT("got Argument min....");
         strip->setSunriseTime( ((uint16_t)strtoul(request->getParam(F("min"))->value().c_str(), NULL, 10)));
       }
 
@@ -1217,14 +1013,12 @@ void handleSet(AsyncWebServerRequest *request)
     // because it will be zero anyway if not.
     else
     {
-      DEBUGPRNT("got Argument mode and seems to be an Effect....");
       effect = (uint8_t)strtoul(request->getParam(F("mo"))->value().c_str(), NULL, 10);
       isWS2812FX = true;
     }
     // sanity only, actually handled in the library...
     if (effect >= strip->getModeCount())
     {
-      DEBUGPRNT("Effect to high....");
       effect = 0;
     }
     // activate the effect...
@@ -1235,9 +1029,6 @@ void handleSet(AsyncWebServerRequest *request)
       // seems to be obsolete but does not hurt anyway...
       strip->start();
 
-      DEBUGPRNT("gonna send mo response....");
-      //sendInt("mo", strip->getMode() );
-      //broadcastInt("power", true);
       answer.set(F("wsfxmode_Num"), effect);
       answer.set(F("wsfxmode"), strip->getModeName(effect));
       answer.set(F("state"), strip->getPower() ? F("on") : F("off"));
@@ -1253,7 +1044,6 @@ void handleSet(AsyncWebServerRequest *request)
   // global on/off
   if (request->hasParam(F("power")))
   {
-    DEBUGPRNT("got Argument power....");
     if (request->getParam(F("power"))->value().c_str()[0] == '0')
     {
       strip->setPower(false);
@@ -1269,7 +1059,6 @@ void handleSet(AsyncWebServerRequest *request)
 
   if(request->hasParam(F("isRunning")))
   {
-    DEBUGPRNT("got Argument \"isRunning\"....");
     if (request->getParam(F("isRunning"))->value().c_str()[0]  == '0')
     {
       strip->setIsRunning(false);
@@ -1279,7 +1068,6 @@ void handleSet(AsyncWebServerRequest *request)
       strip->setIsRunning(true);
     }
     answer.set(F("isRunning"), strip->isRunning() ? F("running") : F("paused"));
-    //sendString("isRunning", strip->isRunning() ? "running" : "paused");
   }
 
   // if we got a palette change
@@ -1287,11 +1075,7 @@ void handleSet(AsyncWebServerRequest *request)
   {
     // TODO: Possibility to setColors and new Palettes...
     uint8_t pal = (uint8_t)strtoul(request->getParam(F("pa"))->value().c_str(), NULL, 10);
-    DEBUGPRNT("New palette with value: " + String(pal));
     strip->setTargetPalette(pal);
-    //  sendAnswer(   "\"palette\": " + String(pal) + ", \"palette name\": \"" +
-    //                (String)strip->getPalName(pal) + "\"");
-    //  broadcastInt("pa", pal);
     answer.set(F("palette_num"), strip->getTargetPaletteNumber());
     answer.set(F("palette_name"), strip->getTargetPaletteName());
     answer.set(F("palette_count"), strip->getPalCount());
@@ -1300,7 +1084,6 @@ void handleSet(AsyncWebServerRequest *request)
   // if we got a new brightness value
   if (request->hasParam(F("br")))
   {
-    DEBUGPRNT("got Argument brightness....");
     uint8_t brightness = strip->getBrightness();
     if (request->getParam(F("br"))->value().c_str()[0] == 'u')
     {
@@ -1315,8 +1098,6 @@ void handleSet(AsyncWebServerRequest *request)
       brightness = constrain((uint8_t)strtoul(request->getParam(F("br"))->value().c_str(), NULL, 10), BRIGHTNESS_MIN, BRIGHTNESS_MAX);
     }
     strip->setBrightness(brightness);
-    //sendInt("brightness", brightness);
-    //broadcastInt("br", strip->getBrightness());
     answer.set(F("brightness"), strip->getBrightness());
   }
 
@@ -1325,9 +1106,6 @@ void handleSet(AsyncWebServerRequest *request)
   // is beat88 value anyway
   if (request->hasParam(F("sp")))
   {
-#ifdef DEBUG
-    DEBUGPRNT("got Argument speed....");
-#endif
     uint16_t speed = strip->getBeat88();
     if (request->getParam(F("sp"))->value().c_str()[0] == 'u')
     {
@@ -1349,19 +1127,14 @@ void handleSet(AsyncWebServerRequest *request)
     }
     strip->setSpeed(speed);
     strip->show();
-    //sendAnswer("\"speed\": " + String(speed) + ", \"beat88\": \"" + String(speed));
     answer.set(F("speed"), strip->getSpeed());
     answer.set(F("beat88"), strip->getSpeed());
-    //broadcastInt("sp", strip->getBeat88());
     strip->setTransition();
   }
 
   // if we got a speed value (as beat88)
   if (request->hasParam(F("be")))
   {
-#ifdef DEBUG
-    DEBUGPRNT("got Argument speed (beat)....");
-#endif
     uint16_t speed = strip->getBeat88();
     if (request->getParam(F("be"))->value().c_str()[0] == 'u')
     {
@@ -1385,8 +1158,6 @@ void handleSet(AsyncWebServerRequest *request)
     strip->show();
     answer.set(F("speed"), strip->getSpeed());
     answer.set(F("beat88"), strip->getSpeed());
-    //sendAnswer("\"speed\": " + String(speed) + ", \"beat88\": \"" + String(speed));
-    //broadcastInt("sp", strip->getBeat88());
     strip->setTransition();
   }
 
@@ -1400,9 +1171,6 @@ void handleSet(AsyncWebServerRequest *request)
   if (request->hasParam(F("re")))
   {
     setColor = true;
-#ifdef DEBUG
-    DEBUGPRNT("got Argument red....");
-#endif
     uint8_t re = Red(color);
     if (request->getParam(F("re"))->value().c_str()[0] == 'u')
     {
@@ -1422,9 +1190,6 @@ void handleSet(AsyncWebServerRequest *request)
   if (request->hasParam(F("gr")))
   {
     setColor = true;
-#ifdef DEBUG
-    DEBUGPRNT("got Argument green....");
-#endif
     uint8_t gr = Green(color);
     if (request->getParam(F("gr"))->value().c_str()[0] == 'u')
     {
@@ -1444,9 +1209,6 @@ void handleSet(AsyncWebServerRequest *request)
   if (request->hasParam(F("bl")))
   {
     setColor = true;
-#ifdef DEBUG
-    DEBUGPRNT("got Argument blue....");
-#endif
     uint8_t bl = Blue(color);
     if (request->getParam(F("bl"))->value().c_str()[0] == 'u')
     {
@@ -1466,40 +1228,25 @@ void handleSet(AsyncWebServerRequest *request)
   if (request->hasParam(F("co")))
   {
     setColor = true;
-#ifdef DEBUG
-    DEBUGPRNT("got Argument color....");
-#endif
     color = constrain((uint32_t)strtoul(request->getParam(F("co"))->value().c_str(), NULL, 16), 0, 0xffffff);
   }
   // we got one solid color value as r, g, b
   if (request->hasParam(F("solidColor")))
   {
     setColor = true;
-#ifdef DEBUG
-    DEBUGPRNT("got Argument solidColor....");
-#endif
     uint8_t r, g, b;
     r = constrain((uint8_t)strtoul(request->getParam(F("r"))->value().c_str(), NULL, 10), 0, 255);
     g = constrain((uint8_t)strtoul(request->getParam(F("g"))->value().c_str(), NULL, 10), 0, 255);
     b = constrain((uint8_t)strtoul(request->getParam(F("b"))->value().c_str(), NULL, 10), 0, 255);
     color = (r << 16) | (g << 8) | (b << 0);
-    // CRGB solidColor(color); // obsolete?
-
-    //broadcastInt("pa", strip->getPalCount()); // this reflects a "custom palette"
   }
-  // a signle pixel...
-  //FIXME: Does not yet work. Lets simplyfy all of this!
+  // a single pixel...
   if (request->hasParam(F("pi")))
   {
-#ifdef DEBUG
-    DEBUGPRNT("got Argument pixel....");
-#endif
-    //setEffect(FX_NO_FX);
     uint16_t pixel = constrain((uint16_t)strtoul(request->getParam(F("pi"))->value().c_str(), NULL, 10), 0, strip->getStripLength() - 1);
 
     strip->setMode(FX_MODE_VOID);
     strip->leds[pixel] = CRGB(color);
-    //sendStatus = true;
     // a range of pixels from start rnS to end rnE
     answer.set(F("wsfxmode_Num"), FX_MODE_VOID);
     answer.set(F("wsfxmode"), strip->getModeName(FX_MODE_VOID));
@@ -1509,9 +1256,6 @@ void handleSet(AsyncWebServerRequest *request)
   //FIXME: Does not yet work. Lets simplyfy all of this!
   else if (request->hasParam(F("rnS")) && request->hasParam(F("rnE")))
   {
-#ifdef DEBUG
-    DEBUGPRNT("got Argument range start / range end....");
-#endif
     uint16_t start = constrain((uint16_t)strtoul(request->getParam(F("rnS"))->value().c_str(), NULL, 10), 0, strip->getStripLength());
     uint16_t end = constrain((uint16_t)strtoul(request->getParam(F("rnE"))->value().c_str(), NULL, 10), start, strip->getStripLength());
 
@@ -1524,14 +1268,10 @@ void handleSet(AsyncWebServerRequest *request)
     answer.set(F("wsfxmode"), strip->getModeName(FX_MODE_VOID));
     answer.set(F("state"), strip->getPower() ? F("on") : F("off"));
     answer.set(F("power"), strip->getPower());
-    //sendStatus = true;
     // one color for the complete strip
   }
   else if (request->hasParam(F("rgb")))
   {
-#ifdef DEBUG
-    DEBUGPRNT("got Argument rgb....");
-#endif
     strip->setColor(color);
     strip->setMode(FX_MODE_STATIC);
     // finally set a new color
@@ -1549,7 +1289,6 @@ void handleSet(AsyncWebServerRequest *request)
       answer.set(F("rgb_blue"), Blue(color));
       answer.set(F("rgb_green"), Green(color));
       answer.set(F("rgb_red"), Red(color));
-      //sendStatus = true;
     }
   }
 
@@ -1558,26 +1297,24 @@ void handleSet(AsyncWebServerRequest *request)
   {
     uint16_t value = request->getParam(F("autoplay"))->value().toInt();
     strip->setAutoplay((AUTOPLAYMODES)value);
-    //sendInt("Autoplay Mode", value);
-    //broadcastInt("autoplay", value);
     switch(strip->getAutoplay())
-  {
-    case AUTO_MODE_OFF:
-      answer[F("AutoPlayMode")] = F("Off");
-    break;
-    case AUTO_MODE_UP:
-      answer[F("AutoPlayMode")] = F("Up");
-    break;
-    case AUTO_MODE_DOWN:
-      answer[F("AutoPlayMode")] = F("Down");
-    break;
-    case AUTO_MODE_RANDOM:
-      answer[F("AutoPlayMode")] = F("Random");
-    break;
-    default:
-      answer[F("AutoPlayMode")] = F("unknown error");
-    break;
-  }
+    {
+      case AUTO_MODE_OFF:
+        answer[F("AutoPlayMode")] = F("Off");
+      break;
+      case AUTO_MODE_UP:
+        answer[F("AutoPlayMode")] = F("Up");
+      break;
+      case AUTO_MODE_DOWN:
+        answer[F("AutoPlayMode")] = F("Down");
+      break;
+      case AUTO_MODE_RANDOM:
+        answer[F("AutoPlayMode")] = F("Random");
+      break;
+      default:
+        answer[F("AutoPlayMode")] = F("unknown error");
+      break;
+    }
   
   }
 
@@ -1586,8 +1323,6 @@ void handleSet(AsyncWebServerRequest *request)
   {
     uint16_t value = request->getParam(F("autoplayDuration"))->value().toInt();
     strip->setAutoplayDuration(value);
-    //sendInt("Autoplay Mode Interval", value);
-    //broadcastInt("autoplayDuration", value);
     answer[F("AutoPlayModeIntervall")] = strip->getAutoplayDuration();
  
   }
@@ -1597,8 +1332,6 @@ void handleSet(AsyncWebServerRequest *request)
   {
     uint16_t value = request->getParam(F("autopal"))->value().toInt();
     strip->setAutopal((AUTOPLAYMODES)value);
-    //sendInt("Autoplay Palette", value);
-    //broadcastInt("autopal", value);
     switch(strip->getAutopal())
     {
       case AUTO_MODE_OFF:
@@ -1624,8 +1357,6 @@ void handleSet(AsyncWebServerRequest *request)
   {
     uint16_t value = request->getParam(F("autopalDuration"))->value().toInt();
     strip->setAutopalDuration(value);
-    //sendInt("Autoplay Palette Interval", value);
-    //broadcastInt("autopalDuration", value);
     answer[F("AutoPaletteInterval")] = strip->getAutoplayDuration();
   }
 
@@ -1633,8 +1364,6 @@ void handleSet(AsyncWebServerRequest *request)
   if (request->hasParam(F("huetime")))
   {
     uint16_t value = request->getParam(F("huetime"))->value().toInt();
-    //sendInt("Hue change time", value);
-    //broadcastInt("huetime", value);
     strip->setHuetime(value);
     answer[F("HueChangeInt")] = strip->getHueTime();
   }
@@ -1645,8 +1374,6 @@ void handleSet(AsyncWebServerRequest *request)
   if (request->hasParam(F("deltahue")))
   {
     uint16_t value = constrain(request->getParam(F("deltahue"))->value().toInt(), 0, 255);
-    //sendInt("Delta hue per change", value);
-    //broadcastInt("deltahue", value);
     strip->setDeltaHue(value);
     strip->setTransition();
     answer[F("HueDeltaHue")] = strip->getDeltaHue();
@@ -1656,8 +1383,6 @@ void handleSet(AsyncWebServerRequest *request)
   if (request->hasParam(F("cooling")))
   {
     uint16_t value = request->getParam(F("cooling"))->value().toInt();
-    //sendInt("Fire Cooling", value);
-    //broadcastInt("cooling", value);
     strip->setCooling(value);
     strip->setTransition();
     answer[F("Cooling")] = strip->getCooling();
@@ -1667,8 +1392,6 @@ void handleSet(AsyncWebServerRequest *request)
   if (request->hasParam(F("sparking")))
   {
     uint16_t value = request->getParam(F("sparking"))->value().toInt();
-    //sendInt("Fire sparking", value);
-    //broadcastInt("sparking", value);
     strip->setSparking(value);
     strip->setTransition();
     answer[F("Sparking")] = strip->getSparking();
@@ -1678,8 +1401,6 @@ void handleSet(AsyncWebServerRequest *request)
   if (request->hasParam(F("twinkleSpeed")))
   {
     uint16_t value = request->getParam(F("twinkleSpeed"))->value().toInt();
-    //sendInt("Twinkle Speed", value);
-    //broadcastInt("twinkleSpeed", value);
     strip->setTwinkleSpeed(value);
     strip->setTransition();
     answer[F("TwinkleSpeed")] = strip->getTwinkleSpeed();
@@ -1689,8 +1410,6 @@ void handleSet(AsyncWebServerRequest *request)
   if (request->hasParam(F("twinkleDensity")))
   {
     uint16_t value = request->getParam(F("twinkleDensity"))->value().toInt();
-    //sendInt("Twinkle Density", value);
-    //broadcastInt("twinkleDensity", value);
     strip->setTwinkleDensity(value);
     strip->setTransition();
     answer[F("TwinkleDensity")] = strip->getTwinkleDensity();
@@ -1701,9 +1420,9 @@ void handleSet(AsyncWebServerRequest *request)
   {
     uint16_t value = request->getParam(F("numBars"))->value().toInt();
     if (value > MAX_NUM_BARS)
+    {
       value = max(MAX_NUM_BARS, 1);
-    //sendInt("Number of Bars", value);
-    //broadcastInt("numBars", value);
+    }
     strip->setNumBars(value);
     strip->setTransition();
     answer[F("NumBars")] = strip->getNumBars();
@@ -1713,18 +1432,14 @@ void handleSet(AsyncWebServerRequest *request)
   if (request->hasParam(F("blendType")))
   {
     uint16_t value = request->getParam(F("blendType"))->value().toInt();
-
-    //broadcastInt("blendType", value);
     if (value)
     {
       strip->setBlendType(LINEARBLEND);
-      //sendString("BlendType", "LINEARBLEND");
       answer[F("BlendType")] = F("Linear Blend");
     }
     else
     {
       strip->setBlendType(NOBLEND);
-      //sendString("BlendType", "NOBLEND");
       answer[F("BlendType")] = F("No Blend");
     }
     strip->setTransition();
@@ -1734,9 +1449,6 @@ void handleSet(AsyncWebServerRequest *request)
   if (request->hasParam(F("ColorTemperature")))
   {
     uint8_t value = request->getParam(F("ColorTemperature"))->value().toInt();
-
-    //broadcastInt("ColorTemperature", value);
-    //sendString("ColorTemperature", strip->getColorTempName(value));
     strip->setColorTemperature(value);
     strip->setTransition();
     answer[F("ColorTemperature")] = strip->getColorTempName(strip->getColorTemp());
@@ -1746,8 +1458,6 @@ void handleSet(AsyncWebServerRequest *request)
   if (request->hasParam(F("reverse")))
   {
     uint16_t value = request->getParam(F("reverse"))->value().toInt();
-    //sendInt("reverse", value);
-    //broadcastInt("reverse", value);
     strip->getSegment()->reverse = value;
     strip->setTransition();
     answer[F("Reverse")] = strip->getReverse();
@@ -1757,8 +1467,6 @@ void handleSet(AsyncWebServerRequest *request)
   if (request->hasParam(F("inverse")))
   {
     uint16_t value = request->getParam(F("inverse"))->value().toInt();
-    //sendInt("inverse", value);
-    //broadcastInt("inverse", value);
     strip->setInverse(value);
     strip->setTransition();
     answer[F("Inverse")] = strip->getInverse();
@@ -1768,8 +1476,6 @@ void handleSet(AsyncWebServerRequest *request)
   if (request->hasParam(F("mirror")))
   {
     uint16_t value = request->getParam(F("mirror"))->value().toInt();
-    //sendInt("mirror", value);
-    //broadcastInt("mirror", value);
     strip->setMirror(value);
     strip->setTransition();
     answer[F("Mirrored")] = strip->getMirror();
@@ -1779,8 +1485,6 @@ void handleSet(AsyncWebServerRequest *request)
   if (request->hasParam(F("current")))
   {
     uint16_t value = request->getParam(F("current"))->value().toInt();
-    //sendInt("Lamp Max Current", value);
-    //broadcastInt("current", value);
     strip->setMilliamps(value);
     answer[F("Lamp_max_current")] = strip->getMilliamps();
   }
@@ -1789,8 +1493,6 @@ void handleSet(AsyncWebServerRequest *request)
   if (request->hasParam(F("LEDblur")))
   {
     uint8_t value = request->getParam(F("LEDblur"))->value().toInt();
-    //sendInt("LEDblur", value);
-    //broadcastInt("LEDblur", value);
     strip->setBlur(value);
     strip->setTransition();
     answer[F("Led_blur")] = strip->getBlurValue();
@@ -1800,8 +1502,6 @@ void handleSet(AsyncWebServerRequest *request)
   if (request->hasParam(F("fps")))
   {
     uint8_t value = request->getParam(F("fps"))->value().toInt();
-    //sendInt("fps", value);
-    //broadcastInt("fps", value);
     strip->setMaxFPS(value);
     strip->setTransition();
     answer[F("max_FPS")] = strip->getMaxFPS();
@@ -1810,8 +1510,6 @@ void handleSet(AsyncWebServerRequest *request)
   if (request->hasParam(F("dithering")))
   {
     uint8_t value = request->getParam(F("dithering"))->value().toInt();
-    //sendInt("dithering", value);
-    //broadcastInt("dithering", value);
     strip->setDithering(value);
     answer[F("Dithering")] = strip->getDithering();
   }
@@ -1819,8 +1517,6 @@ void handleSet(AsyncWebServerRequest *request)
   if (request->hasParam(F("sunriseset")))
   {
     uint8_t value = request->getParam(F("sunriseset"))->value().toInt();
-    //sendInt("sunriseset", value);
-    //broadcastInt("sunriseset", value);
     strip->getSegment()->sunrisetime = value;
     answer[F("sunRiseTime")] = strip->getSunriseTime();
   }
@@ -1831,17 +1527,12 @@ void handleSet(AsyncWebServerRequest *request)
     uint8_t value = request->getParam(F("resetdefaults"))->value().toInt();
     if (value)
       strip->resetDefaults();
-    //sendInt("resetdefaults", 0);
-    //broadcastInt("resetdefaults", 0);
-    //sendStatus = true;
     strip->setTransition();
   }
 
   if (request->hasParam(F("damping")))
   {
     uint8_t value = constrain(request->getParam(F("damping"))->value().toInt(), 0, 100);
-    //sendInt("damping", value);
-    //broadcastInt("damping", value);
     strip->getSegment()->damping = value;
     answer[F("Damping")] = strip->getDamping();
   }
@@ -1981,9 +1672,6 @@ void handleGetModes(AsyncWebServerRequest *request)
 {
 
   AsyncJsonResponse * response = new AsyncJsonResponse();
-  response->addHeader("Access-Control-Allow-Methods", "*");
-  response->addHeader("Access-Control-Allow-Headers", "*");
-  response->addHeader("Access-Control-Allow-Origin", "*");
 
   JsonObject &root = response->getRoot();
 
@@ -2002,9 +1690,6 @@ void handleGetModes(AsyncWebServerRequest *request)
 void handleGetPals(AsyncWebServerRequest *request)
 {
   AsyncJsonResponse * response = new AsyncJsonResponse();
-  response->addHeader("Access-Control-Allow-Methods", "*");
-  response->addHeader("Access-Control-Allow-Headers", "*");
-  response->addHeader("Access-Control-Allow-Origin", "*");
 
   JsonObject &root = response->getRoot();
 
@@ -2023,18 +1708,11 @@ void handleGetPals(AsyncWebServerRequest *request)
 void handleStatus(AsyncWebServerRequest *request)
 {
   AsyncJsonResponse * response = new AsyncJsonResponse();
-  response->addHeader("Access-Control-Allow-Methods", "*");
-  response->addHeader("Access-Control-Allow-Headers", "*");
-  response->addHeader("Access-Control-Allow-Origin", "*");
 
   JsonObject &answerObj = response->getRoot();
   JsonObject& currentStateAnswer = answerObj.createNestedObject(F("currentState"));
   JsonObject& sunriseAnswer = answerObj.createNestedObject(F("sunRiseState"));
   JsonObject& statsAnswer = answerObj.createNestedObject(F("Stats"));
-  #ifdef DEBUG
-  uint32_t answer_time = micros();
-  JsonObject& debugAnswer = answerObj.createNestedObject(F("ESP_Data"));
-  #endif
 
   uint16_t num_leds_on = strip->getLedsOn();
 
@@ -2047,10 +1725,7 @@ void handleStatus(AsyncWebServerRequest *request)
   {
     currentStateAnswer[F("state")] = F("off");
   }
-  #ifdef DEBUG
-  
-  debugAnswer[F("AnswerTime_ms_01")] = (float)((float)(micros()-answer_time)/1000.0);
-  #endif
+
 
   currentStateAnswer[F("Buildversion")] = build_version;
   currentStateAnswer[F("Git_Revision")] = git_revision;
@@ -2086,10 +1761,6 @@ void handleStatus(AsyncWebServerRequest *request)
   currentStateAnswer[F("rgb_red")] = col.r;
   currentStateAnswer[F("rgb_green")] = col.g;
   currentStateAnswer[F("rgb_blue")] = col.b;
-
-  #ifdef DEBUG
-  debugAnswer["AnswerTime_ms_02"] = (float)((float)(micros()-answer_time)/1000.0);
-  #endif
 
   if (strip->getSegment()->blendType == NOBLEND)
   {
@@ -2146,9 +1817,6 @@ void handleStatus(AsyncWebServerRequest *request)
   }
   currentStateAnswer[F("AutoPaletteInterval")] = strip->getAutoplayDuration();
 
-  #ifdef DEBUG
-  debugAnswer[F("AnswerTime_ms_03")] = (float)((float)(micros()-answer_time)/1000.0);
-  #endif
 
   if (strip->getMode() == FX_MODE_SUNRISE)
   {
@@ -2185,15 +1853,7 @@ void handleStatus(AsyncWebServerRequest *request)
     sunriseAnswer[F("sunRiseTimeToFinish")] = strip->getSunriseTimeToFinish();
 
     sunriseAnswer[F("sunRiseTime")] = strip->getSunriseTime();
-    
-  #ifdef DEBUG
-  debugAnswer[F("DBG_Debug code")] = F("On");
-  debugAnswer[F("Chip_CPU_FRQ")] = ESP.getCpuFreqMHz();
-  debugAnswer[F("DBG_Flash Real Size")] = ESP.getFlashChipRealSize();
-  debugAnswer[F("Chip_Free_RAM")] = ESP.getFreeHeap();
-  debugAnswer[F("DBG_Free Sketch Space")] = ESP.getFreeSketchSpace();
-  debugAnswer[F("DBG_Sketch Size")] = ESP.getSketchSize();
-  #endif
+  
   
   switch (getResetReason())
   {
@@ -2230,10 +1890,6 @@ void handleStatus(AsyncWebServerRequest *request)
   statsAnswer[F("WIFI_SIGNAL")] = String(WiFi.RSSI());  // for #14
   statsAnswer[F("WIFI_CHAN")] = String(WiFi.channel());  // for #14
   
-  #ifdef DEBUG
-  answer_time = micros() - answer_time;
-  debugAnswer[F("AnswerTime_ms")] = (float)((float)(answer_time)/1000.0);
-  #endif
   statsAnswer[F("FPS")] = FastLED.getFPS();
   response->setLength();
   request->send(response);
@@ -2241,7 +1897,6 @@ void handleStatus(AsyncWebServerRequest *request)
 
 void factoryReset(void)
 {
-  DEBUGPRNT("Someone requested Factory Reset");
   // on factory reset, each led will be red
   // increasing from led 0 to max.
   for (uint16_t i = 0; i < strip->getStripLength(); i++)
@@ -2254,7 +1909,6 @@ void factoryReset(void)
   DNSServer dns;
   AsyncWiFiManager wifimgr(&server, &dns);
   delay(INITDELAY);
-  DEBUGPRNT("Reset WiFi Settings");
   wifimgr.resetSettings();
   // wifimgr.erase(); // seems to be removed from WiFiManager
   delay(INITDELAY);
@@ -2262,7 +1916,6 @@ void factoryReset(void)
   WiFi.persistent(false);
   
 //reset and try again
-  DEBUGPRNT("Reset ESP and start all over...");
   ESP.restart();
 }
 
@@ -2278,7 +1931,6 @@ uint32 getResetReason(void)
 void clearCRC(void)
 {
 // invalidating the CRC - in case somthing goes terribly wrong...
-  DEBUGPRNT("Clearing CRC in EEPRom");
   EEPROM.begin(strip->getCRCsize());
   for (uint i = 0; i < EEPROM.length(); i++)
   {
@@ -2286,7 +1938,6 @@ void clearCRC(void)
   }
   EEPROM.commit();
   EEPROM.end();
-  DEBUGPRNT("Reset ESP and start all over with default values...");
   delay(1000);
   ESP.restart();
 }
@@ -2294,7 +1945,6 @@ void clearCRC(void)
 void clearEEPROM(void)
 {
 //Clearing EEPROM
-  DEBUGPRNT("Clearing EEPROM");
   EEPROM.begin(strip->getSegmentSize());
   for (uint i = 0; i < EEPROM.length(); i++)
   {
@@ -2325,79 +1975,106 @@ void handleResetRequest(AsyncWebServerRequest * request)
   }
 }
 
+void updateConfigFile(void)
+{
+  DynamicJsonBuffer buffer;
+  JsonArray& root = buffer.createArray();   
+  for (uint8_t i = 0; i < fieldCount; i++)
+  {
+    Field field = fields[i];
+    JsonObject& obj = root.createNestedObject();
+    obj[F("name")]  = field.name;
+    obj[F("label")] = field.label;
+    obj[F("type")]  = field.type;
+    if (field.getValue)
+    {
+      if (field.type == (const char *)"Color")
+      {
+        CRGB solidColor = strip->getTargetPalette().entries[0];
+        obj[F("value")] = String(solidColor.r) + String(",") + String(solidColor.g)+","+String(solidColor.b);
+      }
+      else
+      {
+        obj[F("value")] = field.getValue();
+      }
+    }
+
+    if (field.type == (const char *)"Number")
+    {
+      obj["min"] = field.min;
+      obj["max"] = field.max;
+    }
+
+    if (field.getOptions)
+    {
+      JsonArray &arr = obj.createNestedArray("options");
+      field.getOptions(arr);
+    }
+  }
+
+  File config_Json = LittleFS.open("/config_all.json", "w");
+
+  root.printTo(config_Json);
+
+  config_Json.close();
+
+}
+
 void setupWebServer(void)
 {
   showInitColor(CRGB::Blue);
   delay(INITDELAY);
   LittleFS.begin();
-  {
-#ifdef DEBUG
-    Dir dir = LittleFS.openDir("/");
-    while (dir.next())
-    {
-      String fileName = dir.fileName();
-      size_t fileSize = dir.fileSize();
-      DEBUGPRNT("FS File: " + fileName + ", size: " + String(fileSize) + "\n");
-    }
-    DEBUGPRNT("\n");
-#endif
-  }
-
+  
   server.on("/all", HTTP_GET, [](AsyncWebServerRequest *request) {
-#ifdef DEBUG
-    DEBUGPRNT("Called /all!");
-#endif
-//    request->send(200, F("text/json"), getFieldsJson(fields, fieldCount));
-    AsyncResponseStream *response = request->beginResponseStream("text/json");
-    response->print("[");
 
+    updateConfigFile();
+    request->send(LittleFS, "/config_all.json", "application/json");
+    /*
+    AsyncJsonResponse * response = new AsyncJsonResponse(true);
+    JsonArray& root = response->getRoot(); 
+
+    
     for (uint8_t i = 0; i < fieldCount; i++)
     {
       Field field = fields[i];
-
-      response->print("{\"name\":\"" + field.name + "\",\"label\":\"" + field.label + "\",\"type\":\"" + field.type + "\"");
+      JsonObject& obj = root.createNestedObject();
+      obj[F("name")]  = field.name;
+      obj[F("label")] = field.label;
+      obj[F("type")]  = field.type;
       if (field.getValue)
       {
-        if (field.type == "Color" || field.type == "String")
+        if (field.type == (const char *)"Color" || field.type == (const char *)"String")
         {
-          response->print(",\"value\":\"" + field.getValue() + "\"");
+          obj[F("value")] = field.getValue();
         }
         else
         {
-          response->print(",\"value\":" + field.getValue());
+          obj[F("value")] = field.getValue();
         }
       }
 
-      if (field.type == "Number")
+      if (field.type == (const char *)"Number")
       {
-        response->print(",\"min\":" + String(field.min));
-        response->print(",\"max\":" + String(field.max));
+        obj["min"] = field.min;
+        obj["max"] = field.max;
       }
 
       if (field.getOptions)
       {
-        response->print(",\"options\":[");
-        response->print(field.getOptions());
-        response->print("]");
+        JsonArray &arr = obj.createNestedArray("options");
+        field.getOptions(arr);
       }
-
-      response->print("}");
-
-      if (i < fieldCount - 1)
-        response->print(",");
-      }
-      response->println("]");
-      request->send(response);
-
+    }
+    
+    request->send(response);
+    */
   });
 
   server.on("/fieldValue", HTTP_GET, [](AsyncWebServerRequest *request) {
     String name = request->getParam(F("name"))->value();
-#ifdef DEBUG
-    DEBUGPRNT("Called /fieldValue with arg name =");
-    DEBUGPRNT(name);
-#endif
-    request->send(200, F("text/plain"), getFieldValue(name, fields, fieldCount));
+    String response = getFieldValue(name.c_str(), fields, fieldCount);
+    request->send(200, F("text/plain"), response);
   });
 
   
@@ -2430,29 +2107,22 @@ void setupWebServer(void)
 
   showInitColor(CRGB::Yellow);
   delay(INITDELAY);
-#ifdef DEBUG
-  DEBUGPRNT("HTTP server started.\n");
-#endif
+
   /*
   if(webSocketsServer == NULL) webSocketsServer = new WebSocketsServer(81);
   webSocketsServer->begin();
   webSocketsServer->onEvent(webSocketEvent);
   */
   if (!MDNS.begin(LED_NAME)) {
-    DEBUGPRNT("Error setting up MDNS responder!");
-    //ESP.restart();
+
   }
   else
   {
     MDNS.addService("http", "tcp", 80);
-    DEBUGPRNT("mDNS responder started");
   }
 
   showInitColor(CRGB::Green);
   delay(INITDELAY);
-#ifdef DEBUG
-  DEBUGPRNT("webSocketServer started.\n");
-#endif
   showInitColor(CRGB::Black);
   delay(INITDELAY);
 }
@@ -2470,7 +2140,6 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
   {
     return;
   }
-  DEBUGPRNT("Checking the websocket event!");
   server.arg(1);
   if(type == WStype_TEXT)
   {
@@ -2488,12 +2157,10 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
       received.printTo(myJSON);
       #endif
       webSocketsServer->sendTXT(num, myJSON);
-      DEBUGPRNT("WEBSOCKET: Received JSON:" + myJSON);
       #ifdef DEBUG
       for(JsonPair& p : received)
       {
-        DEBUGPRNT("Key: " + String(p.key));
-        DEBUGPRNT("Value: " + String(p.value.asString()));
+
       }
       #endif
     }
@@ -2541,9 +2208,6 @@ uint16_t steps  = 1;
 
 void setupKnobControl(void)
 { 
-
-
-  DEBUGPRNT("setup display...");
   display.init();
 
   display.flipScreenVertically();
@@ -2552,9 +2216,6 @@ void setupKnobControl(void)
   // Filedtypes:
   m_fieldtypes = new fieldtypes[fieldCount];
   set_fieldTypes(m_fieldtypes);
-  DEBUGPRNT("setup done...");
-
-
 }
 #endif
 
@@ -2590,14 +2251,15 @@ void setup()
 
   #ifdef HAS_KNOB_CONTROL
   const uint8_t font_height = 12;
+
   setupKnobControl();
   uint8_t cursor = 0;
   display.clear();
   display.setTextAlignment(TEXT_ALIGN_LEFT);
   display.setFont(ArialMT_Plain_10);
+
   cursor = drawtxtline10(cursor, font_height, F("Booting... Bitte Warten"));
   display.display();
-
   #ifdef DEBUG
   // Open serial communications and wait for port to open:
   Serial.begin(115200);
@@ -2605,60 +2267,46 @@ void setup()
 
   mDisplayState = Display_ShowInfo;
 
-  DEBUGPRNT("\n");
-  DEBUGPRNT(F("Booting"));
-
-  DEBUGPRNT("");
-  DEBUGPRNT(F("Checking boot cause:"));
-
  
 
   switch (getResetReason())
   {
   case REASON_DEFAULT_RST:
-    DEBUGPRNT(F("\tREASON_DEFAULT_RST: Normal boot"));
     cursor = drawtxtline10(cursor, font_height, F("REASON_DEFAULT_RST"));
     display.display();
     break;
   case REASON_WDT_RST:
-    DEBUGPRNT(F("\tREASON_WDT_RST"));
     cursor = drawtxtline10(cursor, font_height, F("REASON_WDT_RST"));
     display.display();
     delay(2000);
     clearCRC(); // should enable default start in case of
     break;
   case REASON_EXCEPTION_RST:
-    DEBUGPRNT(F("\tREASON_EXCEPTION_RST"));
     cursor = drawtxtline10(cursor, font_height, F("REASON_EXCEPTION_RST"));
     display.display();
     delay(2000);
     clearCRC();
     break;
   case REASON_SOFT_WDT_RST:
-    DEBUGPRNT(F("\tREASON_SOFT_WDT_RST"));
     cursor = drawtxtline10(cursor, font_height, F("REASON_SOFT_WDT_RST"));
     display.display();
     delay(2000);
     clearCRC();
     break;
   case REASON_SOFT_RESTART:
-    DEBUGPRNT(F("\tREASON_SOFT_RESTART"));
     cursor = drawtxtline10(cursor, font_height, F("REASON_SOFT_RESTART"));
     display.display();
     break;
   case REASON_DEEP_SLEEP_AWAKE:
-    DEBUGPRNT(F("\tREASON_DEEP_SLEEP_AWAKE"));
     cursor = drawtxtline10(cursor, font_height, F("REASON_DEEP_SLEEP_AWAKE"));
     display.display();
     break;
   case REASON_EXT_SYS_RST:
-    DEBUGPRNT(F("\n\tREASON_EXT_SYS_RST: External trigger..."));
     cursor = drawtxtline10(cursor, font_height, F("REASON_EXT_SYS_RST"));
     display.display();
     break;
 
   default:
-    DEBUGPRNT(F("\tUnknown cause..."));
     cursor = drawtxtline10 (cursor, 10, F("Unknown cause..."));
     display.display();
     break;
@@ -2667,12 +2315,7 @@ void setup()
   display.display();
   
 
-  stripe_setup(LED_COUNT,
-               STRIP_MAX_FPS,
-               STRIP_VOLTAGE,
-               STRIP_MILLIAMPS,
-               RainbowColors_p,
-               F("Rainbow Colors"),
+  stripe_setup(STRIP_VOLTAGE,
                UncorrectedColor); //TypicalLEDStrip);
 
   EEPROM.begin(strip->getSegmentSize());
@@ -2694,9 +2337,7 @@ void setup()
   }  
   
   readRuntimeDataEEPROM(); 
-  
-  
-  DEBUGPRNT("Going to show IP Address " + myIP.toString()); 
+
 
   delay(KNOB_BOOT_DELAY);
   display.clear();
@@ -2716,48 +2357,35 @@ void setup()
   Serial.begin(115200);
   #endif
 
-  DEBUGPRNT("\n");
-  DEBUGPRNT(F("Booting"));
-
-  DEBUGPRNT("");
-  DEBUGPRNT(F("Checking boot cause:"));
   
   switch (getResetReason())
   {
   case REASON_DEFAULT_RST:
-    DEBUGPRNT(F("\tREASON_DEFAULT_RST: Normal boot"));
     
     break;
   case REASON_WDT_RST:
-    DEBUGPRNT(F("\tREASON_WDT_RST"));
     
     clearCRC(); // should enable default start in case of
     break;
   case REASON_EXCEPTION_RST:
-    DEBUGPRNT(F("\tREASON_EXCEPTION_RST"));
     
     clearCRC();
     break;
   case REASON_SOFT_WDT_RST:
-    DEBUGPRNT(F("\tREASON_SOFT_WDT_RST"));
     
     clearCRC();
     break;
   case REASON_SOFT_RESTART:
-    DEBUGPRNT(F("\tREASON_SOFT_RESTART"));
     
     break;
   case REASON_DEEP_SLEEP_AWAKE:
-    DEBUGPRNT(F("\tREASON_DEEP_SLEEP_AWAKE"));
     
     break;
   case REASON_EXT_SYS_RST:
-    DEBUGPRNT(F("\n\tREASON_EXT_SYS_RST: External trigger..."));
     
     break;
 
   default:
-    DEBUGPRNT(F("\tUnknown cause..."));
     
     break;
   }
@@ -2787,21 +2415,14 @@ void setup()
   setupWebServer();
 
   if (!MDNS.begin(LED_NAME)) {
-    DEBUGPRNT("Error setting up MDNS responder!");
-    //ESP.restart();
+
   }
   else
   {
     MDNS.addService("http", "tcp", 80);
-    DEBUGPRNT("mDNS responder started");
   }
-  
-  
-
 
   initOverTheAirUpdate();
-
-
 
   // if we got that far, we show by a nice little animation
   // as setup finished signal....
@@ -2818,7 +2439,6 @@ void setup()
       
       delay(mindelay);
     }
-    DEBUGPRNT("Init done - fading green out");
     delay(20);
     for (int16_t c = strip->leds[0].green; c > 0; c -= 3)
     {
@@ -2837,7 +2457,6 @@ void setup()
   // so one can take a picture. 
   // one needs to know the structure of the leds...
   myIP = WiFi.localIP();
-  DEBUGPRNT("Going to show IP Address " + myIP.toString());
   if(LED_COUNT >= 40)
   {
     // can show the complete IP Address on the first 40 LEDs
@@ -2868,24 +2487,12 @@ void setup()
 
   delay(4000);
 
-
-#ifdef DEBUG
-  DEBUGPRNT("Init finished.. Read runtime data");
-#endif
   readRuntimeDataEEPROM();
-#ifdef DEBUG
-  DEBUGPRNT("Runtime Data loaded");
-  FastLED.countFPS();
-#endif
-  //setEffect(FX_NO_FX);
+
 #endif // HAS_KNOB_CONTROL
-
-  //FastLED.setMaxRefreshRate(120);
-
 }
 
 #ifdef HAS_KNOB_CONTROL
-
 
 uint8_t get_next_field(uint8_t curr_field, bool up, fieldtypes *m_fieldtypes)
 {
@@ -2943,7 +2550,7 @@ uint16_t setEncoderValues(uint8_t curr_field, fieldtypes * m_fieldtypes)
       // nothing?
     break;
     case NumberFieldType :
-      curr_value = (uint16_t)strtoul(fields[curr_field].getValue().c_str(), NULL, 10);
+      curr_value = (uint16_t)fields[curr_field].getValue();
       steps = (fields[curr_field].max - fields[curr_field].min) / 100;
       if(steps == 0) steps = 1;
       maxVal = fields[curr_field].max;
@@ -2951,14 +2558,14 @@ uint16_t setEncoderValues(uint8_t curr_field, fieldtypes * m_fieldtypes)
       curVal = curr_value;
     break;
     case BooleanFieldType :
-      curr_value = (uint16_t)strtoul(fields[curr_field].getValue().c_str(), NULL, 10);
+      curr_value = (uint16_t)fields[curr_field].getValue();
       steps = 1;
       maxVal = 1;
       minVal = 0;
       curVal = curr_value;
     break;
     case SelectFieldType :
-      curr_value =(uint16_t)strtoul(fields[curr_field].getValue().c_str(), NULL, 10);
+      curr_value =(uint16_t)fields[curr_field].getValue();
       steps = 1;
       maxVal = fields[curr_field].max;
       minVal = fields[curr_field].min;
@@ -2990,7 +2597,7 @@ void showDisplay(uint8_t curr_field, fieldtypes *fieldtype)
   }
   EVERY_N_MILLISECONDS(1000/KNOB_DISPLAY_FPS)
   {
-    uint16_t val = (uint16_t)strtoul(fields[curr_field].getValue().c_str(), NULL, 10);
+    uint16_t val = (uint16_t)fields[curr_field].getValue();
     display.clear();
     display.setTextAlignment(TEXT_ALIGN_LEFT);
     if(mDisplayState) display.displayOn();
@@ -3082,7 +2689,7 @@ void showDisplay(uint8_t curr_field, fieldtypes *fieldtype)
         }
       break;
       case Display_ShowBoolMenu:
-        display.drawStringMaxWidth(0, 0, 128, fields[curr_field].label + ": ");
+        display.drawStringMaxWidth(0, 0, 128, fields[curr_field].label);
         display.setTextAlignment(TEXT_ALIGN_CENTER);
         display.drawRect(32, 28, 28, 28);
         display.drawRect(68, 28, 28, 28);
@@ -3109,13 +2716,13 @@ void showDisplay(uint8_t curr_field, fieldtypes *fieldtype)
         }
       break;
       case Display_ShowNumberMenu:
-        display.drawStringMaxWidth(0, 0, 128, fields[curr_field].label + ": ");
+        display.drawStringMaxWidth(0, 0, 128, fields[curr_field].label);
         display.setTextAlignment(TEXT_ALIGN_RIGHT);
         display.setFont(ArialMT_Plain_16);
         display.drawProgressBar(0, 28, 127, 20, map(val, fields[curr_field].min, fields[curr_field].max, 0, 100));
         display.setTextAlignment(TEXT_ALIGN_CENTER);
         display.setColor((OLEDDISPLAY_COLOR)2);
-        display.drawString(63, 30, fields[curr_field].getValue());
+        display.drawString(63, 30, String(fields[curr_field].getValue()));
         display.setColor((OLEDDISPLAY_COLOR)1);
         display.setFont(ArialMT_Plain_10);
         display.setTextAlignment(TEXT_ALIGN_LEFT);
@@ -3126,13 +2733,11 @@ void showDisplay(uint8_t curr_field, fieldtypes *fieldtype)
       break;
       case Display_ShowSelectMenue:
       {
-        display.drawStringMaxWidth(0, 0, 128, fields[curr_field].label + ": ");
+        display.drawStringMaxWidth(0, 0, 128, fields[curr_field].label);
         StaticJsonBuffer<1600> myJsonBuffer;
-        String json = "[";
-        json += fields[curr_field].getOptions();
-        json += "]";
-
-        JsonArray& myValues = myJsonBuffer.parseArray(json.c_str(),2);
+        
+        JsonArray& myValues = myJsonBuffer.createArray();
+        fields[curr_field].getOptions(myValues);
         
         //display.drawString(128, 20, myValues[val]);
         display.setTextAlignment(TEXT_ALIGN_LEFT);
@@ -3183,23 +2788,23 @@ void showDisplay(uint8_t curr_field, fieldtypes *fieldtype)
         display.setTextAlignment(TEXT_ALIGN_LEFT);
         display.setFont(ArialMT_Plain_10);
         display.drawString(0,  20, F("FPS:"));
-        display.drawString(0,  30, F("Leds on:"));
+        display.drawString(0,  30, F("Heap"));
         display.drawString(0,  40, F("M:"));
         display.drawString(0,  50, F("C:"));
 
         display.setTextAlignment(TEXT_ALIGN_RIGHT);
         static uint16_t FPS = 0;
-        static uint16_t num_leds_on = strip->getLedsOn(); // fixes issue #18
+        //static uint16_t num_leds_on = strip->getLedsOn(); // fixes issue #18
         EVERY_N_MILLISECONDS(200)
         {
           FPS = strip->getFPS();
-          num_leds_on = strip->getLedsOn();
+          //num_leds_on = strip->getLedsOn();
         }
         FastLED.getFPS();
         if(strip->getPower())
         {        
           display.drawString(127,  20, String(FPS));
-          display.drawString(127,  30, String(num_leds_on));
+          display.drawString(127,  30, String(ESP.getFreeHeap()));
         }
         else
         {
@@ -3420,52 +3025,16 @@ void loop()
   uint32_t now = millis();
   static uint32_t wifi_check_time = 0;
 
-
-#ifdef DEBUG
-  static unsigned long last_status_msg = 0;
-#endif
   if (OTAisRunning)
     return;
-    // if someone requests a call to the factory reset...
-    //static bool ResetRequested = false;
-
-#ifdef DEBUG
-  // Debug Watchdog. to be removed for "production".
-  if (now - last_status_msg > 10000)
-  {
-    String msg = "";
-    last_status_msg = now;
-    if(strip->getPower())
-    {
-      msg += "Strip is ON";
-    }
-    else
-    {
-      msg += "Strip is OFF";
-    }
-    if(strip->isRunning())
-    {
-      msg += " and running.\n";
-    }
-    else
-    {
-      msg += " and paused.\n";
-    }
-    msg += "\t\tWS2812FX mode #" + String(strip->getMode()) + " - " + strip->getModeName(strip->getMode());
-    msg += "\n\t\tC-Pal: " + strip->getCurrentPaletteName() + "\tT-Pal: " + strip->getTargetPaletteName() + "\n\t\tFPS: " + String(FastLED.getFPS());
-    DEBUGPRNT(msg);
-  }
-#endif
 
   #ifndef HAS_KNOB_CONTROL
   // Checking WiFi state every WIFI_TIMEOUT
   // Reset on disconnection
   if (now > wifi_check_time)
   {
-    //DEBUGPRNT("Checking WiFi... ");
     if (WiFi.status() != WL_CONNECTED)
     {
-      DEBUGPRNT("Lost Wifi Connection. Counter is " + String(wifi_err_counter));
       wifi_err_counter+=2;
       wifi_disconnect_counter+=4;
     }
@@ -3477,7 +3046,6 @@ void loop()
 
     if(wifi_err_counter > 20)
     {
-      DEBUGPRNT("Trying to reconnect now...");
       delay(2000);
       WiFi.mode(WIFI_OFF);
       delay(2000);
@@ -3493,7 +3061,6 @@ void loop()
       strip->show();
       // Reset after 3 seconds....
       delay(3000);
-      DEBUGPRNT("Reconnecting failed, resetting ESP....");
       ESP.restart();
     }
 
@@ -3533,20 +3100,6 @@ void loop()
       shouldSaveRuntime = true;
       saveEEPROMData();
       ESP.restart();
-      
-      /*
-      delay(INITDELAY);
-      setupWiFi();
-      delay(INITDELAY);
-      if(WiFiConnected)
-      {
-        setupWebServer();
-        delay(INITDELAY);
-        initOverTheAirUpdate();
-        delay(INITDELAY);
-        myIP = WiFi.localIP();
-      }
-      */
     }
     else
     {
@@ -3567,11 +3120,9 @@ void loop()
     // since we have Knob-Control. We do not care about "No Connection"
   if (now > wifi_check_time)
   {
-    //DEBUGPRNT("Checking WiFi... ");
     if (WiFi.status() != WL_CONNECTED)
     {
       if(WiFiConnected) last_control_operation = now;    // Will switch the display on. Only needed when we had connection and now lose it...
-      DEBUGPRNT("Lost Wifi Connection. Counter is " + String(wifi_err_counter));
       wifi_err_counter+=1;
       //wifi_disconnect_counter+=2;
       WiFiConnected = false;
@@ -3587,7 +3138,6 @@ void loop()
 
     if(wifi_err_counter > (10 * (wifi_disconnect_counter%12)))
     {
-      DEBUGPRNT("Trying to reconnect now...");
       WiFi.mode(WIFI_OFF);
       setupWiFi();
     }
@@ -3615,7 +3165,11 @@ void loop()
 
   EVERY_N_MILLIS(EEPROM_SAVE_INTERVAL_MS)
   {
-    saveEEPROMData();
+    if(shouldSaveRuntime)
+    {
+      saveEEPROMData();
+    }
+    
     shouldSaveRuntime = false;
   }
 
