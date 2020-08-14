@@ -43,7 +43,6 @@
 #pragma message "Needs to be corrected. A library should not depend on project inlcudes!"
 // FIXME: Needs to be corrected. A library should not depend on project inlcudes!
 #include "../../include/defaults.h"
-#include "../../include/debug_help.h"
 
 
 #ifndef LED_PIN
@@ -90,9 +89,7 @@ enum MODES
 {
   FX_MODE_STATIC,
   FX_MODE_EASE,
-  FX_MODE_TWINKLE_EASE,
   FX_MODE_NOISEMOVER,
-  FX_MODE_TWINKLE_NOISEMOVER,
   FX_MODE_PLASMA,
   FX_MODE_JUGGLE_PAL,
   //  FX_MODE_CONFETTI,
@@ -110,7 +107,6 @@ enum MODES
   FX_MODE_RAINBOW,
   FX_MODE_RAINBOW_CYCLE,
   FX_MODE_PRIDE,
-  FX_MODE_PRIDE_GLITTER,
   FX_MODE_SCAN,
   FX_MODE_DUAL_SCAN,
   FX_MODE_FADE,
@@ -120,14 +116,11 @@ enum MODES
   FX_MODE_RUNNING_LIGHTS,
   FX_MODE_TWINKLE_FADE,
   FX_MODE_TWINKLE_FOX,
-  //  FX_MODE_SOFTTWINKLES,   // FIXME: This one is broken and leads to random exceptions / resets -> to be checked...
   FX_MODE_FILL_BRIGHT,
   FX_MODE_FIREWORK,
   FX_MODE_FIRE2012,
   FX_MODE_LARSON_SCANNER,
   FX_MODE_COMET,
-  FX_MODE_FIRE_FLICKER,
-  FX_MODE_FIRE_FLICKER_SOFT,
   FX_MODE_FIRE_FLICKER_INTENSE,
   FX_MODE_BUBBLE_SORT,
   FX_MODE_SHOOTING_STAR,
@@ -407,11 +400,7 @@ public:
   } segment_runtime;
 
 public:
-  WS2812FX(const uint8_t fps = 120,
-           const uint8_t volt = 5,
-           const uint16_t milliamps = 500,
-           const CRGBPalette16 pal = Rainbow_gp,
-           const String Name = "Rainbow Colors",
+  WS2812FX(const uint8_t volt = 5,
            const LEDColorCorrection colc = TypicalLEDStrip)
   {
 
@@ -424,13 +413,13 @@ public:
 
 
     _mode[FX_MODE_STATIC]                 = &WS2812FX::mode_static;
-    _mode[FX_MODE_TWINKLE_EASE]           = &WS2812FX::mode_twinkle_ease;
+    //_mode[FX_MODE_TWINKLE_EASE]           = &WS2812FX::mode_twinkle_ease;
     _mode[FX_MODE_EASE]                   = &WS2812FX::mode_ease;
     _mode[FX_MODE_MULTI_DYNAMIC]          = &WS2812FX::mode_multi_dynamic;
     _mode[FX_MODE_RAINBOW]                = &WS2812FX::mode_rainbow;
     _mode[FX_MODE_RAINBOW_CYCLE]          = &WS2812FX::mode_rainbow_cycle;
     _mode[FX_MODE_PRIDE]                  = &WS2812FX::mode_pride;
-    _mode[FX_MODE_PRIDE_GLITTER]          = &WS2812FX::mode_pride_glitter;
+    //_mode[FX_MODE_PRIDE_GLITTER]          = &WS2812FX::mode_pride_glitter;
     _mode[FX_MODE_SCAN]                   = &WS2812FX::mode_scan;
     _mode[FX_MODE_DUAL_SCAN]              = &WS2812FX::mode_dual_scan;
     _mode[FX_MODE_FADE]                   = &WS2812FX::mode_fade;
@@ -442,12 +431,12 @@ public:
     //      _mode[FX_MODE_SOFTTWINKLES]            = &WS2812FX::mode_softtwinkles; // FIXME: Broken
     _mode[FX_MODE_LARSON_SCANNER]         = &WS2812FX::mode_larson_scanner;
     _mode[FX_MODE_COMET]                  = &WS2812FX::mode_comet;
-    _mode[FX_MODE_FIRE_FLICKER]           = &WS2812FX::mode_fire_flicker;
-    _mode[FX_MODE_FIRE_FLICKER_SOFT]      = &WS2812FX::mode_fire_flicker_soft;
+    //_mode[FX_MODE_FIRE_FLICKER]           = &WS2812FX::mode_fire_flicker;
+    //_mode[FX_MODE_FIRE_FLICKER_SOFT]      = &WS2812FX::mode_fire_flicker_soft;
     _mode[FX_MODE_FIRE_FLICKER_INTENSE]   = &WS2812FX::mode_fire_flicker_intense;
     _mode[FX_MODE_BREATH]                 = &WS2812FX::mode_breath;
     _mode[FX_MODE_RUNNING_LIGHTS]         = &WS2812FX::mode_running_lights;
-    _mode[FX_MODE_TWINKLE_NOISEMOVER]     = &WS2812FX::mode_inoise8_mover_twinkle;
+    //_mode[FX_MODE_TWINKLE_NOISEMOVER]     = &WS2812FX::mode_inoise8_mover_twinkle;
     _mode[FX_MODE_NOISEMOVER]             = &WS2812FX::mode_inoise8_mover;
     _mode[FX_MODE_PLASMA]                 = &WS2812FX::mode_plasma;
     _mode[FX_MODE_JUGGLE_PAL]             = &WS2812FX::mode_juggle_pal;
@@ -477,24 +466,24 @@ public:
 
     _name[FX_MODE_STATIC]                 = F("Static");
     _name[FX_MODE_EASE]                   = F("Ease");
-    _name[FX_MODE_TWINKLE_EASE]           = F("Ease Twinkle");
+    //_name[FX_MODE_TWINKLE_EASE]           = F("Ease Twinkle");
     _name[FX_MODE_BREATH]                 = F("Breath");
-    _name[FX_MODE_NOISEMOVER]             = F("iNoise8 Mover");
-    _name[FX_MODE_TWINKLE_NOISEMOVER]     = F("Twinkle iNoise8 Mover");
-    _name[FX_MODE_PLASMA]                 = F("Plasma Effect");
-    _name[FX_MODE_JUGGLE_PAL]             = F("Juggle Moving Pixels");
-    _name[FX_MODE_FILL_BEAT]              = F("Color Fill Beat");
-    _name[FX_MODE_DOT_BEAT]               = F("Moving Dots");
-    _name[FX_MODE_DOT_COL_WIPE]           = F("Moving Dots Color Wipe");
-    _name[FX_MODE_COLOR_WIPE_SAWTOOTH]    = F("Color Wipe Sawtooth");
-    _name[FX_MODE_COLOR_WIPE_SINE]        = F("Color Wipe Sine");
-    _name[FX_MODE_COLOR_WIPE_QUAD]        = F("Color Wipe Quad");
-    _name[FX_MODE_COLOR_WIPE_TRIWAVE]     = F("Color Wipe Triwave");
-    _name[FX_MODE_MULTI_DYNAMIC]          = F("Multi Dynamic");
+    _name[FX_MODE_NOISEMOVER]             = F("iNoise8");
+    //_name[FX_MODE_TWINKLE_NOISEMOVER]     = F("Twinkle iNoise8 Mover");
+    _name[FX_MODE_PLASMA]                 = F("Plasma");
+    _name[FX_MODE_JUGGLE_PAL]             = F("Juggle Pixels");
+    _name[FX_MODE_FILL_BEAT]              = F("Color Fill");
+    _name[FX_MODE_DOT_BEAT]               = F("Dots");
+    _name[FX_MODE_DOT_COL_WIPE]           = F("Dots Color Wipe");
+    _name[FX_MODE_COLOR_WIPE_SAWTOOTH]    = F("Wipe Sawtooth");
+    _name[FX_MODE_COLOR_WIPE_SINE]        = F("Wipe Sine");
+    _name[FX_MODE_COLOR_WIPE_QUAD]        = F("Wipe Quad");
+    _name[FX_MODE_COLOR_WIPE_TRIWAVE]     = F("Wipe Triwave");
+    _name[FX_MODE_MULTI_DYNAMIC]          = F("Dynamic");
     _name[FX_MODE_RAINBOW]                = F("Rainbow");
     _name[FX_MODE_RAINBOW_CYCLE]          = F("Rainbow Cycle");
     _name[FX_MODE_PRIDE]                  = F("Pride");
-    _name[FX_MODE_PRIDE_GLITTER]          = F("Pride Glitter");
+    //_name[FX_MODE_PRIDE_GLITTER]          = F("Pride Glitter");
     _name[FX_MODE_SCAN]                   = F("Scan");
     _name[FX_MODE_DUAL_SCAN]              = F("Dual Scan");
     _name[FX_MODE_FADE]                   = F("Fade");
@@ -502,52 +491,52 @@ public:
     _name[FX_MODE_THEATER_CHASE_DUAL_P]   = F("Theater Chase Dual palette");
     _name[FX_MODE_THEATER_CHASE_RAINBOW]  = F("Theater Chase Rainbow");
     _name[FX_MODE_RUNNING_LIGHTS]         = F("Running Lights");
-    _name[FX_MODE_TO_INNER]               = F("Fast to Center");
-    _name[FX_MODE_FILL_BRIGHT]            = F("Fill waving Brightness");
+    _name[FX_MODE_TO_INNER]               = F("Centering");
+    _name[FX_MODE_FILL_BRIGHT]            = F("Wave Bright");
     _name[FX_MODE_TWINKLE_FADE]           = F("Twinkle Fade");
     _name[FX_MODE_TWINKLE_FOX]            = F("Twinkle Fox");
     //      _name[FX_MODE_SOFTTWINKLES]               = F("Soft Twinkles"); // FIXME: Broken...
-    _name[FX_MODE_FIREWORK]               = F("The Firework");
+    _name[FX_MODE_FIREWORK]               = F("Firework");
     _name[FX_MODE_FIRE2012]               = F("Fire 2012");
     _name[FX_MODE_FILL_WAVE]              = F("FILL Wave");
     _name[FX_MODE_LARSON_SCANNER]         = F("Larson Scanner");
     _name[FX_MODE_COMET]                  = F("Comet");
-    _name[FX_MODE_FIRE_FLICKER]           = F("Fire Flicker");
-    _name[FX_MODE_FIRE_FLICKER_SOFT]      = F("Fire Flicker (soft)");
-    _name[FX_MODE_FIRE_FLICKER_INTENSE]   = F("Fire Flicker (intense)");
+    //_name[FX_MODE_FIRE_FLICKER]           = F("Fire Flicker");
+    //_name[FX_MODE_FIRE_FLICKER_SOFT]      = F("Fire Flicker (soft)");
+    _name[FX_MODE_FIRE_FLICKER_INTENSE]   = F("Fire Flicker");
     _name[FX_MODE_BUBBLE_SORT]            = F("Bubble Sort");
     _name[FX_MODE_SHOOTING_STAR]          = F("Shooting Star");
-    _name[FX_MODE_BEATSIN_GLOW]           = F("Beat sine glows");
+    _name[FX_MODE_BEATSIN_GLOW]           = F("Sine glows");
     _name[FX_MODE_PIXEL_STACK]            = F("Pixel Stack");
     _name[FX_MODE_POPCORN]                = F("Popcorn");
-    _name[FX_MODE_FIREWORKROCKETS]        = F("Firework with Rockets");
-    _name[FX_MODE_RING_RING]              = F("Phone Ringing");
+    _name[FX_MODE_FIREWORKROCKETS]        = F("Firework Rocket");
+    _name[FX_MODE_RING_RING]              = F("Phone Ring");
     _name[FX_MODE_HEARTBEAT]              = F("Heart Beat");
-    _name[FX_MODE_VOID]                   = F("Void - literally not changing anything");
+    _name[FX_MODE_VOID]                   = F("Void");
     _name[FX_MODE_SUNRISE]                = F("Sunrise");
     _name[FX_MODE_SUNSET]                 = F("Sunset");
 
-    _pal_name[RAINBOW_PAL]            = F("Rainbow Colors");
-    _pal_name[LAVA_PAL]               = F("Lava Colors");
-    _pal_name[ICE_WATER_PAL]          = F("Iced Water Colors");
-    _pal_name[RAINBOWSTRIPES_PAL]     = F("RainbowStripe Colors");
-    _pal_name[FOREST_PAL]             = F("Forest Colors");
-    _pal_name[OCEAN_PAL]              = F("Ocean Colors");
-    _pal_name[HEAT_PAL]               = F("Heat Colors");
-    _pal_name[PARTY_PAL]              = F("Party Colors");
-    _pal_name[CLOUD_PAL]              = F("Cloud Colors");
-    _pal_name[ICE_PAL]                = F("Ice Colors");
-    _pal_name[RETROC9_PAL]            = F("Retro C9 Colors");
-    _pal_name[SNOW_PAL]               = F("Snow Colors");
-    _pal_name[FAIRYLIGHT_PAL]         = F("Fairy Light Colors");
-    _pal_name[BLUEWHITE_PAL]          = F("Blue White Colors");
-    _pal_name[REDWHITHE_PAL]          = F("Red White Colors");
-    _pal_name[HOLLY_PAL]              = F("Holly Colors");
-    _pal_name[REDGREENWHITE_PAL]      = F("Red Green White Colors");
+    _pal_name[RAINBOW_PAL]            = F("Rainbow");
+    _pal_name[LAVA_PAL]               = F("Lava");
+    _pal_name[ICE_WATER_PAL]          = F("Iced Water");
+    _pal_name[RAINBOWSTRIPES_PAL]     = F("RainbowStripe");
+    _pal_name[FOREST_PAL]             = F("Forest");
+    _pal_name[OCEAN_PAL]              = F("Ocean");
+    _pal_name[HEAT_PAL]               = F("Heat");
+    _pal_name[PARTY_PAL]              = F("Party");
+    _pal_name[CLOUD_PAL]              = F("Cloud");
+    _pal_name[ICE_PAL]                = F("Ice");
+    _pal_name[RETROC9_PAL]            = F("Retro");
+    _pal_name[SNOW_PAL]               = F("Snow");
+    _pal_name[FAIRYLIGHT_PAL]         = F("Fairy Light");
+    _pal_name[BLUEWHITE_PAL]          = F("Blue White");
+    _pal_name[REDWHITHE_PAL]          = F("Red White");
+    _pal_name[HOLLY_PAL]              = F("Holly");
+    _pal_name[REDGREENWHITE_PAL]      = F("Red Green White");
     _pal_name[SHADES_OF_RED_PAL]      = F("Shades of Red");
     _pal_name[SHADES_OF_GREEN_PAL]    = F("Shades of Green");
     _pal_name[SHADES_OF_BLUE_PAL]     = F("Shades of Blue");
-    _pal_name[RANDOM_PAL]             = F("Randomly changing");
+    _pal_name[RANDOM_PAL]             = F("Random");
 
     _new_mode = 255;
     _volts = volt;

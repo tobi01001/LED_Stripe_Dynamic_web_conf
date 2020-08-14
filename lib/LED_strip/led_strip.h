@@ -48,6 +48,7 @@
 
 // we gonna need our own adoption from the library. 
 #include "WS2812FX_FastLED.h"
+#include <ArduinoJson.h>
 
 // These define modes besides the fx library
 #define FX_NO_FX        0
@@ -60,12 +61,7 @@ extern WS2812FX *strip;
 // initialize the strip during boot (or at changes)
 // strip can be any neopixel arrangement
 // but is currently limited to NEO_GRB
-void stripe_setup(  const uint16_t LEDCount, 
-                    const uint8_t FPS, 
-                    const uint8_t volt , 
-                    const uint16_t milliamps , 
-                    const CRGBPalette16 pal , 
-                    const String Name ,
+void stripe_setup(  const uint8_t volt ,
                     const LEDColorCorrection colc);
 
 
@@ -102,18 +98,19 @@ uint8_t Blue(uint32_t color);
 
 
 typedef void (*FieldSetter)(uint16_t);
-typedef String (*FieldGetter)();
+typedef uint16_t (*FieldGetter)();
+typedef void (*FieldGetterOpts)(JsonArray & arr);
 
 
 
 struct Field {
-  String name;
-  String label;
-  String type;
+  const char* name;
+  const char* label;
+  const char* type;
   uint16_t min;
   uint16_t max;
   FieldGetter getValue;
-  FieldGetter getOptions;
+  FieldGetterOpts getOptions;
   FieldSetter setValue;
 };
 
@@ -140,32 +137,32 @@ typedef Field FieldList[];
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-Field getField(String name, FieldList fields, uint8_t count);
-String getFieldValue(String name, FieldList fields, uint8_t count);
-String setFieldValue(String name, String value, FieldList fields, uint8_t count);
-String getFieldsJson(FieldList fields, uint8_t count); 
-String getPower(void);
-String getMilliamps(void);
-String getBrightness(void);
-String getPattern(void);
-String getPatterns(void);
-String getPalette(void);
-String getPalettes(void);
-String getAutoplay(void); 
-String getAutoplayDuration(void);
-String getAutopal(void);
-String getAutopalDuration(void);
-String getSolidColor(void);
-String getCooling(void);
-String getSparking(void);
-String getSpeed(void);
-String getTwinkleSpeed(void);
-String getTwinkleDensity(void);
-String getBlendType(void);
-String getBlendTypes(void);
-String getReverse(void);
-String getHueTime(void);
-String getDeltaHue(void);
+Field getField(const char * name, FieldList fields, uint8_t count);
+String getFieldValue(const char * name, FieldList fields, uint8_t count);
+const char* setFieldValue(const char * name, String value, FieldList fields, uint8_t count);
+const char* getFieldsJson(FieldList fields, uint8_t count); 
+uint16_t getPower(void);
+uint16_t getMilliamps(void);
+uint16_t getBrightness(void);
+uint16_t getPattern(void);
+JsonArray& getPatterns(void);
+uint16_t getPalette(void);
+JsonArray& getPalettes(void);
+uint16_t getAutoplay(void); 
+uint16_t getAutoplayDuration(void);
+uint16_t getAutopal(void);
+uint16_t getAutopalDuration(void);
+uint16_t getSolidColor(void);
+uint16_t getCooling(void);
+uint16_t getSparking(void);
+uint16_t getSpeed(void);
+uint16_t getTwinkleSpeed(void);
+uint16_t getTwinkleDensity(void);
+uint16_t getBlendType(void);
+JsonArray& getBlendTypes(void);
+uint16_t getReverse(void);
+uint16_t getHueTime(void);
+uint16_t getDeltaHue(void);
 
 extern FieldList fields;
 extern uint8_t fieldCount;
