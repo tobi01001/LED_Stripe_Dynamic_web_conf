@@ -207,128 +207,128 @@ const char * getFieldsJson(FieldList fields, uint8_t count)
  * get Values
  * 
  */
-uint16_t getPower() {
+inline uint16_t getPower() {
   return uint16_t(strip->getPower());
 }
-uint16_t getIsRunning(void) {
+inline uint16_t getIsRunning(void) {
   return uint16_t(strip->isRunning());
 }
-uint16_t getBrightness() {
+inline uint16_t getBrightness() {
   return uint16_t(strip->getBrightness());
 }
-uint16_t getPattern() {
+inline uint16_t getPattern() {
   return uint16_t(strip->getMode());
 }
-uint16_t getPalette() {
+inline uint16_t getPalette() {
   return uint16_t(strip->getTargetPaletteNumber());
 }
-uint16_t getSpeed() {
+inline uint16_t getSpeed() {
   return uint16_t(strip->getBeat88());
 }
-uint16_t getBlendType() {
+inline uint16_t getBlendType() {
   return uint16_t(strip->getBlendType());
 }
-uint16_t getColorTemp() {
+inline uint16_t getColorTemp() {
   return uint16_t(strip->getColorTemp());
 }
-uint16_t getBlurValue(void) {
+inline uint16_t getBlurValue(void) {
   return uint16_t(strip->getBlurValue());
 }
-uint16_t getReverse() {
+inline uint16_t getReverse() {
   return uint16_t(strip->getReverse());
 }
-uint16_t getSegments(void) {
+inline uint16_t getSegments(void) {
   return uint16_t(strip->getSegments());
 }
-uint16_t getMirror() {
+inline uint16_t getMirror() {
   return uint16_t(strip->getMirror());
 }
-uint16_t getInverse() {
+inline uint16_t getInverse() {
   return uint16_t(strip->getInverse());
 }
-uint16_t getAddGlitter(void) {
+inline uint16_t getAddGlitter(void) {
   return uint16_t(strip->getAddGlitter());
 }
-uint16_t getWhiteOnly(void) {
+inline uint16_t getWhiteOnly(void) {
   return uint16_t(strip->getWhiteGlitter());
 }
-uint16_t getOnBlackOnly(void) {
+inline uint16_t getOnBlackOnly(void) {
   return uint16_t(strip->getOnBlackOnly());
 }
-uint16_t getChanceOfGlitter(void) {
+inline uint16_t getChanceOfGlitter(void) {
   return uint16_t(strip->getChanceOfGlitter());
 }
-uint16_t getHueTime() {
+inline uint16_t getHueTime() {
   return uint16_t(strip->getHueTime());
 }
-uint16_t getDeltaHue()
+inline uint16_t getDeltaHue()
 {
   return uint16_t(strip->getDeltaHue());
 }
-uint16_t getAutoplay() {
+inline uint16_t getAutoplay() {
   return uint16_t(strip->getAutoplay());
 }
-uint16_t getAutoplayDuration() {
+inline uint16_t getAutoplayDuration() {
   return uint16_t(strip->getAutoplayDuration());
 }
-uint16_t getAutopal() {
+inline uint16_t getAutopal() {
   return uint16_t(strip->getAutopal());
 }
-uint16_t getAutopalDuration(){
+inline uint16_t getAutopalDuration(){
   return uint16_t(strip->getAutopalDuration());
 }
-uint16_t getSolidColor() {
+inline uint16_t getSolidColor() {
   CRGB solidColor = strip->getTargetPalette().entries[0];
   //return uint16_t(solidColor.r) + "," + String(solidColor.g) + "," + String(solidColor.b);
   return 250; // hmmm what to do with this solid color field? limit t one byte? Change all to uint32 to enable color?
 }
-uint16_t getCooling() {
+inline uint16_t getCooling() {
   return uint16_t(strip->getCooling());
 }
-uint16_t getSparking() {
+inline uint16_t getSparking() {
   return uint16_t(strip->getSparking());
 }
-uint16_t getTwinkleSpeed() {
+inline uint16_t getTwinkleSpeed() {
   return uint16_t(strip->getTwinkleSpeed());
 }
-uint16_t getTwinkleDensity() {
+inline uint16_t getTwinkleDensity() {
   return uint16_t(strip->getTwinkleDensity());
 }
-uint16_t getNumBars() {
+inline uint16_t getNumBars() {
   return uint16_t(strip->getNumBars());
 }
-uint16_t getDamping() {
+inline uint16_t getDamping() {
   return uint16_t(strip->getDamping());
 }
-uint16_t getSunRiseTime(void) {
+inline uint16_t getSunRiseTime(void) {
   return uint16_t(strip->getSunriseTime());
 }
-uint16_t getMilliamps(void) {
+inline uint16_t getMilliamps(void) {
   return uint16_t(strip->getMilliamps());
 }
-uint16_t getFPSValue(void) {
+inline uint16_t getFPSValue(void) {
   return uint16_t(strip->getMaxFPS());
 }
-uint16_t getDithering(void) {
+inline uint16_t getDithering(void) {
   return uint16_t(strip->getDithering());
 }
-uint16_t getResetDefaults(void) {
+inline uint16_t getResetDefaults(void) {
   return uint16_t(0);
 }
-uint16_t getBckndHue() {
+inline uint16_t getBckndHue() {
   return uint16_t(strip->getBckndHue());
 }
-uint16_t getBckndSat() {
+inline uint16_t getBckndSat() {
   return uint16_t(strip->getBckndSat());
 }
-uint16_t getBckndBri() {
+inline uint16_t getBckndBri() {
   return uint16_t(strip->getBckndBri());
 }
 
 
 
 #ifdef HAS_KNOB_CONTROL
-uint16_t getWiFiEnabled(void) {
+inline uint16_t getWiFiEnabled(void) {
   return uint16_t(strip->getWiFiEnabled());
 }
 #endif
@@ -694,21 +694,4 @@ uint8_t Green(uint32_t color)
 uint8_t Blue(uint32_t color)
 {
   return color & 0xFF;
-}
-// Dims a strip by rightshift
-uint32_t DimColor(uint32_t color)
-{
-  uint32_t dimColor = strip_color32(Red(color) >> 1, Green(color) >> 1, Blue(color) >> 1);
-  return dimColor;
-}
-
-// Dim the Pixel to DimColor
-void strip_dimPixel(uint16_t pixel, bool dim_default, uint8_t byValue)
-{
-  if (dim_default)
-    strip->leds[pixel].fadeToBlackBy(2);
-  else
-  {
-    strip->leds[pixel].subtractFromRGB(byValue);
-  }
 }
