@@ -87,7 +87,11 @@ SSD1306Brzo display(KNOB_C_I2C, KNOB_C_SDA, KNOB_C_SCL);
 #endif
 
 #ifdef DEBUG
-  const char * build_version PROGMEM = BUILD_VERSION " DEBUG " __TIMESTAMP__;
+  #ifdef HAS_KNOB_CONTROL
+    const char * build_version PROGMEM = BUILD_VERSION "_DBG_" PIO_SRC_BRANCH "_KNOB"; 
+  #else
+    const char * build_version PROGMEM = BUILD_VERSION "_DBG_" PIO_SRC_BRANCH;
+  #endif
 #else
   #ifdef HAS_KNOB_CONTROL
     const char * build_version PROGMEM = BUILD_VERSION "_" PIO_SRC_BRANCH "_KNOB"; 
@@ -105,6 +109,9 @@ AsyncWebServer server(80);
 const char * AP_SSID PROGMEM = "Test"; // String(String (LED_NAME) + String("-") + String(ESP.getChipId())).c_str();
 
 //WebSocketsServer *webSocketsServer = NULL; // webSocketsServer = WebSocketsServer(81);
+AsyncWebSocket *webSocketsServer;
+
+
 
 IPAddress myIP;
 
@@ -136,7 +143,8 @@ void saveEEPROMData(void),
     sendInt(const char * name, uint16_t value),
     sendString(const char * name, const char * value),
     broadcastInt(const __FlashStringHelper* name, uint16_t value),
-//  webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length),
+    //webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length),
+    webSocketEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len),
     checkSegmentChanges(void),
     updateConfigFile(void),
     clearEEPROM(void);
@@ -145,7 +153,7 @@ uint32
     getResetReason(void);
 
 #ifdef HAS_KNOB_CONTROL
-
+/*
 enum fieldtypes {
     NumberFieldType,
     BooleanFieldType,
@@ -156,13 +164,15 @@ enum fieldtypes {
     InvalidFieldType
   };
 
-
-fieldtypes *m_fieldtypes;
+*/
+//fieldtypes *m_fieldtypes;
   
 void set_fieldTypes(fieldtypes *m_fieldtypes) {
+  
   if(!m_fieldtypes) return;
   for(uint8_t i=0; i<fieldCount; i++)
   {
+    /*
     m_fieldtypes[i] = InvalidFieldType;
     if(fields[i].type == (const char *)("Title"))
       m_fieldtypes[i] = TitleFieldType;
@@ -176,6 +186,7 @@ void set_fieldTypes(fieldtypes *m_fieldtypes) {
       m_fieldtypes[i] = ColorFieldType;
     if(fields[i].type == (const char *)("Section"))
       m_fieldtypes[i] = SectionFieldType;
+    */
   }
 }
 #endif
@@ -225,7 +236,7 @@ void sendString(const char* name, const char* value, AsyncWebServerRequest *requ
 // broadcasts the name and value to all websocket clients
 void broadcastInt(const __FlashStringHelper* name, uint16_t value)
 {
-  /*
+  
   #ifdef HAS_KNOB_CONTROL
   if(webSocketsServer == NULL  || !strip->getWiFiEnabled() || !WiFiConnected)
   #else
@@ -234,12 +245,20 @@ void broadcastInt(const __FlashStringHelper* name, uint16_t value)
   {
     return;
   }
-  
+  DynamicJsonBuffer jsonBuffer;
   JsonObject& answerObj = jsonBuffer.createObject();
-  JsonObject& answer = answerObj.createNestedObject(F("currentState"));
-  answer[F("name")] = name;
-  answer[F("value")] = value;
+  //JsonObject& answer = answerObj.createNestedObject(F("currentState"));
+  answerObj[F("name")] = name;
+  answerObj[F("value")] = value;
 
+  size_t len = answerObj.measureLength();
+  AsyncWebSocketMessageBuffer * buffer = webSocketsServer->makeBuffer(len); //  creates a buffer (len + 1) for you.
+  if (buffer) {
+      answerObj.printTo((char *)buffer->get(), len + 1);
+      webSocketsServer->textAll(buffer);
+  }
+
+  /*
   String json;
   
   #ifdef DEBUG
@@ -680,9 +699,9 @@ void initOverTheAirUpdate(void)
       delay(500);
     }
     // we need to delete the websocket server in order to have OTA correctly running.
-    delete webSocketsServer;
+    //delete webSocketsServer;
     // we stop the webserver to not get interrupted....
-    server.stop();
+    server.end();
     // we indicate our sktch that OTA is currently running (should actually not be required)
     OTAisRunning = true;
   });
@@ -1568,7 +1587,7 @@ void handleSet(AsyncWebServerRequest *request)
   // can then be triggered via web interface (at the very bottom)
   if (request->hasParam(F("resets")))
   {
-    uint8_t value = String(server.arg("resets"))->value().toInt();
+    uint8_t value = request->getParam(F("resets"))->value().toInt();
     volatile uint8_t d = 1;
     switch (value)
     {
@@ -1985,10 +2004,10 @@ void updateConfigFile(void)
     JsonObject& obj = root.createNestedObject();
     obj[F("name")]  = field.name;
     obj[F("label")] = field.label;
-    obj[F("type")]  = field.type;
+    obj[F("type")]  = (int)field.type;
     if (field.getValue)
     {
-      if (field.type == (const char *)"Color")
+      if (field.type == ColorFieldType)//(const char *)"Color")
       {
         CRGB solidColor = strip->getTargetPalette().entries[0];
         obj[F("value")] = String(solidColor.r) + String(",") + String(solidColor.g)+","+String(solidColor.b);
@@ -1999,7 +2018,7 @@ void updateConfigFile(void)
       }
     }
 
-    if (field.type == (const char *)"Number")
+    if (field.type == NumberFieldType) //(const char *)"Number")
     {
       obj["min"] = field.min;
       obj["max"] = field.max;
@@ -2028,7 +2047,7 @@ void setupWebServer(void)
   
   server.on("/all", HTTP_GET, [](AsyncWebServerRequest *request) {
 
-    updateConfigFile();
+    //updateConfigFile();
     request->send(LittleFS, "/config_all.json", "application/json");
     /*
     AsyncJsonResponse * response = new AsyncJsonResponse(true);
@@ -2103,16 +2122,21 @@ void setupWebServer(void)
   DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
   DefaultHeaders::Instance().addHeader("Access-Control-Max-Age", "10000");
 
+  if(webSocketsServer == NULL) webSocketsServer = new AsyncWebSocket("/ws");
+  webSocketsServer->enable(true);
+  //webSocketsServer->begin();
+
+  webSocketsServer->onEvent(webSocketEvent);
+
+  server.addHandler(webSocketsServer);
+
   server.begin();
 
   showInitColor(CRGB::Yellow);
   delay(INITDELAY);
 
-  /*
-  if(webSocketsServer == NULL) webSocketsServer = new WebSocketsServer(81);
-  webSocketsServer->begin();
-  webSocketsServer->onEvent(webSocketEvent);
-  */
+  
+ 
   if (!MDNS.begin(LED_NAME)) {
 
   }
@@ -2127,6 +2151,165 @@ void setupWebServer(void)
   delay(INITDELAY);
 }
 
+struct pingPong {
+  uint32_t iD = 0;
+  uint8_t pong = 0;
+  uint8_t ping = 0;
+}my_pingPongs[DEFAULT_MAX_WS_CLIENTS+1];
+
+uint8_t addClient(uint32_t iD)
+{
+  if(webSocketsServer->count() >= DEFAULT_MAX_WS_CLIENTS)
+    return DEFAULT_MAX_WS_CLIENTS;
+  for(const auto& c: webSocketsServer->getClients())
+  {
+    for(uint8_t i=0; i<DEFAULT_MAX_WS_CLIENTS; i++)
+    {
+      if(c->id() == iD)
+        return i;
+    }
+    for(uint8_t i=0; i<DEFAULT_MAX_WS_CLIENTS; i++)
+    {
+        if(my_pingPongs[i].iD == 0)
+        {
+          my_pingPongs[i].iD = iD;
+          my_pingPongs[i].ping = 0;
+          my_pingPongs[i].pong = 0;
+          return i;
+        }
+    }
+  }
+  return DEFAULT_MAX_WS_CLIENTS;
+}
+
+uint8_t getClient(uint32_t iD)
+{
+  for(uint8_t i=0; i<DEFAULT_MAX_WS_CLIENTS; i++)
+  {
+    if(my_pingPongs[i].iD == iD)
+    {
+      return i;
+    }
+  }
+  return DEFAULT_MAX_WS_CLIENTS;
+}
+
+void removeClient(uint32_t iD)
+{
+  for(uint8_t i=0; i<DEFAULT_MAX_WS_CLIENTS; i++)
+  {
+    if(iD == my_pingPongs[i].iD)
+    {
+      my_pingPongs[i].iD = 0;
+      my_pingPongs[i].ping = 0;
+      my_pingPongs[i].pong = 0;
+    }
+  }
+}
+
+void webSocketEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len)
+{
+  if(type == WS_EVT_CONNECT){
+    //client connected
+    #ifdef DEBUG
+    Serial.printf("ws[%s][%u] connect\n", server->url(), client->id());
+    #endif
+    client->printf("{\"Client\":%u}", client->id());
+    uint8_t i = addClient(client->id());
+    my_pingPongs[i].ping = random8();
+    client->ping(&my_pingPongs[i].ping, sizeof(uint8_t));
+  } else if(type == WS_EVT_DISCONNECT){
+    //client disconnected
+    #ifdef DEBUG
+    Serial.printf("ws[%s][%u] disconnect: %u\n", server->url(), client->id());
+    #endif
+    removeClient(client->id());
+  } else if(type == WS_EVT_ERROR){
+    //error was received from the other end
+    #ifdef DEBUG
+    Serial.printf("ws[%s][%u] error(%u): %s\n", server->url(), client->id(), *((uint16_t*)arg), (char*)data);
+    #endif
+  } else if(type == WS_EVT_PONG){
+    //pong message was received (in response to a ping request maybe)
+    #ifdef DEBUG
+    Serial.printf("ws[%s][%u] pong[%u]: %u\n", server->url(), client->id(), len, (len)?*data:0);
+    #endif
+    uint8_t i = getClient(client->id());
+    my_pingPongs[i].pong = (len)?*data:0;
+    
+  } else if(type == WS_EVT_DATA){
+    //data packet
+    AwsFrameInfo * info = (AwsFrameInfo*)arg;
+    if(info->final && info->index == 0 && info->len == len){
+      //the whole message is in a single frame and we got all of it's data
+      #ifdef DEBUG
+      Serial.printf("ws[%s][%u] %s-message[%llu]: ", server->url(), client->id(), (info->opcode == WS_TEXT)?"text":"binary", info->len);
+      #endif
+      if(info->opcode == WS_TEXT){
+        data[len] = 0;
+        #ifdef DEBUG
+        Serial.printf("%s\n", (char*)data);
+        #endif
+      } else {
+        for(size_t i=0; i < info->len; i++){
+          #ifdef DEBUG
+          Serial.printf("%02x ", data[i]);
+          #endif
+        }
+        #ifdef DEBUG
+        Serial.printf("\n");
+        #endif
+      }
+      if(info->opcode == WS_TEXT)
+        client->text("{\"message\":\"I got your text message\"}");
+      else
+        client->binary("{\"message\":\"I got your binary message\"}");
+    } else {
+      //message is comprised of multiple frames or the frame is split into multiple packets
+      if(info->index == 0){
+        #ifdef DEBUG
+        if(info->num == 0)
+          Serial.printf("ws[%s][%u] %s-message start\n", server->url(), client->id(), (info->message_opcode == WS_TEXT)?"text":"binary");
+        Serial.printf("ws[%s][%u] frame[%u] start[%llu]\n", server->url(), client->id(), info->num, info->len);
+        #endif
+      }
+
+      #ifdef DEBUG
+        Serial.printf("ws[%s][%u] frame[%u] %s[%llu - %llu]: ", server->url(), client->id(), info->num, (info->message_opcode == WS_TEXT)?"text":"binary", info->index, info->index + len);
+      #endif
+      if(info->message_opcode == WS_TEXT){
+        data[len] = 0;
+        #ifdef DEBUG
+        Serial.printf("%s\n", (char*)data);
+        #endif
+      } else {
+        for(size_t i=0; i < len; i++){
+          #ifdef DEBUG
+          Serial.printf("%02x ", data[i]);
+          #endif
+        }
+        #ifdef DEBUG
+        Serial.printf("\n");
+        #endif
+      }
+
+      if((info->index + len) == info->len){
+        #ifdef DEBUG
+        Serial.printf("ws[%s][%u] frame[%u] end[%llu]\n", server->url(), client->id(), info->num, info->len);
+        #endif
+        if(info->final){
+          #ifdef DEBUG
+          Serial.printf("ws[%s][%u] %s-message end\n", server->url(), client->id(), (info->message_opcode == WS_TEXT)?"text":"binary");
+          #endif
+          if(info->message_opcode == WS_TEXT)
+            client->text("{\"message\":\"I got your framed text message\"}");
+          else
+            client->binary("{\"message\":\"I got your framed binary message\"}");
+        }
+      }
+    }
+  }
+}
 
 /*
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
@@ -2213,9 +2396,9 @@ void setupKnobControl(void)
   display.flipScreenVertically();
   display.setFont(ArialMT_Plain_10);
 
-  // Filedtypes:
-  m_fieldtypes = new fieldtypes[fieldCount];
-  set_fieldTypes(m_fieldtypes);
+  // Fieldtypes:
+  //m_fieldtypes = new fieldtypes[fieldCount];
+  //set_fieldTypes(m_fieldtypes);
 }
 #endif
 
@@ -2260,10 +2443,13 @@ void setup()
 
   cursor = drawtxtline10(cursor, font_height, F("Booting... Bitte Warten"));
   display.display();
+
+  
   #ifdef DEBUG
   // Open serial communications and wait for port to open:
   Serial.begin(115200);
   #endif
+  
 
   mDisplayState = Display_ShowInfo;
 
@@ -2338,6 +2524,7 @@ void setup()
   
   readRuntimeDataEEPROM(); 
 
+  updateConfigFile();
 
   delay(KNOB_BOOT_DELAY);
   display.clear();
@@ -2494,24 +2681,27 @@ void setup()
 
 #ifdef HAS_KNOB_CONTROL
 
-uint8_t get_next_field(uint8_t curr_field, bool up, fieldtypes *m_fieldtypes)
+uint8_t get_next_field(uint8_t curr_field, bool up) //, fieldtypes *m_fieldtypes)
 {
   uint8_t ret = curr_field;
   uint8_t first_field = 0;
   uint8_t last_field = fieldCount-1;
   for(uint8_t i=0; i<fieldCount; i++)
   {
-    if(m_fieldtypes[i] <= SelectFieldType)
+    //if(m_fieldtypes[i] <= SelectFieldType)
+    if(fields[i].type <= SelectFieldType)
     {
       last_field = i;
     }
-    if(m_fieldtypes[fieldCount-1-i] <= SelectFieldType)
+    //if(m_fieldtypes[fieldCount-1-i] <= SelectFieldType)
+    if(fields[fieldCount-1-i].type <= SelectFieldType)
     {
       first_field = fieldCount-1-i;
     }
   }
   uint8_t sanity = 0;
-  while(ret == curr_field || m_fieldtypes[ret] > SelectFieldType)
+  //while(ret == curr_field || m_fieldtypes[ret] > SelectFieldType)
+  while(ret == curr_field || fields[ret].type > SelectFieldType)
   {
     // sanity break....
     if(sanity++ > fieldCount) break;
@@ -2541,10 +2731,11 @@ uint8_t get_next_field(uint8_t curr_field, bool up, fieldtypes *m_fieldtypes)
 }
 
 
-uint16_t setEncoderValues(uint8_t curr_field, fieldtypes * m_fieldtypes)
+uint16_t setEncoderValues(uint8_t curr_field)//, fieldtypes * m_fieldtypes)
 {
   uint16_t curr_value = 0;
-  switch (m_fieldtypes[curr_field])
+  //switch (m_fieldtypes[curr_field])
+  switch (fields[curr_field].type)
   {
     case TitleFieldType :
       // nothing?
@@ -2588,7 +2779,7 @@ uint32_t last_control_operation = 0;
 bool display_was_off = false;
 uint8_t TimeoutBar = 0;
 
-void showDisplay(uint8_t curr_field, fieldtypes *fieldtype)
+void showDisplay(uint8_t curr_field)//, fieldtypes *fieldtype)
 {
   static bool toggle;
   EVERY_N_MILLISECONDS(KNOB_CURSOR_BLINK)
@@ -2610,10 +2801,10 @@ void showDisplay(uint8_t curr_field, fieldtypes *fieldtype)
       break;
       case Display_ShowMenu:
         {
-          uint8_t prev_field = get_next_field(curr_field, false, fieldtype);
-          uint8_t pre_prev_field = get_next_field(prev_field, false, fieldtype);
-          uint8_t next_field = get_next_field(curr_field, true, fieldtype);
-          uint8_t next_next_field = get_next_field(next_field, true, fieldtype);
+          uint8_t prev_field = get_next_field(curr_field, false);//, fieldtype);
+          uint8_t pre_prev_field = get_next_field(prev_field, false);//, fieldtype);
+          uint8_t next_field = get_next_field(curr_field, true);//, fieldtype);
+          uint8_t next_next_field = get_next_field(next_field, true);//, fieldtype);
           display.setTextAlignment(TEXT_ALIGN_LEFT);
           display.drawString(0,  0, F("Menu:")); 
           //display.setTextAlignment(TEXT_ALIGN_RIGHT);
@@ -2862,7 +3053,7 @@ void showDisplay(uint8_t curr_field, fieldtypes *fieldtype)
 void knob_service(uint32_t now)
 {
 
-  static uint8_t curr_field = get_next_field(0, true, m_fieldtypes);
+  static uint8_t curr_field = get_next_field(0, true); //, m_fieldtypes);
   static uint32_t last_btn_press = 0;
   
   static uint16_t old_val = 0;
@@ -2880,7 +3071,7 @@ void knob_service(uint32_t now)
       display_was_off = false;
       last_control_operation = now - KNOB_TIMEOUT_OPERATION - (KNOB_TIMEOUT_OPERATION/10);
       mDisplayState = Display_ShowInfo;
-      showDisplay(curr_field, m_fieldtypes);
+      showDisplay(curr_field);//, m_fieldtypes);
       return;
     }
     last_control_operation = now;
@@ -2896,7 +3087,7 @@ void knob_service(uint32_t now)
     }
     else
     {
-      old_val = setEncoderValues(curr_field, m_fieldtypes);
+      old_val = setEncoderValues(curr_field);//, m_fieldtypes);
     }
   }
   EVERY_N_MILLISECONDS(KNOB_ROT_DEBOUNCE)
@@ -2935,11 +3126,11 @@ void knob_service(uint32_t now)
       {
         if(val > curr_field)
         {
-          val = get_next_field(curr_field, true, m_fieldtypes);
+          val = get_next_field(curr_field, true);//, m_fieldtypes);
         }
         else
         {
-          val = get_next_field(curr_field, false, m_fieldtypes);
+          val = get_next_field(curr_field, false);//, m_fieldtypes);
         }
         curr_field = val;
         newfield_selected = true;
@@ -2948,7 +3139,7 @@ void knob_service(uint32_t now)
       {
         if(newfield_selected)
         {
-          old_val = setEncoderValues(curr_field, m_fieldtypes);
+          old_val = setEncoderValues(curr_field);//, m_fieldtypes);
           newfield_selected = false;
         }
         setnewValue = true;
@@ -2977,9 +3168,9 @@ void knob_service(uint32_t now)
     else if(now > last_control_operation + KNOB_TIMEOUT_OPERATION)
     {
       TimeoutBar = map(now-last_control_operation, 0, KNOB_TIMEOUT_DISPLAY, 127,0);
-      curr_field = get_next_field(0, true, m_fieldtypes);
+      curr_field = get_next_field(0, true);//, m_fieldtypes);
       in_submenu = true;
-      old_val = setEncoderValues(curr_field, m_fieldtypes);
+      old_val = setEncoderValues(curr_field);//, m_fieldtypes);
       mDisplayState = Display_ShowInfo;
       if((strip->getAutoplay() || strip->getAutopal()) && strip->getPower()) last_control_operation = now - KNOB_TIMEOUT_OPERATION - (KNOB_TIMEOUT_OPERATION/10); // keeps the display on as long as we change automatically the mode or the palette
     }
@@ -2992,7 +3183,8 @@ void knob_service(uint32_t now)
       }
       else
       {
-        switch (m_fieldtypes[curr_field])
+        //switch (m_fieldtypes[curr_field])
+        switch (fields[curr_field].type)
         {
           case TitleFieldType : 
           case SectionFieldType :
@@ -3012,7 +3204,7 @@ void knob_service(uint32_t now)
         }
       }
     }
-    showDisplay(curr_field, m_fieldtypes);
+    showDisplay(curr_field);//, m_fieldtypes);
   }
 }
 #endif
@@ -3069,7 +3261,8 @@ void loop()
 
   ArduinoOTA.handle(); // check and handle OTA updates of the code....
 
-  webSocketsServer->loop();
+  #error "Adapt for AsyncWebServer!"
+  //webSocketsServer->loop();
 
   server.handleClient();
 
@@ -3148,6 +3341,7 @@ void loop()
   {
     ArduinoOTA.handle(); // check and handle OTA updates of the code....
     
+    
     //if(webSocketsServer != NULL)
     //  webSocketsServer->loop();
 
@@ -3161,6 +3355,30 @@ void loop()
   EVERY_N_MILLIS(50)
   {
     checkSegmentChanges();
+  }
+
+  EVERY_N_SECONDS(2)
+  {
+    DynamicJsonBuffer jB;
+    for(const auto& c: webSocketsServer->getClients())
+    {
+      uint8_t i = getClient(c->id());
+      JsonObject& jC = jB.createObject();
+      jC["Client"] = (int)c->id();
+      jC["Status"] = (int)c->status();
+      jC["Ping"]   = my_pingPongs[i].ping;
+      jC["Pong"]   = my_pingPongs[i].pong;
+      my_pingPongs[i].ping = random8();
+      webSocketsServer->ping(c->id(), &my_pingPongs[i].ping, sizeof(uint8_t));
+      size_t len = jC.measureLength();
+      AsyncWebSocketMessageBuffer * buffer = webSocketsServer->makeBuffer(len); //  creates a buffer (len + 1) for you.
+      if (buffer) {
+        jC.printTo((char *)buffer->get(), len + 1);
+        c->text(buffer);
+      }
+    }
+    
+    webSocketsServer->cleanupClients();
   }
 
   EVERY_N_MILLIS(EEPROM_SAVE_INTERVAL_MS)

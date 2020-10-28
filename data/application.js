@@ -8,54 +8,137 @@ var urlBase = "";
 
 var postColorTimer = {};
 var postValueTimer = {};
-var classSection = "default"; // for foldable sections
+var WSActiveTimer = {};
+var WSInactiveTimer = {};
+var statusActiveTimer = {};
 
-var DEBUGME = false; //for console loggin. 
+
+var classSection = "default"; // for foldable sections
+var firstSection = true;
+
+const fieldtype = Object.freeze({
+  NumberFieldType  : 0,
+  BooleanFieldType : 1,
+  SelectFieldType  : 2,
+  ColorFieldType   : 3,
+  TitleFieldType   : 4,
+  SectionFieldType : 5,
+  InvalidFieldType : 6
+});
+
+var DEBUGME = true; //for console loggin. 
 
 var ignoreColorChange = false;
 
-var ws = new ReconnectingWebSocket('ws://' + address + ':81/', ['arduino']);
+var ws_connected = false;
+
+if(DEBUGME) console.log("Trying to connect to " + "ws://" + address + "/ws");
+var ws = new ReconnectingWebSocket('ws://' + address + '/ws', ['arduino']);
 ws.debug = true;
 
+ws.onopen = function(evt) {
+	if(evt.data !== null)
+	{
+		if(DEBUGME) console.log("Connection OPENED " + evt + " with " + evt.data);
+	}
+	ws_connected = true;
+	updateWSState(true);
+}
+
+ws.onerror = function(evt) {
+	if(evt.data !== null)
+	{
+		if(DEBUGME) console.log("ERROR: " + evt + " with " + evt.data);
+	}
+}
+
+ws.onclose = function(evt) {
+	if(evt.data !== null)
+	{
+		if(DEBUGME) console.log("Connection CLOSED " + evt + " with " + evt.data);
+	}
+	ws_connected = false;
+	updateWSState(false);
+}
+
 ws.onmessage = function(evt) {
-  
-  
+
   if(evt.data !== null)
   {
     // added exception handling fro wrong json strings
+    //if(DEBUGME) console.log("Received: " + evt + " with " + evt.data);
     var data = null;
 	  try {
       data = JSON.parse(evt.data);
-	    if(DEBUGME) console.log("Data in the non null event: " + data);
     } catch (e) {
 		  console.log("Error " + e + " while decoding " + evt.data);
       return;
     }
-    updateFieldValue(data.name, data.value);
+	if(data.name != undefined)
+	{
+		if(DEBUGME) console.log("Received field data for field " + data.name + " with " + data.value);
+		updateFieldValue(data.name, data.value);
+		
+	} else if (data.Client != undefined) {
+		if(DEBUGME) console.log("Received Client info with from ID " + data.Client + ", Status: " + data.Status + ", Ping: " + data.Ping + ", Pong: " + data.Pong);
+	} else {
+		if(DEBUGME) console.log("Decoded: " + data + " with " + Object.values(data));		
+	}
   }
+  updateWSState(true);
+}
+
+
+function updateWSState(active)
+{
+	if(!active)
+	{
+		$("#WSAlive").html("<span class=\"dot\" style=\"background-color: #b00\"></span> WS dead");
+		return;
+	}
+	$("#WSAlive").html("<span class=\"dot\" style=\"background-color: #0b0\"></span> WS alive" );
+	clearTimeout(WSActiveTimer);
+	WSActiveTimer = setTimeout(function() {
+		$("#WSAlive").html("<span class=\"dot\" style=\"background-color: #bbb\"></span> WS alive");
+	}, 1800);
+	clearTimeout(WSInactiveTimer);
+	WSInactiveTimer = setTimeout(function() {
+		$("#WSAlive").html("<span class=\"dot\" style=\"background-color: #b00\"></span> WS dead");
+	}, 2100);
+}
+
+function updateStatus(newStatus)
+{
+	$("#status").html(newStatus);
+	clearTimeout(statusActiveTimer);
+	statusActiveTimer = setTimeout(function() {
+		$("#status").html("Ready");
+	}, 4000);
 }
 
 $(document).ready(function() {
-  $("#status").html("Connecting, please wait...");
+ updateStatus("Connecting, please wait...");
 
-  $.get(urlBase + "all", function(data) {
-      $("#status").html("Loading, please wait...");
+  $.get(urlBase + "/all", function(data) {
+      updateStatus("Loading, please wait...");
 
       $.each(data, function(index, field) {
-        if (field.type == "Number") {
+        //if(DEBUGME) console.log("Field " + field.label + " with type " + field.type);
+        if (field.type == fieldtype.NumberFieldType) {
           addNumberField(field);
-        } else if (field.type == "Title") {
+        } else if (field.type == fieldtype.TitleFieldType) {
           if (document.title != field.label) {
             document.title = field.label;
+			$("#nameLink").html(field.label);
           }
-        } else if (field.type == "Boolean") {
+        } else if (field.type == fieldtype.BooleanFieldType) {
           addBooleanField(field);
-        } else if (field.type == "Select") {
+        } else if (field.type == fieldtype.SelectFieldType) {
           addSelectField(field);
-        } else if (field.type == "Color") {
+        } else if (field.type == fieldtype.ColorFieldType) {
           // addColorFieldPalette(field); // removed this to save space on the page. no need currently
           addColorFieldPicker(field);
-        } else if (field.type == "Section") {
+        } else if (field.type == fieldtype.SectionFieldType) {
           addSectionField(field);
         }
       });
@@ -69,7 +152,7 @@ $(document).ready(function() {
         swatches: ["FF0000", "FF8000", "FFFF00", "00FF00", "00FFFF", "0000FF", "FF00FF", "FFFFFF"] // some colors from the previous list
       });
 
-      $("#status").html("Ready");
+      updateStatus("Ready");
     })
     .fail(function(errorThrown) {
       console.log("error: " + errorThrown);
@@ -82,6 +165,7 @@ function addNumberField(field) {
   template.attr("id", "form-group-" + field.name);
   template.attr("data-field-type", field.type);
   template.addClass(classSection); // foldable sections
+  if(firstSection) template.addClass("in");
 
   var label = template.find(".control-label");
   label.attr("for", "input-" + field.name);
@@ -132,6 +216,7 @@ function addBooleanField(field) {
   template.attr("id", "form-group-" + field.name);
   template.attr("data-field-type", field.type);
   template.addClass(classSection); // foldable sections
+  if(firstSection) template.addClass("in");
 
   var label = template.find(".control-label");
   label.attr("for", "btn-group-" + field.name);
@@ -165,6 +250,7 @@ function addSelectField(field) {
   template.attr("id", "form-group-" + field.name);
   template.attr("data-field-type", field.type);
   template.addClass(classSection); // foldable sections
+  if(firstSection) template.addClass("in");
 
   var id = "input-" + field.name;
 
@@ -222,6 +308,7 @@ function addColorFieldPicker(field) {
   template.attr("id", "form-group-" + field.name);
   template.attr("data-field-type", field.type);
   template.addClass(classSection); // foldable sections
+  if(firstSection) template.addClass("in");
 
   var id = "input-" + field.name;
 
@@ -353,6 +440,7 @@ function addColorFieldPalette(field) {
   var template = $("#colorPaletteTemplate").clone();
 
   template.addClass(classSection); // foldable sections
+  if(firstSection) template.addClass("in");
 
   var buttons = template.find(".btn-color");
 
@@ -385,6 +473,7 @@ function addColorFieldPalette(field) {
 
 function addSectionField(field) {
   var template = $("#sectionTemplate").clone();
+  firstSection = classSection=="default"?true:false;
   classSection = field.name;
   template.attr("id", "form-group-section-" + field.name);
   template.attr("data-field-type", field.type);
@@ -403,20 +492,20 @@ function updateFieldValue(name, value) {
 
   var type = group.attr("data-field-type");
 
-  if (type == "Number") {
+  if (type == "0") { // NumberFieldType  : 0,
     var input = group.find(".form-control");
     input.val(value);
-  } else if (type == "Boolean") {
+  } else if (type == "1") { // BooleanFieldType : 1
     var btnOn = group.find("#btnOn" + name);
     var btnOff = group.find("#btnOff" + name);
 
     btnOn.attr("class", value ? "btn btn-primary" : "btn btn-default");
     btnOff.attr("class", !value ? "btn btn-primary" : "btn btn-default");
 
-  } else if (type == "Select") {
+  } else if (type == "2") { // SelectFieldType  : 2
     var select = group.find(".form-control");
     select.val(value);
-  } else if (type == "Color") {
+  } else if (type == "3") { // ColorFieldType   : 3
     var input = group.find(".form-control");
     input.val("rgb(" + value + ")");
   }
@@ -432,19 +521,22 @@ function setBooleanFieldValue(field, btnOn, btnOff, value) {
 }
 
 function postValue(name, value) {
-  $("#status").html("Set " + name + ": " + value + ", please wait...");
+  updateStatus("Set " + name + ": " + value + ", please wait...");
 
   var body = { name: name, value: value };
 
   $.post(urlBase + "/set?" + name + "=" + value, body, function(data) {
     if (data.name != null) {
-      $("#status").html("Set /set?" + name + ": " + value);
+      updateStatus("Set /set?" + name + ": " + value);
     } else {
-      $("#status").html("Set /set?" + name + ": " + value);
+      updateStatus("Set /set?" + name + ": " + value);
     }
   });
-  $("#status").html("Done...");
-
+  updateStatus("Done...");
+  if(ws_connected)
+  {
+    ws.send("{\"" + name + "\": " + value + "}");
+  }
 }
 
 function delayPostValue(name, value) {
@@ -455,14 +547,19 @@ function delayPostValue(name, value) {
 }
 
 function postColor(name, value) {
-  $("#status").html("Set " + name + ": " + value.r + "," + value.g + "," + value.b + ", please wait...");
+  updateStatus("Set " + name + ": " + value.r + "," + value.g + "," + value.b + ", please wait...");
 
   var body = { name: name, r: value.r, g: value.g, b: value.b };
 
   $.post(urlBase + "/set?" + name + "=" + name + "&r=" + value.r + "&g=" + value.g + "&b=" + value.b, body, function(data) {
-    $("#status").html("Set /set?" + name + "=" + name + "&r=" + value.r + "&g=" + value.g + "&b=" + value.b);
+    updateStatus("Set /set?" + name + "=" + name + "&r=" + value.r + "&g=" + value.g + "&b=" + value.b);
   })
-  .fail(function(textStatus, errorThrown) { $("#status").html("Error: " + textStatus + " " + errorThrown); });
+  .fail(function(textStatus, errorThrown) { updateStatus("Error: " + textStatus + " " + errorThrown); });
+  
+  if(ws_connected)
+  {
+    ws.send("{\"" + name + "\": " + value + "}");
+  }
 }
 
 function delayPostColor(name, value) {
