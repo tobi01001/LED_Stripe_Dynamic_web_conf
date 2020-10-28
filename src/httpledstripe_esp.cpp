@@ -2047,7 +2047,7 @@ void setupWebServer(void)
   
   server.on("/all", HTTP_GET, [](AsyncWebServerRequest *request) {
 
-    //updateConfigFile();
+    updateConfigFile();
     request->send(LittleFS, "/config_all.json", "application/json");
     /*
     AsyncJsonResponse * response = new AsyncJsonResponse(true);
