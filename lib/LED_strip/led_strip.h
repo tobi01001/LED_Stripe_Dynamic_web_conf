@@ -101,12 +101,22 @@ typedef void (*FieldSetter)(uint16_t);
 typedef uint16_t (*FieldGetter)();
 typedef void (*FieldGetterOpts)(JsonArray & arr);
 
+enum fieldtypes {
+    NumberFieldType,
+    BooleanFieldType,
+    SelectFieldType,
+    ColorFieldType,
+    TitleFieldType,
+    SectionFieldType,
+    InvalidFieldType
+  };
 
 
 struct Field {
   const char* name;
   const char* label;
-  const char* type;
+  //const char* type;
+  fieldtypes type;
   uint16_t min;
   uint16_t max;
   FieldGetter getValue;
