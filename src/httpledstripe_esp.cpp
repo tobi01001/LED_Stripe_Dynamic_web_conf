@@ -2400,9 +2400,7 @@ void setupKnobControl(void)
   //m_fieldtypes = new fieldtypes[fieldCount];
   //set_fieldTypes(m_fieldtypes);
 }
-#endif
 
-#ifdef HAS_KNOB_CONTROL
 uint8_t drawtxtline10(uint8_t y, uint8_t fontheight, String txt)
 {
   if(txt == "") return y;
@@ -2522,7 +2520,7 @@ void setup()
     myIP = WiFi.localIP();
   }  
   
-  readRuntimeDataEEPROM(); 
+  readRuntimeDataEEPROM();
 
   updateConfigFile();
 
@@ -2576,15 +2574,10 @@ void setup()
     
     break;
   }
-  delay(1000);
+  delay(10);
    
 
-  stripe_setup(LED_COUNT,
-               STRIP_MAX_FPS,
-               STRIP_VOLTAGE,
-               STRIP_MILLIAMPS,
-               RainbowColors_p,
-               F("Rainbow Colors"),
+  stripe_setup(STRIP_VOLTAGE,
                UncorrectedColor); //TypicalLEDStrip);
 
   EEPROM.begin(strip->getSegmentSize());
@@ -2594,8 +2587,9 @@ void setup()
   pinMode(2, OUTPUT);
 
 
-  //EEPROM.begin(strip->getSegmentSize());
-  delay(1000);
+  EEPROM.begin(strip->getSegmentSize());
+
+  delay(10);
   
   setupWiFi();
 
@@ -2610,6 +2604,8 @@ void setup()
   }
 
   initOverTheAirUpdate();
+
+  updateConfigFile();
 
   // if we got that far, we show by a nice little animation
   // as setup finished signal....
@@ -3261,14 +3257,32 @@ void loop()
 
   ArduinoOTA.handle(); // check and handle OTA updates of the code....
 
-  #error "Adapt for AsyncWebServer!"
-  //webSocketsServer->loop();
-
-  server.handleClient();
+  MDNS.update();
 
   strip->service();
 
-  MDNS.update();
+  EVERY_N_SECONDS(2)
+  {
+    DynamicJsonBuffer jB;
+    for(const auto& c: webSocketsServer->getClients())
+    {
+      uint8_t i = getClient(c->id());
+      JsonObject& jC = jB.createObject();
+      jC["Client"] = (int)c->id();
+      jC["Status"] = (int)c->status();
+      jC["Ping"]   = my_pingPongs[i].ping;
+      jC["Pong"]   = my_pingPongs[i].pong;
+      my_pingPongs[i].ping = random8();
+      webSocketsServer->ping(c->id(), &my_pingPongs[i].ping, sizeof(uint8_t));
+      size_t len = jC.measureLength();
+      AsyncWebSocketMessageBuffer * buffer = webSocketsServer->makeBuffer(len); //  creates a buffer (len + 1) for you.
+      if (buffer) {
+        jC.printTo((char *)buffer->get(), len + 1);
+        c->text(buffer);
+      }
+    }
+    webSocketsServer->cleanupClients();
+  }
 
   EVERY_N_MILLIS(50)
   {
@@ -3340,13 +3354,6 @@ void loop()
   if(WiFiConnected)
   {
     ArduinoOTA.handle(); // check and handle OTA updates of the code....
-    
-    
-    //if(webSocketsServer != NULL)
-    //  webSocketsServer->loop();
-
-    
-
     MDNS.update();
   }
 
