@@ -79,11 +79,8 @@ extern "C"
 #include "led_strip.h"
 
 #ifdef HAS_KNOB_CONTROL
-
-Encoder myEnc(KNOB_C_PNA, KNOB_C_PNB);
-
-SSD1306Brzo display(KNOB_C_I2C, KNOB_C_SDA, KNOB_C_SCL);
-//SSD1306Brzo display(0x3c, 4, 5);
+  Encoder myEnc(KNOB_C_PNA, KNOB_C_PNB);
+  SSD1306Brzo display(KNOB_C_I2C, KNOB_C_SDA, KNOB_C_SCL);
 #endif
 
 #ifdef DEBUG
@@ -99,6 +96,7 @@ SSD1306Brzo display(KNOB_C_I2C, KNOB_C_SDA, KNOB_C_SCL);
     const char * build_version PROGMEM = BUILD_VERSION "_" PIO_SRC_BRANCH;
   #endif
 #endif
+
 const char * git_revision PROGMEM = BUILD_GITREV;
 
 /* Definitions for network usage */
@@ -151,46 +149,6 @@ void saveEEPROMData(void),
 
 uint32
     getResetReason(void);
-
-#ifdef HAS_KNOB_CONTROL
-/*
-enum fieldtypes {
-    NumberFieldType,
-    BooleanFieldType,
-    SelectFieldType,
-    ColorFieldType,
-    TitleFieldType,
-    SectionFieldType,
-    InvalidFieldType
-  };
-
-*/
-//fieldtypes *m_fieldtypes;
-  
-void set_fieldTypes(fieldtypes *m_fieldtypes) {
-  
-  if(!m_fieldtypes) return;
-  for(uint8_t i=0; i<fieldCount; i++)
-  {
-    /*
-    m_fieldtypes[i] = InvalidFieldType;
-    if(fields[i].type == (const char *)("Title"))
-      m_fieldtypes[i] = TitleFieldType;
-    if(fields[i].type == (const char *)("Number"))
-      m_fieldtypes[i] = NumberFieldType;
-    if(fields[i].type == (const char *)("Boolean"))
-      m_fieldtypes[i] = BooleanFieldType;
-    if(fields[i].type == (const char *)("Select"))
-      m_fieldtypes[i] = SelectFieldType;
-    if(fields[i].type == (const char *)("Color"))
-      m_fieldtypes[i] = ColorFieldType;
-    if(fields[i].type == (const char *)("Section"))
-      m_fieldtypes[i] = SectionFieldType;
-    */
-  }
-}
-#endif
-
 
 // used to send an answer as INT to the calling http request
 // TODO: Use one answer function with parameters being overloaded
@@ -257,20 +215,6 @@ void broadcastInt(const __FlashStringHelper* name, uint16_t value)
       answerObj.printTo((char *)buffer->get(), len + 1);
       webSocketsServer->textAll(buffer);
   }
-
-  /*
-  String json;
-  
-  #ifdef DEBUG
-    json.reserve(answer.measurePrettyLength());
-    answer.prettyPrintTo(json);
-  #else
-    json.reserve(answer.measureLength());
-    answer.printTo(json);
-  #endif
-  jsonBuffer.clear();
-  webSocketsServer->broadcastTXT(json);
-  */
 }
 
 void checkSegmentChanges(void) {
@@ -516,8 +460,6 @@ void saveEEPROMData(void)
 
   strip->setCRC(seg.CRC);
 
-
-
   // write the data to the EEPROM
   EEPROM.put(0, seg);
   // as we work on ESP, we also need to commit the written data.
@@ -579,11 +521,7 @@ void initOverTheAirUpdate(void)
 
   // TODO: Implement Hostname in config and WIFI Settings?
 
-  // Hostname defaults to esp8266-[ChipID]
   ArduinoOTA.setHostname(LED_NAME);
-
-  // No authentication by default
-  // ArduinoOTA.setPassword((const char *)"123");
 
   ArduinoOTA.onStart([]() {
     FastLED.clear(true);
@@ -591,11 +529,9 @@ void initOverTheAirUpdate(void)
     display.drawString(0, 0, F("Starting OTA..."));
     display.displayOn();
     display.display();
-    // we need to delete the websocket server in order to have OTA correctly running.
-    //delete webSocketsServer;
     // we stop the webserver to not get interrupted....
     server.end();
-    // we indicate our sktch that OTA is currently running (should actually not be required)
+    // we indicate our skEtch that OTA is currently running (should actually not be required)
     OTAisRunning = true;
   });
 
@@ -611,9 +547,8 @@ void initOverTheAirUpdate(void)
     display.displayOff();
     // no need to reset ESP as this is done by the OTA handler by default
   });
-  // show the progress on the strips as well to be informed if anything gets stuck...
+  // show the progress 
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-
     unsigned int prog = (progress / (total / 100));
     display.clear();
     display.drawString(0, 0, F("Starte OTA..."));
@@ -621,11 +556,9 @@ void initOverTheAirUpdate(void)
     display.drawProgressBar(1,33, 126, 7, prog);
     display.displayOn();
     display.display();
-
-    
   });
 
-  // something went wrong, we gonna show an error "message" via LEDs.
+  // something went wrong, we gonna show an error "message".
   ArduinoOTA.onError([](ota_error_t error) {
     String err = F("OTA Fehler: ");
 
@@ -652,12 +585,7 @@ void initOverTheAirUpdate(void)
     delay(5000);
     ESP.restart();
   });
-  // start the service
-  ArduinoOTA.begin();
-  showInitColor(CRGB::Green);
-  delay(INITDELAY);
-  showInitColor(CRGB::Black);
-  delay(INITDELAY);
+  
   #else // HAS_KNOB_CONTROL
   showInitColor(CRGB::Blue);
   delay(INITDELAY);
@@ -667,9 +595,6 @@ void initOverTheAirUpdate(void)
 
   ArduinoOTA.setRebootOnSuccess(true);
 
-  // TODO: Implement Hostname in config and WIFI Settings?
-
-  // Hostname defaults to esp8266-[ChipID]
   ArduinoOTA.setHostname(LED_NAME);
 
   ArduinoOTA.onStart([]() {
@@ -686,7 +611,6 @@ void initOverTheAirUpdate(void)
       {
         uint8_t r = 256 - (c * factor);
         uint8_t g = c > 0 ? (c * factor - 1) : (c * factor);
-        //strip.setPixelColor(i, r, g, 0);
         strip->leds[i] = CRGB(strip_color32(r, g, 0));
       }
       strip->show();
@@ -698,14 +622,11 @@ void initOverTheAirUpdate(void)
       strip->show();
       delay(500);
     }
-    // we need to delete the websocket server in order to have OTA correctly running.
-    //delete webSocketsServer;
     // we stop the webserver to not get interrupted....
     server.end();
-    // we indicate our sktch that OTA is currently running (should actually not be required)
+    // we indicate our sketch that OTA is currently running (should actually not be required)
     OTAisRunning = true;
   });
-
   // what to do if OTA is finished...
   ArduinoOTA.onEnd([]() {
     // OTA finished.
@@ -726,7 +647,6 @@ void initOverTheAirUpdate(void)
   });
   // show the progress on the strips as well to be informed if anything gets stuck...
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-
     // OTA Update will show increasing green LEDs during progress:
     uint16_t progress_value = progress * 100 / (total / strip->getStripLength());
     uint16_t pixel = (uint16_t)(progress_value / 100);
@@ -766,13 +686,14 @@ void initOverTheAirUpdate(void)
     delay(10000);
     ESP.restart();
   });
+  #endif // !HAS_KNOB_CONTROL
+
   // start the service
   ArduinoOTA.begin();
   showInitColor(CRGB::Green);
   delay(INITDELAY);
   showInitColor(CRGB::Black);
   delay(INITDELAY);
-  #endif // HAS_KNOB_CONTROL
 }
 
 // for DEBUG purpose without Serial connection...
@@ -2009,7 +1930,7 @@ void updateConfigFile(void)
     {
       if (field.type == ColorFieldType)//(const char *)"Color")
       {
-        CRGB solidColor = strip->getTargetPalette().entries[0];
+        CRGB solidColor = (*strip->getTargetPalette()).entries[0];
         obj[F("value")] = String(solidColor.r) + String(",") + String(solidColor.g)+","+String(solidColor.b);
       }
       else
@@ -2049,45 +1970,6 @@ void setupWebServer(void)
 
     updateConfigFile();
     request->send(LittleFS, "/config_all.json", "application/json");
-    /*
-    AsyncJsonResponse * response = new AsyncJsonResponse(true);
-    JsonArray& root = response->getRoot(); 
-
-    
-    for (uint8_t i = 0; i < fieldCount; i++)
-    {
-      Field field = fields[i];
-      JsonObject& obj = root.createNestedObject();
-      obj[F("name")]  = field.name;
-      obj[F("label")] = field.label;
-      obj[F("type")]  = field.type;
-      if (field.getValue)
-      {
-        if (field.type == (const char *)"Color" || field.type == (const char *)"String")
-        {
-          obj[F("value")] = field.getValue();
-        }
-        else
-        {
-          obj[F("value")] = field.getValue();
-        }
-      }
-
-      if (field.type == (const char *)"Number")
-      {
-        obj["min"] = field.min;
-        obj["max"] = field.max;
-      }
-
-      if (field.getOptions)
-      {
-        JsonArray &arr = obj.createNestedArray("options");
-        field.getOptions(arr);
-      }
-    }
-    
-    request->send(response);
-    */
   });
 
   server.on("/fieldValue", HTTP_GET, [](AsyncWebServerRequest *request) {
@@ -2150,13 +2032,17 @@ void setupWebServer(void)
   showInitColor(CRGB::Black);
   delay(INITDELAY);
 }
-
+// Ping-Pong Struct
+// holding the iD, current Ping and Current Pong
 struct pingPong {
   uint32_t iD = 0;
   uint8_t pong = 0;
   uint8_t ping = 0;
-}my_pingPongs[DEFAULT_MAX_WS_CLIENTS+1];
+  // Array holding the clients PingPongs
+}my_pingPongs[DEFAULT_MAX_WS_CLIENTS+1]; // as Array
 
+
+// add a client to the pingpong list
 uint8_t addClient(uint32_t iD)
 {
   if(webSocketsServer->count() >= DEFAULT_MAX_WS_CLIENTS)
@@ -2182,6 +2068,7 @@ uint8_t addClient(uint32_t iD)
   return DEFAULT_MAX_WS_CLIENTS;
 }
 
+// get a client number based on the id.
 uint8_t getClient(uint32_t iD)
 {
   for(uint8_t i=0; i<DEFAULT_MAX_WS_CLIENTS; i++)
@@ -2194,6 +2081,7 @@ uint8_t getClient(uint32_t iD)
   return DEFAULT_MAX_WS_CLIENTS;
 }
 
+// remove a client from the ping pong list
 void removeClient(uint32_t iD)
 {
   for(uint8_t i=0; i<DEFAULT_MAX_WS_CLIENTS; i++)
@@ -2207,6 +2095,7 @@ void removeClient(uint32_t iD)
   }
 }
 
+// TODO: Make something useful with the Websocket Event
 void webSocketEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len)
 {
   if(type == WS_EVT_CONNECT){
@@ -2311,77 +2200,6 @@ void webSocketEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsE
   }
 }
 
-/*
-void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
-{
-  
-  #ifdef HAS_KNOB_CONTROL
-  if(webSocketsServer == NULL || !strip->getWiFiEnabled() || !WiFiConnected) return;
-  #else
-  if(webSocketsServer == NULL)
-  #endif
-  {
-    return;
-  }
-  server.arg(1);
-  if(type == WStype_TEXT)
-  {
-    #ifdef DEBUG
-    Serial.printf("[%u] get Text: %s\n", num, payload);
-    #endif
-    JsonObject& received = jsonBuffer.parse(payload);
-    if(received.success())
-    {
-      received["Received"] = "OK";
-      String myJSON;
-      #ifdef DEBUG
-      received.prettyPrintTo(myJSON);
-      #else
-      received.printTo(myJSON);
-      #endif
-      webSocketsServer->sendTXT(num, myJSON);
-      #ifdef DEBUG
-      for(JsonPair& p : received)
-      {
-
-      }
-      #endif
-    }
-    else
-    {
-      #ifdef DEBUG
-      webSocketsServer->sendTXT(num, "WS: Received non decodable value: \n\t" + String((const char *)payload));
-      #else
-      webSocketsServer->sendTXT(num, "{\"Received\":\"Failed\"}");
-      #endif
-
-    }
-    jsonBuffer.clear();
-  }
-  else if(type == WStype_CONNECTED)
-  {
-    #ifdef DEBUG
-      IPAddress ip = webSocketsServer->remoteIP(num);
-      Serial.printf("[%u] Connected from %d.%d.%d.%d url: %s\n", num, ip[0], ip[1], ip[2], ip[3], payload);
-      // send message to client
-      webSocketsServer->sendTXT(num, "Welcome to the LED Control world!");
-    #endif
-  }
-  else if(type == WStype_DISCONNECTED)
-  {
-    #ifdef DEBUG
-    Serial.printf("[%u] Disconnected!\n", num);
-    #endif
-  }
-  else
-  {
-    #ifdef DEBUG
-    webSocketsServer->sendTXT(num, "Don't know what you sent.");
-    #endif
-  }
-  
-}
-*/
 #ifdef HAS_KNOB_CONTROL
 
 uint16_t maxVal = 65535;
@@ -2392,13 +2210,8 @@ uint16_t steps  = 1;
 void setupKnobControl(void)
 { 
   display.init();
-
   display.flipScreenVertically();
   display.setFont(ArialMT_Plain_10);
-
-  // Fieldtypes:
-  //m_fieldtypes = new fieldtypes[fieldCount];
-  //set_fieldTypes(m_fieldtypes);
 }
 
 uint8_t drawtxtline10(uint8_t y, uint8_t fontheight, String txt)
@@ -2411,7 +2224,6 @@ uint8_t drawtxtline10(uint8_t y, uint8_t fontheight, String txt)
   return y;
 }
 
-#endif
 
 enum displayStates {
   Display_Off,
@@ -2422,7 +2234,7 @@ enum displayStates {
   Display_ShowNumberMenu,
   Display_ShowSelectMenue
 } mDisplayState;
-
+#endif
 
 // setup network and output pins
 void setup()
@@ -2434,6 +2246,7 @@ void setup()
   const uint8_t font_height = 12;
 
   setupKnobControl();
+
   uint8_t cursor = 0;
   display.clear();
   display.setTextAlignment(TEXT_ALIGN_LEFT);
@@ -2441,17 +2254,13 @@ void setup()
 
   cursor = drawtxtline10(cursor, font_height, F("Booting... Bitte Warten"));
   display.display();
-
   
   #ifdef DEBUG
   // Open serial communications and wait for port to open:
   Serial.begin(115200);
   #endif
   
-
   mDisplayState = Display_ShowInfo;
-
- 
 
   switch (getResetReason())
   {
@@ -2537,46 +2346,45 @@ void setup()
   display.clear();  
   
 #else // HAS_KNOB_CONTROL
+
   #ifdef DEBUG
   // Open serial communications and wait for port to open:
   Serial.begin(115200);
   #endif
 
-  
   switch (getResetReason())
   {
-  case REASON_DEFAULT_RST:
-    
-    break;
-  case REASON_WDT_RST:
-    
-    clearCRC(); // should enable default start in case of
-    break;
-  case REASON_EXCEPTION_RST:
-    
-    clearCRC();
-    break;
-  case REASON_SOFT_WDT_RST:
-    
-    clearCRC();
-    break;
-  case REASON_SOFT_RESTART:
-    
-    break;
-  case REASON_DEEP_SLEEP_AWAKE:
-    
-    break;
-  case REASON_EXT_SYS_RST:
-    
-    break;
+    case REASON_DEFAULT_RST:
+      
+      break;
+    case REASON_WDT_RST:
+      
+      clearCRC(); // should enable default start in case of
+      break;
+    case REASON_EXCEPTION_RST:
+      
+      clearCRC();
+      break;
+    case REASON_SOFT_WDT_RST:
+      
+      clearCRC();
+      break;
+    case REASON_SOFT_RESTART:
+      
+      break;
+    case REASON_DEEP_SLEEP_AWAKE:
+      
+      break;
+    case REASON_EXT_SYS_RST:
+      
+      break;
 
-  default:
-    
-    break;
+    default:
+      
+      break;
   }
   delay(10);
    
-
   stripe_setup(STRIP_VOLTAGE,
                UncorrectedColor); //TypicalLEDStrip);
 
@@ -2585,7 +2393,6 @@ void setup()
   // internal LED can be light up when current is limited by FastLED
   
   pinMode(2, OUTPUT);
-
 
   EEPROM.begin(strip->getSegmentSize());
 
@@ -2604,8 +2411,6 @@ void setup()
   }
 
   initOverTheAirUpdate();
-
-  updateConfigFile();
 
   // if we got that far, we show by a nice little animation
   // as setup finished signal....
@@ -2672,11 +2477,12 @@ void setup()
 
   readRuntimeDataEEPROM();
 
-#endif // HAS_KNOB_CONTROL
+  updateConfigFile();
+
+  #endif // HAS_KNOB_CONTROL
 }
 
 #ifdef HAS_KNOB_CONTROL
-
 uint8_t get_next_field(uint8_t curr_field, bool up) //, fieldtypes *m_fieldtypes)
 {
   uint8_t ret = curr_field;
@@ -2999,7 +2805,7 @@ void showDisplay(uint8_t curr_field)//, fieldtypes *fieldtype)
           display.drawString(127,  30, F("Off"));
         }
         display.drawString(127,  40, strip->getModeName(strip->getMode()));
-        display.drawString(127,  50, strip->getTargetPaletteName());
+        display.drawString(127,  50, (*strip->getTargetPaletteName()));
       default:
         display.displayOn();
       break;
@@ -3031,12 +2837,6 @@ void showDisplay(uint8_t curr_field)//, fieldtypes *fieldtype)
       display.drawLine(117, 9, 123, 3);
       display.drawLine(123, 9, 117, 3);
     }
-    /* 
-    uint8_t br64 =          map8(strip->getBrightness(), 0, 64);
-    uint8_t sp64 = (uint8_t)map (strip->getSpeed(), BEAT88_MIN, BEAT88_MAX, 0, 64);
-    display.drawVerticalLine(0,   63-br64, br64);
-    display.drawVerticalLine(127, 63-sp64, sp64); 
-    */
     display.drawHorizontalLine(64-(TimeoutBar/2),63, TimeoutBar);
     display.setColor((OLEDDISPLAY_COLOR)1);
     display.setFont(ArialMT_Plain_10);
@@ -3045,11 +2845,10 @@ void showDisplay(uint8_t curr_field)//, fieldtypes *fieldtype)
   }
 }
 
-
 void knob_service(uint32_t now)
 {
 
-  static uint8_t curr_field = get_next_field(0, true); //, m_fieldtypes);
+  static uint8_t curr_field = get_next_field(0, true); 
   static uint32_t last_btn_press = 0;
   
   static uint16_t old_val = 0;
@@ -3067,7 +2866,7 @@ void knob_service(uint32_t now)
       display_was_off = false;
       last_control_operation = now - KNOB_TIMEOUT_OPERATION - (KNOB_TIMEOUT_OPERATION/10);
       mDisplayState = Display_ShowInfo;
-      showDisplay(curr_field);//, m_fieldtypes);
+      showDisplay(curr_field);
       return;
     }
     last_control_operation = now;
@@ -3083,7 +2882,7 @@ void knob_service(uint32_t now)
     }
     else
     {
-      old_val = setEncoderValues(curr_field);//, m_fieldtypes);
+      old_val = setEncoderValues(curr_field);
     }
   }
   EVERY_N_MILLISECONDS(KNOB_ROT_DEBOUNCE)
@@ -3122,11 +2921,11 @@ void knob_service(uint32_t now)
       {
         if(val > curr_field)
         {
-          val = get_next_field(curr_field, true);//, m_fieldtypes);
+          val = get_next_field(curr_field, true);
         }
         else
         {
-          val = get_next_field(curr_field, false);//, m_fieldtypes);
+          val = get_next_field(curr_field, false);
         }
         curr_field = val;
         newfield_selected = true;
@@ -3135,7 +2934,7 @@ void knob_service(uint32_t now)
       {
         if(newfield_selected)
         {
-          old_val = setEncoderValues(curr_field);//, m_fieldtypes);
+          old_val = setEncoderValues(curr_field);
           newfield_selected = false;
         }
         setnewValue = true;
@@ -3164,9 +2963,9 @@ void knob_service(uint32_t now)
     else if(now > last_control_operation + KNOB_TIMEOUT_OPERATION)
     {
       TimeoutBar = map(now-last_control_operation, 0, KNOB_TIMEOUT_DISPLAY, 127,0);
-      curr_field = get_next_field(0, true);//, m_fieldtypes);
+      curr_field = get_next_field(0, true);
       in_submenu = true;
-      old_val = setEncoderValues(curr_field);//, m_fieldtypes);
+      old_val = setEncoderValues(curr_field);
       mDisplayState = Display_ShowInfo;
       if((strip->getAutoplay() || strip->getAutopal()) && strip->getPower()) last_control_operation = now - KNOB_TIMEOUT_OPERATION - (KNOB_TIMEOUT_OPERATION/10); // keeps the display on as long as we change automatically the mode or the palette
     }
@@ -3179,7 +2978,6 @@ void knob_service(uint32_t now)
       }
       else
       {
-        //switch (m_fieldtypes[curr_field])
         switch (fields[curr_field].type)
         {
           case TitleFieldType : 
@@ -3200,14 +2998,12 @@ void knob_service(uint32_t now)
         }
       }
     }
-    showDisplay(curr_field);//, m_fieldtypes);
+    showDisplay(curr_field);
   }
 }
 #endif
 
 
-
-// request receive loop
 void loop()
 {
   uint32_t now = millis();
@@ -3259,41 +3055,6 @@ void loop()
 
   MDNS.update();
 
-  strip->service();
-
-  EVERY_N_SECONDS(2)
-  {
-    DynamicJsonBuffer jB;
-    for(const auto& c: webSocketsServer->getClients())
-    {
-      uint8_t i = getClient(c->id());
-      JsonObject& jC = jB.createObject();
-      jC["Client"] = (int)c->id();
-      jC["Status"] = (int)c->status();
-      jC["Ping"]   = my_pingPongs[i].ping;
-      jC["Pong"]   = my_pingPongs[i].pong;
-      my_pingPongs[i].ping = random8();
-      webSocketsServer->ping(c->id(), &my_pingPongs[i].ping, sizeof(uint8_t));
-      size_t len = jC.measureLength();
-      AsyncWebSocketMessageBuffer * buffer = webSocketsServer->makeBuffer(len); //  creates a buffer (len + 1) for you.
-      if (buffer) {
-        jC.printTo((char *)buffer->get(), len + 1);
-        c->text(buffer);
-      }
-    }
-    webSocketsServer->cleanupClients();
-  }
-
-  EVERY_N_MILLIS(50)
-  {
-    checkSegmentChanges();
-  }
-
-  EVERY_N_MILLIS(EEPROM_SAVE_INTERVAL_MS)
-  {
-    saveEEPROMData();
-    shouldSaveRuntime = false;
-  }
   #else
 
   static bool oldWiFiState = strip->getWiFiEnabled();
@@ -3357,12 +3118,10 @@ void loop()
     MDNS.update();
   }
 
-  strip->service();
 
-  EVERY_N_MILLIS(50)
-  {
-    checkSegmentChanges();
-  }
+  #endif
+
+  strip->service();
 
   EVERY_N_SECONDS(2)
   {
@@ -3370,35 +3129,39 @@ void loop()
     for(const auto& c: webSocketsServer->getClients())
     {
       uint8_t i = getClient(c->id());
+      /*
       JsonObject& jC = jB.createObject();
       jC["Client"] = (int)c->id();
       jC["Status"] = (int)c->status();
       jC["Ping"]   = my_pingPongs[i].ping;
       jC["Pong"]   = my_pingPongs[i].pong;
+      */
+      c->text("{\"Client\": " + String(c->id()) + "}");
       my_pingPongs[i].ping = random8();
-      webSocketsServer->ping(c->id(), &my_pingPongs[i].ping, sizeof(uint8_t));
+      c->ping( &my_pingPongs[i].ping, sizeof(uint8_t));
+      /*
       size_t len = jC.measureLength();
       AsyncWebSocketMessageBuffer * buffer = webSocketsServer->makeBuffer(len); //  creates a buffer (len + 1) for you.
       if (buffer) {
         jC.printTo((char *)buffer->get(), len + 1);
         c->text(buffer);
       }
+      */
     }
-    
     webSocketsServer->cleanupClients();
+  }
+
+  EVERY_N_MILLIS(50)
+  {
+    checkSegmentChanges();
   }
 
   EVERY_N_MILLIS(EEPROM_SAVE_INTERVAL_MS)
   {
-    if(shouldSaveRuntime)
-    {
-      saveEEPROMData();
-    }
-    
+    saveEEPROMData();
     shouldSaveRuntime = false;
   }
-
+  #ifdef HAS_KNOB_CONTROL
   knob_service(now);
-
   #endif
 }
