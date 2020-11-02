@@ -478,7 +478,7 @@ void WS2812FX::service()
   // TODO: How to mix colors of different RGB values to remove the "glitch" when suddenly background switches to foreground.
   // --> Needs to be done without having to much backgroud at all.
 
-  EVERY_N_MILLISECONDS(10)
+  EVERY_N_MILLISECONDS(20)
   {
     if(_c_bck_b < _segment.backgroundBri)
       _c_bck_b++;
@@ -520,6 +520,7 @@ void WS2812FX::service()
         bk_blend = map((uint16_t)(_bleds[i].getLuma() * LOCAL_SCALE_FACT * LOCAL_LUM_FACT), 0, (uint16_t)(BackGroundColor.getLuma() * LOCAL_SCALE_FACT), 255, 0);
       }
       nblend(_bleds[i], BackGroundColor, bk_blend);
+
       //_bleds[i] |= BackGroundColor;
       #undef LOCAL_SCALE_FACT
       #undef LOCAL_LUM_FACT

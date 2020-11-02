@@ -26,7 +26,7 @@ const fieldtype = Object.freeze({
   InvalidFieldType : 6
 });
 
-var DEBUGME = true; //for console loggin. 
+var DEBUGME = false; //for console loggin. 
 
 var ignoreColorChange = false;
 
@@ -74,16 +74,16 @@ ws.onmessage = function(evt) {
 		  console.log("Error " + e + " while decoding " + evt.data);
       return;
     }
-	if(data.name != undefined)
-	{
-		if(DEBUGME) console.log("Received field data for field " + data.name + " with " + data.value);
-		updateFieldValue(data.name, data.value);
-		
-	} else if (data.Client != undefined) {
-		if(DEBUGME) console.log("Received Client info with from ID " + data.Client + ", Status: " + data.Status + ", Ping: " + data.Ping + ", Pong: " + data.Pong);
-	} else {
-		if(DEBUGME) console.log("Decoded: " + data + " with " + Object.values(data));		
-	}
+    if(data.name != undefined)
+    {
+      if(DEBUGME) console.log("Received field data for field " + data.name + " with " + data.value);
+      updateFieldValue(data.name, data.value);
+      
+    } else if (data.Client != undefined) {
+      if(DEBUGME) console.log("Received Client info with from ID " + data.Client + ", Status: " + data.Status + ", Ping: " + data.Ping + ", Pong: " + data.Pong);
+    } else {
+      if(DEBUGME) console.log("Decoded: " + data + " with " + Object.values(data));		
+    }
   }
   updateWSState(true);
 }

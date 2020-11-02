@@ -719,11 +719,11 @@ public:
 
   const __FlashStringHelper * getColorTempName(uint8_t index);
 
-  CRGBPalette16 getCurrentPalette(void) { return _currentPalette; };
-  CRGBPalette16 getTargetPalette(void) { return _targetPalette; };
+  CRGBPalette16* getCurrentPalette(void) { return &_currentPalette; };
+  CRGBPalette16* getTargetPalette (void) { return &_targetPalette; };
 
-  String getCurrentPaletteName(void) { return _currentPaletteName; };
-  String getTargetPaletteName(void) { return _targetPaletteName; };
+  String* getCurrentPaletteName(void)    { return &_currentPaletteName; };
+  String* getTargetPaletteName (void)    { return &_targetPaletteName; };
 
 private:
   void
