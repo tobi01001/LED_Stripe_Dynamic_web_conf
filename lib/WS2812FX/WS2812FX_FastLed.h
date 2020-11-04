@@ -217,12 +217,11 @@ public:
     #ifdef HAS_KNOB_CONTROL
     bool wifiEnabled;
     #endif
-    uint8_t chanceOfGlitter;
     uint8_t segments;
     uint8_t cooling;
     uint8_t sparking;
     uint8_t twinkleSpeed;
-    uint8_t twinkleDensity;
+    uint8_t twinkleDensity; 
     uint8_t numBars;
     uint8_t mode;
     uint8_t fps;
@@ -376,6 +375,10 @@ public:
       uint32_t lastBeat;
       bool secondBeatActive;
     } heartBeat;
+    struct twinkle_fade
+    {
+      uint16_t numsparks;
+    } twinkle_fade;
   } mode_variables;
 
   // to save some memory, all the "static" variables are now in unions
@@ -597,7 +600,6 @@ public:
   #ifdef HAS_KNOB_CONTROL
   inline void setWiFiEnabled          (bool wifiEnabled){ _segment.wifiEnabled = wifiEnabled; }
   #endif
-  inline void setChanceOfGlitter      (uint8_t glitProp){ _segment.chanceOfGlitter = constrain(glitProp, DEFAULT_GLITTER_CHANCE_MIN, DEFAULT_GLITTER_CHANCE_MAX); }
   inline void setAutoplay             (AUTOPLAYMODES m) { _segment.autoplay = m; }
   inline void setAutopal              (AUTOPLAYMODES p) { _segment.autoPal = p; }
   inline void setBeat88               (uint16_t b)      { _segment.beat88 = constrain(b, BEAT88_MIN, BEAT88_MAX); _segment_runtime.timebase = millis(); }
@@ -609,8 +611,8 @@ public:
   inline void setSegments             (uint8_t s)       { _segment.segments = constrain(s, 1, max(MAX_NUM_SEGMENTS, 1)); }
   inline void setCooling              (uint8_t cool)    { _segment.cooling = constrain(cool, 20, 100); }
   inline void setSparking             (uint8_t spark)   { _segment.sparking = constrain(spark, 50, 200); }
-  inline void setTwinkleSpeed         (uint8_t speed)   { _segment.twinkleSpeed = constrain(speed, 0, 8); }
-  inline void setTwinkleDensity       (uint8_t density) { _segment.twinkleDensity = constrain(density, 0, 8); }
+  inline void setTwinkleSpeed         (uint8_t speed)   { _segment.twinkleSpeed = constrain(speed, DEFAULT_TWINKLE_S_MIN, DEFAULT_TWINKLE_S_MAX); }
+  inline void setTwinkleDensity       (uint8_t density) { _segment.twinkleDensity = constrain(density, DEFAULT_TWINKLE_NUM_MIN, DEFAULT_TWINKLE_NUM_MAX); }
   inline void setNumBars              (uint8_t numBars) { _segment.numBars = constrain(numBars, 1, max((LED_COUNT / _segment.segments) / MAX_NUM_BARS_FACTOR, 1)); setTransition(); }
   // setMode --> treated separately...
   inline void setMaxFPS               (uint8_t fps)     { _segment.fps = constrain(fps, 10, STRIP_MAX_FPS); /*FastLED.setMaxRefreshRate(fps);*/ }
@@ -644,7 +646,6 @@ public:
   #ifdef HAS_KNOB_CONTROL
   inline bool           getWiFiEnabled(void)          { return _segment.wifiEnabled; }
   #endif
-  inline uint8_t        getChanceOfGlitter(void)      { return _segment.chanceOfGlitter; }
   inline AUTOPLAYMODES  getAutoplay(void)             { return _segment.autoplay; }
   inline AUTOPLAYMODES  getAutopal(void)              { return _segment.autoPal; }
   inline uint16_t       getSpeed(void)                { return getBeat88(); }
@@ -736,7 +737,7 @@ private:
       draw_sunrise_step(uint16_t step),
       m_sunrise_sunset(bool isSunrise),
       mode_heartbeat_beatIt(uint8_t size, uint8_t col_index),
-      addSparks(uint8_t probability, bool onBlackOnly, bool white);
+      addSparks(CRGB leds[], const uint8_t probability, const bool onBlackOnly, const bool white);
 
   uint8_t attackDecayWave8(uint8_t i);
 
@@ -745,7 +746,6 @@ private:
   uint16_t
   mode_ease(void),
       mode_twinkle_ease(void),
-      mode_ease_func(bool sparks),
       mode_plasma(void),
       mode_fill_wave(void),
       mode_fill_bright(void),
@@ -761,9 +761,7 @@ private:
       mode_fill_beat(void),
       mode_confetti(void),
       mode_juggle_pal(void),
-      mode_inoise8_mover_func(bool sparks),
       mode_inoise8_mover(void),
-      mode_inoise8_mover_twinkle(void),
       mode_firework(void),
       mode_bubble_sort(void),
       mode_static(void),
@@ -779,9 +777,8 @@ private:
       mode_theater_chase_rainbow(void),
       mode_rainbow(void),
       mode_rainbow_cycle(void),
-      pride(bool glitter),
+      pride(void),
       mode_pride(void),
-      mode_pride_glitter(void),
       mode_running_lights(void),
       mode_twinkle_fade(void),
       mode_sparkle(void),

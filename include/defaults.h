@@ -9,7 +9,7 @@
 #endif
 
 //#error "check version first"
-#define BUILD_VERSION "Async_0.12.02"
+#define BUILD_VERSION "Async_0.12.03"
 
 #ifndef BUILD_VERSION
 #error "We need a SW Version and Build Version!"
@@ -120,16 +120,17 @@
 #define DEFAULT_COOLING 128             //
 #define DEFAULT_SPAKRS 128
 #define DEFAULT_TWINKLE_S 4
+#define DEFAULT_TWINKLE_S_MIN 0
+#define DEFAULT_TWINKLE_S_MAX 8
 #define DEFAULT_TWINKLE_NUM 4
+#define DEFAULT_TWINKLE_NUM_MIN 0
+#define DEFAULT_TWINKLE_NUM_MAX 8
 #define DEFAULT_LED_BARS ((LED_COUNT / 40) > 0 ? LED_COUNT / 40 : 1) // half of the possible bars will be used
 #define DEFAULT_DAMPING 90
 #define DEFAULT_SUNRISETIME 15
 #define DEFAULT_DITHER 0
 #define DEFAULT_PALETTE 0
 #define DEFAULT_COLOR_TEMP 19
-#define DEFAULT_GLITTER_CHANCE_MIN 0
-#define DEFAULT_GLITTER_CHANCE_MAX 10
-#define DEFAULT_GLITTER_CHANCE_NORMAL 1
 
 //#define RND_PAL_MIN_SAT 224
 #define RND_PAL_CHANGE_INT 200 

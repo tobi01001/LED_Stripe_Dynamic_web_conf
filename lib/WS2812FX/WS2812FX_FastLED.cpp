@@ -222,7 +222,6 @@ void WS2812FX::init()
   setAddGlitter(_segment.addGlitter);
   setWhiteGlitter(_segment.whiteGlitter);
   setOnBlackOnly(_segment.onBlackOnly);
-  setChanceOfGlitter(_segment.chanceOfGlitter);
   setBckndHue(_segment.backgroundHue);
   setBckndSat(_segment.backgroundSat);
   setBckndBri(_segment.backgroundBri);
@@ -291,7 +290,6 @@ void WS2812FX::resetDefaults(void)
   setAddGlitter(false);
   setWhiteGlitter(true);
   setOnBlackOnly(false);
-  setChanceOfGlitter(DEFAULT_GLITTER_CHANCE_NORMAL);
   #ifdef HAS_KNOB_CONTROL
   setWiFiEnabled(DEFAULT_WIFI_ENABLED);
   #endif
@@ -359,12 +357,6 @@ void WS2812FX::service()
       {
 
         uint16_t delay = (this->*_mode[SEGMENT.mode])();
-
-
-        if(_segment.addGlitter)
-        {
-          addSparks(_segment.chanceOfGlitter, _segment.onBlackOnly, _segment.whiteGlitter);
-        }
 
         SEGMENT_RUNTIME.next_time = now + (uint32_t)delay; 
       }
@@ -525,6 +517,12 @@ void WS2812FX::service()
       #undef LOCAL_SCALE_FACT
       #undef LOCAL_LUM_FACT
     }
+  }
+
+  // Glitter
+  if(_segment.addGlitter)
+  {
+    addSparks(_bleds, _segment.twinkleDensity, _segment.onBlackOnly, _segment.whiteGlitter);
   }
 
   // Write the data
@@ -1017,10 +1015,10 @@ void WS2812FX::strip_off()
 /*
  * Add sparks
  */
-void WS2812FX::addSparks(const uint8_t prob = 10, bool onBlackOnly = true, bool white = false)
+void WS2812FX::addSparks(CRGB leds[], const uint8_t prob = 5, const bool onBlackOnly = true, const bool white = false)
 {
   
-  const uint8_t probability = constrain(prob, DEFAULT_GLITTER_CHANCE_MIN, DEFAULT_GLITTER_CHANCE_MAX);
+  const uint8_t probability = constrain(prob, DEFAULT_TWINKLE_NUM_MIN, DEFAULT_TWINKLE_NUM_MAX);
 
   static uint8_t sparks[LED_COUNT];
 
@@ -1029,34 +1027,65 @@ void WS2812FX::addSparks(const uint8_t prob = 10, bool onBlackOnly = true, bool 
   {
     if(sparks[i])
     {
-      if (leds[i] && onBlackOnly)
-      {
-        sparks[i] = sparks[i] >> 2;
-      }
+      // count the active ones
       active_sparks++;
-      CRGB newCol = CRGB::White;
+
+      // fade the lid ones faster if the effect is interfering
+      if (onBlackOnly && leds[i])
+      {
+        sparks[i] = sparks[i] >> 1;
+      }
+      
+      CRGB newCol = CRGB::Black;
       if (!white)
       {
-        newCol = ColorFromPalette(_currentPalette, map(i,_segment_runtime.start, _segment_runtime.stop, 0, 255) + 128, 255, SEGMENT.blendType);
+        newCol = ColorFromPalette(_currentPalette, map(i,_segment_runtime.start, _segment_runtime.stop, 0, 255) + 128, sparks[i], SEGMENT.blendType);
       }
-      uint8_t blend = map(sparks[i], 0, _segment.fps, 0, 255);
-      nblend(leds[i], newCol, blend);
-      sparks[i] = sparks[i] >> 1;
+      else
+      {
+        newCol = ColorFromPalette(CRGBPalette16(CRGB::White), 128, sparks[i], SEGMENT.blendType);
+      }
+      leds[i] = newCol;
+      for(uint8_t j=0; j<_segment.segments; j++)
+      {
+        if (_segment.mirror && (j & 0x01))
+        {
+          leds[j * _segment_runtime.length + _segment_runtime.stop - i] = leds[i];
+        }
+        else
+        {
+          leds[j * _segment_runtime.length + i] =  leds[i];
+        }
+      }
     }
   }
   
-  if (random8(DEFAULT_GLITTER_CHANCE_MAX) > probability)
+  EVERY_N_MILLIS_I(timerObj, 10)
+  {
+    timerObj.setPeriod(8 * (DEFAULT_TWINKLE_S_MAX - _segment.twinkleSpeed));
+    
+    for(uint16_t i=_segment_runtime.start; i<_segment_runtime.length; i++)
+    {
+      sparks[i] = qsub8(sparks[i], 20 + 5 * _segment.twinkleSpeed);
+    }
+    
+    if (random8(DEFAULT_TWINKLE_NUM_MAX) > probability)
     return;
 
-  if(active_sparks > ((_segment_runtime.length * prob)/100) + 1)
-    return;
+    if(active_sparks > ((_segment_runtime.length * prob)/100) + 10)
+      return;
 
-  uint16_t pos = random16(_segment_runtime.start, _segment_runtime.stop); // Pick an LED at random.
+    uint16_t pos = random16(_segment_runtime.start, _segment_runtime.stop); // Pick an LED at random.
+    
+    if (onBlackOnly && leds[pos])
+      return;
+    
+    sparks[pos] = random8(240,255);
+
+    
+  }
+  timerObj.setPeriod(10 * (8 - _segment.twinkleSpeed));
   
-  if (leds[pos] && onBlackOnly)
-    return;
-  
-  sparks[pos] = random8(_segment.fps);
 
   return;
 }
@@ -1165,7 +1194,7 @@ void WS2812FX::coolLikeIncandescent(CRGB &c, uint8_t phase)
 /*
  * pride based on https://gist.github.com/kriegsman/964de772d64c502760e5
  */
-uint16_t WS2812FX::pride(bool glitter = false)
+uint16_t WS2812FX::pride()
 {
   if (SEGMENT_RUNTIME.modeinit)
   {
@@ -1204,22 +1233,10 @@ uint16_t WS2812FX::pride(bool glitter = false)
 
     CRGB newcolor = ColorFromPalette(_currentPalette, hue8, bri8, SEGMENT.blendType); //CHSV( hue8, sat8, bri8);
 
-    // what is this about?
-    // lets simplify and correct...
-    /*
-    uint16_t pixelnumber = i;
-    pixelnumber = (_segment_runtime.stop) - pixelnumber;
-    */
     uint16_t pixelnumber = (_segment_runtime.stop) - i;
 
     nblend(leds[pixelnumber], newcolor, 64);
   }
-  // TODO: Glitter is obsolete with the global setting
-  if (!glitter)
-    return STRIP_MIN_DELAY;
-
-  addSparks(10, false, true);
-
   return STRIP_MIN_DELAY;
 }
 
@@ -1612,28 +1629,9 @@ uint16_t WS2812FX::mode_static(void)
 
 /*
  * Two moving "comets" moving in and out with Antialiasing
- */
-uint16_t WS2812FX::mode_ease(void)
-{
-  return this->mode_ease_func(false);
-}
-
-/*
- * Two moving "comets" moving in and out with Antialiasing
- * Random Sparkles will be additionally applied.
- */
-// TODO: Could be removed due to global twinkle parameter.... 
-// Does not hurt either
-uint16_t WS2812FX::mode_twinkle_ease(void)
-{
-  return this->mode_ease_func(true);
-}
-
-/*
- * Two moving "comets" moving in and out with Antialiasing
  * Random Sparkles can additionally applied.
  */
-uint16_t WS2812FX::mode_ease_func(bool sparks = true)
+uint16_t WS2812FX::mode_ease()
 {
   // number of pixels for "antialised" (fractional) bar
   const uint8_t width = 1;
@@ -1715,26 +1713,11 @@ uint16_t WS2812FX::mode_ease_func(bool sparks = true)
   drawFractionalBar(lerpVal, width, _currentPalette, (uint8_t)((uint8_t)(lerpVal / 16 - _segment_runtime.start) + colorMove), _brightness);
   drawFractionalBar((_segment_runtime.stop * 16) - lerpVal, width, _currentPalette, (uint8_t)((uint8_t)(lerpVal / 16 - _segment_runtime.start) + colorMove), _brightness);
 
-  if (sparks)
-    addSparks(10, true, false);
-
   return STRIP_MIN_DELAY;
 }
 
-// moves a fractional bar along the stip based on noise
+
 uint16_t WS2812FX::mode_inoise8_mover(void)
-{
-  return this->mode_inoise8_mover_func(false);
-}
-
-// moves a fractional bar along the stip based on noise
-// random twinkles are added
-uint16_t WS2812FX::mode_inoise8_mover_twinkle(void)
-{
-  return this->mode_inoise8_mover_func(true);
-}
-
-uint16_t WS2812FX::mode_inoise8_mover_func(bool sparks)
 {
   uint16_t xscale = _segment_runtime.length; //30;
   uint16_t yscale = 30;
@@ -1755,9 +1738,6 @@ uint16_t WS2812FX::mode_inoise8_mover_func(bool sparks)
   drawFractionalBar(pixlen, width, _currentPalette, (uint8_t)((uint8_t)(pixlen / 64) + colormove)); //, beatsin88(max(SEGMENT.beat88/2,1),200 % _brightness, _brightness, SEGMENT_RUNTIME.timebase));
 
   SEGMENT_RUNTIME.modevars.inoise.dist += beatsin88(SEGMENT.beat88, 1, 6, SEGMENT_RUNTIME.timebase);
-
-  if (sparks)
-    addSparks(10, true, false);
 
   return STRIP_MIN_DELAY;
 }
@@ -2195,8 +2175,6 @@ uint16_t WS2812FX::mode_firework(void)
     _segment_runtime.modevars.firework.keeps[lind] = random8(10, 30);
   }
 
-  //addSparks(100, true, true);
-
   return STRIP_MIN_DELAY; // (BEAT88_MAX - SEGMENT.beat88) / 256; // STRIP_MIN_DELAY;
 }
 
@@ -2296,12 +2274,7 @@ uint16_t WS2812FX::mode_rainbow_cycle(void)
 
 uint16_t WS2812FX::mode_pride(void)
 {
-  return pride(false);
-}
-
-uint16_t WS2812FX::mode_pride_glitter(void)
-{
-  return pride(true);
+  return pride();
 }
 
 /*
@@ -2386,9 +2359,40 @@ uint16_t WS2812FX::mode_twinkle_fade(void)
   {
     _segment_runtime.modeinit = false;
   }
-  fade_out(qadd8(SEGMENT.beat88 >> 8, 12));
-  addSparks(4, true, false);
-  return STRIP_MIN_DELAY;
+
+  EVERY_N_MILLISECONDS(STRIP_MIN_DELAY)
+  {
+    fade_out(qadd8(SEGMENT.beat88 >> 8, 12));
+  }
+  
+  uint16_t numsparks = 0;
+  for(uint16_t i=0; i<_segment_runtime.length; i++)
+  {
+    if(leds[i])
+    {
+      numsparks++;
+    }
+  }
+  uint16_t maxsparks = map(_segment.twinkleDensity, 0, 8, 0, _segment_runtime.length);
+  
+  if(numsparks < maxsparks)
+  {
+    uint16_t i = random16(_segment_runtime.length);
+    if(!leds[i]) 
+    {
+      leds[i] = ColorFromPalette(_currentPalette, random8(), random8(128,255), _segment.blendType);
+    }
+    else
+    {
+      leds[i].fadeToBlackBy(16);
+    }
+  }
+  else
+  {
+    
+  }
+  
+  return 0;// STRIP_MIN_DELAY;
 }
 
 /*
@@ -2760,8 +2764,9 @@ uint16_t WS2812FX::mode_softtwinkles(void)
     return STRIP_MIN_DELAY;
 
   uint16_t speed = (10001 - _segment.beat88 % 10000) / 250 + 1;
-  EVERY_N_MILLIS(speed)
+  EVERY_N_MILLISECONDS_I(timerObj, speed)
   {
+    timerObj.setPeriod(speed);
     // Make each pixel brighter or darker, depending on
     // its 'direction' flag.
     brightenOrDarkenEachPixel(_segment.twinkleSpeed * 8 + 2, _segment.twinkleSpeed * 5 + 1, _segment_runtime.modevars.soft_twinkle.directionFlags);
@@ -2929,64 +2934,62 @@ uint16_t WS2812FX::mode_beatsin_glow(void)
 uint16_t WS2812FX::mode_pixel_stack(void)
 {
   #define SRMVPS _segment_runtime.modevars.pixel_stack
-  const uint16_t framedelay = map(_segment.beat88, 10000, 0, 0, 50);// + map(_segment_runtime.length, 300, 0, 0, 25);
-
-  const uint16_t cStartPos = _segment_runtime.length / 2 - 1;
+  const uint16_t framedelay = map(_segment.beat88>5000?5000:_segment.beat88, 5000, 0, 1, 50);
+  const uint16_t nLeds = _segment_runtime.length / 2;
+  const uint8_t sI = _segment_runtime.baseHue;
   if (_segment_runtime.modeinit)
   {
     _segment_runtime.modeinit = false;
 
     SRMVPS.up = true;
     SRMVPS.leds_moved = 0;
-    SRMVPS.pos = cStartPos;
-
+    SRMVPS.pos = nLeds-1;
     fill_solid(leds, _segment_runtime.length, CRGB::Black);
-    fill_palette(leds, _segment_runtime.length / 2, _segment_runtime.baseHue, max(255 / (_segment_runtime.length / 2), 1), _currentPalette, 255, _segment.blendType);
   }
-  if (SRMVPS.up)
+  fadeToBlackBy(leds, _segment_runtime.length, qadd8(28, 4 * framedelay));
+  for(uint16_t i = 0; i < nLeds; i++)
   {
-    if (SRMVPS.pos == (_segment_runtime.stop - SRMVPS.leds_moved))
+    if(i<nLeds-SRMVPS.leds_moved)
     {
-      SRMVPS.leds_moved++;
-      if (SRMVPS.leds_moved > cStartPos)
+      leds[i] = ColorFromPalette(_currentPalette, sI + map(i, 0, nLeds-1, 0, 255));
+    }
+    if(i < SRMVPS.leds_moved)
+    {
+      leds[_segment_runtime.length-1-i] = ColorFromPalette(_currentPalette, sI + map(nLeds - i, 0, nLeds-1, 0, 255));
+    }
+  }
+  if(SRMVPS.up)
+  {
+    if(SRMVPS.pos >= 0 && SRMVPS.pos < _segment_runtime.length) leds[SRMVPS.pos++] = ColorFromPalette(_currentPalette, sI + map(nLeds - SRMVPS.leds_moved, 0, nLeds-1, 0, 255));
+    if(SRMVPS.pos == (_segment_runtime.length - 1 - SRMVPS.leds_moved))
+    { 
+      SRMVPS.pos = (nLeds - 1) - SRMVPS.leds_moved;
+      if(SRMVPS.leds_moved == nLeds)
       {
+        SRMVPS.leds_moved--;
         SRMVPS.up = false;
-        SRMVPS.leds_moved = 0;
-        SRMVPS.pos = cStartPos + 1;
-        return 0;
+        SRMVPS.pos = ((_segment_runtime.length - 1) - SRMVPS.leds_moved);
       }
-      SRMVPS.pos = cStartPos - SRMVPS.leds_moved;
+      SRMVPS.leds_moved++;
     }
-    if (SRMVPS.pos < _segment_runtime.stop && SRMVPS.pos >= 0 && !leds[SRMVPS.pos + 1])
-    {
-      leds[SRMVPS.pos + 1] = leds[SRMVPS.pos];
-      leds[SRMVPS.pos] = CRGB::Black;
-    }
-    SRMVPS.pos++;
   }
   else
   {
-    if (SRMVPS.pos < _segment_runtime.start + SRMVPS.leds_moved)
-    {
-      SRMVPS.leds_moved++;
-      if (SRMVPS.leds_moved > cStartPos + 1)
+    if(SRMVPS.pos >= 0 && SRMVPS.pos < _segment_runtime.length) leds[SRMVPS.pos--] = ColorFromPalette(_currentPalette, sI + map(nLeds - SRMVPS.leds_moved, 0, nLeds-1, 0, 255));
+    if(SRMVPS.pos == nLeds - SRMVPS.leds_moved)
+    {  
+      SRMVPS.pos = (_segment_runtime.length - 1) - (SRMVPS.leds_moved);
+      if(SRMVPS.leds_moved == 0)
       {
+        SRMVPS.leds_moved++;
         SRMVPS.up = true;
-        SRMVPS.leds_moved = 0;
-        SRMVPS.pos = cStartPos;
-        return 0;
+        SRMVPS.pos = nLeds-1;
       }
-      SRMVPS.pos = cStartPos + 1 + SRMVPS.leds_moved;
-    }
-    if (SRMVPS.pos <= _segment_runtime.stop && SRMVPS.pos > 0 && !leds[SRMVPS.pos - 1])
-    {
-      leds[SRMVPS.pos - 1] = leds[SRMVPS.pos];
-      leds[SRMVPS.pos] = CRGB::Black;
-    }
-    SRMVPS.pos--;
+      SRMVPS.leds_moved--;
+    } 
   }
-
   return framedelay;
+  #undef SRMVPS
 }
 
 uint16_t WS2812FX::mode_popcorn(void)
