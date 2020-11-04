@@ -42,9 +42,9 @@ FHEM control is possible with the related perl fhem module...
 - need to describe installation etc. in more detail - first approach below
 
 Major differences to WS2812FX / ESPWebserver:
--
+
 - somehow combines the "best of both"
-- almost everything is adjustable via web interface
+- almost everything is adjustable via web interface / get-interface
 - includes (basic) sunrise / sunset effects with adjustable time (minutes) 
 - a void effect which can be used to remotely change sinlge LEDs or ranges
 - everything is smoothed, i.e. switching and changeing is smoothened to the max, brighness change is smoothed...
@@ -54,14 +54,16 @@ Major differences to WS2812FX / ESPWebserver:
 - every setting is stored to the EEPROM (with CRC protection, defaults being loaded on mismatch, sudden ESP reset (by watchdog or exception)
 - ...
 
-
-
+# Installation
 If you intend to use, compile and run this code you need to:
 - have a WS2812FX strip on **Pin 3 (RX)** on a ESP8266 (nodemcu / wemos D1 mini)
 - set necessary build flags: e.g.: https://github.com/tobi01001/LED_Stripe_Dynamic_web_conf/blob/f0b13fc76f681254713509b9c1da90bc5ba5ca40/platformio.ini#L21-L26
-defining the LED_NAME (the web page and hostname is set to this) and the number of LEDs (LED_COUNT) on the stripe (theoretically limited to 65535 but for performance reasons rather limited to 300 (max fps you can get with 300 LEDs will be around 111)
-- upload the data file system image
+defining the LED_NAME (the web page and hostname is set to this) and the number of LEDs (LED_COUNT) on the stripe (theoretically limited to 65535 but for performance reasons rather limited to 300 (max fps you can get with 300 LEDs will be around 111) - if you use the KNOB_CONTROL or not...
+- **Attention:** This SW now uses **LittleFS** and **AsyncWebServer**. 
+- upload the **LittelFS** data file system image
 - upload the compiled code
+
+*Remark: The use of AsyncWebServer required some modifications in how parameters are sent to the WebPage. If - after uploading for the first time or a new version - the webpage does not react on commands, please use the "resetDefaults" button.
 
 I personally use platform.io with Visual Studio Code. So I don't know exactly how to do this with the Arduino IDE.
 
@@ -69,7 +71,6 @@ When you first startup and the WiFiManager Library does not find credentials bei
 
 If you define the DEBUG build flag (-DDEBUG) it will enable debug code and the WifiManager will also publish the IP-Adress received...
 
-The Web-Page is a mix of German and English (sorry) - I needed to provide somethign for my kids. But I will change back to complete English (or a language flag) in the future...
-
+The Web-Page is a mix of German and English (sorry) - I needed to provide something for my kids. But I will change back to complete English (or a language flag) in the future...
 
 in case of questions, comments, issues ... feel free to contact me.
