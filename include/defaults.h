@@ -9,7 +9,7 @@
 #endif
 
 //#error "check version first"
-#define BUILD_VERSION "Async_0.12.03"
+#define BUILD_VERSION "0.13.00"
 
 #ifndef BUILD_VERSION
 #error "We need a SW Version and Build Version!"
