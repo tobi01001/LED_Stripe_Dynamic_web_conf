@@ -414,12 +414,6 @@ void checkSegmentChanges(void) {
     broadcastInt(F("onBlackOnly"), seg.onBlackOnly);
     shouldSaveRuntime = true;
   }
-  if(seg.chanceOfGlitter != strip->getChanceOfGlitter())
-  {
-    seg.chanceOfGlitter = strip->getChanceOfGlitter();
-    broadcastInt(F("glitterChance"), seg.chanceOfGlitter);
-    shouldSaveRuntime = true;
-  }
   if(seg.backgroundHue != strip->getBckndHue())
   {
     seg.backgroundHue = strip->getBckndHue();
@@ -543,7 +537,7 @@ void initOverTheAirUpdate(void)
     display.display();
     // indicate that OTA is no longer running.
     OTAisRunning = false;
-    delay(1000);
+    delay(100);
     display.displayOff();
     // no need to reset ESP as this is done by the OTA handler by default
   });
@@ -579,7 +573,7 @@ void initOverTheAirUpdate(void)
     }
 
     display.clear();
-    display.drawStringMaxWidth(0, 0,  128, F("Update fehlgeschlagen!"));
+    display.drawStringMaxWidth(0, 0,  128, F("Update failed!"));
     display.drawStringMaxWidth(0, 22, 128, err);
     display.drawStringMaxWidth(0, 43, 128, F("Reset in 5 Secs"));
     delay(5000);
@@ -606,19 +600,12 @@ void initOverTheAirUpdate(void)
     uint8_t factor = 85;
     for (uint8_t c = 0; c < 4; c++)
     {
-
-      for (uint16_t i = 0; i < strip->getStripLength(); i++)
-      {
-        uint8_t r = 256 - (c * factor);
-        uint8_t g = c > 0 ? (c * factor - 1) : (c * factor);
-        strip->leds[i] = CRGB(strip_color32(r, g, 0));
-      }
+      uint8_t r = 256 - (c * factor);
+      uint8_t g = c > 0 ? (c * factor - 1) : (c * factor);
+      fill_solid(strip->leds, strip->getStripLength(), CRGB(r, g, 0));
       strip->show();
       delay(250);
-      for (uint16_t i = 0; i < strip->getStripLength(); i++)
-      {
-        strip->leds[i] = CRGB::Black;
-      }
+      fill_solid(strip->leds, strip->getStripLength(), CRGB::Black);
       strip->show();
       delay(500);
     }
@@ -631,17 +618,23 @@ void initOverTheAirUpdate(void)
   ArduinoOTA.onEnd([]() {
     // OTA finished.
     // We fade out the green Leds being activated during OTA.
-    for (uint8_t i = strip->leds[0].green; i > 0; i--)
+    bool ledsActive = true;
+    while(ledsActive)
     {
-      for (uint16_t p = 0; p < strip->getStripLength(); p++)
+      ledsActive = false;
+      for(uint16_t i=0; i<strip->getStripLength(); i++)
       {
-        strip->leds[p].subtractFromRGB(2);
-        //strip.setPixelColor(p, 0, i-1 ,0);
+        if(strip->leds[i]) 
+        {
+          ledsActive = true;
+          break;
+        }
       }
+      fadeToBlackBy(strip->leds, strip->getStripLength(), 8);
       strip->show();
       delay(2);
     }
-    // indicate that OTA is no longer running.
+    // indicate that OTA is no longer running. (rather useless)
     OTAisRunning = false;
     // no need to reset ESP as this is done by the OTA handler by default
   });
@@ -654,7 +647,7 @@ void initOverTheAirUpdate(void)
     if (temp_color > 255)
       temp_color = 255;
 
-    strip->leds[pixel] = strip_color32(0, (uint8_t)temp_color, 0);
+    strip->leds[pixel] = CRGB(0, (uint8_t)temp_color, 0);
     strip->show();
   });
 
@@ -682,8 +675,8 @@ void initOverTheAirUpdate(void)
       strip->show();
       delay(2);
     }
-    // We wait 10 seconds and then restart the ESP...
-    delay(10000);
+    // We wait 5 seconds and then restart the ESP...
+    delay(5000);
     ESP.restart();
   });
   #endif // !HAS_KNOB_CONTROL
@@ -747,7 +740,6 @@ void setupWiFi(uint16_t timeout = 240)
     delay(3000);
     showInitColor(CRGB::Red);
     ESP.restart();
-    delay(5000);
   }
 
   if(WiFi.getMode() != WIFI_STA)
@@ -1495,13 +1487,6 @@ void handleSet(AsyncWebServerRequest *request)
     strip->setOnBlackOnly(value);
     answer[F("Glitter_OnBlackOnly")] = strip->getOnBlackOnly();
   }
-  if (request->hasParam(F("glitterChance")))
-  {
-    uint8_t value = constrain(request->getParam(F("glitterChance"))->value().toInt(), 0, 100);
-    strip->setChanceOfGlitter(value);
-    answer[F("Glitter_Chance")] = strip->getChanceOfGlitter();
-  }
-
 
 #ifdef DEBUG
   // Testing different Resets
@@ -2240,7 +2225,7 @@ enum displayStates {
 void setup()
 {
   // Sanity delay to get everything settled....
-  delay(50);
+  delay(INITDELAY);
 
   #ifdef HAS_KNOB_CONTROL
   const uint8_t font_height = 12;
@@ -2473,7 +2458,7 @@ void setup()
   }
   FastLED.show();
 
-  delay(4000);
+  delay(2000);
 
   readRuntimeDataEEPROM();
 
