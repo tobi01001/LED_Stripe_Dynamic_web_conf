@@ -531,10 +531,24 @@ void initOverTheAirUpdate(void)
 
   // what to do if OTA is finished...
   ArduinoOTA.onEnd([]() {
+
+    
+
     // OTA finished.
     display.drawString(0, 53, F("OTA finished!"));
     display.displayOn();
     display.display();
+
+    // we delete the first uint16 in the EEPROM (which is the CRC)
+    // as this will (hopefully) reset to defaults on SW updates
+    if(RESET_DEFAULTS)
+    {
+      EEPROM.begin(strip->getSegmentSize());
+      EEPROM.put(0, (uint16_t)0);
+      EEPROM.commit();
+      EEPROM.end();
+    }
+
     // indicate that OTA is no longer running.
     OTAisRunning = false;
     delay(100);
@@ -634,6 +648,18 @@ void initOverTheAirUpdate(void)
       strip->show();
       delay(2);
     }
+
+    // we delete the first uint16 in the EEPROM (which is the CRC)
+    // as this will (hopefully) reset to defaults on SW updates
+    if(RESET_DEFAULTS)
+    {
+      EEPROM.begin(strip->getSegmentSize());
+      EEPROM.put(0, (uint16_t)0);
+      EEPROM.commit();
+      EEPROM.end();
+    }
+    
+
     // indicate that OTA is no longer running. (rather useless)
     OTAisRunning = false;
     // no need to reset ESP as this is done by the OTA handler by default
@@ -1857,10 +1883,7 @@ void clearCRC(void)
 {
 // invalidating the CRC - in case somthing goes terribly wrong...
   EEPROM.begin(strip->getCRCsize());
-  for (uint i = 0; i < EEPROM.length(); i++)
-  {
-    EEPROM.write(i, 0);
-  }
+  EEPROM.put(0,(uint16_t)0);
   EEPROM.commit();
   EEPROM.end();
   delay(1000);
@@ -2134,10 +2157,12 @@ void webSocketEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsE
         Serial.printf("\n");
         #endif
       }
+      #ifdef DEBUG
       if(info->opcode == WS_TEXT)
-        client->text("{\"message\":\"I got your text message\"}");
+       client->text("{\"message\":\"I got your text message\"}");
       else
         client->binary("{\"message\":\"I got your binary message\"}");
+      #endif
     } else {
       //message is comprised of multiple frames or the frame is split into multiple packets
       if(info->index == 0){
@@ -2174,11 +2199,11 @@ void webSocketEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsE
         if(info->final){
           #ifdef DEBUG
           Serial.printf("ws[%s][%u] %s-message end\n", server->url(), client->id(), (info->message_opcode == WS_TEXT)?"text":"binary");
-          #endif
           if(info->message_opcode == WS_TEXT)
             client->text("{\"message\":\"I got your framed text message\"}");
           else
             client->binary("{\"message\":\"I got your framed binary message\"}");
+          #endif
         }
       }
     }

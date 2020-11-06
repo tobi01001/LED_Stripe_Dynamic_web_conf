@@ -74,16 +74,16 @@ ws.onmessage = function(evt) {
 		  console.log("Error " + e + " while decoding " + evt.data);
       return;
     }
-    if(data.name != undefined)
-    {
-      if(DEBUGME) console.log("Received field data for field " + data.name + " with " + data.value);
-      updateFieldValue(data.name, data.value);
-      
-    } else if (data.Client != undefined) {
-      if(DEBUGME) console.log("Received Client info with from ID " + data.Client + ", Status: " + data.Status + ", Ping: " + data.Ping + ", Pong: " + data.Pong);
-    } else {
-      if(DEBUGME) console.log("Decoded: " + data + " with " + Object.values(data));		
-    }
+	if(data.name != undefined)
+	{
+		if(DEBUGME) console.log("Received field data for field " + data.name + " with " + data.value);
+		updateFieldValue(data.name, data.value);
+		
+	} else if (data.Client != undefined) {
+		if(DEBUGME) console.log("Received Client info with from ID " + data.Client + ", Status: " + data.Status);
+	} else {
+		if(DEBUGME) console.log("Decoded: " + data + " with " + Object.values(data));		
+	}
   }
   updateWSState(true);
 }
@@ -107,20 +107,23 @@ function updateWSState(active)
 	}, 2100);
 }
 
-function updateStatus(newStatus)
+function updateStatus(newStatus, keepMessage = false, timeout = 4000)
 {
 	$("#status").html(newStatus);
 	clearTimeout(statusActiveTimer);
-	statusActiveTimer = setTimeout(function() {
-		$("#status").html("Ready");
-	}, 4000);
+	if(!keepMessage)
+	{
+		statusActiveTimer = setTimeout(function(timeout) {
+			$("#status").html("");
+		}, timeout);
+	}
 }
 
 $(document).ready(function() {
- updateStatus("Connecting, please wait...");
+ updateStatus("Connecting, please wait...", true);
 
   $.get(urlBase + "/all", function(data) {
-      updateStatus("Loading, please wait...");
+      updateStatus("Loading, please wait...", true);
 
       $.each(data, function(index, field) {
         //if(DEBUGME) console.log("Field " + field.label + " with type " + field.type);
@@ -152,7 +155,7 @@ $(document).ready(function() {
         swatches: ["FF0000", "FF8000", "FFFF00", "00FF00", "00FFFF", "0000FF", "FF00FF", "FFFFFF"] // some colors from the previous list
       });
 
-      updateStatus("Ready");
+      updateStatus("Ready", true);
     })
     .fail(function(errorThrown) {
       console.log("error: " + errorThrown);
@@ -521,18 +524,26 @@ function setBooleanFieldValue(field, btnOn, btnOff, value) {
 }
 
 function postValue(name, value) {
-  updateStatus("Set " + name + ": " + value + ", please wait...");
+  updateStatus("Set " + name + ": " + value + ", please wait...", true);
 
   var body = { name: name, value: value };
 
-  $.post(urlBase + "/set?" + name + "=" + value, body, function(data) {
+  $.get(urlBase + "/set?" + name + "=" + value, body, function(data) {
     if (data.name != null) {
-      updateStatus("Set /set?" + name + ": " + value);
+      updateStatus("Set /set?" + name + ": " + value, true);
     } else {
-      updateStatus("Set /set?" + name + ": " + value);
+      updateStatus("Set /set?" + name + ": " + value, true);
     }
+  })
+  .fail(function(jqXHR, textStatus, error) 
+  { 
+	updateStatus("Error sending the value!", true);
+    if(DEBUGME) console.log("Error: " + error + " txt " + textStatus + " jqXHR " + jqXHR);
+  })
+  .done(function(name, value, test)
+  {
+	  updateStatus("success", false, 2000);
   });
-  updateStatus("Done...");
   if(ws_connected)
   {
     ws.send("{\"" + name + "\": " + value + "}");
@@ -547,14 +558,20 @@ function delayPostValue(name, value) {
 }
 
 function postColor(name, value) {
-  updateStatus("Set " + name + ": " + value.r + "," + value.g + "," + value.b + ", please wait...");
+  updateStatus("Set " + name + ": " + value.r + "," + value.g + "," + value.b + ", please wait...", true);
 
   var body = { name: name, r: value.r, g: value.g, b: value.b };
 
-  $.post(urlBase + "/set?" + name + "=" + name + "&r=" + value.r + "&g=" + value.g + "&b=" + value.b, body, function(data) {
-    updateStatus("Set /set?" + name + "=" + name + "&r=" + value.r + "&g=" + value.g + "&b=" + value.b);
+  $.get(urlBase + "/set?" + name + "=" + name + "&r=" + value.r + "&g=" + value.g + "&b=" + value.b, body, function(data) {
+    updateStatus("Set /set?" + name + "=" + name + "&r=" + value.r + "&g=" + value.g + "&b=" + value.b, true);
   })
-  .fail(function(textStatus, errorThrown) { updateStatus("Error: " + textStatus + " " + errorThrown); });
+  .fail(function(jqXHR, textStatus, errorThrown) { 
+    updateStatus("Error sending the Color!", true);
+  })
+  .done(function(name, value, test)
+  {
+	  updateStatus("success", false, 2000);
+  });
   
   if(ws_connected)
   {

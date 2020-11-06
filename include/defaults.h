@@ -9,7 +9,9 @@
 #endif
 
 //#error "check version first"
-#define BUILD_VERSION "0.13.00"
+#define BUILD_VERSION "0.13.01"
+//in case of "major upgrades affecting e.g. the structure of field, set this to > 0
+#define RESET_DEFAULTS 0
 
 #ifndef BUILD_VERSION
 #error "We need a SW Version and Build Version!"

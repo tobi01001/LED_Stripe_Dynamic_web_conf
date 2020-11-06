@@ -355,7 +355,7 @@ public:
     {
       bool up;
       int16_t leds_moved;
-      int16_t pos;
+      uint16_t ppos16;
     } pixel_stack;
     struct ring_ring
     {

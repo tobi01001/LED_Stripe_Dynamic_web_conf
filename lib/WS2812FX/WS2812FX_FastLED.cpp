@@ -2934,61 +2934,89 @@ uint16_t WS2812FX::mode_beatsin_glow(void)
 uint16_t WS2812FX::mode_pixel_stack(void)
 {
   #define SRMVPS _segment_runtime.modevars.pixel_stack
-  const uint16_t framedelay = map(_segment.beat88>5000?5000:_segment.beat88, 5000, 0, 1, 50);
+  // the beat88 translated to a effect speed (in relation to the number of segments)
+  const uint16_t sp = map(_segment.beat88>(20000/_segment.segments)?(20000/_segment.segments):_segment.beat88, 0, (20000/_segment.segments), 0, 65535);
+  // The number of leds for the effect (half of the strip)
   const uint16_t nLeds = _segment_runtime.length / 2;
+  // the base hue (the hue can move during the effect)
   const uint8_t sI = _segment_runtime.baseHue;
+
+  // init the effect
   if (_segment_runtime.modeinit)
   {
     _segment_runtime.modeinit = false;
 
     SRMVPS.up = true;
     SRMVPS.leds_moved = 0;
-    SRMVPS.pos = nLeds-1;
-    fill_solid(leds, _segment_runtime.length, CRGB::Black);
+    SRMVPS.ppos16 = 0;
+    
   }
-  fadeToBlackBy(leds, _segment_runtime.length, qadd8(28, 4 * framedelay));
+  // We fade everything to black (a speed dependent amount) - leds will be rewritten later
+  fadeToBlackBy(leds, _segment_runtime.length, max(2, sp>>8));
+  // write each active led with the color from the palette (without the one currently moving)
   for(uint16_t i = 0; i < nLeds; i++)
   {
     if(i<nLeds-SRMVPS.leds_moved)
     {
+      // lower half (half the strip minus the number already moved)
       leds[i] = ColorFromPalette(_currentPalette, sI + map(i, 0, nLeds-1, 0, 255));
     }
     if(i < SRMVPS.leds_moved)
     {
+      // upper half - the number of leds moved from the end
       leds[_segment_runtime.length-1-i] = ColorFromPalette(_currentPalette, sI + map(nLeds - i, 0, nLeds-1, 0, 255));
     }
   }
+  // a value within the 0..65535 range (sawtooth) depending on the speed sp
+  uint16_t p16 = beat88(sp);
   if(SRMVPS.up)
   {
-    if(SRMVPS.pos >= 0 && SRMVPS.pos < _segment_runtime.length) leds[SRMVPS.pos++] = ColorFromPalette(_currentPalette, sI + map(nLeds - SRMVPS.leds_moved, 0, nLeds-1, 0, 255));
-    if(SRMVPS.pos == (_segment_runtime.length - 1 - SRMVPS.leds_moved))
-    { 
-      SRMVPS.pos = (nLeds - 1) - SRMVPS.leds_moved;
+    // mapping the p16 value to a (16 bit position) between the active leds
+    uint16_t pos16 = map(p16, 0, 65535, 16*(nLeds - SRMVPS.leds_moved), 16*(_segment_runtime.length - 1 - SRMVPS.leds_moved)-16);
+    // if the p16 starts from the beginning (sawtooth bottom)
+    if(SRMVPS.ppos16 > pos16) 
+    {
+      SRMVPS.ppos16 = 0;
+      // we moved all the leds
       if(SRMVPS.leds_moved == nLeds)
       {
         SRMVPS.leds_moved--;
         SRMVPS.up = false;
-        SRMVPS.pos = ((_segment_runtime.length - 1) - SRMVPS.leds_moved);
+        SRMVPS.ppos16 = 65535;
       }
       SRMVPS.leds_moved++;
+    }
+    else // we are inbetween, we write the way up as fractional bar.
+    { 
+      // we start within an active led to avoid flicker
+      if(pos16 > 16) pos16-=16;
+      
+      drawFractionalBar(pos16, 2, _currentPalette, sI + map(nLeds - SRMVPS.leds_moved, 0, nLeds-1, 0, 255), 255, 0);
+      SRMVPS.ppos16 = pos16;
     }
   }
   else
   {
-    if(SRMVPS.pos >= 0 && SRMVPS.pos < _segment_runtime.length) leds[SRMVPS.pos--] = ColorFromPalette(_currentPalette, sI + map(nLeds - SRMVPS.leds_moved, 0, nLeds-1, 0, 255));
-    if(SRMVPS.pos == nLeds - SRMVPS.leds_moved)
-    {  
-      SRMVPS.pos = (_segment_runtime.length - 1) - (SRMVPS.leds_moved);
+    uint16_t pos16 = map(p16, 0, 65535, 16*(_segment_runtime.length - 1 - SRMVPS.leds_moved)-16, 16*(nLeds - SRMVPS.leds_moved));
+    if(SRMVPS.ppos16  < pos16) 
+    {
+      SRMVPS.ppos16  = 65535;
       if(SRMVPS.leds_moved == 0)
       {
         SRMVPS.leds_moved++;
         SRMVPS.up = true;
-        SRMVPS.pos = nLeds-1;
+        SRMVPS.ppos16  = 0;
       }
       SRMVPS.leds_moved--;
-    } 
+      
+    }
+    else
+    {
+      drawFractionalBar(pos16, 2, _currentPalette, sI + map(nLeds - SRMVPS.leds_moved, 0, nLeds-1, 0, 255), 255, 0);
+      SRMVPS.ppos16  = pos16;
+    }
   }
-  return framedelay;
+  return STRIP_MIN_DELAY;// framedelay;
   #undef SRMVPS
 }
 
