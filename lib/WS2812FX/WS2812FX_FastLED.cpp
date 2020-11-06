@@ -987,7 +987,7 @@ void WS2812FX::drawFractionalBar(int pos16, int width, const CRGBPalette16 &pal,
       }
       else
       {
-        leds[i] = ColorFromPalette(pal, cindex, max_bright, SEGMENT.blendType);
+        leds[i] = ColorFromPalette(pal, cindex, bright, SEGMENT.blendType);
       }
     }
     i++;
@@ -3018,6 +3018,63 @@ uint16_t WS2812FX::mode_pixel_stack(void)
   }
   return STRIP_MIN_DELAY;// framedelay;
   #undef SRMVPS
+}
+
+uint16_t WS2812FX::mode_move_bar_sin(void)
+{
+  return mode_move_bar(0);
+}
+uint16_t WS2812FX::mode_move_bar_quad(void)
+{
+  return mode_move_bar(1);
+}
+uint16_t WS2812FX::mode_move_bar_cubic(void)
+{
+  return mode_move_bar(2);
+}
+uint16_t WS2812FX::mode_move_bar_sawtooth(void)
+{
+  return mode_move_bar(3);
+}
+
+uint16_t WS2812FX::mode_move_bar(uint8_t mode)
+{
+  if (_segment_runtime.modeinit)
+  {
+    _segment_runtime.modeinit = false;
+  }
+  const uint16_t width = _segment_runtime.length/2;
+  const uint16_t sp = map(_segment.beat88>(20000/_segment.segments)?(20000/_segment.segments):_segment.beat88, 0, (20000/_segment.segments), 0, 65535);
+
+  //fadeToBlackBy(leds, _segment_runtime.length, qadd8(sp >> 8, 12));
+  fill_solid(leds, _segment_runtime.length, CRGB::Black);
+
+  uint16_t pos16 = 0;
+  switch (mode)
+  {
+  case 0:
+    pos16 = beatsin16(sp/2, 0, (width*16));
+    break;
+  case 1:
+    pos16 = map(ease16InOutQuad(triwave16(beat88(sp/2))), 0, 65535, 0, (width*16));
+    break;
+  case 2:
+    pos16 = map(ease16InOutCubic(triwave16(beat88(sp/2))), 0, 65535, 0, (width*16));
+    break;
+  default:
+    pos16 = map(triwave16(beat88(sp/2)), 0, 65535, 0, (width*16));
+    break;
+  }
+  
+  drawFractionalBar(pos16, 2, _currentPalette, _segment_runtime.baseHue, 255, false);
+  drawFractionalBar(pos16+((width*16)-32), 2, _currentPalette, _segment_runtime.baseHue + 255, 255, false);
+  for(uint16_t i=2; i<width-1; i++)
+  {
+    uint8_t index = _segment_runtime.baseHue + map(i, 0, width, 0, 255);
+    if(i < _segment_runtime.length) leds[i+(pos16/16)] += ColorFromPalette(_currentPalette, index, 255, _segment.blendType);
+  }
+
+  return STRIP_MIN_DELAY;
 }
 
 uint16_t WS2812FX::mode_popcorn(void)

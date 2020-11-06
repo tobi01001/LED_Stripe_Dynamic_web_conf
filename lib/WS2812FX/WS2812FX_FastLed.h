@@ -126,6 +126,10 @@ enum MODES
   FX_MODE_SHOOTING_STAR,
   FX_MODE_BEATSIN_GLOW,
   FX_MODE_PIXEL_STACK,
+  FX_MODE_MOVE_BAR_SIN,
+  FX_MODE_MOVE_BAR_QUAD,
+  FX_MODE_MOVE_BAR_CUBE,
+  FX_MODE_MOVE_BAR_SAWTOOTH,
   FX_MODE_POPCORN,
   FX_MODE_FIREWORKROCKETS,
   FX_MODE_HEARTBEAT,
@@ -459,6 +463,10 @@ public:
     _mode[FX_MODE_SHOOTING_STAR]          = &WS2812FX::mode_shooting_star;
     _mode[FX_MODE_BEATSIN_GLOW]           = &WS2812FX::mode_beatsin_glow;
     _mode[FX_MODE_PIXEL_STACK]            = &WS2812FX::mode_pixel_stack;
+    _mode[FX_MODE_MOVE_BAR_SIN]           = &WS2812FX::mode_move_bar_sin;
+    _mode[FX_MODE_MOVE_BAR_QUAD]          = &WS2812FX::mode_move_bar_quad;
+    _mode[FX_MODE_MOVE_BAR_CUBE]          = &WS2812FX::mode_move_bar_cubic;
+    _mode[FX_MODE_MOVE_BAR_SAWTOOTH]      = &WS2812FX::mode_move_bar_sawtooth;
     _mode[FX_MODE_POPCORN]                = &WS2812FX::mode_popcorn;
     _mode[FX_MODE_FIREWORKROCKETS]        = &WS2812FX::mode_firework2;
     _mode[FX_MODE_RING_RING]              = &WS2812FX::mode_ring_ring;
@@ -511,6 +519,10 @@ public:
     _name[FX_MODE_SHOOTING_STAR]          = F("Shooting Star");
     _name[FX_MODE_BEATSIN_GLOW]           = F("Sine glows");
     _name[FX_MODE_PIXEL_STACK]            = F("Pixel Stack");
+    _name[FX_MODE_MOVE_BAR_SIN]           = F("Moving Bar Sinus");
+    _name[FX_MODE_MOVE_BAR_QUAD]          = F("Moving Bar Quadwave");
+    _name[FX_MODE_MOVE_BAR_CUBE]          = F("Moving Bar Cubic");
+    _name[FX_MODE_MOVE_BAR_SAWTOOTH]      = F("Moving Bar Sawtooth");
     _name[FX_MODE_POPCORN]                = F("Popcorn");
     _name[FX_MODE_FIREWORKROCKETS]        = F("Firework Rocket");
     _name[FX_MODE_RING_RING]              = F("Phone Ring");
@@ -728,7 +740,7 @@ public:
 
 private:
   void
-  strip_off(void),
+      strip_off(void),
       fade_out(uint8_t fadeB),
       drawFractionalBar(int pos16, int width, const CRGBPalette16 &pal, uint8_t cindex, uint8_t max_bright, bool mixColor),
       coolLikeIncandescent(CRGB &c, uint8_t phase),
@@ -744,7 +756,7 @@ private:
   CRGB calcSunriseColorValue(uint16_t step);
 
   uint16_t
-  mode_ease(void),
+      mode_ease(void),
       mode_twinkle_ease(void),
       mode_plasma(void),
       mode_fill_wave(void),
@@ -795,6 +807,11 @@ private:
       mode_shooting_star(void),
       mode_beatsin_glow(void),
       mode_pixel_stack(void),
+      mode_move_bar_sin(void),
+      mode_move_bar_cubic(void),
+      mode_move_bar_quad(void),
+      mode_move_bar_sawtooth(void),
+      mode_move_bar(uint8_t mode),
       mode_popcorn(void),
       mode_firework2(void),
       mode_void(void),
@@ -805,15 +822,15 @@ private:
       quadbeat(uint16_t in);
 
   CRGB
-  computeOneTwinkle(uint32_t ms, uint8_t salt),
+      computeOneTwinkle(uint32_t ms, uint8_t salt),
       makeBrighter(const CRGB &color, fract8 howMuchBrighter),
       makeDarker(const CRGB &color, fract8 howMuchDarker);
 
   bool
-  getPixelDirection(uint16_t i, uint8 *directionFlags);
+      getPixelDirection(uint16_t i, uint8 *directionFlags);
 
   static inline uint16_t
-  triwave16(uint16_t in),
+      triwave16(uint16_t in),
       quadwave16(uint16_t in),
       cubicwave16(uint16_t in),
       ease16InOutQuad(uint16_t i),
