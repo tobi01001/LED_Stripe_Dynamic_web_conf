@@ -9,7 +9,7 @@
 #endif
 
 //#error "check version first"
-#define BUILD_VERSION "0.13.03"
+#define BUILD_VERSION "0.13.04"
 //in case of "major upgrades affecting e.g. the structure of field, set this to > 0
 #define RESET_DEFAULTS 1
 

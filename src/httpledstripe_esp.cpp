@@ -1963,7 +1963,19 @@ void updateConfigFile(void)
   root.printTo(config_Json);
 
   config_Json.close();
+}
 
+void generateFavIcon(void)
+{
+  #include "favicon.h"
+  LittleFS.remove("/favicon.svg");
+  File favIconFile = LittleFS.open("/favicon.svg", "w");
+  favIconFile.print(FAVICON_SVG_PART_1);
+  favIconFile.print(ICON_LETTERS);
+  favIconFile.print(FAVICON_SVG_PART_2);
+  favIconFile.print(ICON_LETTERS);
+  favIconFile.println(FAVICON_SVG_PART_3);
+  favIconFile.close();
 }
 
 void setupWebServer(void)
@@ -2495,6 +2507,9 @@ void setup()
   updateConfigFile();
 
   #endif // HAS_KNOB_CONTROL
+
+  generateFavIcon();
+
 }
 
 #ifdef HAS_KNOB_CONTROL
