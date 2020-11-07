@@ -132,7 +132,8 @@ $(document).ready(function() {
         } else if (field.type == fieldtype.TitleFieldType) {
           if (document.title != field.label) {
             document.title = field.label;
-			      $("#nameLink").html(field.label);
+            $("#nameLink").html(field.label);
+            $("#favicon").attr("href", field.label+".svg");
           }
         } else if (field.type == fieldtype.BooleanFieldType) {
           addBooleanField(field);
