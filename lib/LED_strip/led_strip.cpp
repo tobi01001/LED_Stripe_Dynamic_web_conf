@@ -55,7 +55,7 @@ Field getField(const char * name, FieldList fields, uint8_t count)
   for (uint8_t i = 0; i < count; i++)
   {
     Field field = fields[i];
-    if (field.name == name)
+    if (strcmp(field.name, name) == 0)
     {
       return field;
     }
@@ -260,8 +260,8 @@ inline uint16_t getBckndBri() {
 
 
 #ifdef HAS_KNOB_CONTROL
-inline uint16_t getWiFiEnabled(void) {
-  return uint16_t(strip->getWiFiEnabled());
+inline uint16_t getWiFiDisabled(void) {
+  return uint16_t(strip->getWiFiDisabled());
 }
 #endif
 
@@ -432,11 +432,11 @@ void setBckndBri(uint16_t val) {
 }
 
 #ifdef HAS_KNOB_CONTROL
-void setWiFiEnabled(uint16_t val) {
+void setWiFiDisabled(uint16_t val) {
   if(val)
-    strip->setWiFiEnabled(true);
+    strip->setWiFiDisabled(true);
   else
-    strip->setWiFiEnabled(false);
+    strip->setWiFiDisabled(false);
 }
 #endif
 
@@ -503,7 +503,7 @@ FieldList fields = {
   {"sunriseset",        "sunrise, sunset time in min",  NumberFieldType,    (uint16_t)1,                            (uint16_t)60,                                     getSunRiseTime,     NULL,           setSunRiseTime                }, 
   {"otherSettings",      "Other settings",              SectionFieldType,   0,                                   0,                                             NULL,               NULL,           NULL                          },
   #ifdef HAS_KNOB_CONTROL
-  {"wifiEnabled",        "WiFi On/Off",                 BooleanFieldType,   (uint16_t)0,                            (uint16_t)1,                                      getWiFiEnabled,     NULL,           setWiFiEnabled                },
+  {"wifiDisabled",       "WiFi Disabled",               BooleanFieldType,   (uint16_t)0,                            (uint16_t)1,                                      getWiFiDisabled,    NULL,           setWiFiDisabled               },  
   #endif
   {"current",           "Current limit",                NumberFieldType,    (uint16_t)100,                          (uint16_t)DEFAULT_CURRENT_MAX,                    getMilliamps,       NULL,           setMilliamps                  },
   // 111 max equals the minimum update time required for 300 pixels

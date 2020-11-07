@@ -219,7 +219,7 @@ public:
     bool whiteGlitter;
     bool onBlackOnly;
     #ifdef HAS_KNOB_CONTROL
-    bool wifiEnabled;
+    bool wifiDisabled;
     #endif
     uint8_t segments;
     uint8_t cooling;
@@ -610,7 +610,7 @@ public:
   inline void setWhiteGlitter         (bool whiteGlitter) { _segment.whiteGlitter = whiteGlitter; }
   inline void setOnBlackOnly          (bool onBlackOnly){ _segment.onBlackOnly = onBlackOnly; }
   #ifdef HAS_KNOB_CONTROL
-  inline void setWiFiEnabled          (bool wifiEnabled){ _segment.wifiEnabled = wifiEnabled; }
+  inline void setWiFiDisabled          (bool wifiDisabled){ _segment.wifiDisabled = wifiDisabled; }
   #endif
   inline void setAutoplay             (AUTOPLAYMODES m) { _segment.autoplay = m; }
   inline void setAutopal              (AUTOPLAYMODES p) { _segment.autoPal = p; }
@@ -656,7 +656,7 @@ public:
   inline bool           getWhiteGlitter(void)         { return _segment.whiteGlitter; }
   inline bool           getOnBlackOnly(void)          { return _segment.onBlackOnly; }
   #ifdef HAS_KNOB_CONTROL
-  inline bool           getWiFiEnabled(void)          { return _segment.wifiEnabled; }
+  inline bool           getWiFiDisabled(void)         { return _segment.wifiDisabled; }
   #endif
   inline AUTOPLAYMODES  getAutoplay(void)             { return _segment.autoplay; }
   inline AUTOPLAYMODES  getAutopal(void)              { return _segment.autoPal; }

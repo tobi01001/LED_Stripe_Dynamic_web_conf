@@ -134,6 +134,8 @@ void saveEEPROMData(void),
     handleNotFound(AsyncWebServerRequest *request),
     handleGetModes(AsyncWebServerRequest *request),
     handleStatus(AsyncWebServerRequest *request),
+    clearCRC(void),
+    clearEEPROM(void),
     factoryReset(void),
     handleResetRequest(AsyncWebServerRequest *request),
     setupWebServer(void),
@@ -155,7 +157,7 @@ uint32
 void sendInt(const char* name, uint16_t value, AsyncWebServerRequest *request)
 {
   #ifdef HAS_KNOB_CONTROL
-  if(!strip->getWiFiEnabled() || !WiFiConnected) return;
+  if(strip->getWiFiDisabled() || !WiFiConnected) return;
   #endif
   
   AsyncResponseStream *response = request->beginResponseStream("application/json");
@@ -176,7 +178,7 @@ void sendInt(const char* name, uint16_t value, AsyncWebServerRequest *request)
 void sendString(const char* name, const char* value, AsyncWebServerRequest *request)
 {
   #ifdef HAS_KNOB_CONTROL
-  if(!strip->getWiFiEnabled() || !WiFiConnected) return;
+  if(strip->getWiFiDisabled() || !WiFiConnected) return;
   #endif
   AsyncResponseStream *response = request->beginResponseStream("application/json");
   DynamicJsonBuffer jBuf; 
@@ -196,7 +198,7 @@ void broadcastInt(const __FlashStringHelper* name, uint16_t value)
 {
   
   #ifdef HAS_KNOB_CONTROL
-  if(webSocketsServer == NULL  || !strip->getWiFiEnabled() || !WiFiConnected)
+  if(webSocketsServer == NULL  || strip->getWiFiDisabled() || !WiFiConnected)
   #else
   if(webSocketsServer == NULL)
   #endif
@@ -434,10 +436,10 @@ void checkSegmentChanges(void) {
   }
 
   #ifdef HAS_KNOB_CONTROL
-  if(seg.wifiEnabled != strip->getWiFiEnabled())
+  if(seg.wifiDisabled != strip->getWiFiDisabled())
   {
-    seg.wifiEnabled = strip->getWiFiEnabled();
-    broadcastInt(F("wifiEnabled"), seg.wifiEnabled);
+    seg.wifiDisabled = strip->getWiFiDisabled();
+    broadcastInt(F("wifiDisabled"), seg.wifiDisabled);
     shouldSaveRuntime = true;
   }
   #endif
@@ -543,10 +545,7 @@ void initOverTheAirUpdate(void)
     // as this will (hopefully) reset to defaults on SW updates
     if(RESET_DEFAULTS)
     {
-      EEPROM.begin(strip->getSegmentSize());
-      EEPROM.put(0, (uint16_t)0);
-      EEPROM.commit();
-      EEPROM.end();
+      clearCRC();
     }
 
     // indicate that OTA is no longer running.
@@ -653,10 +652,7 @@ void initOverTheAirUpdate(void)
     // as this will (hopefully) reset to defaults on SW updates
     if(RESET_DEFAULTS)
     {
-      EEPROM.begin(strip->getSegmentSize());
-      EEPROM.put(0, (uint16_t)0);
-      EEPROM.commit();
-      EEPROM.end();
+      clearCRC();
     }
     
 
@@ -734,7 +730,9 @@ void showInitColor(CRGB Color)
 // setup the Wifi connection with Wifi Manager...
 void setupWiFi(uint16_t timeout = 240)
 {
-
+  #ifdef HAS_KNOB_CONTROL
+  if(strip->getWiFiDisabled()) return;
+  #endif
   showInitColor(CRGB::Blue);
   delay(INITDELAY);
 
@@ -828,7 +826,7 @@ uint8_t changebypercentage(uint8_t value, uint8_t percentage)
 void handleSet(AsyncWebServerRequest *request)
 {
   #ifdef HAS_KNOB_CONTROL
-  if(!strip->getWiFiEnabled() || !WiFiConnected) return;
+  if(strip->getWiFiDisabled() || !WiFiConnected) return;
   #endif
 
   // to be completed in general
@@ -1580,15 +1578,15 @@ void handleSet(AsyncWebServerRequest *request)
 
 
   #ifdef HAS_KNOB_CONTROL
-  if (request->hasParam(F("wifiEnabled")))
+  if (request->hasParam(F("wifiDisabled")))
   {
-    uint16_t value = request->getParam(F("wifiEnabled"))->value().toInt();
+    uint16_t value = request->getParam(F("wifiDisabled"))->value().toInt();
     if(value)
-      strip->setWiFiEnabled(true);
+      strip->setWiFiDisabled(true);
     else
-      strip->setWiFiEnabled(false);    
+      strip->setWiFiDisabled(false);    
 
-    answer[F("wifiEnabled")] = strip->getWiFiEnabled();
+    answer[F("wifiDisabled")] = strip->getWiFiDisabled();
   }
   #endif
 
@@ -1886,7 +1884,7 @@ void clearCRC(void)
   EEPROM.put(0,(uint16_t)0);
   EEPROM.commit();
   EEPROM.end();
-  delay(1000);
+  delay(100);
   ESP.restart();
 }
 
@@ -2004,13 +2002,13 @@ void setupWebServer(void)
   });
 
 
-  server.serveStatic("/", LittleFS, "/").setCacheControl("max-age=86400");
+  server.serveStatic("/", LittleFS, "/").setCacheControl("max-age=1");
   delay(INITDELAY);
 
   DefaultHeaders::Instance().addHeader("Access-Control-Allow-Methods", "*");
   DefaultHeaders::Instance().addHeader("Access-Control-Allow-Headers", "*");
   DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
-  DefaultHeaders::Instance().addHeader("Access-Control-Max-Age", "10000");
+  DefaultHeaders::Instance().addHeader("Access-Control-Max-Age", "1");
 
   if(webSocketsServer == NULL) webSocketsServer = new AsyncWebSocket("/ws");
   webSocketsServer->enable(true);
@@ -2053,6 +2051,9 @@ struct pingPong {
 // add a client to the pingpong list
 uint8_t addClient(uint32_t iD)
 {
+  #ifdef HAS_KNOB_CONTROL
+  if(strip->getWiFiDisabled()) return DEFAULT_MAX_WS_CLIENTS;
+  #endif
   if(webSocketsServer->count() >= DEFAULT_MAX_WS_CLIENTS)
     return DEFAULT_MAX_WS_CLIENTS;
   for(const auto& c: webSocketsServer->getClients())
@@ -2106,6 +2107,9 @@ void removeClient(uint32_t iD)
 // TODO: Make something useful with the Websocket Event
 void webSocketEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len)
 {
+  #ifdef HAS_KNOB_CONTROL
+  if(strip->getWiFiDisabled()) return;
+  #endif
   if(type == WS_EVT_CONNECT){
     //client connected
     #ifdef DEBUG
@@ -2323,9 +2327,10 @@ void setup()
 
   EEPROM.begin(strip->getSegmentSize());
 
-  EEPROM.get(0, seg);
+  //EEPROM.get(0, seg);
+  readRuntimeDataEEPROM();
 
-  if(seg.wifiEnabled)
+  if(!seg.wifiDisabled)
   {
     cursor = drawtxtline10(cursor, font_height, F("WiFi-Setup"));
     display.display();
@@ -2339,7 +2344,7 @@ void setup()
     myIP = WiFi.localIP();
   }  
   
-  readRuntimeDataEEPROM();
+  //readRuntimeDataEEPROM();
 
   updateConfigFile();
 
@@ -2820,7 +2825,7 @@ void showDisplay(uint8_t curr_field)//, fieldtypes *fieldtype)
         display.displayOn();
       break;
     }
-    if(WiFiConnected)
+    if(!strip->getWiFiDisabled() && WiFiConnected)
     {
       int32_t rssi = WiFi.RSSI();
       uint8_t bars = 0; //map(rssi, -110, -55, 0, 5);
@@ -3067,12 +3072,12 @@ void loop()
 
   #else
 
-  static bool oldWiFiState = strip->getWiFiEnabled();
+  static bool WiFiIsDisabled = strip->getWiFiDisabled();
   
-  bool wifiEnabled = strip->getWiFiEnabled();
-  if(wifiEnabled != oldWiFiState)
+  bool wifiDisabled = strip->getWiFiDisabled();
+  if(wifiDisabled != WiFiIsDisabled)
   {
-    if(wifiEnabled)
+    if(!wifiDisabled)
     {
       checkSegmentChanges();
       shouldSaveRuntime = true;
@@ -3085,10 +3090,10 @@ void loop()
       delay(INITDELAY);
       WiFi.mode(WIFI_OFF);
     }
-    oldWiFiState = wifiEnabled;
+    WiFiIsDisabled = wifiDisabled;
   }
   
-  if(!oldWiFiState)
+  if(WiFiIsDisabled)
   {
     WiFiConnected = false;
     wifi_check_time = now;
@@ -3096,7 +3101,7 @@ void loop()
     
     // Checking WiFi state every WIFI_TIMEOUT
     // since we have Knob-Control. We do not care about "No Connection"
-  if (now > wifi_check_time)
+  if (!WiFiIsDisabled && now > wifi_check_time)
   {
     if (WiFi.status() != WL_CONNECTED)
     {
@@ -3122,44 +3127,30 @@ void loop()
     wifi_check_time = now + (WIFI_TIMEOUT);
   }
 
-  if(WiFiConnected)
+  if(!WiFiIsDisabled && WiFiConnected)
   {
     ArduinoOTA.handle(); // check and handle OTA updates of the code....
     MDNS.update();
+
+    EVERY_N_SECONDS(2)
+    {
+      DynamicJsonBuffer jB;
+      for(const auto& c: webSocketsServer->getClients())
+      {
+        uint8_t i = getClient(c->id());     
+        c->text("{\"Client\": " + String(c->id()) + "}");
+        my_pingPongs[i].ping = random8();
+        c->ping( &my_pingPongs[i].ping, sizeof(uint8_t));
+      }
+      webSocketsServer->cleanupClients();
+    }
+
   }
 
 
   #endif
 
   strip->service();
-
-  EVERY_N_SECONDS(2)
-  {
-    DynamicJsonBuffer jB;
-    for(const auto& c: webSocketsServer->getClients())
-    {
-      uint8_t i = getClient(c->id());
-      /*
-      JsonObject& jC = jB.createObject();
-      jC["Client"] = (int)c->id();
-      jC["Status"] = (int)c->status();
-      jC["Ping"]   = my_pingPongs[i].ping;
-      jC["Pong"]   = my_pingPongs[i].pong;
-      */
-      c->text("{\"Client\": " + String(c->id()) + "}");
-      my_pingPongs[i].ping = random8();
-      c->ping( &my_pingPongs[i].ping, sizeof(uint8_t));
-      /*
-      size_t len = jC.measureLength();
-      AsyncWebSocketMessageBuffer * buffer = webSocketsServer->makeBuffer(len); //  creates a buffer (len + 1) for you.
-      if (buffer) {
-        jC.printTo((char *)buffer->get(), len + 1);
-        c->text(buffer);
-      }
-      */
-    }
-    webSocketsServer->cleanupClients();
-  }
 
   EVERY_N_MILLIS(50)
   {
