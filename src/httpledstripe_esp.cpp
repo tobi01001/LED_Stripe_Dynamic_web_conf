@@ -3085,6 +3085,19 @@ void loop()
 
   MDNS.update();
 
+  EVERY_N_SECONDS(2)
+  {
+    DynamicJsonBuffer jB;
+    for(const auto& c: webSocketsServer->getClients())
+    {
+      uint8_t i = getClient(c->id());     
+      c->text("{\"Client\": " + String(c->id()) + "}");
+      my_pingPongs[i].ping = random8();
+      c->ping( &my_pingPongs[i].ping, sizeof(uint8_t));
+    }
+    webSocketsServer->cleanupClients();
+  }
+
   #else
 
   static bool WiFiIsDisabled = strip->getWiFiDisabled();
