@@ -227,7 +227,7 @@ void WS2812FX::init()
   setBckndBri(_segment.backgroundBri);
 
   #ifdef HAS_KNOB_CONTROL
-  setWiFiEnabled(_segment.wifiEnabled);
+  setWiFiDisabled(_segment.wifiDisabled);
   #endif
 
   old_segs = 0;
@@ -291,7 +291,7 @@ void WS2812FX::resetDefaults(void)
   setWhiteGlitter(true);
   setOnBlackOnly(false);
   #ifdef HAS_KNOB_CONTROL
-  setWiFiEnabled(DEFAULT_WIFI_ENABLED);
+  setWiFiDisabled(DEFAULT_WIFI_DISABLED);
   #endif
   FastLED.setBrightness(DEFAULT_BRIGHTNESS);
   RESET_RUNTIME;
@@ -3070,7 +3070,13 @@ uint16_t WS2812FX::mode_move_bar(uint8_t mode)
   drawFractionalBar(pos16+((width*16)-32), 2, _currentPalette, _segment_runtime.baseHue + 255, 255, false);
   for(uint16_t i=2; i<width-1; i++)
   {
-    uint8_t index = _segment_runtime.baseHue + map(i, 0, width, 0, 255);
+    uint8_t  index = _segment_runtime.baseHue + map(i  , 0, width, 0, 255);
+    uint8_t pindex = _segment_runtime.baseHue + map(i-1, 0, width, 0, 255);
+    uint8_t nindex = _segment_runtime.baseHue + map(i+1, 0, width, 0, 255);
+    CRGB c1 = ColorFromPalette(_currentPalette, pindex, 255, _segment.blendType);
+    CRGB c2 = ColorFromPalette(_currentPalette,  index, 255, _segment.blendType);
+    CRGB c3 = ColorFromPalette(_currentPalette, nindex, 255, _segment.blendType);
+    c2 = blend(c2, blend(c1, c3, 128), 128);
     if(i < _segment_runtime.length) leds[i+(pos16/16)] += ColorFromPalette(_currentPalette, index, 255, _segment.blendType);
   }
 

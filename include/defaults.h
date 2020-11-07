@@ -11,7 +11,7 @@
 //#error "check version first"
 #define BUILD_VERSION "0.13.02"
 //in case of "major upgrades affecting e.g. the structure of field, set this to > 0
-#define RESET_DEFAULTS 0
+#define RESET_DEFAULTS 1
 
 #ifndef BUILD_VERSION
 #error "We need a SW Version and Build Version!"
@@ -147,7 +147,7 @@
 
 // KNOB CONTROL
 #ifdef HAS_KNOB_CONTROL
-  #define DEFAULT_WIFI_ENABLED    (true)
+  #define DEFAULT_WIFI_DISABLED    (false)
   #define KNOB_C_SDA 4
   #define KNOB_C_SCL 5
   #define KNOB_C_BTN 2
