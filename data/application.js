@@ -78,7 +78,6 @@ ws.onmessage = function(evt) {
 	{
 		if(DEBUGME) console.log("Received field data for field " + data.name + " with " + data.value);
 		updateFieldValue(data.name, data.value);
-		
 	} else if (data.Client != undefined) {
 		if(DEBUGME) console.log("Received Client info with from ID " + data.Client + ", Status: " + data.Status);
 	} else {
@@ -120,46 +119,60 @@ function updateStatus(newStatus, keepMessage = false, timeout = 4000)
 }
 
 $(document).ready(function() {
- updateStatus("Connecting, please wait...", true);
+  updateStatus("Connecting, please wait...", true);
+	$.get(urlBase + "/all", function(data) {
+		updateStatus("Loading, please wait...", true);
 
-  $.get(urlBase + "/all", function(data) {
-      updateStatus("Loading, please wait...", true);
-
-      $.each(data, function(index, field) {
-        //if(DEBUGME) console.log("Field " + field.label + " with type " + field.type);
-        if (field.type == fieldtype.NumberFieldType) {
-          addNumberField(field);
-        } else if (field.type == fieldtype.TitleFieldType) {
-          if (document.title != field.label) {
-            document.title = field.label;
-            $("#nameLink").html(field.label);
-          }
-        } else if (field.type == fieldtype.BooleanFieldType) {
-          addBooleanField(field);
-        } else if (field.type == fieldtype.SelectFieldType) {
-          addSelectField(field);
-        } else if (field.type == fieldtype.ColorFieldType) {
-          // addColorFieldPalette(field); // removed this to save space on the page. no need currently
-          addColorFieldPicker(field);
-        } else if (field.type == fieldtype.SectionFieldType) {
-          addSectionField(field);
+		$.each(data, function(index, field) {
+			//if(DEBUGME) console.log("Field " + field.label + " with type " + field.type);
+			if (field.type == fieldtype.NumberFieldType) {
+				addNumberField(field);
+			} else if (field.type == fieldtype.TitleFieldType) {
+        /*
+        if (document.title != field.label) {
+					document.title = field.label;
+					$("#nameLink").html(field.label);
         }
-      });
-
-      $(".minicolors").minicolors({
-        theme: "bootstrap",
-        changeDelay: 200,
-        control: "brightness",  // changed to sqare one with brightness to the side
-        format: "rgb",
-        inline: true,
-        swatches: ["FF0000", "FF8000", "FFFF00", "00FF00", "00FFFF", "0000FF", "FF00FF", "FFFFFF"] // some colors from the previous list
-      });
-
-      updateStatus("Ready", true);
+        */
+			} else if (field.type == fieldtype.BooleanFieldType) {
+				addBooleanField(field);
+			} else if (field.type == fieldtype.SelectFieldType) {
+				addSelectField(field);
+			} else if (field.type == fieldtype.ColorFieldType) {
+				// addColorFieldPalette(field); // removed this to save space on the page. no need currently
+				addColorFieldPicker(field);
+			} else if (field.type == fieldtype.SectionFieldType) {
+				addSectionField(field);
+			}
+		});
+		$(".minicolors").minicolors({
+			theme: "bootstrap",
+			changeDelay: 200,
+			control: "brightness",  // changed to sqare one with brightness to the side
+			format: "rgb",
+			inline: true,
+			swatches: ["FF0000", "FF8000", "FFFF00", "00FF00", "00FFFF", "0000FF", "FF00FF", "FFFFFF"] // some colors from the previous list
+		});
     })
     .fail(function(errorThrown) {
-      console.log("error: " + errorThrown);
-    });
+		console.log("error: " + errorThrown);
+    })
+	.done(function(name, value, test) {
+		updateStatus("Structure ready, updating values", true);
+		$.get(urlBase + "/allvalues", function(rec) {
+			updateStatus("Loading, status...", true);
+			for(i=0; i<rec.values.length; i++) {
+				if(DEBUGME) console.log("Name: " + rec.values[i].name + " value " +  rec.values[i].value);
+				updateFieldValue( rec.values[i].name,  rec.values[i].value);
+      }
+    })
+		.fail(function(errorThrown) {
+			console.log("error: " + errorThrown);
+		})
+		.done(function(name, value, test) {
+			updateStatus("Ready", true);
+		});
+	});
 });
 
 function addNumberField(field) {

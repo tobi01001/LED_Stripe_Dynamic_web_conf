@@ -559,7 +559,8 @@ void initOverTheAirUpdate(void)
     unsigned int prog = (progress / (total / 100));
     display.clear();
     display.drawString(0, 0, F("Starte OTA..."));
-    display.drawStringMaxWidth(0, 12, 128, "Prog: " + String(progress) + " / " + String(total));
+    display.drawStringMaxWidth(0, 12, 128, "Prog: " + String(prog) + " % done");
+    //display.drawStringMaxWidth(0, 12, 128, "Prog: " + String(progress) + " / " + String(total));
     display.drawProgressBar(1,33, 126, 7, prog);
     display.displayOn();
     display.display();
@@ -1965,29 +1966,38 @@ void updateConfigFile(void)
   config_Json.close();
 }
 
-void generateFavIcon(void)
-{
-  #include "favicon.h"
-  LittleFS.remove("/favicon.svg");
-  File favIconFile = LittleFS.open("/favicon.svg", "w");
-  favIconFile.print(FAVICON_SVG_PART_1);
-  favIconFile.print(ICON_LETTERS);
-  favIconFile.print(FAVICON_SVG_PART_2);
-  favIconFile.print(ICON_LETTERS);
-  favIconFile.println(FAVICON_SVG_PART_3);
-  favIconFile.close();
-}
-
 void setupWebServer(void)
 {
   showInitColor(CRGB::Blue);
   delay(INITDELAY);
   LittleFS.begin();
   
-  server.on("/all", HTTP_GET, [](AsyncWebServerRequest *request) {
 
-    updateConfigFile();
+  server.on("/all", HTTP_GET, [](AsyncWebServerRequest *request) {
+    if(!LittleFS.exists("/config_all.json"))
+    {
+      updateConfigFile();
+    }
     request->send(LittleFS, "/config_all.json", "application/json");
+  });
+
+
+  server.on("/allvalues", HTTP_GET, [](AsyncWebServerRequest *request) {
+    AsyncJsonResponse * response = new AsyncJsonResponse();
+
+    JsonObject &root = response->getRoot();
+    JsonArray &arr = root.createNestedArray("values");
+    for(uint8_t i=0; i<fieldCount; i++)
+    {
+      if(fields[i].type < TitleFieldType)
+      {
+        JsonObject &obj = arr.createNestedObject();
+        obj["name"] =  fields[i].name;
+        obj["value"] = fields[i].getValue();
+      }
+    }
+    response->setLength();
+    request->send(response);
   });
 
   server.on("/fieldValue", HTTP_GET, [](AsyncWebServerRequest *request) {
@@ -2337,6 +2347,10 @@ void setup()
   stripe_setup(STRIP_VOLTAGE,
                UncorrectedColor); //TypicalLEDStrip);
 
+  
+
+  updateConfigFile();
+
   EEPROM.begin(strip->getSegmentSize());
 
   //EEPROM.get(0, seg);
@@ -2414,6 +2428,8 @@ void setup()
    
   stripe_setup(STRIP_VOLTAGE,
                UncorrectedColor); //TypicalLEDStrip);
+
+  updateConfigFile();
 
   EEPROM.begin(strip->getSegmentSize());
   
@@ -2507,9 +2523,6 @@ void setup()
   updateConfigFile();
 
   #endif // HAS_KNOB_CONTROL
-
-  generateFavIcon();
-
 }
 
 #ifdef HAS_KNOB_CONTROL
@@ -2811,7 +2824,7 @@ void showDisplay(uint8_t curr_field)//, fieldtypes *fieldtype)
         display.setTextAlignment(TEXT_ALIGN_LEFT);
         display.setFont(ArialMT_Plain_10);
         display.drawString(0,  20, F("FPS:"));
-        display.drawString(0,  30, F("Heap"));
+        display.drawString(0,  30, F("mA"));
         display.drawString(0,  40, F("M:"));
         display.drawString(0,  50, F("C:"));
 
@@ -2827,13 +2840,14 @@ void showDisplay(uint8_t curr_field)//, fieldtypes *fieldtype)
         if(strip->getPower())
         {        
           display.drawString(127,  20, String(FPS));
-          display.drawString(127,  30, String(ESP.getFreeHeap()));
+          //display.drawString(127,  30, String(strip->getCurrentPower()/5)); //ESP.getFreeHeap()));
         }
         else
         {
           display.drawString(127,  20, F("Off"));
-          display.drawString(127,  30, F("Off"));
+          //display.drawString(127,  30, F("Off"));
         }
+        display.drawString(127,  30, String(strip->getCurrentPower()/5)); //ESP.getFreeHeap()));
         display.drawString(127,  40, strip->getModeName(strip->getMode()));
         display.drawString(127,  50, (*strip->getTargetPaletteName()));
       default:

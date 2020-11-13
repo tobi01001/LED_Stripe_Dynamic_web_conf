@@ -926,7 +926,7 @@ const __FlashStringHelper * WS2812FX::getColorTempName(uint8_t index)
    * The bar width is specified in whole pixels.
    * Arguably, this is the interesting code. 
    */
-void WS2812FX::drawFractionalBar(int pos16, int width, const CRGBPalette16 &pal, uint8_t cindex, uint8_t max_bright = 255, bool mixColors = true)
+void WS2812FX::drawFractionalBar(int pos16, int width, const CRGBPalette16 &pal, const uint8_t cindex, const uint8_t max_bright = 255, const bool mixColors = true, const uint8_t incIndex = 0)
 {
 
   int i = pos16 / 16; // convert from pos to raw pixel number
@@ -976,18 +976,24 @@ void WS2812FX::drawFractionalBar(int pos16, int width, const CRGBPalette16 &pal,
       mix = false;
     }
 
-    CRGB newColor;
+    CRGB newColor = ColorFromPalette(pal, cindex, bright, SEGMENT.blendType);
+
+    if(incIndex)
+    {  
+      newColor = ColorFromPalette(pal, cindex + (uint8_t)(n * incIndex), bright, SEGMENT.blendType);
+    }
+
     if (i <= _segment_runtime.stop && i >= _segment_runtime.start)
     {
       if (mixColors || mix)
       {
-        newColor = leds[i] | ColorFromPalette(pal, cindex, bright, SEGMENT.blendType);
+        newColor = leds[i] | newColor;//ColorFromPalette(pal, cindex, bright, SEGMENT.blendType);
         // we blend based on the "baseBeat"
         nblend(leds[i], newColor, qadd8(SEGMENT.beat88 >> 8, 24));
       }
       else
       {
-        leds[i] = ColorFromPalette(pal, cindex, bright, SEGMENT.blendType);
+        leds[i] = newColor;
       }
     }
     i++;
@@ -1551,7 +1557,7 @@ uint16_t WS2812FX::getLedsOn(void)
     uint16_t leds_on = 0; 
     for(uint16_t i=0; i<_segment_runtime.length; i++)
     {
-      if(leds[i] || _bleds[i])
+      if(/*leds[i] || */_bleds[i])
       {
         leds_on++;
       }
@@ -1559,6 +1565,12 @@ uint16_t WS2812FX::getLedsOn(void)
     return (leds_on * _segment.segments);
   }
   return 0;
+}
+
+uint32_t WS2812FX::getCurrentPower(void)         
+{ 
+  double factor = (double)calculate_max_brightness_for_power_mW(FastLED.getBrightness(), _segment.milliamps*5) / 255.0;
+  return (uint32_t)(factor * (calculate_unscaled_power_mW(_bleds, LED_COUNT) - (LED_COUNT * get_gDark_mW())) + (LED_COUNT * get_gDark_mW()) + get_gMCU_mW());  
 }
 
 uint8_t WS2812FX::getModeCount(void)
@@ -3046,53 +3058,46 @@ uint16_t WS2812FX::mode_move_bar(uint8_t mode)
   const uint16_t width = _segment_runtime.length/2;
   const uint16_t sp = map(_segment.beat88>(20000/_segment.segments)?(20000/_segment.segments):_segment.beat88, 0, (20000/_segment.segments), 0, 65535);
 
-  //fadeToBlackBy(leds, _segment_runtime.length, qadd8(sp >> 8, 12));
-  fill_solid(leds, _segment_runtime.length, CRGB::Black);
+
+  //fadeToBlackBy(leds, _segment_runtime.length, map(sp, 0, 65535, 0, 255)); 
+  fadeToBlackBy(leds, _segment_runtime.length, map(sp, 0, 65535, 64, 255)); 
+
 
   uint16_t pos16 = 0;
   switch (mode)
   {
   case 0:
-    pos16 = beatsin16(sp/2, 0, (width*16));
+    pos16 = beatsin16(sp/2, 0, (width*16));//beatsin16(sp/2, 0, (width)); //
     break;
   case 1:
-    pos16 = map(ease16InOutQuad(triwave16(beat88(sp/2))), 0, 65535, 0, (width*16));
+    pos16 = map(ease16InOutQuad(triwave16(beat88(sp/2))), 0, 65535, 0, (width*16)); //0, width); //
     break;
   case 2:
-    pos16 = map(ease16InOutCubic(triwave16(beat88(sp/2))), 0, 65535, 0, (width*16));
+    pos16 = map(ease16InOutCubic(triwave16(beat88(sp/2))), 0, 65535, 0, (width*16)); //0, width); //
     break;
   default:
-    pos16 = map(triwave16(beat88(sp/2)), 0, 65535, 0, (width*16));
+    pos16 = map(triwave16(beat88(sp/2)), 0, 65535, 0, (width*16)); //0, width); //
     break;
   }
+  uint8_t inc = max(255/width, 1);
+  drawFractionalBar(pos16, width, _currentPalette, _segment_runtime.baseHue, 255, false, inc);
+
+  //fill_palette(&leds[pos16], width, _segment_runtime.baseHue, constrain(255/width, 1, 255), _currentPalette, 255, _segment.blendType);
+  //blur1d(leds, LED_COUNT, map(sp, 0, 65535, 172, 32));
   
-  drawFractionalBar(pos16, 2, _currentPalette, _segment_runtime.baseHue, 255, false);
-  drawFractionalBar(pos16+((width*16)-32), 2, _currentPalette, _segment_runtime.baseHue + 255, 255, false);
-  for(uint16_t i=2; i<width-1; i++)
-  {
-    uint8_t  index = _segment_runtime.baseHue + map(i  , 0, width, 0, 255);
-    uint8_t pindex = _segment_runtime.baseHue + map(i-1, 0, width, 0, 255);
-    uint8_t nindex = _segment_runtime.baseHue + map(i+1, 0, width, 0, 255);
-    CRGB c1 = ColorFromPalette(_currentPalette, pindex, 255, _segment.blendType);
-    CRGB c2 = ColorFromPalette(_currentPalette,  index, 255, _segment.blendType);
-    CRGB c3 = ColorFromPalette(_currentPalette, nindex, 255, _segment.blendType);
-    c2 = blend(c2, blend(c1, c3, 128), 128);
-    if(i < _segment_runtime.length) leds[i+(pos16/16)] += ColorFromPalette(_currentPalette, index, 255, _segment.blendType);
-  }
 
   return STRIP_MIN_DELAY;
 }
 
 uint16_t WS2812FX::mode_popcorn(void)
 {
+  // TODO: check how to calc with only integers...
 #define LEDS_PER_METER 60
   const double segmentLength = ((double)_segment_runtime.length / (double)LEDS_PER_METER) * (double)1000.0; // physical length in mm
-  const double gravity = (double)_segment.beat88 / (double)-1019367.99184506;                                          // -0.00981; // gravity in mm per ms²
+  const double gravity = (double)_segment.beat88 / (double)-1019367.99184506;   // -0.00981 at beat88 max; // gravity in mm per ms²
   const double v0_max = sqrt(-2 * gravity * segmentLength);
-
   
-
-  fade_out(96);
+  fade_out(map(_segment.beat88, 0, 10000, 32, 152));
 
   uint32_t now = millis();
 
@@ -3141,8 +3146,7 @@ uint16_t WS2812FX::mode_popcorn(void)
         }
 
         _segment_runtime.pops[i].v0 = _segment_runtime.pops[i].v0 * damping;
-        if (damping < 1.0f)
-          _segment_runtime.pops[i].v0 -= 0.01;
+        if (damping < 1.0f) _segment_runtime.pops[i].v0 -= 0.01;
         _segment_runtime.pops[i].pos = 0.00001;
         _segment_runtime.pops[i].prev_pos = 0;
         _segment_runtime.pops[i].timebase = now;
@@ -3150,24 +3154,24 @@ uint16_t WS2812FX::mode_popcorn(void)
     }
     else
     {
-      uint16_t pos = map((long)_segment_runtime.pops[i].pos, 0, (long)segmentLength, _segment_runtime.start * 16, _segment_runtime.stop * 16);
-      if (pos != _segment_runtime.pops[i].prev_pos)
+     
+      uint16_t pos = map((long)_segment_runtime.pops[i].pos, 0, (long)segmentLength, _segment_runtime.start*16, _segment_runtime.stop*16);
+      uint16_t width = 2;
+
+      if(pos > _segment_runtime.pops[i].prev_pos)
       {
-        if (pos > _segment_runtime.pops[i].prev_pos)
-        {
-          uint16_t width = max((pos - _segment_runtime.pops[i].prev_pos) / 16, 1);
-          drawFractionalBar(_segment_runtime.pops[i].prev_pos, width, _currentPalette, _segment_runtime.pops[i].color_index, _brightness, true);
-        }
-        else
-        {
-          uint16_t width = max((_segment_runtime.pops[i].prev_pos - pos) / 16, 1);
-          drawFractionalBar(pos, width, _currentPalette, _segment_runtime.pops[i].color_index, _brightness, true);
-        }
+        width = max((pos - _segment_runtime.pops[i].prev_pos)/16, 2);
+      } 
+      else if(pos < _segment_runtime.pops[i].prev_pos)
+      {
+        width = max((_segment_runtime.pops[i].prev_pos - pos)/16, 2);
       }
       else
       {
-        drawFractionalBar(pos, 1, _currentPalette, _segment_runtime.pops[i].color_index, _brightness, true);
+        // nothing to do
       }
+      
+      drawFractionalBar(pos, width, _currentPalette, _segment_runtime.pops[i].color_index, 255, true);
 
       _segment_runtime.pops[i].prev_pos = pos;
 
@@ -3183,6 +3187,8 @@ uint16_t WS2812FX::mode_popcorn(void)
       }
     }
   }
+
+  //blur1d(leds, LED_COUNT, map(_segment.beat88, 0, 10000, 64, 16));
 
   return STRIP_MIN_DELAY;
 }

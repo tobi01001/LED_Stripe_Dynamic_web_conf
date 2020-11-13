@@ -690,7 +690,7 @@ public:
   inline TBlendType     getBlendType(void)            { return _segment.blendType; }
          uint8_t        getColorTemp(void);
   inline ColorTemperature getColorTemperature(void)   { return _segment.colorTemp; }
-  inline uint32_t       getCurrentPower(void)         { return calculate_unscaled_power_mW(leds, LED_COUNT); }
+         uint32_t       getCurrentPower(void) ;
  
   // return a pointer to the complete segment structure
   inline WS2812FX::segment *getSegment(void) { return &_segment; }
@@ -742,7 +742,7 @@ private:
   void
       strip_off(void),
       fade_out(uint8_t fadeB),
-      drawFractionalBar(int pos16, int width, const CRGBPalette16 &pal, uint8_t cindex, uint8_t max_bright, bool mixColor),
+      drawFractionalBar(int pos16, int width, const CRGBPalette16 &pal, uint8_t cindex, uint8_t max_bright, bool mixColor, uint8_t incindex),
       coolLikeIncandescent(CRGB &c, uint8_t phase),
       setPixelDirection(uint16_t i, bool dir, uint8 *directionFlags),
       brightenOrDarkenEachPixel(fract8 fadeUpAmount, fract8 fadeDownAmount, uint8_t *directionFlags),

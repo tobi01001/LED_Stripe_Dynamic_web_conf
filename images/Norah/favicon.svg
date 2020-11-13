@@ -1,0 +1,52 @@
+<svg width="400" height="400" xmlns="http://www.w3.org/2000/svg">
+ <defs>
+  <radialGradient id="red">
+   <stop stop-color="rgb(255, 0, 0)" offset="30%"/>
+   <stop stop-color="rgba(128, 0, 0, 0.5)" offset="70%"/>
+   <stop stop-color="#3700b300" offset="100%"/>
+  </radialGradient>
+  <radialGradient id="yellow">
+   <stop stop-color="rgb(255, 255, 0)" offset="30%"/>
+   <stop stop-color="rgba(128, 128, 0, 0.5)" offset="70%"/>
+   <stop stop-color="#3700b300" offset="100%"/>
+  </radialGradient>
+  <radialGradient id="green">
+   <stop stop-color="rgb(0, 255, 0)" offset="30%"/>
+   <stop stop-color="rgba(0, 128, 0, 0.5)" offset="70%"/>
+   <stop stop-color="#3700b300" offset="100%"/>
+  </radialGradient>
+  <radialGradient id="blue">
+   <stop stop-color="rgb(0, 0, 255)" offset="30%"/>
+   <stop stop-color="rgba(0, 0, 128, 0.5)" offset="70%"/>
+   <stop stop-color="#3700b300" offset="100%"/>
+  </radialGradient>
+ </defs>
+ <g>
+  <title>background</title>
+  <rect fill="none" id="canvas_background" height="402" width="402" y="-1" x="-1"/>
+ </g>
+ <g>
+  <title>Layer 1</title>
+  <rect id="svg_2" fill="#303030ff" height="400" width="400" y="0" x="0"/>
+  <ellipse id="svg_3" fill="url(#red)" ry="8" rx="8" cy="20" cx="20"/>
+  <ellipse id="svg_4" fill="url(#red)" ry="8" rx="8" cy="20" cx="40"/>
+  <ellipse id="svg_5" fill="url(#red)" ry="8" rx="8" cy="20" cx="60"/>
+  <ellipse id="svg_6" fill="url(#yellow)" ry="8" rx="8" cy="380" cx="340"/>
+  <ellipse id="svg_7" fill="url(#yellow)" ry="8" rx="8" cy="380" cx="360"/>
+  <ellipse id="svg_8" fill="url(#yellow)" ry="8" rx="8" cy="380" cx="380"/>
+  <ellipse id="svg_9" fill="url(#green)" ry="8" rx="8" cy="340" cx="20"/>
+  <ellipse id="svg_10" fill="url(#green)" ry="8" rx="8" cy="360" cx="20"/>
+  <ellipse id="svg_11" fill="url(#green)" ry="8" rx="8" cy="380" cx="20"/>
+  <ellipse id="svg_12" fill="url(#blue)" ry="8" rx="8" cy="20" cx="380"/>
+  <ellipse id="svg_13" fill="url(#blue)" ry="8" rx="8" cy="40" cx="380"/>
+  <ellipse id="svg_14" fill="url(#blue)" ry="8" rx="8" cy="60" cx="380"/>
+  <text fill="#000000" id="svg_1" font-size="130" y="135" x="55" class="strong">L</text>
+  <text fill="#ff0000" id="svg_1" font-size="130" y="130" x="50" class="strong">L</text>
+  <text fill="#000000" id="svg_1" font-size="130" y="135" x="135" class="strong">E</text>
+  <text fill="#00ff00" id="svg_1" font-size="130" y="130" x="130" class="strong">E</text>
+  <text fill="#000000" id="svg_1" font-size="130" y="135" x="215" class="strong">D</text>
+  <text fill="#0000ff" id="svg_1" font-size="130" y="130" x="210" class="strong">D</text>
+  <text class="strong" font-size="180" y="350" x="20" fill="#000000" id="svg_15">Nori</text>
+  <text class="strong" font-size="180" y="345" x="15" fill="#f0f0f0" id="svg_16">Nori</text>
+ </g>
+</svg>
