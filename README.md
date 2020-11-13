@@ -57,11 +57,15 @@ Major differences to WS2812FX / ESPWebserver:
 # Installation
 If you intend to use, compile and run this code you need to:
 - have a WS2812FX strip on **Pin 3 (RX)** on a ESP8266 (nodemcu / wemos D1 mini)
-- set necessary build flags: e.g.: https://github.com/tobi01001/LED_Stripe_Dynamic_web_conf/blob/f0b13fc76f681254713509b9c1da90bc5ba5ca40/platformio.ini#L21-L26
+- set necessary settings: e.g.: https://github.com/tobi01001/LED_Stripe_Dynamic_web_conf/blob/26ceb77ee160dcee6343824c60c1161b5db4dd64/platformio.ini#L25
 defining the LED_NAME (the web page and hostname is set to this) and the number of LEDs (LED_COUNT) on the stripe (theoretically limited to 65535 but for performance reasons rather limited to 300 (max fps you can get with 300 LEDs will be around 111) - if you use the KNOB_CONTROL or not...
+- copy the personal icons of your led device in the images/[environment_name] folder. They will be copied to the data folder during file system build using perl scripts. There is a default folder in case you don't have your own.
 - **Attention:** This SW now uses **LittleFS** and **AsyncWebServer**. 
 - upload the **LittelFS** data file system image
 - upload the compiled code
+- get in touch if you need / want some help
+
+I would advice to use **platformio (with VSCode)** as this should work more or less out of the box (i.e. library dependencies etc).
 
 *Remark: The use of AsyncWebServer required some modifications in how parameters are sent to the WebPage. If - after uploading for the first time or a new version - the webpage does not react on commands, please use the "resetDefaults" button.
 
