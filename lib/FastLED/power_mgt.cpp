@@ -22,10 +22,10 @@ FASTLED_NAMESPACE_BEGIN
 // for changing these on the fly, but it saves codespace and RAM to have them
 // be compile-time constants.
 
-#define gRed_mW   (12 * 5) //static const uint8_t gRed_mW   = 12 * 5; // 16 * 5; // 16mA @ 5v = 80mW
-#define gGreen_mW (12 * 5) //static const uint8_t gGreen_mW = 12 * 5; // 11 * 5; // 11mA @ 5v = 55mW
-#define gBlue_mW  (12 * 5) //static const uint8_t gBlue_mW  = 12 * 5; // 15 * 5; // 15mA @ 5v = 75mW
-#define gDark_mW  ( 1 * 5) //static const uint8_t gDark_mW  =  1 * 5; //  1mA @ 5v =  5mW
+static uint8_t gRed_mW   = (12 * 5); //static const uint8_t gRed_mW   = 12 * 5; // 16 * 5; // 16mA @ 5v = 80mW
+static uint8_t gGreen_mW = (12 * 5); //static const uint8_t gGreen_mW = 12 * 5; // 11 * 5; // 11mA @ 5v = 55mW
+static uint8_t gBlue_mW  = (12 * 5); //static const uint8_t gBlue_mW  = 12 * 5; // 15 * 5; // 15mA @ 5v = 75mW
+static uint8_t gDark_mW  = ( 1 * 5); //static const uint8_t gDark_mW  =  1 * 5; //  1mA @ 5v =  5mW
 
 // Alternate calibration by RAtkins via pre-PSU wattage measurments;
 // these are all probably about 20%-25% too high due to PSU heat losses,
@@ -46,6 +46,24 @@ static const uint8_t gMCU_mW  =  25 * 5; // 25mA @ 5v = 125 mW
 
 static uint8_t  gMaxPowerIndicatorLEDPinNumber = 2; // default = Arduino onboard LED pin.  set to zero to skip this.
 
+uint8_t get_gRed_mW   (void) { return gRed_mW;   }
+uint8_t get_gGreen_mW (void) { return gGreen_mW; }
+uint8_t get_gBlue_mW  (void) { return gBlue_mW;  }
+uint8_t get_gDark_mW  (void) { return gDark_mW;  }
+
+const uint8_t get_gMCU_mW (void) { return gMCU_mW; }
+
+void set_gRed_mW   (uint8_t rmW) { gRed_mW   = rmW; }
+void set_gGreen_mW (uint8_t gmW) { gGreen_mW = gmW; }
+void set_gBlue_mW  (uint8_t bmW) { gBlue_mW  = bmW; }
+void set_gDark_mW  (uint8_t dmW) { gDark_mW  = dmW; }
+
+td_powerLimitedCB powerLimitCallBack;
+
+void set_powerLimitCallBack(td_powerLimitedCB p) 
+{ 
+    powerLimitCallBack = p; 
+}
 
 uint32_t calculate_unscaled_power_mW( const CRGB* ledbuffer, uint16_t numLeds ) //25354
 {
@@ -82,13 +100,15 @@ uint8_t calculate_max_brightness_for_power_vmA(const CRGB* ledbuffer, uint16_t n
 }
 
 uint8_t calculate_max_brightness_for_power_mW(const CRGB* ledbuffer, uint16_t numLeds, uint8_t target_brightness, uint32_t max_power_mW) {
- 	uint32_t total_mW = calculate_unscaled_power_mW( ledbuffer, numLeds);
+    uint32_t base_mW = numLeds * gDark_mW;
+    uint32_t total_mW = calculate_unscaled_power_mW( ledbuffer, numLeds) - base_mW;
+    base_mW += gMCU_mW;
 
-	uint32_t requested_power_mW = ((uint32_t)total_mW * target_brightness) / 256;
+	uint32_t requested_power_mW = (((uint32_t)total_mW * target_brightness) / 256) + base_mW;
 
 	uint8_t recommended_brightness = target_brightness;
 	if(requested_power_mW > max_power_mW) { 
-    		recommended_brightness = (uint32_t)((uint8_t)(target_brightness) * (uint32_t)(max_power_mW)) / ((uint32_t)(requested_power_mW));
+    		recommended_brightness = (uint32_t)((uint8_t)(target_brightness) * (uint32_t)(max_power_mW - base_mW)) / ((uint32_t)(requested_power_mW));
 	}
 
 	return recommended_brightness;
@@ -99,11 +119,13 @@ uint8_t calculate_max_brightness_for_power_mW(const CRGB* ledbuffer, uint16_t nu
 //  - no more than max_mW milliwatts
 uint8_t calculate_max_brightness_for_power_mW( uint8_t target_brightness, uint32_t max_power_mW)
 {
-    uint32_t total_mW = gMCU_mW;
+    uint32_t base_mw = gMCU_mW;
+    uint32_t total_mW = 0;
 
     CLEDController *pCur = CLEDController::head();
 	while(pCur) {
-        total_mW += calculate_unscaled_power_mW( pCur->leds(), pCur->size());
+        base_mw += pCur->size() * gDark_mW;
+        total_mW += (calculate_unscaled_power_mW( pCur->leds(), pCur->size()) - (gDark_mW * pCur->size()));
 		pCur = pCur->next();
 	}
 
@@ -112,7 +134,7 @@ uint8_t calculate_max_brightness_for_power_mW( uint8_t target_brightness, uint32
     Serial.println( total_mW);
 #endif
 
-    uint32_t requested_power_mW = ((uint32_t)total_mW * target_brightness) / 256;
+    uint32_t requested_power_mW = (((uint32_t)total_mW * target_brightness) / 256) + base_mw;
 #if POWER_DEBUG_PRINT == 1
     if( target_brightness != 255 ) {
         Serial.print("power demand at scaled brightness mW = ");
@@ -131,10 +153,13 @@ uint8_t calculate_max_brightness_for_power_mW( uint8_t target_brightness, uint32
 #if POWER_DEBUG_PRINT == 1
         Serial.print("demand is under the limit");
 #endif
+
+        if(powerLimitCallBack) (*powerLimitCallBack)(false);
+
         return target_brightness;
     }
 
-    uint8_t recommended_brightness = (uint32_t)((uint8_t)(target_brightness) * (uint32_t)(max_power_mW)) / ((uint32_t)(requested_power_mW));
+    uint8_t recommended_brightness = (uint32_t)((uint8_t)(target_brightness) * (uint32_t)(max_power_mW - base_mw)) / ((uint32_t)(requested_power_mW));
 #if POWER_DEBUG_PRINT == 1
     Serial.print("recommended brightness # = ");
     Serial.println( recommended_brightness);
@@ -151,6 +176,7 @@ uint8_t calculate_max_brightness_for_power_mW( uint8_t target_brightness, uint32
         Pin(gMaxPowerIndicatorLEDPinNumber).lo(); // turn the LED on
     }
 #endif
+    if(powerLimitCallBack) (*powerLimitCallBack)(target_brightness - recommended_brightness);
 
     return recommended_brightness;
 }

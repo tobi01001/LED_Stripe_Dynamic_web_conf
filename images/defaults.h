@@ -9,7 +9,7 @@
 #endif
 
 //#error "check version first"
-#define BUILD_VERSION "0.13.04"
+#define BUILD_VERSION "0.13.06"
 //in case of "major upgrades affecting e.g. the structure of field, set this to > 0
 #define RESET_DEFAULTS 1
 
@@ -27,7 +27,8 @@
 
 /* use build flags to define these */
 #ifndef LED_NAME
-#error "You need to give your LED a unique Name (build flag e.g. '-DLED_NAME=\"My_LED\"')!"
+  #define LED_NAME "%LEDNAME%"
+//#error "You need to give your LED a unique Name (build flag e.g. '-DLED_NAME=\"My_LED\"')!"
 #endif
 
 #ifndef LED_COUNT

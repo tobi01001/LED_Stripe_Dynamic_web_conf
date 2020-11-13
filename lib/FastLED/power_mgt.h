@@ -17,6 +17,32 @@ FASTLED_NAMESPACE_BEGIN
 //  set_max_power_in_volts_and_milliamps( 5, 400);
 //
 
+typedef void (*td_powerLimitedCB)(uint8_t delta);
+
+// set a function which is called in case of limiting the putput power
+void set_powerLimitCallBack(td_powerLimitedCB p);
+
+// get the power of a red pixel at full brightness
+uint8_t get_gRed_mW   (void);
+// get the power of a green pixel at full brightness
+uint8_t get_gGreen_mW (void);
+// get the power of a blue pixel at full brightness
+uint8_t get_gBlue_mW  (void);
+// get the power of a dark (black) pixel 
+uint8_t get_gDark_mW  (void);
+
+// get the power consumption of the MCU
+const uint8_t get_gMCU_mW (void);
+
+// set the power of a red pixel at full brightness
+void set_gRed_mW   (uint8_t rmW);
+// set the power of a green pixel at full brightness
+void set_gGreen_mW (uint8_t gmW);
+// set the power of a blue pixel at full brightness
+void set_gBlue_mW  (uint8_t bmW);
+// set the power of a dark (black) pixel
+void set_gDark_mW  (uint8_t dmW);
+
 /// Set the maximum power used in milliamps for a given voltage
 /// @deprecated - use FastLED.setMaxPowerInVoltsAndMilliamps()
 void set_max_power_in_volts_and_milliamps( uint8_t volts, uint32_t milliamps);
