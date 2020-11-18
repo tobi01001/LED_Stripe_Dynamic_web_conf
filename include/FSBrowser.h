@@ -17,8 +17,9 @@ String formatBytes(size_t bytes){
 }
 
 String getContentType(String filename){
-  if(server.hasArg("download")) return "application/octet-stream";
-  else if(filename.endsWith(".htm")) return "text/html";
+  //if(server.hasArg("download")) return "application/octet-stream";
+  //else 
+  if(filename.endsWith(".htm")) return "text/html";
   else if(filename.endsWith(".html")) return "text/html";
   else if(filename.endsWith(".css")) return "text/css";
   else if(filename.endsWith(".js")) return "application/javascript";
@@ -33,10 +34,12 @@ String getContentType(String filename){
   return "text/plain";
 }
 
-bool handleFileRead(String path){
+/*
+void handleFileRead(AsyncWebServerRequest *request){
   #ifdef DEBUG
   Serial.println("handleFileRead: " + path);
   #endif
+  if (!handleFileRead(request)) server.send(404, "text/plain", "FileNotFound");
   if(path.endsWith("/")) path += "index.htm";
   String contentType = getContentType(path);
   String pathWithGz = path + ".gz";
@@ -45,15 +48,27 @@ bool handleFileRead(String path){
       path += ".gz";
     File file = LittleFS.open(path, "r");
     //size_t sent = server.streamFile(file, contentType);
-    server.streamFile(file, contentType);
+    server.send(LittleFS, file, contentType)
+    //server.streamFile(file, contentType);
     file.close();
     return true;
   }
   return false;
 }
-
-void handleFileUpload(){
-  if(server.uri() != "/edit") return;
+*/
+void handleFileUpload(AsyncWebServerRequest *request){
+  //webServer.sendHeader("Access-Control-Allow-Origin", "*");
+  //webServer.send(200, "text/plain", "");
+  if(request->url() != "/edit")
+  {
+    request->send(404, "text/html", "Did not work: " + request->url());
+    return;
+  } 
+  else
+  {
+    request->send(200, "text/html", "That's awesome: " + request->url());
+  }
+  /*  
   HTTPUpload& upload = server.upload();
   if(upload.status == UPLOAD_FILE_START){
     String filename = upload.filename;
@@ -76,58 +91,65 @@ void handleFileUpload(){
     Serial.println(upload.totalSize);
     #endif
   }
+  */
 }
 
-void handleFileDelete(){
-  if(server.args() == 0) return server.send(500, "text/plain", "BAD ARGS");
-  String path = server.arg(0);
+void handleFileDelete(AsyncWebServerRequest *request){
+  if(request->params() == 0) {
+    request->send(500, "text/plain", "BAD ARGS");
+    return;
+  }
+  String path = request->getParam(0)->value();
   #ifdef DEBUG
   Serial.println("handleFileDelete: " + path);
   #endif
   if(path == "/")
-    return server.send(500, "text/plain", "BAD PATH");
+    return request->send(500, "text/plain", "BAD PATH");
   if(!LittleFS.exists(path))
-    return server.send(404, "text/plain", "FileNotFound");
+    return request->send(404, "text/plain", "FileNotFound");
   LittleFS.remove(path);
-  server.send(200, "text/plain", "");
+  request->send(200, "text/plain", "");
   path = String();
 }
 
-void handleFileCreate(){
-  if(server.args() == 0)
-    return server.send(500, "text/plain", "BAD ARGS");
-  String path = server.arg(0);
+void handleFileCreate(AsyncWebServerRequest *request){
+  if(request->params() == 0)
+    return request->send(500, "text/plain", "BAD ARGS");
+  String path = request->getParam(0)->value(); //server.arg(0);
   #ifdef DEBUG 
   Serial.println("handleFileCreate: " + path);
   #endif
   if(path == "/")
-    return server.send(500, "text/plain", "BAD PATH");
+    return request->send(500, "text/plain", "BAD PATH");
   if(LittleFS.exists(path))
-    return server.send(500, "text/plain", "FILE EXISTS");
+    return request->send(500, "text/plain", "FILE EXISTS");
   File file = LittleFS.open(path, "w");
   if(file)
     file.close();
   else
-    return server.send(500, "text/plain", "CREATE FAILED");
-  server.send(200, "text/plain", "");
+    return request->send(500, "text/plain", "CREATE FAILED");
+  request->send(200, "text/plain", "");
   path = String();
 }
 
-void handleFileList() {
-  if(!server.hasArg("dir")) {server.send(500, "text/plain", "BAD ARGS"); return;}
+
+
+void handleFileList(AsyncWebServerRequest *request) {
+  if(!request->hasParam("dir")) {request->send(500, "text/plain", "BAD ARGS"); return;}
   
-  String path = server.arg("dir");
+  String path = request->getParam("dir")->value();
   #ifdef DEBUG
   Serial.println("handleFileList: " + path);
   #endif
   Dir dir = LittleFS.openDir(path);
   path = String();
-
   String output = "[";
   while(dir.next()){
+    bool isDir = false;
+    if(dir.isDirectory()) isDir = true;
     File entry = dir.openFile("r");
     if (output != "[") output += ',';
-    bool isDir = false;
+    
     output += "{\"type\":\"";
     output += (isDir)?"dir":"file";
     output += "\",\"name\":\"";
@@ -137,6 +159,6 @@ void handleFileList() {
   }
   
   output += "]";
-  server.send(200, "text/json", output);
+  request->send(200, "text/json", output);
 }
 

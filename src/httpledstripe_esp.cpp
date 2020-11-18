@@ -109,11 +109,11 @@ const char * AP_SSID PROGMEM = "Test"; // String(String (LED_NAME) + String("-")
 //WebSocketsServer *webSocketsServer = NULL; // webSocketsServer = WebSocketsServer(81);
 AsyncWebSocket *webSocketsServer;
 
-
-
 IPAddress myIP;
 
 /* END Network Definitions */
+
+#include "FSBrowser.h"
 
 // helpers
 uint8_t wifi_err_counter = 0;
@@ -527,6 +527,8 @@ void initOverTheAirUpdate(void)
     display.display();
     // we stop the webserver to not get interrupted....
     server.end();
+    // and we stop (unmount) the Filesystem
+    LittleFS.end();
     // we indicate our skEtch that OTA is currently running (should actually not be required)
     OTAisRunning = true;
   });
@@ -625,6 +627,8 @@ void initOverTheAirUpdate(void)
     }
     // we stop the webserver to not get interrupted....
     server.end();
+    // and we stop (unmount) the Filesystem
+    LittleFS.end();
     // we indicate our sketch that OTA is currently running (should actually not be required)
     OTAisRunning = true;
   });
@@ -856,7 +860,6 @@ void handleSet(AsyncWebServerRequest *request)
   JsonObject& answerObj = response->getRoot();
   JsonObject& answer = answerObj.createNestedObject(F("currentState"));
   
-
   
   if (request->hasParam(F("mo")))
   {
@@ -1034,7 +1037,7 @@ void handleSet(AsyncWebServerRequest *request)
     uint8_t pal = (uint8_t)strtoul(request->getParam(F("pa"))->value().c_str(), NULL, 10);
     strip->setTargetPalette(pal);
     answer.set(F("palette_num"), strip->getTargetPaletteNumber());
-    answer.set(F("palette_name"), strip->getTargetPaletteName());
+    answer.set(F("palette_name"), strip->getPalName(strip->getTargetPaletteNumber()));
     answer.set(F("palette_count"), strip->getPalCount());
   }
 
@@ -1680,7 +1683,7 @@ void handleStatus(AsyncWebServerRequest *request)
   currentStateAnswer[F("Buildversion")] = build_version;
   currentStateAnswer[F("Git_Revision")] = git_revision;
   currentStateAnswer[F("Lampname")] = LED_NAME;
-  currentStateAnswer[F("LED_Count")] = strip->getStripLength();
+  currentStateAnswer[F("LED_Count")] = LED_COUNT;
   currentStateAnswer[F("Lamp_max_current")] = strip->getMilliamps();
   currentStateAnswer[F("Lamp_max_power")] = strip->getVoltage() * strip->getMilliamps();
   currentStateAnswer[F("Lamp_current_power")] = strip->getCurrentPower();
@@ -1695,15 +1698,15 @@ void handleStatus(AsyncWebServerRequest *request)
   // Palettes and Colors
   currentStateAnswer[F("palette_count")] = strip->getPalCount();
   currentStateAnswer[F("palette_num")] = strip->getTargetPaletteNumber();
-  currentStateAnswer[F("palette_name")] = strip->getTargetPaletteName();
+  currentStateAnswer[F("palette_name")] = strip->getPalName(strip->getTargetPaletteNumber());
   CRGB col = CRGB::Black;
   // We return either black (strip effectively off)
   // or the color of the first pixel....
-  for (uint16_t i = 0; i < strip->getStripLength(); i++)
+  for (uint16_t i = 0; i < LED_COUNT; i++)
   {
-    if (strip->leds[i])
+    if (strip->_bleds[i])
     {
-      col = strip->leds[i];
+      col = strip->_bleds[i];
       break;
     }
   }
@@ -1970,7 +1973,6 @@ void setupWebServer(void)
 {
   showInitColor(CRGB::Blue);
   delay(INITDELAY);
-  LittleFS.begin();
   
 
   server.on("/all", HTTP_GET, [](AsyncWebServerRequest *request) {
@@ -2023,6 +2025,36 @@ void setupWebServer(void)
     request->send(200,  F("text/plain"), "" );
   });
 
+  //list directory
+  server.on("/list", HTTP_GET, handleFileList);
+  //load editor
+  server.on("/edit", HTTP_GET, [](AsyncWebServerRequest *request) {
+    String path = "/edit.htm";
+    
+    String pathWithGz = path + ".gz";
+    if(LittleFS.exists(pathWithGz) || LittleFS.exists(path)){
+      if(LittleFS.exists(pathWithGz))
+        path += ".gz";
+      //File file = LittleFS.open(path, "r");
+      String contentType = getContentType(path);
+      //size_t sent = server.streamFile(file, contentType);
+      request->send(LittleFS, path, contentType);
+      //server.streamFile(file, contentType);
+      //file.close();
+    }
+    else
+    {
+      request->send(404, "text/plain", "FileNotFound: " + path);
+    }
+    Dir dir = LittleFS.openDir("/");
+  });
+  //create file
+  server.on("/edit", HTTP_PUT, handleFileCreate);
+  //delete file
+  server.on("/edit", HTTP_DELETE, handleFileDelete);
+  //first callback is called after the request has ended with all parsed arguments
+  //second callback handles file uploads at that location
+  server.on("/edit", HTTP_POST, handleFileUpload);
 
   server.serveStatic("/", LittleFS, "/").setCacheControl("max-age=1");
   delay(INITDELAY);
@@ -2035,7 +2067,7 @@ void setupWebServer(void)
   if(webSocketsServer == NULL) webSocketsServer = new AsyncWebSocket("/ws");
   webSocketsServer->enable(true);
   //webSocketsServer->begin();
-
+  
   webSocketsServer->onEvent(webSocketEvent);
 
   server.addHandler(webSocketsServer);
@@ -2275,9 +2307,10 @@ enum displayStates {
 // setup network and output pins
 void setup()
 {
+  
   // Sanity delay to get everything settled....
   delay(INITDELAY);
-
+  LittleFS.begin();
   #ifdef HAS_KNOB_CONTROL
   const uint8_t font_height = 12;
 
@@ -2346,8 +2379,6 @@ void setup()
 
   stripe_setup(STRIP_VOLTAGE,
                UncorrectedColor); //TypicalLEDStrip);
-
-  
 
   updateConfigFile();
 
@@ -2755,7 +2786,7 @@ void showDisplay(uint8_t curr_field)//, fieldtypes *fieldtype)
         display.drawStringMaxWidth(0, 0, 128, fields[curr_field].label);
         display.setTextAlignment(TEXT_ALIGN_RIGHT);
         display.setFont(ArialMT_Plain_16);
-        display.drawProgressBar(0, 28, 127, 20, map(val, fields[curr_field].min, fields[curr_field].max, 0, 100));
+        display.drawProgressBar(0, 28, 127, 20, map(val, fields[curr_field].min, fields[curr_field].max, (uint16_t)0, (uint16_t)100));
         display.setTextAlignment(TEXT_ALIGN_CENTER);
         display.setColor((OLEDDISPLAY_COLOR)2);
         display.drawString(63, 30, String(fields[curr_field].getValue()));
@@ -2823,33 +2854,39 @@ void showDisplay(uint8_t curr_field)//, fieldtypes *fieldtype)
 
         display.setTextAlignment(TEXT_ALIGN_LEFT);
         display.setFont(ArialMT_Plain_10);
-        display.drawString(0,  20, F("FPS:"));
-        display.drawString(0,  30, F("mA"));
-        display.drawString(0,  40, F("M:"));
-        display.drawString(0,  50, F("C:"));
+        display.drawString(0,  10, F("Brightness:"));
+        display.drawString(0,  20, F("Speed:"));
+        display.drawString(0,  30, F("Mode:"));
+        display.drawString(0,  40, F("Pal:"));
+        display.drawString(0,  50, F("mA:"));
 
         display.setTextAlignment(TEXT_ALIGN_RIGHT);
-        static uint16_t FPS = 0;
+        //static uint16_t FPS = 0;
         //static uint16_t num_leds_on = strip->getLedsOn(); // fixes issue #18
-        EVERY_N_MILLISECONDS(200)
+        /*EVERY_N_MILLISECONDS(200)
         {
           FPS = strip->getFPS();
           //num_leds_on = strip->getLedsOn();
         }
         FastLED.getFPS();
+        */
+        /*
         if(strip->getPower())
         {        
-          display.drawString(127,  20, String(FPS));
+          display.drawString(127,  20, String(maxHeap)); //String(FPS));
           //display.drawString(127,  30, String(strip->getCurrentPower()/5)); //ESP.getFreeHeap()));
         }
         else
         {
-          display.drawString(127,  20, F("Off"));
+          display.drawString(127,  20, String(maxHeap));// display.drawString(127,  20, F("Off"));
           //display.drawString(127,  30, F("Off"));
         }
-        display.drawString(127,  30, String(strip->getCurrentPower()/5)); //ESP.getFreeHeap()));
-        display.drawString(127,  40, strip->getModeName(strip->getMode()));
-        display.drawString(127,  50, (*strip->getTargetPaletteName()));
+        */
+        display.drawString(127,  10, String(strip->getTargetBrightness()));
+        display.drawString(127,  20, String(strip->getBeat88()));
+        display.drawString(127,  30, strip->getPower()?strip->getModeName(strip->getMode()):F("Off"));
+        display.drawString(127,  40, strip->getPalName(strip->getTargetPaletteNumber()));
+        display.drawString(127,  50, String(strip->getCurrentPower()/5)); 
       default:
         display.displayOn();
       break;
@@ -3006,7 +3043,7 @@ void knob_service(uint32_t now)
     }
     else if(now > last_control_operation + KNOB_TIMEOUT_OPERATION)
     {
-      TimeoutBar = map(now-last_control_operation, 0, KNOB_TIMEOUT_DISPLAY, 127,0);
+      TimeoutBar = map((uint16_t)(now-last_control_operation), (uint16_t)0, (uint16_t)KNOB_TIMEOUT_DISPLAY, (uint16_t)127 ,(uint16_t)0);
       curr_field = get_next_field(0, true);
       in_submenu = true;
       old_val = setEncoderValues(curr_field);
@@ -3015,7 +3052,7 @@ void knob_service(uint32_t now)
     }
     else
     {
-      TimeoutBar = map(now-last_control_operation, 0, KNOB_TIMEOUT_OPERATION, 127,0);
+      TimeoutBar = map((uint16_t)(now-last_control_operation), (uint16_t)0, (uint16_t)KNOB_TIMEOUT_DISPLAY, (uint16_t)127 ,(uint16_t)0);
       if(!in_submenu)
       {
         mDisplayState = Display_ShowMenu;
@@ -3184,7 +3221,7 @@ void loop()
         my_pingPongs[i].ping = random8();
         c->ping( &my_pingPongs[i].ping, sizeof(uint8_t));
       }
-      webSocketsServer->cleanupClients();
+      webSocketsServer->cleanupClients(2);
     }
 
   }

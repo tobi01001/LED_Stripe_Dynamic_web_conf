@@ -519,10 +519,10 @@ public:
     _name[FX_MODE_SHOOTING_STAR]          = F("Shooting Star");
     _name[FX_MODE_BEATSIN_GLOW]           = F("Sine glows");
     _name[FX_MODE_PIXEL_STACK]            = F("Pixel Stack");
-    _name[FX_MODE_MOVE_BAR_SIN]           = F("Moving Bar Sinus");
-    _name[FX_MODE_MOVE_BAR_QUAD]          = F("Moving Bar Quadwave");
-    _name[FX_MODE_MOVE_BAR_CUBE]          = F("Moving Bar Cubic");
-    _name[FX_MODE_MOVE_BAR_SAWTOOTH]      = F("Moving Bar Sawtooth");
+    _name[FX_MODE_MOVE_BAR_SIN]           = F("1/2 Bar sine");
+    _name[FX_MODE_MOVE_BAR_QUAD]          = F("1/2 Bar²");
+    _name[FX_MODE_MOVE_BAR_CUBE]          = F("1/2 Bar³");
+    _name[FX_MODE_MOVE_BAR_SAWTOOTH]      = F("1/2 Bar");
     _name[FX_MODE_POPCORN]                = F("Popcorn");
     _name[FX_MODE_FIREWORKROCKETS]        = F("Firework Rocket");
     _name[FX_MODE_RING_RING]              = F("Phone Ring");
@@ -548,13 +548,13 @@ public:
     _pal_name[REDWHITHE_PAL]          = F("Red White");
     _pal_name[HOLLY_PAL]              = F("Holly");
     _pal_name[REDGREENWHITE_PAL]      = F("Red Green White");
-    _pal_name[SHADES_OF_RED_PAL]      = F("Shades of Red");
-    _pal_name[SHADES_OF_GREEN_PAL]    = F("Shades of Green");
-    _pal_name[SHADES_OF_BLUE_PAL]     = F("Shades of Blue");
+    _pal_name[SHADES_OF_RED_PAL]      = F("Red Shades");
+    _pal_name[SHADES_OF_GREEN_PAL]    = F("Green Shades");
+    _pal_name[SHADES_OF_BLUE_PAL]     = F("Blue Shades");
     _pal_name[RANDOM_PAL]             = F("Random");
 
     _new_mode = 255;
-    _volts = volt;
+    _volts = 5;
 
     FastLED.setBrightness(DEFAULT_BRIGHTNESS);
 
@@ -735,8 +735,11 @@ public:
   CRGBPalette16* getCurrentPalette(void) { return &_currentPalette; };
   CRGBPalette16* getTargetPalette (void) { return &_targetPalette; };
 
-  String* getCurrentPaletteName(void)    { return &_currentPaletteName; };
-  String* getTargetPaletteName (void)    { return &_targetPaletteName; };
+  //String* getCurrentPaletteName(void)    { return &_currentPaletteName; };
+  //String* getTargetPaletteName (void)    { return &_targetPaletteName; };
+
+  template <typename T> T map(T x, T x1, T x2, T y1, T y2);
+
 
 private:
   void
@@ -748,8 +751,8 @@ private:
       brightenOrDarkenEachPixel(fract8 fadeUpAmount, fract8 fadeDownAmount, uint8_t *directionFlags),
       draw_sunrise_step(uint16_t step),
       m_sunrise_sunset(bool isSunrise),
-      mode_heartbeat_beatIt(uint8_t size, uint8_t col_index),
-      addSparks(CRGB leds[], const uint8_t probability, const bool onBlackOnly, const bool white);
+      mode_heartbeat_beatIt(const uint8_t *size, const uint8_t *col_index),
+      addSparks(const uint8_t probability, const bool onBlackOnly, const bool white);
 
   uint8_t attackDecayWave8(uint8_t i);
 
@@ -783,7 +786,8 @@ private:
       mode_fade(void),
       mode_scan(void),
       mode_dual_scan(void),
-      theater_chase(CRGBPalette16 color1, CRGBPalette16 color2),
+      theater_chase(CRGB color1),
+      theater_chase(bool dual),
       mode_theater_chase(void),
       mode_theater_chase_dual_pal(void),
       mode_theater_chase_rainbow(void),
@@ -822,14 +826,14 @@ private:
       quadbeat(uint16_t in);
 
   CRGB
-      computeOneTwinkle(uint32_t ms, uint8_t salt),
+      computeOneTwinkle(uint32_t *ms, uint8_t *salt),
       makeBrighter(const CRGB &color, fract8 howMuchBrighter),
       makeDarker(const CRGB &color, fract8 howMuchDarker);
 
   bool
       getPixelDirection(uint16_t i, uint8 *directionFlags);
 
-  static inline uint16_t
+  inline uint16_t
       triwave16(uint16_t in),
       quadwave16(uint16_t in),
       cubicwave16(uint16_t in),
@@ -841,8 +845,8 @@ private:
 
   CRGBPalette16 getRandomPalette(void);
 
-  String _currentPaletteName;
-  String _targetPaletteName;
+  //String _currentPaletteName;
+  //String _targetPaletteName;
 
   const TProgmemRGBPalette16 *_palettes[NUM_PALETTES] =
       {
