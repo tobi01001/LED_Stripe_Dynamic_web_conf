@@ -1,5 +1,4 @@
 import subprocess
-import urllib
 
 revision = subprocess.check_output(["git", "rev-parse", "HEAD"]).strip()
 
