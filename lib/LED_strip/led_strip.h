@@ -64,19 +64,6 @@ extern WS2812FX *strip;
 void stripe_setup(  const uint8_t volt ,
                     const LEDColorCorrection colc);
 
-
-// 32 Bit Color out of 3 Color values....
-uint32_t strip_color32(uint8_t r, uint8_t g, uint8_t b);
-
-// Returns the Red component of a 32-bit color
-uint8_t Red(uint32_t color);
-
-// Returns the Green component of a 32-bit color
-uint8_t Green(uint32_t color);
-
-// Returns the Blue component of a 32-bit color
-uint8_t Blue(uint32_t color);
-
 // Field.h
 /*
    ESP8266 + FastLED + IR Remote: https://github.com/jasoncoon/esp8266-fastled-webserver

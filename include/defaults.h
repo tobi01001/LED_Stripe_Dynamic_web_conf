@@ -67,7 +67,7 @@
 #define EEPROM_SAVE_INTERVAL_MS 5000
 #define WIFI_TIMEOUT            5000 // changed for issue #13 
 #define MAX_NUM_SEGMENTS        ((LED_COUNT / 15)>10?10:(LED_COUNT / 15))
-#define MAX_NUM_BARS_FACTOR     15                    // Segment divided by this defines the maximum number of "bars"
+#define MAX_NUM_BARS_FACTOR     20                    // Segment divided by this defines the maximum number of "bars"
 #define MAX_NUM_BARS            ((LED_COUNT / MAX_NUM_BARS_FACTOR)>10?10:(LED_COUNT / MAX_NUM_BARS_FACTOR))
 
 // default strip / segment values below (before being stored / after "reset")

@@ -109,7 +109,6 @@ const char * AP_SSID PROGMEM = "Test"; // String(String (LED_NAME) + String("-")
 //WebSocketsServer *webSocketsServer = NULL; // webSocketsServer = WebSocketsServer(81);
 AsyncWebSocket *webSocketsServer;
 
-IPAddress myIP;
 
 /* END Network Definitions */
 
@@ -124,37 +123,40 @@ bool shouldSaveRuntime = false;
 
 WS2812FX::segment seg;
 
-// #include "FSBrowser.h" // may no longer need this... 
+uint32_t last_control_operation = 0;
+bool display_was_off = false;
+uint8_t TimeoutBar = 0;
 
 // function Definitions
-void saveEEPROMData(void),
-    initOverTheAirUpdate(void),
-    setupWiFi(uint16_t timeout),
-    handleSet(AsyncWebServerRequest *request),
-    handleNotFound(AsyncWebServerRequest *request),
-    handleGetModes(AsyncWebServerRequest *request),
-    handleStatus(AsyncWebServerRequest *request),
-    clearCRC(void),
-    clearEEPROM(void),
-    factoryReset(void),
-    handleResetRequest(AsyncWebServerRequest *request),
-    setupWebServer(void),
-    showInitColor(CRGB Color),
-    sendInt(const char * name, uint16_t value),
-    sendString(const char * name, const char * value),
-    broadcastInt(const __FlashStringHelper* name, uint16_t value),
-    //webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length),
-    webSocketEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len),
-    checkSegmentChanges(void),
-    updateConfigFile(void),
-    clearEEPROM(void);
+void 
+    saveEEPROMData        (void),
+    initOverTheAirUpdate  (void),
+    setupWiFi             (uint16_t timeout),
+    handleSet             (AsyncWebServerRequest *request),
+    handleNotFound        (AsyncWebServerRequest *request),
+    handleGetModes        (AsyncWebServerRequest *request),
+    handleStatus          (AsyncWebServerRequest *request),
+    clearCRC              (void),
+    clearEEPROM           (void),
+    factoryReset          (void),
+    handleResetRequest    (AsyncWebServerRequest *request),
+    setupWebServer        (void),
+    showInitColor         (CRGB Color),
+    //sendAnswer            (const char * name, uint16_t value, AsyncWebServerRequest *request),
+    //sendAnswer            (const char * name, const char * value, AsyncWebServerRequest *request),
+    broadcastInt          (const __FlashStringHelper* name, uint16_t value),
+    webSocketEvent        (AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len),
+    checkSegmentChanges   (void),
+    updateConfigFile      (void),
+    clearEEPROM           (void);
 
-uint32
-    getResetReason(void);
+uint8_t
+    getResetReason        (void);
 
+/*
 // used to send an answer as INT to the calling http request
 // TODO: Use one answer function with parameters being overloaded
-void sendInt(const char* name, uint16_t value, AsyncWebServerRequest *request)
+void sendAnswer(const char* name, uint16_t value, AsyncWebServerRequest *request)
 {
   #ifdef HAS_KNOB_CONTROL
   if(strip->getWiFiDisabled() || !WiFiConnected) return;
@@ -175,7 +177,7 @@ void sendInt(const char* name, uint16_t value, AsyncWebServerRequest *request)
 
 // used to send an answer as String to the calling http request
 // TODO: Use one answer function with parameters being overloaded
-void sendString(const char* name, const char* value, AsyncWebServerRequest *request)
+void sendAnswer(const char* name, const char* value, AsyncWebServerRequest *request)
 {
   #ifdef HAS_KNOB_CONTROL
   if(strip->getWiFiDisabled() || !WiFiConnected) return;
@@ -192,6 +194,7 @@ void sendString(const char* name, const char* value, AsyncWebServerRequest *requ
   root.printTo(*response);
   request->send(response);
 }
+*/
 
 // broadcasts the name and value to all websocket clients
 void broadcastInt(const __FlashStringHelper* name, uint16_t value)
@@ -696,8 +699,7 @@ void initOverTheAirUpdate(void)
     {
       for (uint16_t i = 0; i < strip->getStripLength(); i++)
       {
-        //strip.setPixelColor(i,(uint8_t)c,0,0);
-        strip->leds[i] = strip_color32((uint8_t)c, 0, 0);
+        strip->leds[i] = CRGB((uint8_t)c, 0, 0); 
       }
       strip->show();
       delay(2);
@@ -1066,27 +1068,7 @@ void handleSet(AsyncWebServerRequest *request)
   // is beat88 value anyway
   if (request->hasParam(F("sp")))
   {
-    uint16_t speed = strip->getBeat88();
-    if (request->getParam(F("sp"))->value().c_str()[0] == 'u')
-    {
-      uint16_t ret = max((speed * 115) / 100, 10);
-      if (ret > BEAT88_MAX)
-        ret = BEAT88_MAX;
-      speed = ret;
-    }
-    else if (request->getParam(F("sp"))->value().c_str()[0] == 'd')
-    {
-      uint16_t ret = max((speed * 80) / 100, 10);
-      if (ret > BEAT88_MAX)
-        ret = BEAT88_MAX;
-      speed = ret;
-    }
-    else
-    {
-      speed = constrain((uint16_t)strtoul(request->getParam(F("sp"))->value().c_str(), NULL, 10), BEAT88_MIN, BEAT88_MAX);
-    }
-    strip->setSpeed(speed);
-    strip->show();
+    strip->setSpeed(constrain((uint16_t)strtoul(request->getParam(F("sp"))->value().c_str(), NULL, 10), BEAT88_MIN, BEAT88_MAX));
     answer.set(F("speed"), strip->getSpeed());
     answer.set(F("beat88"), strip->getSpeed());
     strip->setTransition();
@@ -1115,7 +1097,6 @@ void handleSet(AsyncWebServerRequest *request)
       speed = constrain((uint16_t)strtoul(request->getParam(F("be"))->value().c_str(), NULL, 10), BEAT88_MIN, BEAT88_MAX);
     }
     strip->setSpeed(speed);
-    strip->show();
     answer.set(F("speed"), strip->getSpeed());
     answer.set(F("beat88"), strip->getSpeed());
     strip->setTransition();
@@ -1131,7 +1112,7 @@ void handleSet(AsyncWebServerRequest *request)
   if (request->hasParam(F("re")))
   {
     setColor = true;
-    uint8_t re = Red(color);
+    uint8_t re = (color >> 16) & 0xFF; 
     if (request->getParam(F("re"))->value().c_str()[0] == 'u')
     {
       re = changebypercentage(re, 110);
@@ -1150,7 +1131,7 @@ void handleSet(AsyncWebServerRequest *request)
   if (request->hasParam(F("gr")))
   {
     setColor = true;
-    uint8_t gr = Green(color);
+    uint8_t gr = (color >> 8) & 0xFF;
     if (request->getParam(F("gr"))->value().c_str()[0] == 'u')
     {
       gr = changebypercentage(gr, 110);
@@ -1169,7 +1150,7 @@ void handleSet(AsyncWebServerRequest *request)
   if (request->hasParam(F("bl")))
   {
     setColor = true;
-    uint8_t bl = Blue(color);
+    uint8_t bl = color & 0xFF;
     if (request->getParam(F("bl"))->value().c_str()[0] == 'u')
     {
       bl = changebypercentage(bl, 110);
@@ -1246,9 +1227,9 @@ void handleSet(AsyncWebServerRequest *request)
     {
       strip->setColor(color);
       answer.set(F("rgb"), color);
-      answer.set(F("rgb_blue"), Blue(color));
-      answer.set(F("rgb_green"), Green(color));
-      answer.set(F("rgb_red"), Red(color));
+      answer.set(F("rgb_blue"), color & 0xFF);
+      answer.set(F("rgb_green"), (color >> 8) & 0xFF);
+      answer.set(F("rgb_red"), (color >> 16) & 0xFF);
     }
   }
 
@@ -1838,7 +1819,7 @@ void handleStatus(AsyncWebServerRequest *request)
     break;
   }
   statsAnswer[F("Chip_ID")] = String(ESP.getChipId());
-  statsAnswer[F("WIFI_IP")] =  myIP.toString();
+  statsAnswer[F("WIFI_IP")] =  WiFi.localIP().toString();
   statsAnswer[F("WIFI_CONNECT_ERR_COUNT")] = wifi_disconnect_counter;
   statsAnswer[F("WIFI_SIGNAL")] = String(WiFi.RSSI());  // for #14
   statsAnswer[F("WIFI_CHAN")] = String(WiFi.channel());  // for #14
@@ -1872,9 +1853,9 @@ void factoryReset(void)
   ESP.restart();
 }
 
-uint32 getResetReason(void)
+uint8_t getResetReason(void)
 {
-  return ESP.getResetInfoPtr()->reason;
+  return (uint8_t)ESP.getResetInfoPtr()->reason;
 }
 
 /*
@@ -2398,7 +2379,6 @@ void setup()
     cursor = drawtxtline10(cursor, font_height, F("OTA Setup"));
     display.display();
     initOverTheAirUpdate();
-    myIP = WiFi.localIP();
   }  
   
   //readRuntimeDataEEPROM();
@@ -2410,7 +2390,7 @@ void setup()
   cursor = 0;
   cursor = drawtxtline10(cursor, font_height, "Boot fertig!");
   cursor = drawtxtline10(cursor, font_height, "Name: " + String(LED_NAME));
-  cursor = drawtxtline10(cursor, font_height, "IP: " + myIP.toString());
+  cursor = drawtxtline10(cursor, font_height, "IP: " + WiFi.localIP().toString());
   cursor = drawtxtline10(cursor, font_height, "LEDs: " + String(LED_COUNT));
   display.display();
   delay(KNOB_BOOT_DELAY);
@@ -2518,7 +2498,7 @@ void setup()
   // Show the IP Address at the beginning
   // so one can take a picture. 
   // one needs to know the structure of the leds...
-  myIP = WiFi.localIP();
+
   if(LED_COUNT >= 40)
   {
     // can show the complete IP Address on the first 40 LEDs
@@ -2526,7 +2506,7 @@ void setup()
     {
       for(uint8_t i=0; i<8; i++)
       {
-        if((myIP[j] >> i) & 0x01)
+        if((WiFi.localIP()[j] >> i) & 0x01)
         {
           strip->_bleds[j * 10 + 7 - i] = CRGB::Red;
         }
@@ -2651,10 +2631,6 @@ uint16_t setEncoderValues(uint8_t curr_field)//, fieldtypes * m_fieldtypes)
 }
 
 
-uint32_t last_control_operation = 0;
-bool display_was_off = false;
-uint8_t TimeoutBar = 0;
-
 void showDisplay(uint8_t curr_field)//, fieldtypes *fieldtype)
 {
   static bool toggle;
@@ -2683,8 +2659,7 @@ void showDisplay(uint8_t curr_field)//, fieldtypes *fieldtype)
           uint8_t next_next_field = get_next_field(next_field, true);//, fieldtype);
           display.setTextAlignment(TEXT_ALIGN_LEFT);
           display.drawString(0,  0, F("Menu:")); 
-          //display.setTextAlignment(TEXT_ALIGN_RIGHT);
-          //display.drawString(128,  53, myIP.toString());    
+
           display.setTextAlignment(TEXT_ALIGN_CENTER);
           
           int16_t width = display.getStringWidth(fields[prev_field].label);

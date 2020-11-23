@@ -254,7 +254,6 @@ public:
   // segment runtime parameters
 
   typedef struct {
-  #define BLENDWIDTH 16 
     uint32_t timebase;
     uint16_t prev_pos;
     double pos;
@@ -262,10 +261,10 @@ public:
     double v;
     double v_explode;
     uint8_t color_index;
+    uint8_t brightness;
     //bool ignite;
-    uint16_t P_ignite;
+    //uint16_t P_ignite;
     uint16_t explodeTime;
-    CRGB dist[BLENDWIDTH];
   } pKernel;
 
   typedef union 
@@ -294,7 +293,6 @@ public:
     struct dot_beat
     {
       uint16_t oldVal;
-      uint8_t  num_bars;
       uint32_t timebases[MAX_NUM_BARS];
       uint16_t beats[MAX_NUM_BARS];
       uint8_t  coff[MAX_NUM_BARS];
@@ -313,8 +311,11 @@ public:
     } multi_dyn;
     struct firework
     {
-      uint8_t colors[LED_COUNT];
-      uint8_t keeps [LED_COUNT];
+      uint16_t  fireworks[MAX_NUM_BARS];
+      uint8_t   colIndex[MAX_NUM_BARS];
+      uint8_t   isBurning[MAX_NUM_BARS];
+      //uint8_t colors[LED_COUNT];
+      //uint8_t keeps [LED_COUNT];
     } firework;
     struct theater_chase
     {
@@ -338,7 +339,6 @@ public:
     } soft_twinkle;
     struct shooting
     {
-      uint8_t numBars;
       uint16_t basebeat;
       uint16_t delta_b[MAX_NUM_BARS];
       uint8_t  cind[MAX_NUM_BARS];
@@ -346,14 +346,12 @@ public:
     } shooting;
     struct beatsin
     {
-      uint8_t  num_bars;
       uint16_t beats[MAX_NUM_BARS];
       uint16_t theta[MAX_NUM_BARS];
       int16_t  prev[MAX_NUM_BARS];
       uint32_t times[MAX_NUM_BARS];
       uint8_t  cinds[MAX_NUM_BARS];
       bool     newval[MAX_NUM_BARS];
-      uint16_t basebeat;
     } beatsin;
     struct pixel_stack
     {
@@ -367,6 +365,7 @@ public:
       bool     isPause;
       uint32_t nextmillis;
       uint32_t pausemillis;
+      uint32_t now;
     } ring_ring;
     struct sunrise
     {
@@ -376,13 +375,23 @@ public:
     } sunrise_step;
     struct heartBeat
     {
+      bool     secondBeatActive;
+      uint8_t  size;
+      uint16_t centerOffset;
+      uint16_t pCount;
+      uint16_t msPerBeat;
+      uint16_t secondBeat;
+      uint32_t beatTimer;
       uint32_t lastBeat;
-      bool secondBeatActive;
     } heartBeat;
     struct twinkle_fade
     {
       uint16_t numsparks;
     } twinkle_fade;
+    struct pops
+    {
+      pKernel pops[MAX_NUM_BARS];
+    }pops;
   } mode_variables;
 
   // to save some memory, all the "static" variables are now in unions
@@ -403,7 +412,6 @@ public:
     uint32_t nextPalette;
     uint32_t next_time;
     mode_variables modevars;
-    pKernel pops[MAX_NUM_BARS];
   } segment_runtime;
 
 public:
@@ -751,7 +759,6 @@ private:
       brightenOrDarkenEachPixel(fract8 fadeUpAmount, fract8 fadeDownAmount, uint8_t *directionFlags),
       draw_sunrise_step(uint16_t step),
       m_sunrise_sunset(bool isSunrise),
-      mode_heartbeat_beatIt(const uint8_t *size, const uint8_t *col_index),
       addSparks(const uint8_t probability, const bool onBlackOnly, const bool white);
 
   uint8_t attackDecayWave8(uint8_t i);

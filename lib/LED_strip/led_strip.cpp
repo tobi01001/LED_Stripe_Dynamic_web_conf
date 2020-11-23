@@ -458,14 +458,14 @@ String getResets() {
 
 FieldList fields = {
   {"title",             LED_NAME,                       TitleFieldType,     0,                                   0,                                             NULL,               NULL,           NULL          },
-  {"powerSection",      "Power",                        SectionFieldType,   0,                                   0,                                             NULL,               NULL,           NULL          },
+  {"powerSection",      "Power / Effects",              SectionFieldType,   0,                                   0,                                             NULL,               NULL,           NULL          },
   {"power",             "On/Off",                       BooleanFieldType,   (uint16_t)0,                            (uint16_t)1,                                      getPower,           NULL,           setPower      },
-  {"isRunning",         "Pause",                        BooleanFieldType,   (uint16_t)0,                            (uint16_t)1,                                      getIsRunning,       NULL,           setIsRunning  },
-  {"basicControl",      "Basic",                        SectionFieldType,   0,                                   0,                                             NULL,               NULL,           NULL          },
-  {"br",                "Brightness",                   NumberFieldType,    (uint16_t)BRIGHTNESS_MIN,               (uint16_t)BRIGHTNESS_MAX,                         getBrightness,      NULL,           setBrightness },
   {"mo",                "Effect",                       SelectFieldType,    (uint16_t)0,                            (uint16_t)strip->getModeCount(),                  getPattern,         getPatterns,    setPattern    },
-  {"pa",                "Color palette",                SelectFieldType,    (uint16_t)0,                            (uint16_t)(strip->getPalCount() + 1),             getPalette,         getPalettes,    setPalette    },
+  {"br",                "Brightness",                   NumberFieldType,    (uint16_t)BRIGHTNESS_MIN,               (uint16_t)BRIGHTNESS_MAX,                         getBrightness,      NULL,           setBrightness },
   {"sp",                "Speed",                        NumberFieldType,    (uint16_t)BEAT88_MIN,                   (uint16_t)BEAT88_MAX,                             getSpeed,           NULL,           setSpeed      },
+  {"pa",                "Color palette",                SelectFieldType,    (uint16_t)0,                            (uint16_t)(strip->getPalCount() + 1),             getPalette,         getPalettes,    setPalette    },
+  {"isRunning",         "Pause",                        BooleanFieldType,   (uint16_t)0,                            (uint16_t)1,                                      getIsRunning,       NULL,           setIsRunning  },
+  //{"basicControl",      "Basic",                        SectionFieldType,   0,                                   0,                                             NULL,               NULL,           NULL          },
   {"stripeStruture",    "Structure",                    SectionFieldType,   0,                                   0,                                             NULL,               NULL,           NULL          },
   {"segments",          "Segments",                     NumberFieldType,    (uint16_t)1,                            (uint16_t)max(MAX_NUM_SEGMENTS, 1),               getSegments,        NULL,           setSegments   },
   {"numBars",           "# LED bars",                   NumberFieldType,    (uint16_t)1,                            (uint16_t)max(MAX_NUM_BARS, 1),                   getNumBars,         NULL,           setNumBars                    },
@@ -533,26 +533,4 @@ void stripe_setup(const uint8_t volt = (uint8_t)5,
   strip->init();
   strip->start();
   strip->show();
-}
-
-uint32_t strip_color32(uint8_t r, uint8_t g, uint8_t b)
-{
-  return ((uint32_t)r << 16) | ((uint32_t)g << 8) | b;
-}
-
-uint8_t Red(uint32_t color)
-{
-  return (color >> 16) & 0xFF;
-}
-
-// Returns the Green component of a 32-bit color
-uint8_t Green(uint32_t color)
-{
-  return (color >> 8) & 0xFF;
-}
-
-// Returns the Blue component of a 32-bit color
-uint8_t Blue(uint32_t color)
-{
-  return color & 0xFF;
 }
