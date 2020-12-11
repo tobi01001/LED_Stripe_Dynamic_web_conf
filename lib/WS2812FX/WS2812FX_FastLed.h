@@ -133,6 +133,7 @@ enum MODES
   FX_MODE_POPCORN,
   FX_MODE_FIREWORKROCKETS,
   FX_MODE_HEARTBEAT,
+  FX_MODE_RAIN,
  
   FX_MODE_VOID,
   
@@ -210,17 +211,14 @@ public:
   typedef struct segment
   {
     uint16_t CRC;
-    bool power;
-    bool isRunning;
-    bool reverse;
-    bool inverse;
-    bool mirror;
-    bool addGlitter;
-    bool whiteGlitter;
-    bool onBlackOnly;
-    #ifdef HAS_KNOB_CONTROL
-    bool wifiDisabled;
-    #endif
+    uint16_t beat88;
+
+    ColorTemperature colorTemp;
+
+    uint16_t hueTime;
+    uint16_t milliamps;
+    uint16_t autoplayDuration;
+    uint16_t autoPalDuration;
     uint8_t segments;
     uint8_t cooling;
     uint8_t sparking;
@@ -240,31 +238,36 @@ public:
     uint8_t backgroundHue;
     uint8_t backgroundSat;
     uint8_t backgroundBri;
+    bool power;
+    bool isRunning;
+    bool reverse;
+    bool inverse;
+    bool mirror;
+    bool addGlitter;
+    bool whiteGlitter;
+    bool onBlackOnly;
+    #ifdef HAS_KNOB_CONTROL
+    bool wifiDisabled;
+    #endif
+    TBlendType blendType;
     AUTOPLAYMODES autoplay;
     AUTOPLAYMODES autoPal;
-    uint16_t beat88;
-    uint16_t hueTime;
-    uint16_t milliamps;
-    uint16_t autoplayDuration;
-    uint16_t autoPalDuration;
-    TBlendType blendType;
-    ColorTemperature colorTemp;
   } segment;
 
   // segment runtime parameters
 
   typedef struct {
     uint32_t timebase;
-    uint16_t prev_pos;
     double pos;
     double v0;
     double v;
     double v_explode;
+    uint16_t prev_pos;
+    uint16_t explodeTime;
+    uint8_t damp;
     uint8_t color_index;
     uint8_t brightness;
-    //bool ignite;
-    //uint16_t P_ignite;
-    uint16_t explodeTime;
+
   } pKernel;
 
   typedef union 
@@ -277,17 +280,52 @@ public:
     } pride;
     struct ease
     {
-      bool trigger;
+      uint32_t timebase;
       uint16_t beat;
       uint16_t oldbeat;
       uint16_t p_lerp;
+      bool trigger;
     } ease;
     struct inoise
     {
+      uint32_t timebase;
       uint16_t dist;
     } inoise;
+    struct plasma
+    {
+      uint32_t timebase;
+    } plasma;
+    struct fill_beat
+    {
+      uint32_t timebase;
+    } fill_beat;
+    struct fade
+    {
+      uint32_t timebase;
+    } fade;
+    struct scan
+    {
+      uint32_t timebase;
+    } scan;
+    struct dual_scan
+    {
+      uint32_t timebase;
+    } dual_scan;
+    struct rainbow
+    {
+      uint32_t timebase;
+    } rainbow;
+    struct rainbow_cycle
+    {
+      uint32_t timebase;
+    } rainbow_cycle;
+    struct fill_wave
+    {
+      uint32_t timebase;
+    } fill_wave;
     struct juggle
     {
+      uint32_t timebase;
       uint8_t thishue;
     } juggle;
     struct dot_beat
@@ -300,10 +338,35 @@ public:
     } dot_beat;
     struct col_wipe
     {
-      bool newcolor;
-      uint8_t npos;
+      uint32_t timebase;
       uint16_t prev;
+      uint8_t npos;
+      bool newcolor;      
     } col_wipe;
+    struct to_inner
+    {
+      uint32_t timebase;
+    } to_inner;
+    struct breath
+    {
+      uint32_t timebase;
+    } breath;
+    struct fill_bright
+    {
+      uint32_t timebase;
+    } fill_bright;
+    struct running_lights
+    {
+      uint32_t timebase;
+    } running_lights;
+    struct larson_scanner
+    {
+      uint32_t timebase;
+    } larson_scanner;
+    struct comet
+    {
+      uint32_t timebase;
+    } comet;
     struct multi_dyn
     {
       uint8_t last_index;
@@ -320,6 +383,7 @@ public:
     struct theater_chase
     {
       uint32_t counter_mode_step;
+      uint32_t timebase;
     } theater_chase;
     struct bubble_sort
     {
@@ -359,30 +423,34 @@ public:
       int16_t leds_moved;
       uint16_t ppos16;
     } pixel_stack;
-    struct ring_ring
-    {
-      bool     isOn;
-      bool     isPause;
+    struct ring_ring {
       uint32_t nextmillis;
       uint32_t pausemillis;
       uint32_t now;
+      bool     isOn;
+      bool     isPause;
     } ring_ring;
     struct sunrise
     {
-      uint8_t nc[LED_COUNT];
-      bool toggle;
       uint32_t next;
+      
+      bool toggle;
+
+      uint8_t nc[LED_COUNT];
     } sunrise_step;
     struct heartBeat
     {
-      bool     secondBeatActive;
-      uint8_t  size;
+      uint32_t beatTimer;
+      uint32_t lastBeat;
+      
       uint16_t centerOffset;
       uint16_t pCount;
       uint16_t msPerBeat;
       uint16_t secondBeat;
-      uint32_t beatTimer;
-      uint32_t lastBeat;
+      
+      uint8_t  size;
+
+      bool     secondBeatActive;
     } heartBeat;
     struct twinkle_fade
     {
@@ -391,7 +459,12 @@ public:
     struct pops
     {
       pKernel pops[MAX_NUM_BARS];
-    }pops;
+    } pops;
+    struct rain
+    {
+      uint32_t timebase[MAX_NUM_BARS];
+      uint8_t actives[MAX_NUM_BARS];
+    } rain;
   } mode_variables;
 
   // to save some memory, all the "static" variables are now in unions
@@ -406,7 +479,7 @@ public:
     uint16_t stop;
     uint16_t length;
     uint16_t sunRiseStep;
-    uint32_t timebase;
+    // uint32_t timebase;
     uint32_t nextHue;
     uint32_t nextAuto;
     uint32_t nextPalette;
@@ -479,6 +552,7 @@ public:
     _mode[FX_MODE_FIREWORKROCKETS]        = &WS2812FX::mode_firework2;
     _mode[FX_MODE_RING_RING]              = &WS2812FX::mode_ring_ring;
     _mode[FX_MODE_HEARTBEAT]              = &WS2812FX::mode_heartbeat;
+    _mode[FX_MODE_RAIN]                   = &WS2812FX::mode_rain;
     _mode[FX_MODE_VOID]                   = &WS2812FX::mode_void;
     _mode[FX_MODE_SUNRISE]                = &WS2812FX::mode_sunrise;
     _mode[FX_MODE_SUNSET]                 = &WS2812FX::mode_sunset;
@@ -535,6 +609,7 @@ public:
     _name[FX_MODE_FIREWORKROCKETS]        = F("Firework Rocket");
     _name[FX_MODE_RING_RING]              = F("Phone Ring");
     _name[FX_MODE_HEARTBEAT]              = F("Heart Beat");
+    _name[FX_MODE_RAIN]                   = F("Meteor Shower");
     _name[FX_MODE_VOID]                   = F("Void");
     _name[FX_MODE_SUNRISE]                = F("Sunrise");
     _name[FX_MODE_SUNSET]                 = F("Sunset");
@@ -622,15 +697,15 @@ public:
   #endif
   inline void setAutoplay             (AUTOPLAYMODES m) { _segment.autoplay = m; }
   inline void setAutopal              (AUTOPLAYMODES p) { _segment.autoPal = p; }
-  inline void setBeat88               (uint16_t b)      { _segment.beat88 = constrain(b, BEAT88_MIN, BEAT88_MAX); _segment_runtime.timebase = millis(); }
+  inline void setBeat88               (uint16_t b)      { _segment.beat88 = constrain(b, BEAT88_MIN, BEAT88_MAX); }
   inline void setSpeed                (uint16_t s)      { setBeat88(s); }
   inline void setHuetime              (uint16_t t)      { _segment.hueTime = t; SEGMENT_RUNTIME.nextHue = 0; }
   inline void setMilliamps            (uint16_t m)      { _segment.milliamps = constrain(m, 100, DEFAULT_CURRENT_MAX); FastLED.setMaxPowerInVoltsAndMilliamps(_volts, _segment.milliamps); }
   inline void setAutoplayDuration     (uint16_t t)      { _segment.autoplayDuration = t; SEGMENT_RUNTIME.nextAuto = 0; }
   inline void setAutopalDuration      (uint16_t t)      { _segment.autoPalDuration = t; SEGMENT_RUNTIME.nextPalette = 0; }
   inline void setSegments             (uint8_t s)       { _segment.segments = constrain(s, 1, max(MAX_NUM_SEGMENTS, 1)); }
-  inline void setCooling              (uint8_t cool)    { _segment.cooling = constrain(cool, 20, 100); }
-  inline void setSparking             (uint8_t spark)   { _segment.sparking = constrain(spark, 50, 200); }
+  inline void setCooling              (uint8_t cool)    { _segment.cooling = constrain(cool, DEFAULT_COOLING_MIN, DEFAULT_COOLING_MAX); }
+  inline void setSparking             (uint8_t spark)   { _segment.sparking = constrain(spark, DEFAULT_SPARKING_MIN, DEFAULT_SPARKING_MAX); }
   inline void setTwinkleSpeed         (uint8_t speed)   { _segment.twinkleSpeed = constrain(speed, DEFAULT_TWINKLE_S_MIN, DEFAULT_TWINKLE_S_MAX); }
   inline void setTwinkleDensity       (uint8_t density) { _segment.twinkleDensity = constrain(density, DEFAULT_TWINKLE_NUM_MIN, DEFAULT_TWINKLE_NUM_MAX); }
   inline void setNumBars              (uint8_t numBars) { _segment.numBars = constrain(numBars, 1, max((LED_COUNT / _segment.segments) / MAX_NUM_BARS_FACTOR, 1)); setTransition(); }
@@ -638,9 +713,9 @@ public:
   inline void setMaxFPS               (uint8_t fps)     { _segment.fps = constrain(fps, 10, STRIP_MAX_FPS); /*FastLED.setMaxRefreshRate(fps);*/ }
   inline void setDeltaHue             (uint8_t dh)      { _segment.deltaHue = dh; }
   inline void setBlur                 (uint8_t b)       { _segment.blur = b; _pblur = b; }
-  inline void setDamping              (uint8_t d)       { _segment.damping = constrain(d, 0, 100); }
+  inline void setDamping              (uint8_t d)       { _segment.damping = constrain(d, DEFAULT_DAMPING_MIN, DEFAULT_DAMPING_MAX); }
   inline void setDithering            (uint8_t dither)  { _segment.dithering = dither; FastLED.setDither(dither); }
-  inline void setSunriseTime          (uint8_t t)       { _segment.sunrisetime = constrain(t, 1, 60); }
+  inline void setSunriseTime          (uint8_t t)       { _segment.sunrisetime = constrain(t, DEFAULT_SUNRISETIME_MIN, DEFAULT_SUNRISETIME_MAX); }
   inline void setTargetBrightness     (uint8_t b)       { setBrightness(b); }
   inline void setTargetPaletteNumber  (uint8_t p)       { setTargetPalette(p); }
   inline void setCurrentPaletteNumber (uint8_t p)       { setCurrentPalette(p); }
@@ -830,7 +905,8 @@ private:
       mode_sunset(void),
       mode_ring_ring(void),
       mode_heartbeat(void),
-      quadbeat(uint16_t in);
+      mode_rain(void);
+//      quadbeat(uint16_t in);
 
   CRGB
       computeOneTwinkle(uint32_t *ms, uint8_t *salt),
@@ -845,6 +921,8 @@ private:
       quadwave16(uint16_t in),
       cubicwave16(uint16_t in),
       ease16InOutQuad(uint16_t i),
+      ease16OutQuad(uint16_t i),
+      ease16InQuad(uint16_t i),
       ease16InOutCubic(uint16_t i);
 
   CRGBPalette16 _currentPalette;
