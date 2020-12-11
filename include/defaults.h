@@ -113,12 +113,21 @@
 #define DEFAULT_HUE_OFFSET 0           // Hue default value. No offset
 #define DEFAULT_AUTOMODE AUTO_MODE_OFF // auto mode change off
 #define DEFAULT_T_AUTOMODE 60          // auto mode change every 60 seconds
+#define DEFAULT_T_AUTOMODE_MIN 5
+#define DEFAULT_T_AUTOMODE_MAX 1000
+
 
 // TODO: Random Mode change? - done / Selectable list - open?
 #define DEFAULT_AUTOCOLOR AUTO_MODE_OFF // auto palette change off
 #define DEFAULT_T_AUTOCOLOR 60          // auto palette change every 60 seconds
-#define DEFAULT_COOLING 128             //
-#define DEFAULT_SPAKRS 128
+#define DEFAULT_T_AUTOCOLOR_MIN 5
+#define DEFAULT_T_AUTOCOLOR_MAX 1000
+#define DEFAULT_COOLING 128
+#define DEFAULT_COOLING_MIN 20
+#define DEFAULT_COOLING_MAX 100
+#define DEFAULT_SPARKING 128
+#define DEFAULT_SPARKING_MIN 50
+#define DEFAULT_SPARKING_MAX 200
 #define DEFAULT_TWINKLE_S 4
 #define DEFAULT_TWINKLE_S_MIN 0
 #define DEFAULT_TWINKLE_S_MAX 8
@@ -127,7 +136,11 @@
 #define DEFAULT_TWINKLE_NUM_MAX 8
 #define DEFAULT_LED_BARS ((LED_COUNT / 40) > 0 ? LED_COUNT / 40 : 1) // half of the possible bars will be used
 #define DEFAULT_DAMPING 90
+#define DEFAULT_DAMPING_MIN 1 
+#define DEFAULT_DAMPING_MAX 100
 #define DEFAULT_SUNRISETIME 15
+#define DEFAULT_SUNRISETIME_MIN 1
+#define DEFAULT_SUNRISETIME_MAX 120
 #define DEFAULT_DITHER 0
 #define DEFAULT_PALETTE 0
 #define DEFAULT_COLOR_TEMP 19
