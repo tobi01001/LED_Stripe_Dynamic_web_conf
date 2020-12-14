@@ -143,125 +143,128 @@ const char * getFieldsJson(FieldList fields, uint8_t count)
  * 
  */
 inline uint16_t getPower() {
-  return uint16_t(strip->getPower());
+  return (uint16_t)(strip->getPower());
 }
 inline uint16_t getIsRunning(void) {
-  return uint16_t(strip->isRunning());
+  return (uint16_t)(strip->isRunning());
 }
 inline uint16_t getBrightness() {
-  return uint16_t(strip->getBrightness());
+  return (uint16_t)(strip->getBrightness());
 }
 inline uint16_t getPattern() {
-  return uint16_t(strip->getMode());
+  return (uint16_t)(strip->getMode());
 }
 inline uint16_t getPalette() {
-  return uint16_t(strip->getTargetPaletteNumber());
+  return (uint16_t)(strip->getTargetPaletteNumber());
 }
 inline uint16_t getSpeed() {
-  return uint16_t(strip->getBeat88());
+  return (uint16_t)(strip->getBeat88());
 }
 inline uint16_t getBlendType() {
-  return uint16_t(strip->getBlendType());
+  return (uint16_t)(strip->getBlendType());
 }
 inline uint16_t getColorTemp() {
-  return uint16_t(strip->getColorTemp());
+  return (uint16_t)(strip->getColorTemp());
 }
 inline uint16_t getBlurValue(void) {
-  return uint16_t(strip->getBlurValue());
+  return (uint16_t)(strip->getBlurValue());
 }
 inline uint16_t getReverse() {
-  return uint16_t(strip->getReverse());
+  return (uint16_t)(strip->getReverse());
 }
 inline uint16_t getSegments(void) {
-  return uint16_t(strip->getSegments());
+  return (uint16_t)(strip->getSegments());
 }
 inline uint16_t getMirror() {
-  return uint16_t(strip->getMirror());
+  return (uint16_t)(strip->getMirror());
 }
 inline uint16_t getInverse() {
-  return uint16_t(strip->getInverse());
+  return (uint16_t)(strip->getInverse());
 }
 inline uint16_t getAddGlitter(void) {
-  return uint16_t(strip->getAddGlitter());
+  return (uint16_t)(strip->getAddGlitter());
 }
 inline uint16_t getWhiteOnly(void) {
-  return uint16_t(strip->getWhiteGlitter());
+  return (uint16_t)(strip->getWhiteGlitter());
 }
 inline uint16_t getOnBlackOnly(void) {
-  return uint16_t(strip->getOnBlackOnly());
+  return (uint16_t)(strip->getOnBlackOnly());
+}
+inline uint16_t getSynched(void) {
+  return (uint16_t)(strip->getSynchronous());
 }
 inline uint16_t getHueTime() {
-  return uint16_t(strip->getHueTime());
+  return (uint16_t)(strip->getHueTime());
 }
 inline uint16_t getDeltaHue()
 {
-  return uint16_t(strip->getDeltaHue());
+  return (uint16_t)(strip->getDeltaHue());
 }
 inline uint16_t getAutoplay() {
-  return uint16_t(strip->getAutoplay());
+  return (uint16_t)(strip->getAutoplay());
 }
 inline uint16_t getAutoplayDuration() {
-  return uint16_t(strip->getAutoplayDuration());
+  return (uint16_t)(strip->getAutoplayDuration());
 }
 inline uint16_t getAutopal() {
-  return uint16_t(strip->getAutopal());
+  return (uint16_t)(strip->getAutopal());
 }
 inline uint16_t getAutopalDuration(){
-  return uint16_t(strip->getAutopalDuration());
+  return (uint16_t)(strip->getAutopalDuration());
 }
 inline uint16_t getSolidColor() {
   CRGB solidColor = (*strip->getTargetPalette()).entries[0];
-  //return uint16_t(solidColor.r) + "," + String(solidColor.g) + "," + String(solidColor.b);
+  //return (uint16_t)(solidColor.r) + "," + String(solidColor.g) + "," + String(solidColor.b);
   return 250; // hmmm what to do with this solid color field? limit t one byte? Change all to uint32 to enable color?
 }
 inline uint16_t getCooling() {
-  return uint16_t(strip->getCooling());
+  return (uint16_t)(strip->getCooling());
 }
 inline uint16_t getSparking() {
-  return uint16_t(strip->getSparking());
+  return (uint16_t)(strip->getSparking());
 }
 inline uint16_t getTwinkleSpeed() {
-  return uint16_t(strip->getTwinkleSpeed());
+  return (uint16_t)(strip->getTwinkleSpeed());
 }
 inline uint16_t getTwinkleDensity() {
-  return uint16_t(strip->getTwinkleDensity());
+  return (uint16_t)(strip->getTwinkleDensity());
 }
 inline uint16_t getNumBars() {
-  return uint16_t(strip->getNumBars());
+  return (uint16_t)(strip->getNumBars());
 }
 inline uint16_t getDamping() {
-  return uint16_t(strip->getDamping());
+  return (uint16_t)(strip->getDamping());
 }
 inline uint16_t getSunRiseTime(void) {
-  return uint16_t(strip->getSunriseTime());
+  return (uint16_t)(strip->getSunriseTime());
 }
 inline uint16_t getMilliamps(void) {
-  return uint16_t(strip->getMilliamps());
+  return (uint16_t)(strip->getMilliamps());
 }
 inline uint16_t getFPSValue(void) {
-  return uint16_t(strip->getMaxFPS());
+  return (uint16_t)(strip->getMaxFPS());
 }
 inline uint16_t getDithering(void) {
-  return uint16_t(strip->getDithering());
+  return (uint16_t)(strip->getDithering());
 }
 inline uint16_t getResetDefaults(void) {
-  return uint16_t(0);
+  return (uint16_t)(0);
 }
 inline uint16_t getBckndHue() {
-  return uint16_t(strip->getBckndHue());
+  return (uint16_t)(strip->getBckndHue());
 }
 inline uint16_t getBckndSat() {
-  return uint16_t(strip->getBckndSat());
+  return (uint16_t)(strip->getBckndSat());
 }
 inline uint16_t getBckndBri() {
-  return uint16_t(strip->getBckndBri());
+  return (uint16_t)(strip->getBckndBri());
 }
 
 
 
 #ifdef HAS_KNOB_CONTROL
 inline uint16_t getWiFiDisabled(void) {
-  return uint16_t(strip->getWiFiDisabled());
+  return (uint16_t)(strip->getWiFiDisabled());
 }
 #endif
 
@@ -360,6 +363,9 @@ void setWhiteOnly(uint16_t val) {
 }
 void setOnBlackOnly(uint16_t val) {
   strip->setOnBlackOnly(val);
+}
+void setSynched(uint16_t val) {
+  strip->setSynchronous(val);
 }
 void setHueTime(uint16_t val) {
   strip->setHuetime(val);
@@ -490,6 +496,7 @@ FieldList fields = {
   {"addGlitter",        "Add Glitter",                  BooleanFieldType,   (uint16_t)0,                            (uint16_t)1,                                      getAddGlitter,      NULL,           setAddGlitter                 },
   {"WhiteOnly",         "White Glitter",                BooleanFieldType,   (uint16_t)0,                            (uint16_t)1,                                      getWhiteOnly,       NULL,           setWhiteOnly                  },
   {"onBlackOnly",       "On Black",                     BooleanFieldType,   (uint16_t)0,                            (uint16_t)1,                                      getOnBlackOnly,     NULL,           setOnBlackOnly                },
+  {"syncGlitter",       "Sync Segments",                BooleanFieldType,   (uint16_t)0,                            (uint16_t)1,                                      getSynched,         NULL,           setSynched,             },
   {"hue",               "Hue Change",                   SectionFieldType,   0,                                   0,                                             NULL,               NULL,           NULL                          },
   {"huetime",           "Hue interval (ms)",            NumberFieldType,    (uint16_t)0,                            (uint16_t)5000,                                   getHueTime,         NULL,           setHueTime                    },
   {"deltahue",          "Hue Offset",                   NumberFieldType,    (uint16_t)0,                            (uint16_t)255,                                    getDeltaHue,        NULL,           setDeltaHue                   },    

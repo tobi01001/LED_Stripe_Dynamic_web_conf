@@ -222,6 +222,7 @@ void WS2812FX::init()
   setAddGlitter           (_segment.addGlitter);
   setWhiteGlitter         (_segment.whiteGlitter);
   setOnBlackOnly          (_segment.onBlackOnly);
+  setSynchronous          (_segment.synchronous);
   setBckndHue             (_segment.backgroundHue);
   setBckndSat             (_segment.backgroundSat);
   setBckndBri             (_segment.backgroundBri);
@@ -287,9 +288,10 @@ void WS2812FX::resetDefaults(void)
   setBckndBri               (DEFAULT_BCKND_BRI);
   setBckndHue               (DEFAULT_BCKND_HUE);
   setBckndSat               (DEFAULT_BCKND_SAT);
-  setAddGlitter             (false);
-  setWhiteGlitter           (true);
-  setOnBlackOnly            (false);
+  setAddGlitter             (DEFAULT_GLITTER_ADD);
+  setWhiteGlitter           (DEFAULT_GLITTER_WHITE);
+  setOnBlackOnly            (DEFAULT_GLITTER_ONBLACK);
+  setSynchronous            (DEFAULT_GLITTER_SYNC);
   #ifdef HAS_KNOB_CONTROL
   setWiFiDisabled           (DEFAULT_WIFI_DISABLED);
   #endif
@@ -548,7 +550,7 @@ void WS2812FX::service()
   // Glitter
   if(_segment.addGlitter)
   {
-    addSparks(_segment.twinkleDensity, _segment.onBlackOnly, _segment.whiteGlitter);
+    addSparks(_segment.twinkleDensity, _segment.onBlackOnly, _segment.whiteGlitter, _segment.synchronous);
   }
 
   // Write the data
@@ -1086,7 +1088,7 @@ void WS2812FX::strip_off()
 /*
  * Add sparks
  */
-void WS2812FX::addSparks(const uint8_t prob = 5, const bool onBlackOnly = true, const bool white = false)
+void WS2812FX::addSparks(const uint8_t prob = 5, const bool onBlackOnly = true, const bool white = false, const bool synchronous = true)
 {
   
   const uint8_t probability = constrain(prob, DEFAULT_TWINKLE_NUM_MIN, DEFAULT_TWINKLE_NUM_MAX);
@@ -1126,16 +1128,18 @@ void WS2812FX::addSparks(const uint8_t prob = 5, const bool onBlackOnly = true, 
       {
         _bleds[pos[i]] = sparks[i];
       }
-
-      for(uint8_t j=0; j<_segment.segments; j++)
+      if(synchronous)
       {
-        if (_segment.mirror && (j & 0x01))
+        for(uint8_t j=0; j<_segment.segments; j++)
         {
-          _bleds[j * _segment_runtime.length + _segment_runtime.stop - pos[i]] = _bleds[pos[i]];
-        }
-        else
-        {
-          _bleds[j * _segment_runtime.length + pos[i]] =  _bleds[pos[i]];
+          if (_segment.mirror && (j & 0x01))
+          {
+            _bleds[j * _segment_runtime.length + _segment_runtime.stop - pos[i]] = _bleds[pos[i]];
+          }
+          else
+          {
+            _bleds[j * _segment_runtime.length + pos[i]] =  _bleds[pos[i]];
+          }
         }
       }
     }
@@ -1150,7 +1154,11 @@ void WS2812FX::addSparks(const uint8_t prob = 5, const bool onBlackOnly = true, 
     {
       if(!sparks[i])
       {
-        pos[i] = random16(_segment_runtime.start, _segment_runtime.stop);
+        if(synchronous) { 
+          pos[i] = random16(_segment_runtime.start, _segment_runtime.stop);
+        } else {
+          pos[i] = random16(0, LED_COUNT);
+        }
         if (onBlackOnly && _bleds[pos[i]])
           return;
         
@@ -3320,7 +3328,6 @@ uint16_t WS2812FX::mode_firework2(void)
           FW2MV.pops[i].timebase = now;
           FW2MV.pops[i].color_index = get_random_wheel_index(FW2MV.pops[i].color_index); // select a new color, different from the current one
           FW2MV.pops[i].brightness = random8(12, 48);
-          uint16_t t_max = (FW2MV.pops[i].v0 / (-1 * gravity)) + 2*STRIP_MIN_DELAY;
           FW2MV.pops[i].explodeTime = map(_segment.beat88, (uint16_t)1000, (uint16_t)6000, (uint16_t)80, (uint16_t)180);//60; //random(t_max * 3/5, t_max * 4/5);
           FW2MV.pops[i].v_explode = FW2MV.pops[i].v0 * ((double)random8(1, 50) / 100.0);
         }
@@ -3728,9 +3735,12 @@ uint16_t WS2812FX::mode_rain(void)
   if(_segment_runtime.modeinit)
   {
     _segment_runtime.modeinit = false;
-    memset(&(M_RAIN_RT.timebase), _segment.numBars, sizeof(M_RAIN_RT.timebase[0])*_segment.numBars);
+    memset(&(M_RAIN_RT.timebase), _segment.numBars, sizeof(M_RAIN_RT.timebase[0]) * _segment.numBars);
+    memset(&(M_RAIN_RT.actives),  _segment.numBars, sizeof(M_RAIN_RT.actives[0])  * _segment.numBars);
+    memset(&(M_RAIN_RT.cind),     _segment.numBars, sizeof(M_RAIN_RT.cind[0])     * _segment.numBars);
     M_RAIN_RT.timebase[0] = millis();
     M_RAIN_RT.actives[0] = true;
+    M_RAIN_RT.cind[0] = random8();
   }
   EVERY_N_MILLIS(20)
   {
@@ -3742,7 +3752,7 @@ uint16_t WS2812FX::mode_rain(void)
     if(M_RAIN_RT.actives[i])
     {
       pos16 = map((uint16_t)(beat88(_segment.beat88*3, M_RAIN_RT.timebase[i])), (uint16_t)0, (uint16_t)65535, (uint16_t)(_segment_runtime.stop*16), (uint16_t)(_segment_runtime.start*16));
-      drawFractionalBar(pos16, 4, _currentPalette, _segment_runtime.baseHue + (i*255/_segment.numBars), 255, true, 0);
+      drawFractionalBar(pos16, 4, _currentPalette, _segment_runtime.baseHue + M_RAIN_RT.cind[i], 255, true, 0);
       if(!(pos16/16)) M_RAIN_RT.actives[i] = false;
     }
   }
@@ -3763,8 +3773,10 @@ uint16_t WS2812FX::mode_rain(void)
       {
         M_RAIN_RT.actives[i]  = true;
         M_RAIN_RT.timebase[i] = millis();
+        M_RAIN_RT.cind[i] = get_random_wheel_index(M_RAIN_RT.cind[i]);
+
         pos16 = map((uint16_t)(beat88(_segment.beat88*3, M_RAIN_RT.timebase[i])), (uint16_t)0, (uint16_t)65535, (uint16_t)(_segment_runtime.stop*16), (uint16_t)(_segment_runtime.start*16));
-        drawFractionalBar(pos16, 4, _currentPalette, _segment_runtime.baseHue + (i*255/_segment.numBars), 255, true, 0);
+        drawFractionalBar(pos16, 4, _currentPalette, _segment_runtime.baseHue + M_RAIN_RT.cind[i], 255, true, 0);
       }
     }
   }

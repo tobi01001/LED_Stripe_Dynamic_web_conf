@@ -419,6 +419,12 @@ void checkSegmentChanges(void) {
     broadcastInt(F("onBlackOnly"), seg.onBlackOnly);
     shouldSaveRuntime = true;
   }
+  if(seg.synchronous != strip->getSynchronous())
+  {
+    seg.synchronous = strip->getSynchronous();
+    broadcastInt(F("syncGlitter"), seg.synchronous);
+    shouldSaveRuntime = true;
+  }
   if(seg.backgroundHue != strip->getBckndHue())
   {
     seg.backgroundHue = strip->getBckndHue();
@@ -1496,7 +1502,12 @@ void handleSet(AsyncWebServerRequest *request)
     strip->setOnBlackOnly(value);
     answer[F("Glitter_OnBlackOnly")] = strip->getOnBlackOnly();
   }
-
+  if (request->hasParam(F("syncGlitter")))
+  {
+    uint8_t value = constrain(request->getParam(F("syncGlitter"))->value().toInt(), 0, 100);
+    strip->setSynchronous(value);
+    answer[F("Glitter_syncGlitter")] = strip->getSynchronous();
+  }
 #ifdef DEBUG
   // Testing different Resets
   // can then be triggered via web interface (at the very bottom)
@@ -2309,7 +2320,7 @@ void setup()
   // Open serial communications and wait for port to open:
   Serial.begin(115200);
   #endif
-  
+
   mDisplayState = Display_ShowInfo;
 
   switch (getResetReason())

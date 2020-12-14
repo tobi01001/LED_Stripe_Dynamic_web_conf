@@ -246,6 +246,7 @@ public:
     bool addGlitter;
     bool whiteGlitter;
     bool onBlackOnly;
+    bool synchronous;
     #ifdef HAS_KNOB_CONTROL
     bool wifiDisabled;
     #endif
@@ -463,7 +464,8 @@ public:
     struct rain
     {
       uint32_t timebase[MAX_NUM_BARS];
-      uint8_t actives[MAX_NUM_BARS];
+      uint8_t  actives[MAX_NUM_BARS];
+      uint8_t  cind[MAX_NUM_BARS];
     } rain;
   } mode_variables;
 
@@ -691,6 +693,7 @@ public:
   inline void setAddGlitter           (bool addGlitter) { _segment.addGlitter = addGlitter; }
   inline void setWhiteGlitter         (bool whiteGlitter) { _segment.whiteGlitter = whiteGlitter; }
   inline void setOnBlackOnly          (bool onBlackOnly){ _segment.onBlackOnly = onBlackOnly; }
+  inline void setSynchronous          (bool sync)       { _segment.synchronous = sync; }
   #ifdef HAS_KNOB_CONTROL
   inline void setWiFiDisabled          (bool wifiDisabled){ _segment.wifiDisabled = wifiDisabled; }
   #endif
@@ -737,6 +740,7 @@ public:
   inline bool           getAddGlitter(void)           { return _segment.addGlitter; }
   inline bool           getWhiteGlitter(void)         { return _segment.whiteGlitter; }
   inline bool           getOnBlackOnly(void)          { return _segment.onBlackOnly; }
+  inline bool           getSynchronous(void)          { return _segment.synchronous; }
   #ifdef HAS_KNOB_CONTROL
   inline bool           getWiFiDisabled(void)         { return _segment.wifiDisabled; }
   #endif
@@ -778,7 +782,7 @@ public:
   inline WS2812FX::segment *getSegment(void) { return &_segment; }
   inline size_t getSegmentSize(void) { return sizeof(_segment); }
 
-  inline uint16_t getCurrentSunriseStep(void) { return _segment_runtime.modevars.sunrise_step.sunRiseStep; }
+  inline uint16_t getCurrentSunriseStep(void) { if(_segment.mode == FX_MODE_SUNRISE || _segment.mode == FX_MODE_SUNSET) return _segment_runtime.modevars.sunrise_step.sunRiseStep; else return 0; }
   inline uint16_t getFPS(void) { if(_service_Interval_microseconds > 0) { return ((1000000 / _service_Interval_microseconds) + 1) ; } else { return 65535; } }
 
   uint8_t
@@ -833,7 +837,7 @@ private:
       brightenOrDarkenEachPixel(fract8 fadeUpAmount, fract8 fadeDownAmount, uint8_t *directionFlags),
       draw_sunrise_step(uint16_t step),
       m_sunrise_sunset(bool isSunrise),
-      addSparks(const uint8_t probability, const bool onBlackOnly, const bool white);
+      addSparks(const uint8_t probability, const bool onBlackOnly, const bool white, const bool synchronous);
 
   uint8_t attackDecayWave8(uint8_t i);
 
