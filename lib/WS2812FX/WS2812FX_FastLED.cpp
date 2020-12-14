@@ -3494,11 +3494,11 @@ uint16_t WS2812FX::getSunriseTimeToFinish(void)
   float time = (float)((_segment.sunrisetime * 60.0) / DEFAULT_SUNRISE_STEPS);
   if(getMode() == FX_MODE_SUNRISE)
   {
-    return (uint16_t)(time * (DEFAULT_SUNRISE_STEPS - _segment_runtime.sunRiseStep));
+    return (uint16_t)(time * (DEFAULT_SUNRISE_STEPS - _segment_runtime.modevars.sunrise_step.sunRiseStep));
   }
   else if (getMode() == FX_MODE_SUNSET) 
   {
-    return (uint16_t)(time * _segment_runtime.sunRiseStep);
+    return (uint16_t)(time * _segment_runtime.modevars.sunrise_step.sunRiseStep);
   }
   else
   {
@@ -3570,32 +3570,33 @@ void WS2812FX::m_sunrise_sunset(bool isSunrise)
   {
     _segment_runtime.modeinit = false;
     _segment.autoplay = AUTO_MODE_OFF;
+    SRMVSR.next = millis();
     if (isSunrise)
     {
       _segment.targetBrightness = 255;
-      _segment_runtime.sunRiseStep = 0;
+      SRMVSR.sunRiseStep = 0;
     }
     else
     {
-      _segment_runtime.sunRiseStep = sunriseSteps;
+      SRMVSR.sunRiseStep = sunriseSteps;
     }
   }
-  draw_sunrise_step(_segment_runtime.sunRiseStep);
+  draw_sunrise_step(SRMVSR.sunRiseStep);
   if (millis() > SRMVSR.next)
   {
     SRMVSR.next = millis() + stepInterval;
     if (isSunrise)
     {
-      if(_segment_runtime.sunRiseStep < sunriseSteps)
+      if(SRMVSR.sunRiseStep < sunriseSteps)
       {
-        _segment_runtime.sunRiseStep++;
+        SRMVSR.sunRiseStep++;
       }
     }
     else
     {
-      if(_segment_runtime.sunRiseStep > 0)
+      if(SRMVSR.sunRiseStep > 0)
       {
-        _segment_runtime.sunRiseStep--;
+        SRMVSR.sunRiseStep--;
       }
       else
       {

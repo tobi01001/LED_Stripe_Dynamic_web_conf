@@ -433,7 +433,7 @@ public:
     struct sunrise
     {
       uint32_t next;
-      
+      uint16_t sunRiseStep;
       bool toggle;
 
       uint8_t nc[LED_COUNT];
@@ -478,7 +478,6 @@ public:
     uint16_t start;
     uint16_t stop;
     uint16_t length;
-    uint16_t sunRiseStep;
     // uint32_t timebase;
     uint32_t nextHue;
     uint32_t nextAuto;
@@ -779,7 +778,7 @@ public:
   inline WS2812FX::segment *getSegment(void) { return &_segment; }
   inline size_t getSegmentSize(void) { return sizeof(_segment); }
 
-  inline uint16_t getCurrentSunriseStep(void) { return _segment_runtime.sunRiseStep; }
+  inline uint16_t getCurrentSunriseStep(void) { return _segment_runtime.modevars.sunrise_step.sunRiseStep; }
   inline uint16_t getFPS(void) { if(_service_Interval_microseconds > 0) { return ((1000000 / _service_Interval_microseconds) + 1) ; } else { return 65535; } }
 
   uint8_t
