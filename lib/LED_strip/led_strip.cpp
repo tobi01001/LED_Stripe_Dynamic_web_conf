@@ -213,7 +213,7 @@ inline uint16_t getAutopalDuration(){
   return (uint16_t)(strip->getAutopalDuration());
 }
 inline uint16_t getSolidColor() {
-  CRGB solidColor = (*strip->getTargetPalette()).entries[0];
+  //CRGB solidColor = (*strip->getTargetPalette()).entries[0];
   //return (uint16_t)(solidColor.r) + "," + String(solidColor.g) + "," + String(solidColor.b);
   return 250; // hmmm what to do with this solid color field? limit t one byte? Change all to uint32 to enable color?
 }

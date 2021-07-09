@@ -342,7 +342,9 @@ public:
       uint32_t timebase;
       uint16_t prev;
       uint8_t npos;
-      bool newcolor;      
+      uint8_t pnpos;
+      bool newcolor;
+      bool up; 
     } col_wipe;
     struct to_inner
     {

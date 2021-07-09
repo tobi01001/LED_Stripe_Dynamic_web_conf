@@ -1888,7 +1888,7 @@ void clearEEPROM(void)
 {
 //Clearing EEPROM
   EEPROM.begin(strip->getSegmentSize());
-  for (uint i = 0; i < EEPROM.length(); i++)
+  for (uint32_t i = 0; i < EEPROM.length(); i++)
   {
     EEPROM.write(i, 0);
   }

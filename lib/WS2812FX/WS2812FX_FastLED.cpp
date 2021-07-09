@@ -1073,7 +1073,7 @@ void WS2812FX::drawFractionalBar(int pos16, int width, const CRGBPalette16 &pal,
 uint8_t WS2812FX::get_random_wheel_index(uint8_t pos, uint8_t dist = 42)
 {
   dist = dist < 85 ? dist : 85; // dist shouldn't be too high (not higher than 85 actually)
-  return (pos + random8(dist, 255 - (2 * dist)));
+  return (pos + random8(dist, 255 - (dist))); 
 }
 
 /*
@@ -2087,16 +2087,18 @@ uint16_t WS2812FX::mode_col_wipe_func(uint8_t mode)
   if (_segment_runtime.modeinit)
   {
     _segment_runtime.modeinit = false;
-    _segment_runtime.modevars.col_wipe.npos = 0;
+    _segment_runtime.modevars.col_wipe.npos = get_random_wheel_index(0, 32);
+    _segment_runtime.modevars.col_wipe.pnpos = get_random_wheel_index(_segment_runtime.modevars.col_wipe.npos, 32);
     _segment_runtime.modevars.col_wipe.prev = _segment_runtime.start;
-    _segment_runtime.modevars.col_wipe.newcolor = false;
+    _segment_runtime.modevars.col_wipe.newcolor = true;
+    _segment_runtime.modevars.col_wipe.up = true;
     _segment_runtime.modevars.col_wipe.timebase = millis();
   }
 
   switch (mode)
   {
   case 0:
-    i = beatsin16((SEGMENT.beat88 * 2) % 65535, _segment_runtime.start, _segment_runtime.stop,  _segment_runtime.modevars.col_wipe.timebase);
+    i = beatsin16((SEGMENT.beat88 * 2) % 65535, 0, 65535,  _segment_runtime.modevars.col_wipe.timebase);
     break;
   case 1:
     i = triwave16(beat88((SEGMENT.beat88 * 2) % 65535,  _segment_runtime.modevars.col_wipe.timebase));
@@ -2111,36 +2113,50 @@ uint16_t WS2812FX::mode_col_wipe_func(uint8_t mode)
     i = _segment_runtime.start;
     fill_solid(leds, _segment_runtime.length, CRGB::Black);
   }
-  i = map((uint16_t)i, (uint16_t)0, (uint16_t)65534, (uint16_t)_segment_runtime.start, (uint16_t)(_segment_runtime.stop + 2));
+  i = map((uint16_t)i, (uint16_t)0, (uint16_t)65535, (uint16_t)_segment_runtime.start, (uint16_t)(_segment_runtime.stop + 2));
 
   if (i >= _segment_runtime.stop)
     i = _segment_runtime.stop;
 
-  if (i == _segment_runtime.start || i == _segment_runtime.stop)
+  if((( _segment_runtime.modevars.col_wipe.up && i < _segment_runtime.modevars.col_wipe.prev) || 
+     (!_segment_runtime.modevars.col_wipe.up && i > _segment_runtime.modevars.col_wipe.prev))) // direction changed - we've been at the bottom
   {
+    _segment_runtime.modevars.col_wipe.up = !_segment_runtime.modevars.col_wipe.up;
     SEGMENT_RUNTIME.modevars.col_wipe.newcolor = true;
   }
-  else
+  if (SEGMENT_RUNTIME.modevars.col_wipe.newcolor)
   {
-    if (SEGMENT_RUNTIME.modevars.col_wipe.newcolor)
-    {
-      _segment_runtime.modevars.col_wipe.npos = get_random_wheel_index(_segment_runtime.modevars.col_wipe.npos, 16);
-      SEGMENT_RUNTIME.modevars.col_wipe.newcolor = false;
-    }
-  }
-  if (_segment_runtime.modevars.col_wipe.prev > i)
-  {
-    fill_solid(&leds[i], _segment_runtime.modevars.col_wipe.prev - i + 1, ColorFromPalette(_currentPalette, _segment_runtime.modevars.col_wipe.npos, _brightness, SEGMENT.blendType));
-  }
-  else if (_segment_runtime.modevars.col_wipe.prev < i)
-  {
-    fill_solid(&leds[_segment_runtime.modevars.col_wipe.prev], i - _segment_runtime.modevars.col_wipe.prev + 1, ColorFromPalette(_currentPalette, _segment_runtime.modevars.col_wipe.npos, _brightness, SEGMENT.blendType));
-  }
-  else
-  {
-    leds[i] = ColorFromPalette(_currentPalette, _segment_runtime.modevars.col_wipe.npos, _brightness, SEGMENT.blendType);
+    _segment_runtime.modevars.col_wipe.pnpos = _segment_runtime.modevars.col_wipe.npos;
+    _segment_runtime.modevars.col_wipe.npos = get_random_wheel_index(_segment_runtime.modevars.col_wipe.npos, 32);
+    SEGMENT_RUNTIME.modevars.col_wipe.newcolor = false;
   }
 
+  CRGB Col1 = ColorFromPalette(_currentPalette, _segment_runtime.modevars.col_wipe.npos  + _segment_runtime.baseHue, _brightness, SEGMENT.blendType);
+  CRGB Col2 = ColorFromPalette(_currentPalette, _segment_runtime.modevars.col_wipe.pnpos + _segment_runtime.baseHue, _brightness, SEGMENT.blendType);
+
+
+  if(_segment_runtime.modevars.col_wipe.up)
+  {
+    if(i > 0)
+    { 
+      fill_solid(leds, i, Col1);  
+    }
+    if(i < _segment_runtime.stop)
+    { 
+      fill_solid(&leds[i], _segment_runtime.stop-i, Col2);
+    }
+  }
+  else
+  {
+    if(i<_segment_runtime.stop)
+    { 
+      fill_solid(&leds[i], _segment_runtime.stop-i, Col1);
+    }
+    if(i>0)
+    { 
+      fill_solid(leds, i, Col2);  
+    }
+  }
   _segment_runtime.modevars.col_wipe.prev = i;
 
   return STRIP_MIN_DELAY;
@@ -2956,11 +2972,11 @@ uint16_t WS2812FX::mode_shooting_star()
       SRMVSS.delta_b[i] = (65535 / SEGMENT.numBars) * i;
       if (i > 0)
       {
-        SRMVSS.cind[i] = get_random_wheel_index(SRMVSS.cind[i - 1], 16);
+        SRMVSS.cind[i] = get_random_wheel_index(SRMVSS.cind[i - 1], 32);
       }
       else
       {
-        SRMVSS.cind[i] = get_random_wheel_index(SRMVSS.cind[SEGMENT.numBars - 1], 16);
+        SRMVSS.cind[i] = get_random_wheel_index(SRMVSS.cind[SEGMENT.numBars - 1], 32);
       }
       SRMVSS.new_cind[i] = false;
     }
@@ -2997,9 +3013,9 @@ uint16_t WS2812FX::mode_shooting_star()
       if (SRMVSS.new_cind[i])
       {
         if (i > 0)
-          SRMVSS.cind[i] = get_random_wheel_index(SRMVSS.cind[i - 1], 16);
+          SRMVSS.cind[i] = get_random_wheel_index(SRMVSS.cind[i - 1], 32);
         else
-          SRMVSS.cind[i] = get_random_wheel_index(SRMVSS.cind[SEGMENT.numBars - 1], 16);
+          SRMVSS.cind[i] = get_random_wheel_index(SRMVSS.cind[SEGMENT.numBars - 1], 32);
       }
       SRMVSS.new_cind[i] = false;
     }
