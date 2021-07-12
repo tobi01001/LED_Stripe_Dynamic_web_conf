@@ -134,6 +134,7 @@ enum MODES
   FX_MODE_FIREWORKROCKETS,
   FX_MODE_HEARTBEAT,
   FX_MODE_RAIN,
+  FX_MODE_EASE_BAR,
  
   FX_MODE_VOID,
   
@@ -556,6 +557,7 @@ public:
     _mode[FX_MODE_RING_RING]              = &WS2812FX::mode_ring_ring;
     _mode[FX_MODE_HEARTBEAT]              = &WS2812FX::mode_heartbeat;
     _mode[FX_MODE_RAIN]                   = &WS2812FX::mode_rain;
+    _mode[FX_MODE_EASE_BAR]               = &WS2812FX::mode_ease_bar;
     _mode[FX_MODE_VOID]                   = &WS2812FX::mode_void;
     _mode[FX_MODE_SUNRISE]                = &WS2812FX::mode_sunrise;
     _mode[FX_MODE_SUNSET]                 = &WS2812FX::mode_sunset;
@@ -613,6 +615,7 @@ public:
     _name[FX_MODE_RING_RING]              = F("Phone Ring");
     _name[FX_MODE_HEARTBEAT]              = F("Heart Beat");
     _name[FX_MODE_RAIN]                   = F("Meteor Shower");
+    _name[FX_MODE_EASE_BAR]               = F("Ease Bar");
     _name[FX_MODE_VOID]                   = F("Void");
     _name[FX_MODE_SUNRISE]                = F("Sunrise");
     _name[FX_MODE_SUNSET]                 = F("Sunset");
@@ -910,6 +913,7 @@ private:
       mode_sunset(void),
       mode_ring_ring(void),
       mode_heartbeat(void),
+      mode_ease_bar(void),
       mode_rain(void);
 //      quadbeat(uint16_t in);
 

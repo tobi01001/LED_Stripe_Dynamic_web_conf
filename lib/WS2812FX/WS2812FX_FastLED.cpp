@@ -350,8 +350,10 @@ void WS2812FX::service()
 {
   unsigned long now = millis(); // Be aware, millis() rolls over every 49 days
   static uint32_t last_show = 0;
-  if ((_segment.segments != old_segs) || _segment_runtime.modeinit)
-  { 
+
+  if ((_segment.segments != old_segs))
+  {
+
     _segment_runtime.start = 0;
     _segment_runtime.length = (LED_COUNT / _segment.segments);
     _segment_runtime.stop = _segment_runtime.start + _segment_runtime.length - 1;
@@ -363,6 +365,7 @@ void WS2812FX::service()
     // There are artefacts remeianing if the distribution is not equal.
     // as we blend towards the new effect, we will remove the artefacts by clearing the leds array...
     fill_solid(leds, LED_COUNT, CRGB::Black);
+    fill_solid(_bleds, LED_COUNT, CRGB::Black);
     
     setTransition();
     
@@ -372,6 +375,13 @@ void WS2812FX::service()
     //_c_bck_h = 0;
     //_c_bck_s = 0;
   }
+
+  if (_segment_runtime.modeinit)
+  {
+    fill_solid(leds, LED_COUNT, CRGB::Black);
+    setTransition();
+  }
+  
   if (_segment.power)
   {
     if (_segment.isRunning || _triggered)
@@ -604,6 +614,9 @@ void WS2812FX::service()
   {
     EVERY_N_MILLISECONDS(RND_PAL_CHANGE_INT)
     { // Blend towards the target palette
+      
+      _currentPalette = getRandomPalette();
+      /*
       static uint8_t current_distance = 0;
       if(current_distance >= 32)
       {
@@ -617,6 +630,7 @@ void WS2812FX::service()
       {
         //_currentPaletteName = _targetPaletteName;
       }
+      */
     }
   }
   else
@@ -696,7 +710,64 @@ void WS2812FX::show()
 CRGBPalette16 WS2812FX::getRandomPalette(void)
 {
   const uint8_t min_distance = 32;
-  static uint8_t hue[16];
+  static uint8_t thue[16] = { 255, 0, 16, 32, 64, 96, 112, 128, 144, 160, 176, 192, 208, 224, 240 };
+  static uint8_t chue[16] = { 0, 16, 32, 64, 96, 112, 128, 144, 160, 176, 192, 208, 224, 240, 255 };
+  static bool countUp[16];
+  for(uint8_t i=0; i < 16; i++)
+  {
+    if(thue[i] != chue[i])
+    {
+      if(countUp[i])
+      {
+        chue[i]++;
+      }
+      else
+      {
+        chue[i]--;
+      }
+    }
+    else
+    {
+      thue[i] = get_random_wheel_index(thue[(i+1)%16], min_distance);
+      uint8_t delta = 0;
+      if(thue[i] > chue[i])
+      {
+        delta = thue[i] - chue[i];
+        if(delta > 128) countUp[i] = false;
+      }
+      else
+      {
+        delta = chue[i] - thue[i];
+        if(delta > 128) countUp[i] = true;
+      }
+    }
+    /*  
+    if(thue[i] > chue[i])
+    {
+      chue[i]++;
+    }
+    else if (thue[i] < chue[i])
+    {
+      chue[i]--;
+    }
+    else
+    {
+      thue[i] = get_random_wheel_index(thue[i], min_distance);
+    }
+    */
+  }
+
+  return CRGBPalette16(
+      CHSV(chue[0],  255, 255), CHSV(chue[1],  255, 255),
+      CHSV(chue[2],  255, 255), CHSV(chue[3],  255, 255),
+      CHSV(chue[4],  255, 255), CHSV(chue[5],  255, 255),
+      CHSV(chue[6],  255, 255), CHSV(chue[7],  255, 255),
+      CHSV(chue[8],  255, 255), CHSV(chue[9],  255, 255),
+      CHSV(chue[10], 255, 255), CHSV(chue[11], 255, 255),
+      CHSV(chue[12], 255, 255), CHSV(chue[13], 255, 255),
+      CHSV(chue[14], 255, 255), CHSV(chue[15], 255, 255));
+}
+/*
   uint8_t old_hue;
   old_hue = hue[0];
   uint8_t delta = 0;
@@ -729,17 +800,6 @@ CRGBPalette16 WS2812FX::getRandomPalette(void)
       }
     }
   }
-  /*
-  return CRGBPalette16(
-      CHSV(hue[0],  random8(RND_PAL_MIN_SAT, 255), random8(RND_PAL_MIN_BRIGHT, 255)), CHSV(hue[1],  random8(RND_PAL_MIN_SAT, 255), random8(RND_PAL_MIN_BRIGHT, 255)),
-      CHSV(hue[2],  random8(RND_PAL_MIN_SAT, 255), random8(RND_PAL_MIN_BRIGHT, 255)), CHSV(hue[3],  random8(RND_PAL_MIN_SAT, 255), random8(RND_PAL_MIN_BRIGHT, 255)),
-      CHSV(hue[4],  random8(RND_PAL_MIN_SAT, 255), random8(RND_PAL_MIN_BRIGHT, 255)), CHSV(hue[5],  random8(RND_PAL_MIN_SAT, 255), random8(RND_PAL_MIN_BRIGHT, 255)),
-      CHSV(hue[6],  random8(RND_PAL_MIN_SAT, 255), random8(RND_PAL_MIN_BRIGHT, 255)), CHSV(hue[7],  random8(RND_PAL_MIN_SAT, 255), random8(RND_PAL_MIN_BRIGHT, 255)),
-      CHSV(hue[8],  random8(RND_PAL_MIN_SAT, 255), random8(RND_PAL_MIN_BRIGHT, 255)), CHSV(hue[9],  random8(RND_PAL_MIN_SAT, 255), random8(RND_PAL_MIN_BRIGHT, 255)),
-      CHSV(hue[10], random8(RND_PAL_MIN_SAT, 255), random8(RND_PAL_MIN_BRIGHT, 255)), CHSV(hue[11], random8(RND_PAL_MIN_SAT, 255), random8(RND_PAL_MIN_BRIGHT, 255)),
-      CHSV(hue[12], random8(RND_PAL_MIN_SAT, 255), random8(RND_PAL_MIN_BRIGHT, 255)), CHSV(hue[13], random8(RND_PAL_MIN_SAT, 255), random8(RND_PAL_MIN_BRIGHT, 255)),
-      CHSV(hue[14], random8(RND_PAL_MIN_SAT, 255), random8(RND_PAL_MIN_BRIGHT, 255)), CHSV(hue[15], random8(RND_PAL_MIN_SAT, 255), random8(RND_PAL_MIN_BRIGHT, 255)));
-  */
  return CRGBPalette16(
       CHSV(hue[0],  255, random8(RND_PAL_MIN_BRIGHT, 255)), CHSV(hue[1],  255, random8(RND_PAL_MIN_BRIGHT, 255)),
       CHSV(hue[2],  255, random8(RND_PAL_MIN_BRIGHT, 255)), CHSV(hue[3],  255, random8(RND_PAL_MIN_BRIGHT, 255)),
@@ -750,6 +810,7 @@ CRGBPalette16 WS2812FX::getRandomPalette(void)
       CHSV(hue[12], 255, random8(RND_PAL_MIN_BRIGHT, 255)), CHSV(hue[13], 255, random8(RND_PAL_MIN_BRIGHT, 255)),
       CHSV(hue[14], 255, random8(RND_PAL_MIN_BRIGHT, 255)), CHSV(hue[15], 255, random8(RND_PAL_MIN_BRIGHT, 255)));
 }
+*/
 
 /*
  * saturating add variant with limit at lim
@@ -3798,4 +3859,35 @@ uint16_t WS2812FX::mode_rain(void)
   }
   return STRIP_MIN_DELAY;
   #undef M_RAIN_RT
+}
+
+/*
+ * A bar changing size, speed and position
+ *
+ *
+ */ 
+
+uint16_t WS2812FX::mode_ease_bar()
+{
+  if (_segment_runtime.modeinit)
+  {
+    _segment_runtime.modeinit = false;
+
+  }
+  uint16_t d1, d2, d3;
+
+  d1 = beatsin16(_segment.beat88/1000+1);
+  d2 = beatsin16(_segment.beat88/500+1);
+  d3 = beatsin8 (_segment.beat88/1024+1);
+  
+
+  uint16_t startLed = beatsin16(_segment.beat88/1000+1, _segment_runtime.start, _segment_runtime.stop-1, 0, d1);
+  uint16_t numLeds = beatsin16(_segment.beat88/500+1, 10, _segment_runtime.length - startLed, 0, d2);
+  numLeds = min(numLeds, (uint16_t)(_segment_runtime.length-startLed));
+  uint8_t incI = 1; // (numLeds > 255 ? 1 : (256 / numLeds));
+  uint8_t sInd = d3 + _segment_runtime.baseHue; //beatsin8(_segment.beat88/128+1);
+  fadeToBlackBy(&leds[_segment_runtime.start], _segment_runtime.length, 64);
+  fill_palette(&leds[startLed], numLeds, sInd, incI, _currentPalette, 255, SEGMENT.blendType);
+
+  return STRIP_MIN_DELAY;
 }
