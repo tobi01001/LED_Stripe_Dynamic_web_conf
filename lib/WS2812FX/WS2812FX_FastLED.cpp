@@ -3869,23 +3869,27 @@ uint16_t WS2812FX::mode_rain(void)
 
 uint16_t WS2812FX::mode_ease_bar()
 {
+  const uint8_t minLeds = min(10, max(_segment_runtime.length/10,1));
+  uint8_t b1 = map(_segment.beat88, (uint16_t)BEAT88_MIN, (uint16_t)BEAT88_MAX, (uint16_t)2, (uint16_t)(63));
+  uint8_t b2 = map(_segment.beat88, (uint16_t)BEAT88_MIN, (uint16_t)BEAT88_MAX, (uint16_t)3, (uint16_t)(111));
+  uint16_t d1, d2;
+
   if (_segment_runtime.modeinit)
   {
     _segment_runtime.modeinit = false;
 
   }
-  uint16_t d1, d2, d3;
+     
+  d1 = beatsin16(b1);
+  d2 = beatsin16(b2);
 
-  d1 = beatsin16(_segment.beat88/1000+1);
-  d2 = beatsin16(_segment.beat88/500+1);
-  d3 = beatsin8 (_segment.beat88/1024+1);
-  
+  uint16_t startLed = beatsin16(b1/2, _segment_runtime.start, _segment_runtime.stop-minLeds, 0, d1);
 
-  uint16_t startLed = beatsin16(_segment.beat88/1000+1, _segment_runtime.start, _segment_runtime.stop-1, 0, d1);
-  uint16_t numLeds = beatsin16(_segment.beat88/500+1, 10, _segment_runtime.length - startLed, 0, d2);
+  uint16_t numLeds  = beatsin16(b2/2, minLeds, _segment_runtime.length - startLed, 0, d2);
+
   numLeds = min(numLeds, (uint16_t)(_segment_runtime.length-startLed));
-  uint8_t incI = 1; // (numLeds > 255 ? 1 : (256 / numLeds));
-  uint8_t sInd = d3 + _segment_runtime.baseHue; //beatsin8(_segment.beat88/128+1);
+  uint8_t incI = _segment_runtime.length > 255 ? 1 : (256 / _segment_runtime.length);
+  uint8_t sInd = map(startLed, _segment_runtime.start, _segment_runtime.stop, (uint16_t)0, (uint16_t)255) + _segment_runtime.baseHue; //beatsin8(_segment.beat88/128+1);
   fadeToBlackBy(&leds[_segment_runtime.start], _segment_runtime.length, 64);
   fill_palette(&leds[startLed], numLeds, sInd, incI, _currentPalette, 255, SEGMENT.blendType);
 
