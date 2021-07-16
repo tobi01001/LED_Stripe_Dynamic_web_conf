@@ -3869,10 +3869,12 @@ uint16_t WS2812FX::mode_rain(void)
 
 uint16_t WS2812FX::mode_ease_bar()
 {
-  const uint8_t minLeds = min(10, max(_segment_runtime.length/10,1));
-  uint8_t b1 = map(_segment.beat88, (uint16_t)BEAT88_MIN, (uint16_t)BEAT88_MAX, (uint16_t)2, (uint16_t)(63));
-  uint8_t b2 = map(_segment.beat88, (uint16_t)BEAT88_MIN, (uint16_t)BEAT88_MAX, (uint16_t)3, (uint16_t)(111));
+  const uint8_t minLeds = max(_segment_runtime.length/4,10);
+  uint8_t b1 = map(_segment.beat88, (uint16_t)BEAT88_MIN, (uint16_t)(BEAT88_MAX/2), (uint16_t)2, (uint16_t)(63));
+  uint8_t b2 = map(_segment.beat88, (uint16_t)BEAT88_MIN, (uint16_t)(BEAT88_MAX/2), (uint16_t)3, (uint16_t)(111));
   uint16_t d1, d2;
+  static uint8_t cnt = 0;
+  
 
   if (_segment_runtime.modeinit)
   {
@@ -3880,18 +3882,27 @@ uint16_t WS2812FX::mode_ease_bar()
 
   }
      
-  d1 = beatsin16(b1);
-  d2 = beatsin16(b2);
+  d1 = beatsin16(b1,0, BEAT88_MAX+BEAT88_MAX/5);
+  d2 = beatsin16(b2,0, BEAT88_MAX+BEAT88_MAX/6);
+  if(!d1) cnt++;
 
-  uint16_t startLed = beatsin16(b1/2, _segment_runtime.start, _segment_runtime.stop-minLeds, 0, d1);
+  uint8_t off = triwave8(cnt);
+
+  uint8_t d3 = 255-beatsin8(max(b2-b1,1));
+
+  uint16_t startLed = beatsin16(b1/2, _segment_runtime.start, _segment_runtime.stop-minLeds, 0, d1+off);
 
   uint16_t numLeds  = beatsin16(b2/2, minLeds, _segment_runtime.length - startLed, 0, d2);
 
   numLeds = min(numLeds, (uint16_t)(_segment_runtime.length-startLed));
   uint8_t incI = _segment_runtime.length > 255 ? 1 : (256 / _segment_runtime.length);
   uint8_t sInd = map(startLed, _segment_runtime.start, _segment_runtime.stop, (uint16_t)0, (uint16_t)255) + _segment_runtime.baseHue; //beatsin8(_segment.beat88/128+1);
-  fadeToBlackBy(&leds[_segment_runtime.start], _segment_runtime.length, 64);
+  fadeToBlackBy(&leds[_segment_runtime.start], _segment_runtime.length, 128);
   fill_palette(&leds[startLed], numLeds, sInd, incI, _currentPalette, 255, SEGMENT.blendType);
+  for(uint16_t i=_segment_runtime.start; i<_segment_runtime.stop; i++)
+  {
+    leds[i].nscale8(beatsin8(max((b2-b1)/2,1),128,255,0,d3+i));
+  }
 
   return STRIP_MIN_DELAY;
 }
