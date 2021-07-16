@@ -106,7 +106,7 @@
 #define DEFAULT_BLEND ((TBlendType)1) // equals LinearBlend - would need Fastled.h included to have access to the enum
 #define DEFAULT_BLENDING 255          // no blend
 #define DEFAULT_REVERSE 0
-#define DEFAULT_NUM_SEGS 2             // two segs per default?
+#define DEFAULT_NUM_SEGS (LED_COUNT<100?1:2) // Strips with less than 100 leds will default to 1 segment at start, others to 2.
 #define DEFAULT_MIRRORED 1             // mirrored - effect with more than one seg only...
 #define DEFAULT_INVERTED 0             // invert all the colors (makes it pretty bright) FIXME: reconsider this option
 #define DEFAULT_HUE_INT 500              // Hue does change over time
