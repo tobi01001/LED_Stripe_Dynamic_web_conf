@@ -76,7 +76,7 @@ extern "C"
 }
 
 // new approach starts here:
-#include "led_strip.h"
+#include "LED_strip/led_strip.h"
 
 #ifdef HAS_KNOB_CONTROL
   Encoder myEnc(KNOB_C_PNA, KNOB_C_PNB);

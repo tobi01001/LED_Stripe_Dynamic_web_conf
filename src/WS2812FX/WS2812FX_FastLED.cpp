@@ -403,7 +403,8 @@ void WS2812FX::service()
   else
   {
     last_show = 0;
-    if (now > SEGMENT_RUNTIME.next_time || _triggered)
+    //if (now > SEGMENT_RUNTIME.next_time || _triggered)
+    EVERY_N_MILLISECONDS(STRIP_DELAY_MICROSEC/1000)
     {
       SEGMENT_RUNTIME.next_time = now + (uint32_t)(STRIP_DELAY_MICROSEC/1000);
       // no need to write data if nothing is shown (safeguard)
@@ -418,7 +419,6 @@ void WS2812FX::service()
           return;
         }
       }
-      
     }
     return;
   }
@@ -462,7 +462,7 @@ void WS2812FX::service()
 
   
   // Thanks to some discussions on Github, I do still not use any memmove 
-  // but I relaized that I need to nblend from the calculated frames to the led data.
+  // but I realised that I need to nblend from the calculated frames to the led data.
   // this could be simplified within the following nested loop which does now all at once and saves 2 loops + 
   // one nblend over the complete strip data....
   // as the combination of "mirror" and "reverse" is a bit redundant, this could maybe be simplified as well (later)
