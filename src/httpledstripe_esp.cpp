@@ -117,6 +117,9 @@ AsyncWebSocket *webSocketsServer;
 // helpers
 uint8_t wifi_err_counter = 0;
 uint16_t wifi_disconnect_counter = 0;
+IPAddress gateway_ip;
+String wifi_bssid_str = "00:00:00:00:00:00";
+uint16_t wifi_bssid_crc = 0x5555;
 
 //flag for saving data
 bool shouldSaveRuntime = false;
@@ -500,12 +503,17 @@ void readRuntimeDataEEPROM(void)
     strip->resetDefaults();
   }
 
+
+  // we clear the local parameters / settings just to 
+  // set them again via the "checkSegmentChanges()" functions
+  // this will update them to the current ones and boradcast the current values via websocket
   memset(&seg, 0, sizeof(seg));
 
   checkSegmentChanges();
 
   // no need to save right now. next save should be after /set?....
   shouldSaveRuntime = false;
+  // init with transition (and effect reset)...
   strip->setTransition();
 }
 
@@ -517,6 +525,10 @@ bool OTAisRunning = false;
 
 void initOverTheAirUpdate(void)
 {
+  // we distinguish between KNOB_CONTROL and no knob control
+  // hte difference is that we either show the progress 
+  // - on the display or 
+  // - on the leds itself
   #ifdef HAS_KNOB_CONTROL
   /* init OTA */
   // Port defaults to 8266
@@ -819,7 +831,9 @@ void setupWiFi(uint16_t timeout = 240)
   wifi_err_counter = 0; // need to reset this regardless the connected state. Otherwise we try to reconntect every loop....
 
 #endif
-
+  gateway_ip = WiFi.gatewayIP();
+  wifi_bssid_str = WiFi.BSSIDstr();
+  wifi_bssid_crc = strip->calc_CRC16(wifi_bssid_crc, (unsigned char*)WiFi.BSSID(), 6);
   showInitColor(CRGB::Green);
   delay(INITDELAY);
   showInitColor(CRGB::Black);
@@ -1661,6 +1675,8 @@ void handleStatus(AsyncWebServerRequest *request)
 
   uint16_t num_leds_on = strip->getLedsOn();
 
+  static uint8_t status_counter = 0;
+
   currentStateAnswer[F("power")] = strip->getPower();
   if (strip->getPower())
   {
@@ -1834,7 +1850,10 @@ void handleStatus(AsyncWebServerRequest *request)
   statsAnswer[F("WIFI_CONNECT_ERR_COUNT")] = wifi_disconnect_counter;
   statsAnswer[F("WIFI_SIGNAL")] = String(WiFi.RSSI());  // for #14
   statsAnswer[F("WIFI_CHAN")] = String(WiFi.channel());  // for #14
-  
+  statsAnswer[F("WIFI_GATEWAY")] = gateway_ip.toString();
+  statsAnswer[F("WIFI_BSSID")] = wifi_bssid_str;
+  statsAnswer[F("WIFI_BSSIDCRC")] = wifi_bssid_crc;
+  statsAnswer[F("Stats_Counter")] = status_counter++;
   statsAnswer[F("FPS")] = FastLED.getFPS();
   response->setLength();
   request->send(response);
