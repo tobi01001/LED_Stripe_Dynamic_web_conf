@@ -83,7 +83,7 @@
 #define DEFAULT_PS_MAX_CURRENT  4000 // the maximum rated current of the power supply inc. cabling to the leds
 #define DEFAULT_CURRENT_MAX ((LED_COUNT * LED_MAX_CURRENT) < DEFAULT_PS_MAX_CURRENT ? (LED_COUNT * LED_MAX_CURRENT) : DEFAULT_PS_MAX_CURRENT)
 #define DEFAULT_CURRENT ((LED_COUNT * LED_MAX_CURRENT) < 2800 ? (LED_COUNT * LED_MAX_CURRENT) : 2800)
-// the value of 300 microseconds is the average between two service routine calls....
+// the value of 300 microseconds is the average between two service routine calls.... 400 seems to be a good interval.
 #define FRAME_CALC_WAIT_MICROINTERVAL ((uint32_t)400)
 #define MIN_LED_WRITE_CYCLE (10 * LED_COUNT + 50 + FRAME_CALC_WAIT_MICROINTERVAL)
 #define STRIP_MIN_FPS  (10)
@@ -96,7 +96,11 @@
 
 
 #define DEFAULT_RUNNING 1
-#define DEFAULT_POWER 0 // starts being switched off
+#ifndef DEFAULT_POWER
+  #define DEFAULT_POWER 0 // starts being switched off
+#elif DEFAULT_POWER < 0
+  #define DEFAULT_POWER 0
+#endif
 #define DEFAULT_MODE 0 // Static
 #define DEFAULT_BRIGHTNESS 200        // 0 to 255
 #define DEFAULT_EFFECT 0              // 0 to modecount
@@ -105,7 +109,13 @@
 #define DEFAULT_BLEND ((TBlendType)1) // equals LinearBlend - would need Fastled.h included to have access to the enum
 #define DEFAULT_BLENDING 255          // no blend
 #define DEFAULT_REVERSE 0
-#define DEFAULT_NUM_SEGS (LED_COUNT<100?1:2) // Strips with less than 100 leds will default to 1 segment at start, others to 2.
+#ifndef DEFAULT_NUM_SEGS
+  #define DEFAULT_NUM_SEGS (LED_COUNT<100?1:2) // Strips with less than 100 leds will default to 1 segment at start, others to 2.
+#elif DEFAULT_NUM_SEGS < 1
+  #define DEFAULT_NUM_SEGS (LED_COUNT<100?1:2) // Strips with less than 100 leds will default to 1 segment at start, others to 2.
+#elif DEFAULT_NUM_SEGS > MAX_NUM_SEGMENTS
+  #define DEFAULT_NUM_SEGS MAX_NUM_SEGMENTS
+#endif
 #define DEFAULT_MIRRORED 1             // mirrored - effect with more than one seg only...
 #define DEFAULT_INVERTED 0             // invert all the colors (makes it pretty bright) FIXME: reconsider this option
 #define DEFAULT_HUE_INT 500              // Hue does change over time
