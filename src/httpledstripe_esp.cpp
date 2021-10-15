@@ -104,7 +104,7 @@ const char * git_revision PROGMEM = BUILD_GITREV;
 
 AsyncWebServer server(80);
 
-const char * AP_SSID PROGMEM = "Test"; // String(String (LED_NAME) + String("-") + String(ESP.getChipId())).c_str();
+const char * AP_SSID PROGMEM = LED_NAME; // String(String (LED_NAME) + String("-") + String(ESP.getChipId())).c_str();
 
 //WebSocketsServer *webSocketsServer = NULL; // webSocketsServer = WebSocketsServer(81);
 AsyncWebSocket *webSocketsServer;
@@ -120,6 +120,7 @@ uint16_t wifi_disconnect_counter = 0;
 IPAddress gateway_ip;
 String wifi_bssid_str = "00:00:00:00:00:00";
 uint16_t wifi_bssid_crc = 0x5555;
+uint8_t status_counter = ((uint8_t)(ESP.getChipId()>>16)) + ((uint8_t)(ESP.getChipId()>>8)) + ((uint8_t)(ESP.getChipId()>>0));
 
 //flag for saving data
 bool shouldSaveRuntime = false;
@@ -1675,7 +1676,6 @@ void handleStatus(AsyncWebServerRequest *request)
 
   uint16_t num_leds_on = strip->getLedsOn();
 
-  static uint8_t status_counter = 0;
 
   currentStateAnswer[F("power")] = strip->getPower();
   if (strip->getPower())
@@ -1932,7 +1932,14 @@ void handleResetRequest(AsyncWebServerRequest * request)
     strip->stop();
     strip->resetDefaults();
     request->send(200, F("text/plain"), F("Strip was reset to the default values..."));
+    delay(INITDELAY);
+    checkSegmentChanges();
+    delay(INITDELAY);
     shouldSaveRuntime = true;
+    delay(INITDELAY);
+    saveEEPROMData();
+    delay(INITDELAY);
+    ESP.restart();
   }
 }
 
