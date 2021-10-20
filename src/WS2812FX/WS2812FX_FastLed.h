@@ -254,6 +254,7 @@ public:
     TBlendType blendType;
     AUTOPLAYMODES autoplay;
     AUTOPLAYMODES autoPal;
+    uint8_t lastResetReason;
   } segment;
 
   // segment runtime parameters
@@ -730,6 +731,7 @@ public:
   inline void setBckndSat             (uint8_t s)       { _segment.backgroundSat = s; }
   inline void setBckndHue             (uint8_t h)       { _segment.backgroundHue = h; }
   inline void setBckndBri             (uint8_t b)       { _segment.backgroundBri = constrain(b, BCKND_MIN_BRI, BCKND_MAX_BRI); }
+  inline void setLastResetReason      (uint8_t r)       { _segment.lastResetReason = r; }
 
   inline void setTransition           (void)            { _transition = true; _segment_runtime.modeinit = true; _blend = 0; }
   
@@ -777,6 +779,7 @@ public:
   inline uint8_t        getBckndSat(void)             { return _segment.backgroundSat; }
   inline uint8_t        getBckndHue(void)             { return _segment.backgroundHue; }
   inline uint8_t        getBckndBri(void)             { return _segment.backgroundBri; }
+  inline uint8_t        getLastResetReason(void)      { return _segment.lastResetReason; }
 
   inline TBlendType     getBlendType(void)            { return _segment.blendType; }
          uint8_t        getColorTemp(void);

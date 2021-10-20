@@ -121,6 +121,7 @@ IPAddress gateway_ip;
 String wifi_bssid_str = "00:00:00:00:00:00";
 uint16_t wifi_bssid_crc = 0x5555;
 uint8_t status_counter = ((uint8_t)(ESP.getChipId()>>16)) + ((uint8_t)(ESP.getChipId()>>8)) + ((uint8_t)(ESP.getChipId()>>0));
+uint8_t cResetReason = 0;
 
 //flag for saving data
 bool shouldSaveRuntime = false;
@@ -151,11 +152,12 @@ void
     broadcastInt          (const __FlashStringHelper* name, uint16_t value),
     webSocketEvent        (AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len),
     checkSegmentChanges   (void),
-    updateConfigFile      (void),
-    clearEEPROM           (void);
+    updateConfigFile      (void);
 
 uint8_t
     getResetReason        (void);
+  
+const __FlashStringHelper * getResetReasonStr(uint8_t resetReason);
 
 /*
 // used to send an answer as INT to the calling http request
@@ -445,6 +447,11 @@ void checkSegmentChanges(void) {
   {
     seg.backgroundBri = strip->getBckndBri();
     broadcastInt(F("BckndBri"), seg.backgroundBri);
+    shouldSaveRuntime = true;
+  }
+  if(seg.lastResetReason != strip->getLastResetReason())
+  {
+    seg.lastResetReason = strip->getLastResetReason();
     shouldSaveRuntime = true;
   }
 
@@ -1815,7 +1822,8 @@ void handleStatus(AsyncWebServerRequest *request)
 
     sunriseAnswer[F("sunRiseTime")] = strip->getSunriseTime();
   
-  
+  statsAnswer[F("Chip_ResetReason")] = getResetReasonStr(getResetReason());
+  /*
   switch (getResetReason())
   {
   case REASON_DEFAULT_RST:
@@ -1845,6 +1853,8 @@ void handleStatus(AsyncWebServerRequest *request)
     statsAnswer[F("Chip_ResetReason")] = F("Unknown Cause");
     break;
   }
+  */
+  statsAnswer[F("Chip_FaultResetReason")] = getResetReasonStr(strip->getLastResetReason());
   statsAnswer[F("Chip_ID")] = String(ESP.getChipId());
   statsAnswer[F("WIFI_IP")] =  WiFi.localIP().toString();
   statsAnswer[F("WIFI_CONNECT_ERR_COUNT")] = wifi_disconnect_counter;
@@ -1853,7 +1863,7 @@ void handleStatus(AsyncWebServerRequest *request)
   statsAnswer[F("WIFI_GATEWAY")] = gateway_ip.toString();
   statsAnswer[F("WIFI_BSSID")] = wifi_bssid_str;
   statsAnswer[F("WIFI_BSSIDCRC")] = wifi_bssid_crc;
-  statsAnswer[F("Stats_Counter")] = status_counter++;
+  statsAnswer[F("Stats_Counter")] = sin8(status_counter++);
   statsAnswer[F("FPS")] = FastLED.getFPS();
   response->setLength();
   request->send(response);
@@ -1888,6 +1898,39 @@ uint8_t getResetReason(void)
   return (uint8_t)ESP.getResetInfoPtr()->reason;
 }
 
+const __FlashStringHelper * getResetReasonStr(uint8_t resetReason)
+{
+  switch (resetReason)
+  {
+  case REASON_DEFAULT_RST:  
+    return(F("Normal Boot"));
+    break;
+  case REASON_WDT_RST:
+    return(F("WDT Reset"));
+    break;
+  case REASON_EXCEPTION_RST:
+    return(F("Exception"));
+    break;
+  case REASON_SOFT_WDT_RST:
+    return(F("Soft WDT Reset"));
+    break;
+  case REASON_SOFT_RESTART:
+    return(F("Restart"));
+    break;
+  case REASON_DEEP_SLEEP_AWAKE:
+    return(F("Sleep Awake"));
+    break;
+  case REASON_EXT_SYS_RST:
+    return(F("External Trigger"));
+    break;
+
+  default:
+    return(F("Unknown Cause"));
+    break;
+  }
+  return(F("Unknown Cause"));
+}
+
 /*
  * Clear the CRC to startup Fresh....
  * Used in case we end up in a WDT reset (either SW or HW)
@@ -1897,6 +1940,7 @@ void clearCRC(void)
 // invalidating the CRC - in case somthing goes terribly wrong...
   EEPROM.begin(strip->getCRCsize());
   EEPROM.put(0,(uint16_t)0);
+  EEPROM.put((0+strip->getSegmentSize()-1), cResetReason);
   EEPROM.commit();
   EEPROM.end();
   delay(100);
@@ -2329,6 +2373,12 @@ void setup()
   // Sanity delay to get everything settled....
   delay(INITDELAY);
   LittleFS.begin();
+  cResetReason = getResetReason();
+
+  
+  EEPROM.begin(strip->getSegmentSize());
+
+  
   #ifdef HAS_KNOB_CONTROL
   const uint8_t font_height = 12;
 
@@ -2348,8 +2398,7 @@ void setup()
   #endif
 
   mDisplayState = Display_ShowInfo;
-
-  switch (getResetReason())
+  switch (cResetReason)
   {
   case REASON_DEFAULT_RST:
     cursor = drawtxtline10(cursor, font_height, F("REASON_DEFAULT_RST"));
@@ -2400,7 +2449,7 @@ void setup()
 
   updateConfigFile();
 
-  EEPROM.begin(strip->getSegmentSize());
+  
 
   //EEPROM.get(0, seg);
   readRuntimeDataEEPROM();
@@ -2441,7 +2490,7 @@ void setup()
   Serial.begin(115200);
   #endif
 
-  switch (getResetReason())
+  switch (cResetReason)
   {
     case REASON_DEFAULT_RST:
       
@@ -2479,13 +2528,11 @@ void setup()
 
   updateConfigFile();
 
-  EEPROM.begin(strip->getSegmentSize());
   
   // internal LED can be light up when current is limited by FastLED
   
   pinMode(2, OUTPUT);
 
-  EEPROM.begin(strip->getSegmentSize());
 
   delay(10);
   
