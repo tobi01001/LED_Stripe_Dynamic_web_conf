@@ -61,6 +61,7 @@
   
   #include "Encoder.h"
   #include "SSD1306Brzo.h"
+  // The Knob Control version allows operation without WiFi
   bool WiFiConnected = false;
 #endif
 
@@ -79,35 +80,91 @@ extern "C"
 #include "LED_strip/led_strip.h"
 
 #ifdef HAS_KNOB_CONTROL
+  // the roating knob controller as input device
   Encoder myEnc(KNOB_C_PNA, KNOB_C_PNB);
+  // the I2C connected Display
   SSD1306Brzo display(KNOB_C_I2C, KNOB_C_SDA, KNOB_C_SCL);
+
+  // Holding the different display states to be shown
+  enum displayStates {
+    Display_Off,
+    Display_ShowInfo,
+    Display_ShowMenu,
+    Display_ShowSectionMenue,
+    Display_ShowBoolMenu,
+    Display_ShowNumberMenu,
+    Display_ShowSelectMenue
+  } mDisplayState;
+
+  // timer to store when then Knob was operated last
+  // this is used to check when to switch back / off the display
+  uint32_t last_control_operation = 0;
+  // stores if the display was off
+  bool display_was_off = false;
+  // lenght of the bar to indicate the timeout on the display
+  uint8_t TimeoutBar = 0;
+
+  // Will initialise the display
+  void setupKnobControl(void);
+  // Will draw the given text line at the given line y
+  // returns the next line after drawing
+  uint8_t drawtxtline10(uint8_t y, uint8_t fontheight, String txt);
+  // will display the "current field" being provided
+  void showDisplay(uint8_t curr_field);
+  // will handle the encoder value / current field
+  uint16_t setEncoderValues(uint8_t curr_field, uint16_t * knb_maxVal,uint16_t * knb_minVal, uint16_t * knb_curVal, uint16_t * knb_steps);
+  // service routing for the knob/display control
+  void knob_service(uint32_t now);
+  // returns the next field in the direction up or down
+  uint8_t get_next_field(uint8_t curr_field, bool up);
 #endif
 
 #ifdef DEBUG
   #ifdef HAS_KNOB_CONTROL
+    // Build version, branch and wheter or not with control Knob (set in platformio.ini)
     const char * build_version PROGMEM = BUILD_VERSION "_DBG_" PIO_SRC_BRANCH "_KNOB"; 
   #else
+    // Build version, branch and wheter or not with control Knob (set in platformio.ini)
     const char * build_version PROGMEM = BUILD_VERSION "_DBG_" PIO_SRC_BRANCH;
   #endif
 #else
   #ifdef HAS_KNOB_CONTROL
+    // Build version, branch and wheter or not with control Knob (set in platformio.ini)
     const char * build_version PROGMEM = BUILD_VERSION "_" PIO_SRC_BRANCH "_KNOB"; 
   #else
+    // Build version, branch and wheter or not with control Knob (set in platformio.ini)
     const char * build_version PROGMEM = BUILD_VERSION "_" PIO_SRC_BRANCH;
   #endif
 #endif
 
+// Git revision being "hardcoded" (extracted befor compilation)
 const char * git_revision PROGMEM = BUILD_GITREV;
 
 /* Definitions for network usage */
 /* maybe move all wifi stuff to separate files.... */
 
+
+// the AP-Name if we start in AP_Mode with WiFiManager
+const char * AP_SSID PROGMEM = LED_NAME;
+// The async web server handling all the web interface stuff 
 AsyncWebServer server(80);
-
-const char * AP_SSID PROGMEM = LED_NAME; // String(String (LED_NAME) + String("-") + String(ESP.getChipId())).c_str();
-
-//WebSocketsServer *webSocketsServer = NULL; // webSocketsServer = WebSocketsServer(81);
+// The Websocket part of the web handling
 AsyncWebSocket *webSocketsServer;
+
+// we do not want anything to distrub the OTA
+// therefore there is a flag which could be used to prevent from that...
+// However, seems that a connection being active via websocket interrupts
+// even if the web socket server is stopped??
+bool OTAisRunning = false;
+
+// Ping-Pong Struct
+// holding the iD, current Ping and Current Pong
+struct pingPong {
+  uint32_t iD = 0;
+  uint8_t pong = 0;
+  uint8_t ping = 0;
+  // Array holding the clients PingPongs
+}my_pingPongs[DEFAULT_MAX_WS_CLIENTS+1]; // as Array
 
 
 /* END Network Definitions */
@@ -115,112 +172,142 @@ AsyncWebSocket *webSocketsServer;
 #include "FSBrowser.h"
 
 // helpers
+// counts the errors on the wifi connection
 uint8_t wifi_err_counter = 0;
+// counts the wifi disconnects
 uint16_t wifi_disconnect_counter = 0;
+// the adress of the gateway being connected to
 IPAddress gateway_ip;
-String wifi_bssid_str = "00:00:00:00:00:00";
-uint16_t wifi_bssid_crc = 0x5555;
-uint8_t status_counter = ((uint8_t)(ESP.getChipId()>>16)) + ((uint8_t)(ESP.getChipId()>>8)) + ((uint8_t)(ESP.getChipId()>>0));
+// stats counter (increased as sine function) when stats is called
+// can be used as kind of life check
+uint8_t status_counter = 0; //((uint8_t)(ESP.getChipId()>>16)) + ((uint8_t)(ESP.getChipId()>>8)) + ((uint8_t)(ESP.getChipId()>>0));
+// stores the current reset Reason
 uint8_t cResetReason = 0;
 
-//flag for saving data
+//flag for saving data 
 bool shouldSaveRuntime = false;
 
+// "local" copy of the segment data (to be saved)
+// used for comparison with the actual segment data
 WS2812FX::segment seg;
 
-uint32_t last_control_operation = 0;
-bool display_was_off = false;
-uint8_t TimeoutBar = 0;
+struct ESPrunTime {
+  uint8_t seconds;
+  uint8_t minutes;
+  uint8_t hours;
+  uint16_t days;
+}mESPrunTime;
+
 
 // function Definitions
-void 
-    saveEEPROMData        (void),
-    initOverTheAirUpdate  (void),
-    setupWiFi             (uint16_t timeout),
-    handleSet             (AsyncWebServerRequest *request),
-    handleNotFound        (AsyncWebServerRequest *request),
-    handleGetModes        (AsyncWebServerRequest *request),
-    handleStatus          (AsyncWebServerRequest *request),
-    clearCRC              (void),
-    clearEEPROM           (void),
-    factoryReset          (void),
-    handleResetRequest    (AsyncWebServerRequest *request),
-    setupWebServer        (void),
-    showInitColor         (CRGB Color),
-    //sendAnswer            (const char * name, uint16_t value, AsyncWebServerRequest *request),
-    //sendAnswer            (const char * name, const char * value, AsyncWebServerRequest *request),
-    broadcastInt          (const __FlashStringHelper* name, uint16_t value),
-    webSocketEvent        (AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len),
-    checkSegmentChanges   (void),
-    updateConfigFile      (void);
 
-uint8_t
-    getResetReason        (void);
-  
-const __FlashStringHelper * getResetReasonStr(uint8_t resetReason);
-
-/*
-// used to send an answer as INT to the calling http request
-// TODO: Use one answer function with parameters being overloaded
-void sendAnswer(const char* name, uint16_t value, AsyncWebServerRequest *request)
-{
-  #ifdef HAS_KNOB_CONTROL
-  if(strip->getWiFiDisabled() || !WiFiConnected) return;
-  #endif
-  
-  AsyncResponseStream *response = request->beginResponseStream("application/json");
-  DynamicJsonBuffer jBuf; 
-  JsonObject &root = jBuf.createObject();
-  JsonObject &sInt = root.createNestedObject(F("returnState"));
-  sInt[name] = value;
-
-  response->addHeader(F("Access-Control-Allow-Methods"), "*");
-  response->addHeader(F("Access-Control-Allow-Headers"), "*");
-  response->addHeader(F("Access-Control-Allow-Origin"), "*");
-  root.printTo(*response);
-  request->send(response);
-}
-
-// used to send an answer as String to the calling http request
-// TODO: Use one answer function with parameters being overloaded
-void sendAnswer(const char* name, const char* value, AsyncWebServerRequest *request)
-{
-  #ifdef HAS_KNOB_CONTROL
-  if(strip->getWiFiDisabled() || !WiFiConnected) return;
-  #endif
-  AsyncResponseStream *response = request->beginResponseStream("application/json");
-  DynamicJsonBuffer jBuf; 
-  JsonObject &root = jBuf.createObject();
-  JsonObject &sInt = root.createNestedObject(F("returnState"));
-  sInt[name] = value;
-
-  response->addHeader(F("Access-Control-Allow-Methods"), "*");
-  response->addHeader(F("Access-Control-Allow-Headers"), "*");
-  response->addHeader(F("Access-Control-Allow-Origin"), "*");
-  root.printTo(*response);
-  request->send(response);
-}
-*/
-
+// will initialise the OTA anf the related callback functions
+void initOverTheAirUpdate  (void);
+// used to setup the WiFi connection
+// this can be called with a specific timeout for the captive portal (defaults to 240 seconds i.e. 4 minutes)
+void setupWiFi             (uint16_t timeout);
+// initialises the Web sever with the callback / handler functions
+void setupWebServer        (void);
+// handler for http://..../set calls (usually needs parameter and value)
+// will return the parameter and values being set as json
+void handleSet             (AsyncWebServerRequest *request);
+// not found handler - called when the uri is not managed
+void handleNotFound        (AsyncWebServerRequest *request);
+// will return all available modes (effects) in an json array
+void handleGetModes        (AsyncWebServerRequest *request);
+// will return all available color palettes in an json array
+void handleGetPals         (AsyncWebServerRequest *request);
+// will return the current status, listing all neccessary parameters 
+// as well as meta information
+void handleStatus          (AsyncWebServerRequest *request);
+// when called with the right parameter, it will reset 
+// either to default values or perform a factory reset.
+// Parameter rst=
+//    "FactoryReset" --> Factory Reset
+//    "Defaults"     --> Reset to default values (without WiFi settings)
+void handleResetRequest    (AsyncWebServerRequest *request);
 // broadcasts the name and value to all websocket clients
+// name : the Parameter as pointer in Flash (const __FlashStringHelper* )
+// value: the parameter value as uint16_t
+void broadcastInt          (const __FlashStringHelper* name, uint16_t value);
+// handles requests received via web sockets.
+// this is currently only used to (de)register new clients
+// and to manage the "ping/pong" mechanism checking if WS is alive
+void webSocketEvent        (AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len);
+// will delete the CRC stored in EEPROM 
+// used in case of e.g. WD reset
+void clearCRC              (void);
+// will delete the complete EEPROM 
+// used in case of e.g. factory reset
+void clearEEPROM           (void);
+// deletes the EEPRORM as wel as WiFi settings
+// and restarts fresh
+void factoryReset          (void);
+// reads the runtime data from EEPROM
+// and checks for validity (CRC)
+// if CRC does not match it will reset to default values
+void readRuntimeDataEEPROM (void);
+// shows status information during boot / OTA
+// not used when using "Knob control with display"
+void showInitColor         (CRGB Color);
+// cyclic check for changes to parameters.
+// when something is changed, it will enable the
+// "saveRuntimeData"-flag in order to store to EEPROM
+// at the next EEPROM update time
+// it will also broadcast the change to connected WS-Clients
+void checkSegmentChanges   (void);
+// will write the current data to EEPROM (in case the "saveRuntimeData"-flag is true)
+void saveEEPROMData        (void);
+// removes the Websocket Client from the list of 
+// connected clients
+void removeClient          (uint32_t iD);
+// will update the file containing all parameters, the structure and values (JSON)
+// this is used by the website to generate the menu, boundaries etc...
+// As the amount of data is too much for the Async-Webserver 
+// to manage during runtime, we use a file on the Filesystem for this.
+void updateConfigFile      (void);
+
+// will return a "relatively" increased or decreased value by the given percentage
+// used by the up and down parameters and is there more or less for backward compatibility
+uint8_t changebypercentage    (uint8_t value, uint8_t percentage);
+// will add the Client with iD to the client list.
+// iD: the WS client iD
+// return: the number in the list of connected WS
+uint8_t addClient             (uint32_t iD);
+// will return the list number of Client with iD.
+// iD: the WS client iD
+// return: the number in the list of connected WS
+uint8_t getClient             (uint32_t iD);
+// returns the uint8_t equivalent of the 
+// reset reason
+uint8_t getResetReason        (void);
+  
+// returns the name ["string" (char* in flash)] of the
+// reset reason with "number" resetReason
+const __FlashStringHelper * 
+    getResetReasonStr(uint8_t resetReason);
+
 void broadcastInt(const __FlashStringHelper* name, uint16_t value)
 {
-  
+  // if we do have Knob control, we check if WiFi is supposed to be enabled or not.
+  // the check if there is a WS server is always done
   #ifdef HAS_KNOB_CONTROL
   if(webSocketsServer == NULL  || strip->getWiFiDisabled() || !WiFiConnected)
   #else
   if(webSocketsServer == NULL)
   #endif
   {
+    // nothing to be done -> return
     return;
   }
+  // store the name / value pair in a json buffer 
   DynamicJsonBuffer jsonBuffer;
   JsonObject& answerObj = jsonBuffer.createObject();
-  //JsonObject& answer = answerObj.createNestedObject(F("currentState"));
   answerObj[F("name")] = name;
   answerObj[F("value")] = value;
 
   size_t len = answerObj.measureLength();
+  // create a message buffer, write to it and send it to the WS clients
   AsyncWebSocketMessageBuffer * buffer = webSocketsServer->makeBuffer(len); //  creates a buffer (len + 1) for you.
   if (buffer) {
       answerObj.printTo((char *)buffer->get(), len + 1);
@@ -228,8 +315,12 @@ void broadcastInt(const __FlashStringHelper* name, uint16_t value)
   }
 }
 
-void checkSegmentChanges(void) {
-
+void checkSegmentChanges(void) 
+{
+  // check the segment changes
+  // broadcast the change and 
+  // set the shouldSaveRuntime = true where applicable
+  
   #ifdef DEBUG
   bool save = shouldSaveRuntime;
   #endif
@@ -465,15 +556,19 @@ void checkSegmentChanges(void) {
   #endif
 }
 
-// write runtime data to EEPROM (when required by "shouldSave Runtime")
 void saveEEPROMData(void)
 {
-  if (!shouldSaveRuntime)
+  // write runtime data to EEPROM (when required by "shouldSave Runtime")
+
+  // nothing to do if flag is not set
+  if (!shouldSaveRuntime) {
     return;
+  }
+  
   shouldSaveRuntime = false;
 
+  // update the CRC according to current segment data
   seg.CRC = (uint16_t)WS2812FX::calc_CRC16(0x5a5a,(unsigned char *)&seg + 2, sizeof(seg) - 2);
-
   strip->setCRC(seg.CRC);
 
   // write the data to the EEPROM
@@ -482,18 +577,14 @@ void saveEEPROMData(void)
   EEPROM.commit();
 }
 
-
-// reads the stored runtime data from EEPROM
-// must be called after everything else is already setup to be working
-// otherwise this may terribly fail and could override what was read already
 void readRuntimeDataEEPROM(void)
 {
-  // copy segment...
-  
-  // now separate global....
-  //WS2812FX::segment seg;
-  
-  //read the configuration from EEPROM into RAM
+
+  // reads the stored runtime data from EEPROM
+  // must be called after everything else is already setup to be working
+  // otherwise this may terribly fail and could override what was read already
+
+  //read the configuration from EEPROM into RAM (copy segment)
   EEPROM.get(0, seg);
 
   // calculate the CRC over the data being stored in the EEPROM (except the CRC itself)
@@ -511,10 +602,10 @@ void readRuntimeDataEEPROM(void)
     strip->resetDefaults();
   }
 
-
   // we clear the local parameters / settings just to 
   // set them again via the "checkSegmentChanges()" functions
-  // this will update them to the current ones and boradcast the current values via websocket
+  // this will update them to the current ones 
+  // and broadcast the current values via websocket
   memset(&seg, 0, sizeof(seg));
 
   checkSegmentChanges();
@@ -522,14 +613,9 @@ void readRuntimeDataEEPROM(void)
   // no need to save right now. next save should be after /set?....
   shouldSaveRuntime = false;
   // init with transition (and effect reset)...
+  // this ensures that the LEDs will be black first
   strip->setTransition();
 }
-
-// we do not want anything to distrub the OTA
-// therefore there is a flag which could be used to prevent from that...
-// However, seems that a connection being active via websocket interrupts
-// even if the web socket server is stopped??
-bool OTAisRunning = false;
 
 void initOverTheAirUpdate(void)
 {
@@ -546,8 +632,9 @@ void initOverTheAirUpdate(void)
 
   // TODO: Implement Hostname in config and WIFI Settings?
 
-  ArduinoOTA.setHostname(LED_NAME);
+  ArduinoOTA.setHostname(LED_NAME); // platformio currently works with IPs but who knows...
 
+  // callback when the OTA starts
   ArduinoOTA.onStart([]() {
     FastLED.clear(true);
     display.clear();
@@ -564,9 +651,6 @@ void initOverTheAirUpdate(void)
 
   // what to do if OTA is finished...
   ArduinoOTA.onEnd([]() {
-
-    
-
     // OTA finished.
     display.drawString(0, 53, F("OTA finished!"));
     display.displayOn();
@@ -577,6 +661,9 @@ void initOverTheAirUpdate(void)
     if(RESET_DEFAULTS)
     {
       clearCRC();
+      // attention: clearCRC() will also reset the ESP, so the below code will never run!
+      // thats why we indicate that with a return statement:
+      return;
     }
 
     // indicate that OTA is no longer running.
@@ -585,13 +672,12 @@ void initOverTheAirUpdate(void)
     display.displayOff();
     // no need to reset ESP as this is done by the OTA handler by default
   });
-  // show the progress 
+  // show the progress  on the display
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
     unsigned int prog = (progress / (total / 100));
     display.clear();
     display.drawString(0, 0, F("Starte OTA..."));
     display.drawStringMaxWidth(0, 12, 128, "Prog: " + String(prog) + " % done");
-    //display.drawStringMaxWidth(0, 12, 128, "Prog: " + String(progress) + " / " + String(total));
     display.drawProgressBar(1,33, 126, 7, prog);
     display.displayOn();
     display.display();
@@ -686,7 +772,11 @@ void initOverTheAirUpdate(void)
     // as this will (hopefully) reset to defaults on SW updates
     if(RESET_DEFAULTS)
     {
+      
       clearCRC();
+      // attention: clearCRC() will also reset the ESP, so the below code will never run!
+      // thats why we indicate that with a return statement:
+      return;
     }
     
 
@@ -744,25 +834,28 @@ void initOverTheAirUpdate(void)
   delay(INITDELAY);
 }
 
-// for DEBUG purpose without Serial connection...
 void showInitColor(CRGB Color)
 {
+  // for DEBUG purpose without Serial connection...
 #ifdef DEBUG
   Color.r = Color.r&0x20;
   Color.g = Color.g&0x20;
   Color.b = Color.b&0x20;
   fill_solid(strip->leds, NUM_INFORMATION_LEDS, Color);
   strip->show();
-  delay(500);
+  delay(INITDELAY);
 #else
-  delay(50);
+  delay(INITDELAY);
 #endif
 
 }
 
-// setup the Wifi connection with Wifi Manager...
 void setupWiFi(uint16_t timeout = 240)
 {
+  // setup the Wifi connection with Wifi Manager...
+
+  // when wifi is disabled via parameter, then there is nothing to do
+  // only works with "knob control"
   #ifdef HAS_KNOB_CONTROL
   if(strip->getWiFiDisabled()) return;
   #endif
@@ -779,6 +872,9 @@ void setupWiFi(uint16_t timeout = 240)
   DNSServer dns;
   AsyncWiFiManager wifiManager(&server, &dns);
 
+
+// ToDo: Do not see the difference in handling.... 
+// should simplyfy those Knob-Control #ifdefs
 #ifndef HAS_KNOB_CONTROL
   // 4 Minutes should be sufficient.
   // Especially in case of WiFi loss...
@@ -794,7 +890,7 @@ void setupWiFi(uint16_t timeout = 240)
   if (!wifiManager.autoConnect(AP_SSID))
   {
     showInitColor(CRGB::Yellow);
-    delay(3000);
+    delay(6*INITDELAY);
     showInitColor(CRGB::Red);
     ESP.restart();
   }
@@ -834,32 +930,30 @@ void setupWiFi(uint16_t timeout = 240)
     }
 
     WiFi.setAutoReconnect(true);
-  //if we get here we have connected to the WiFi
+    //if we get here we have connected to the WiFi
   }
   wifi_err_counter = 0; // need to reset this regardless the connected state. Otherwise we try to reconntect every loop....
 
 #endif
   gateway_ip = WiFi.gatewayIP();
-  wifi_bssid_str = WiFi.BSSIDstr();
-  wifi_bssid_crc = strip->calc_CRC16(wifi_bssid_crc, (unsigned char*)WiFi.BSSID(), 6);
   showInitColor(CRGB::Green);
   delay(INITDELAY);
   showInitColor(CRGB::Black);
 }
 
-// helper function to change an 8bit value by the given percentage
-// TODO: we could use 8bit fractions for performance
 uint8_t changebypercentage(uint8_t value, uint8_t percentage)
 {
+  // helper function to change an 8bit value by the given percentage
+  // TODO: we could use 8bit fractions for performance
   uint16_t ret = max((value * percentage) / 100, 10);
   if (ret > 255)
     ret = 255;
   return (uint8_t)ret;
 }
 
-// if /set was called
 void handleSet(AsyncWebServerRequest *request)
 {
+  // if /set was called
   #ifdef HAS_KNOB_CONTROL
   if(strip->getWiFiDisabled() || !WiFiConnected) return;
   #endif
@@ -885,12 +979,16 @@ void handleSet(AsyncWebServerRequest *request)
   // rnE = Range end Pixel;
   // here we set a new mode if we have the argument mode
 
+  // every change (could be more than one) will be 
+  // send back in the answer in JSON format
+  // first create the response object
   AsyncJsonResponse * response = new AsyncJsonResponse();
   
+  // create the answer object
   JsonObject& answerObj = response->getRoot();
   JsonObject& answer = answerObj.createNestedObject(F("currentState"));
   
-  
+  // new mode set?
   if (request->hasParam(F("mo")))
   {
     // flag to decide if this is an library effect
@@ -1046,7 +1144,7 @@ void handleSet(AsyncWebServerRequest *request)
     answer.set(F("state"), strip->getPower() ? F("on") : F("off"));
     answer.set(F("power"), strip->getPower());
   }
-
+  // pause / resume
   if(request->hasParam(F("isRunning")))
   {
     if (request->getParam(F("isRunning"))->value().c_str()[0]  == '0')
@@ -1476,13 +1574,14 @@ void handleSet(AsyncWebServerRequest *request)
     answer[F("max_FPS")] = strip->getMaxFPS();
   }
 
+  // switcvhes dithering on/off
   if (request->hasParam(F("dithering")))
   {
     uint8_t value = request->getParam(F("dithering"))->value().toInt();
     strip->setDithering(value);
     answer[F("Dithering")] = strip->getDithering();
   }
-
+  // sunrise / sunset time
   if (request->hasParam(F("sunriseset")))
   {
     uint8_t value = request->getParam(F("sunriseset"))->value().toInt();
@@ -1498,32 +1597,35 @@ void handleSet(AsyncWebServerRequest *request)
       strip->resetDefaults();
     strip->setTransition();
   }
-
+  // damping for bouncing effects
   if (request->hasParam(F("damping")))
   {
     uint8_t value = constrain(request->getParam(F("damping"))->value().toInt(), 0, 100);
     strip->getSegment()->damping = value;
     answer[F("Damping")] = strip->getDamping();
   }
-
+  // adds or not global glitter
   if (request->hasParam(F("addGlitter")))
   {
     uint8_t value = constrain(request->getParam(F("addGlitter"))->value().toInt(), 0, 100);
     strip->setAddGlitter(value);
     answer[F("Glitter_Add")] = strip->getAddGlitter();
   }
+  // if only white glitter shown
   if (request->hasParam(F("WhiteOnly")))
   {
     uint8_t value = constrain(request->getParam(F("WhiteOnly"))->value().toInt(), 0, 100);
     strip->setWhiteGlitter(value);
     answer[F("Glitter_White")] = strip->getWhiteGlitter();
   }
+  // if only on black (clear pixels)
   if (request->hasParam(F("onBlackOnly")))
   {
     uint8_t value = constrain(request->getParam(F("onBlackOnly"))->value().toInt(), 0, 100);
     strip->setOnBlackOnly(value);
     answer[F("Glitter_OnBlackOnly")] = strip->getOnBlackOnly();
   }
+  // if global glitter is random over all leds or synced with the segment
   if (request->hasParam(F("syncGlitter")))
   {
     uint8_t value = constrain(request->getParam(F("syncGlitter"))->value().toInt(), 0, 100);
@@ -1574,19 +1676,21 @@ void handleSet(AsyncWebServerRequest *request)
     strip->setTransition();
     answer[F("Segments")] = strip->getSegments();
   }
-
+  // hue for the background color
   if (request->hasParam(F("BckndHue")))
   {
     uint8_t value = request->getParam(F("BckndHue"))->value().toInt();
     strip->setBckndHue(value);
     answer[F("BckndHue")] = strip->getBckndHue();
   }
+  // saturation for the background color
   if (request->hasParam(F("BckndSat")))
   {
     uint8_t value = request->getParam(F("BckndSat"))->value().toInt();
     strip->setBckndSat(value);
     answer[F("BckndSat")] = strip->getBckndSat();
   }
+  // brightness for the background color
   if (request->hasParam(F("BckndBri")))
   {
     uint8_t value = request->getParam(F("BckndBri"))->value().toInt();
@@ -1596,6 +1700,7 @@ void handleSet(AsyncWebServerRequest *request)
 
 
   #ifdef HAS_KNOB_CONTROL
+  // disable the Wifi - only whern there is knob control and display
   if (request->hasParam(F("wifiDisabled")))
   {
     uint16_t value = request->getParam(F("wifiDisabled"))->value().toInt();
@@ -1607,29 +1712,14 @@ void handleSet(AsyncWebServerRequest *request)
     answer[F("wifiDisabled")] = strip->getWiFiDisabled();
   }
   #endif
-
+  // return the values being effectively set
   response->setLength();
   request->send(response);
 }
 
-// if something unknown was called...
 void handleNotFound(AsyncWebServerRequest * request)
 {
-  /*
-  String message = F("File Not Found\n\n");
-  message += F("URI: ");
-  message += server.uri();
-  message += F("\nMethod: ");
-  message += (server.method() == HTTP_GET) ? "GET" : "POST";
-  message += F("\nArguments: ");
-  message += server.args();
-  message += F("\n");
-  for (uint8_t i = 0; i < server.args(); i++)
-  {
-    message += " " + server.argName(i) + ": " + server.arg(i) + "\n";
-  }
-  server.send(404, F("text/plain"), message);
-  */
+  // if something unknown was called...
   AsyncWebServerResponse *response = request->beginResponse(404); //Sends 404 File Not Found
   response->addHeader("Server",LED_NAME);
   request->send(response);
@@ -1637,6 +1727,7 @@ void handleNotFound(AsyncWebServerRequest * request)
 
 void handleGetModes(AsyncWebServerRequest *request)
 {
+  // will return all available effects in JSON as name, number 
 
   AsyncJsonResponse * response = new AsyncJsonResponse();
 
@@ -1656,6 +1747,8 @@ void handleGetModes(AsyncWebServerRequest *request)
 
 void handleGetPals(AsyncWebServerRequest *request)
 {
+  // will return all available Color palettes in JSON as name, number 
+
   AsyncJsonResponse * response = new AsyncJsonResponse();
 
   JsonObject &root = response->getRoot();
@@ -1674,6 +1767,8 @@ void handleGetPals(AsyncWebServerRequest *request)
 
 void handleStatus(AsyncWebServerRequest *request)
 {
+  // collects the current status and returns that
+
   AsyncJsonResponse * response = new AsyncJsonResponse();
 
   JsonObject &answerObj = response->getRoot();
@@ -1823,48 +1918,23 @@ void handleStatus(AsyncWebServerRequest *request)
     sunriseAnswer[F("sunRiseTime")] = strip->getSunriseTime();
   
   statsAnswer[F("Chip_ResetReason")] = getResetReasonStr(getResetReason());
-  /*
-  switch (getResetReason())
-  {
-  case REASON_DEFAULT_RST:
-    
-    statsAnswer[F("Chip_ResetReason")] = F("Normal Boot");
-    break;
-  case REASON_WDT_RST:
-    statsAnswer[F("Chip_ResetReason")] = F("WDT Reset");
-    break;
-  case REASON_EXCEPTION_RST:
-    statsAnswer[F("Chip_ResetReason")] = F("Exception");
-    break;
-  case REASON_SOFT_WDT_RST:
-    statsAnswer[F("Chip_ResetReason")] = F("Soft WDT Reset");
-    break;
-  case REASON_SOFT_RESTART:
-    statsAnswer[F("Chip_ResetReason")] = F("Restart");
-    break;
-  case REASON_DEEP_SLEEP_AWAKE:
-    statsAnswer[F("Chip_ResetReason")] = F("Sleep Awake");
-    break;
-  case REASON_EXT_SYS_RST:
-    statsAnswer[F("Chip_ResetReason")] = F("External Trigger");
-    break;
 
-  default:
-    statsAnswer[F("Chip_ResetReason")] = F("Unknown Cause");
-    break;
-  }
-  */
-  statsAnswer[F("Chip_FaultResetReason")] = getResetReasonStr(strip->getLastResetReason());
-  statsAnswer[F("Chip_ID")] = String(ESP.getChipId());
-  statsAnswer[F("WIFI_IP")] =  WiFi.localIP().toString();
-  statsAnswer[F("WIFI_CONNECT_ERR_COUNT")] = wifi_disconnect_counter;
-  statsAnswer[F("WIFI_SIGNAL")] = String(WiFi.RSSI());  // for #14
-  statsAnswer[F("WIFI_CHAN")] = String(WiFi.channel());  // for #14
-  statsAnswer[F("WIFI_GATEWAY")] = gateway_ip.toString();
-  statsAnswer[F("WIFI_BSSID")] = wifi_bssid_str;
-  statsAnswer[F("WIFI_BSSIDCRC")] = wifi_bssid_crc;
-  statsAnswer[F("Stats_Counter")] = sin8(status_counter++);
-  statsAnswer[F("FPS")] = FastLED.getFPS();
+  statsAnswer[F("Chip_FaultResetReason")]   = getResetReasonStr(strip->getLastResetReason());
+  statsAnswer[F("Chip_ID")]                 = ESP.getChipId();
+  statsAnswer[F("WIFI_IP")]                 =  WiFi.localIP().toString();
+  statsAnswer[F("WIFI_CONNECT_ERR_COUNT")]  = wifi_disconnect_counter;
+  statsAnswer[F("WIFI_SIGNAL")]             = WiFi.RSSI();  // for #14
+  statsAnswer[F("WIFI_CHAN")]               = WiFi.channel();  // for #14
+  statsAnswer[F("WIFI_GATEWAY")]            = gateway_ip.toString();
+  statsAnswer[F("WIFI_BSSID")]              = WiFi.BSSIDstr();
+  statsAnswer[F("WIFI_BSSIDCRC")]           = strip->calc_CRC16((unsigned int)0x5555, (unsigned char*)WiFi.BSSID(), 6);
+  statsAnswer[F("Stats_Counter")]           = sin8(status_counter++);
+  statsAnswer[F("FPS")]                     = FastLED.getFPS();
+  statsAnswer[F("ESP_Runtime_Days")]        = mESPrunTime.days;
+  statsAnswer[F("ESP_Runtime_Hours")]       = mESPrunTime.hours;
+  statsAnswer[F("ESP_Runtime_Minutes")]     = mESPrunTime.minutes;
+  statsAnswer[F("ESP_Runtime_Seconds")]     = mESPrunTime.seconds;
+
   response->setLength();
   request->send(response);
 }
@@ -1931,12 +2001,13 @@ const __FlashStringHelper * getResetReasonStr(uint8_t resetReason)
   return(F("Unknown Cause"));
 }
 
+void clearCRC(void)
+{  
 /*
  * Clear the CRC to startup Fresh....
  * Used in case we end up in a WDT reset (either SW or HW)
  */
-void clearCRC(void)
-{
+
 // invalidating the CRC - in case somthing goes terribly wrong...
   EEPROM.begin(strip->getCRCsize());
   EEPROM.put(0,(uint16_t)0);
@@ -1959,10 +2030,11 @@ void clearEEPROM(void)
   EEPROM.end();
 }
 
-// Received Factoryreset request.
-// To be sure we check the related parameter....
 void handleResetRequest(AsyncWebServerRequest * request)
 {
+  // received a reset request
+  // lets check which one is valid
+
   if (request->getParam(F("rst"))->value() == F("FactoryReset"))
   {
     request->send(200, F("text/plain"), F("Will now Reset to factory settings. You need to connect to the WLAN AP afterwards...."));
@@ -1970,7 +2042,6 @@ void handleResetRequest(AsyncWebServerRequest * request)
   }
   else if (request->getParam(F("rst"))->value() == F("Defaults"))
   {
-
     strip->setTargetPalette(0);
     strip->setMode(0);
     strip->stop();
@@ -2154,19 +2225,10 @@ void setupWebServer(void)
   showInitColor(CRGB::Black);
   delay(INITDELAY);
 }
-// Ping-Pong Struct
-// holding the iD, current Ping and Current Pong
-struct pingPong {
-  uint32_t iD = 0;
-  uint8_t pong = 0;
-  uint8_t ping = 0;
-  // Array holding the clients PingPongs
-}my_pingPongs[DEFAULT_MAX_WS_CLIENTS+1]; // as Array
 
-
-// add a client to the pingpong list
 uint8_t addClient(uint32_t iD)
 {
+  // add a client to the pingpong list
   #ifdef HAS_KNOB_CONTROL
   if(strip->getWiFiDisabled()) return DEFAULT_MAX_WS_CLIENTS;
   #endif
@@ -2193,9 +2255,9 @@ uint8_t addClient(uint32_t iD)
   return DEFAULT_MAX_WS_CLIENTS;
 }
 
-// get a client number based on the id.
 uint8_t getClient(uint32_t iD)
 {
+  // get a client number based on the id.
   for(uint8_t i=0; i<DEFAULT_MAX_WS_CLIENTS; i++)
   {
     if(my_pingPongs[i].iD == iD)
@@ -2206,9 +2268,9 @@ uint8_t getClient(uint32_t iD)
   return DEFAULT_MAX_WS_CLIENTS;
 }
 
-// remove a client from the ping pong list
 void removeClient(uint32_t iD)
 {
+  // remove a client from the ping pong list
   for(uint8_t i=0; i<DEFAULT_MAX_WS_CLIENTS; i++)
   {
     if(iD == my_pingPongs[i].iD)
@@ -2220,9 +2282,9 @@ void removeClient(uint32_t iD)
   }
 }
 
-// TODO: Make something useful with the Websocket Event
 void webSocketEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len)
 {
+  // TODO: Make something useful with the Websocket Event
   #ifdef HAS_KNOB_CONTROL
   if(strip->getWiFiDisabled()) return;
   #endif
@@ -2331,12 +2393,6 @@ void webSocketEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsE
 }
 
 #ifdef HAS_KNOB_CONTROL
-
-uint16_t maxVal = 65535;
-uint16_t minVal = 0;
-uint16_t curVal = 0;
-uint16_t steps  = 1;
-
 void setupKnobControl(void)
 { 
   display.init();
@@ -2354,274 +2410,7 @@ uint8_t drawtxtline10(uint8_t y, uint8_t fontheight, String txt)
   return y;
 }
 
-
-enum displayStates {
-  Display_Off,
-  Display_ShowInfo,
-  Display_ShowMenu,
-  Display_ShowSectionMenue,
-  Display_ShowBoolMenu,
-  Display_ShowNumberMenu,
-  Display_ShowSelectMenue
-} mDisplayState;
-#endif
-
-// setup network and output pins
-void setup()
-{
-  
-  // Sanity delay to get everything settled....
-  delay(INITDELAY);
-  LittleFS.begin();
-  cResetReason = getResetReason();
-
-  
-  EEPROM.begin(strip->getSegmentSize());
-
-  
-  #ifdef HAS_KNOB_CONTROL
-  const uint8_t font_height = 12;
-
-  setupKnobControl();
-
-  uint8_t cursor = 0;
-  display.clear();
-  display.setTextAlignment(TEXT_ALIGN_LEFT);
-  display.setFont(ArialMT_Plain_10);
-
-  cursor = drawtxtline10(cursor, font_height, F("Booting... Bitte Warten"));
-  display.display();
-  
-  #ifdef DEBUG
-  // Open serial communications and wait for port to open:
-  Serial.begin(115200);
-  #endif
-
-  mDisplayState = Display_ShowInfo;
-  switch (cResetReason)
-  {
-  case REASON_DEFAULT_RST:
-    cursor = drawtxtline10(cursor, font_height, F("REASON_DEFAULT_RST"));
-    display.display();
-    break;
-  case REASON_WDT_RST:
-    cursor = drawtxtline10(cursor, font_height, F("REASON_WDT_RST"));
-    display.display();
-    delay(2000);
-    clearCRC(); // should enable default start in case of
-    break;
-  case REASON_EXCEPTION_RST:
-    cursor = drawtxtline10(cursor, font_height, F("REASON_EXCEPTION_RST"));
-    display.display();
-    delay(2000);
-    clearCRC();
-    break;
-  case REASON_SOFT_WDT_RST:
-    cursor = drawtxtline10(cursor, font_height, F("REASON_SOFT_WDT_RST"));
-    display.display();
-    delay(2000);
-    clearCRC();
-    break;
-  case REASON_SOFT_RESTART:
-    cursor = drawtxtline10(cursor, font_height, F("REASON_SOFT_RESTART"));
-    display.display();
-    break;
-  case REASON_DEEP_SLEEP_AWAKE:
-    cursor = drawtxtline10(cursor, font_height, F("REASON_DEEP_SLEEP_AWAKE"));
-    display.display();
-    break;
-  case REASON_EXT_SYS_RST:
-    cursor = drawtxtline10(cursor, font_height, F("REASON_EXT_SYS_RST"));
-    display.display();
-    break;
-
-  default:
-    cursor = drawtxtline10 (cursor, 10, F("Unknown cause..."));
-    display.display();
-    break;
-  }
-  cursor = drawtxtline10 (cursor, 10, F("LED Stripe init"));
-  display.display();
-  
-
-  stripe_setup(STRIP_VOLTAGE,
-               UncorrectedColor); //TypicalLEDStrip);
-
-  updateConfigFile();
-
-  
-
-  //EEPROM.get(0, seg);
-  readRuntimeDataEEPROM();
-
-  if(!seg.wifiDisabled)
-  {
-    cursor = drawtxtline10(cursor, font_height, F("WiFi-Setup"));
-    display.display();
-    setupWiFi();
-    cursor = drawtxtline10(cursor, font_height, F("WebServer Setup"));
-    display.display();
-    setupWebServer();
-    cursor = drawtxtline10(cursor, font_height, F("OTA Setup"));
-    display.display();
-    initOverTheAirUpdate();
-  }  
-  
-  //readRuntimeDataEEPROM();
-
-  updateConfigFile();
-
-  delay(KNOB_BOOT_DELAY);
-  display.clear();
-  cursor = 0;
-  cursor = drawtxtline10(cursor, font_height, "Boot fertig!");
-  cursor = drawtxtline10(cursor, font_height, "Name: " + String(LED_NAME));
-  cursor = drawtxtline10(cursor, font_height, "IP: " + WiFi.localIP().toString());
-  cursor = drawtxtline10(cursor, font_height, "LEDs: " + String(LED_COUNT));
-  display.display();
-  delay(KNOB_BOOT_DELAY);
-
-  display.clear();  
-  
-#else // HAS_KNOB_CONTROL
-
-  #ifdef DEBUG
-  // Open serial communications and wait for port to open:
-  Serial.begin(115200);
-  #endif
-
-  switch (cResetReason)
-  {
-    case REASON_DEFAULT_RST:
-      
-      break;
-    case REASON_WDT_RST:
-      
-      clearCRC(); // should enable default start in case of
-      break;
-    case REASON_EXCEPTION_RST:
-      
-      clearCRC();
-      break;
-    case REASON_SOFT_WDT_RST:
-      
-      clearCRC();
-      break;
-    case REASON_SOFT_RESTART:
-      
-      break;
-    case REASON_DEEP_SLEEP_AWAKE:
-      
-      break;
-    case REASON_EXT_SYS_RST:
-      
-      break;
-
-    default:
-      
-      break;
-  }
-  delay(10);
-   
-  stripe_setup(STRIP_VOLTAGE,
-               UncorrectedColor); //TypicalLEDStrip);
-
-  updateConfigFile();
-
-  
-  // internal LED can be light up when current is limited by FastLED
-  
-  pinMode(2, OUTPUT);
-
-
-  delay(10);
-  
-  setupWiFi();
-
-  setupWebServer();
-
-  if (!MDNS.begin(LED_NAME)) {
-
-  }
-  else
-  {
-    MDNS.addService("http", "tcp", 80);
-  }
-
-  initOverTheAirUpdate();
-
-  // if we got that far, we show by a nice little animation
-  // as setup finished signal....
-  const uint16_t mindelay = map(NUM_INFORMATION_LEDS, LED_COUNT>300?LED_COUNT:300, 0, 1, 100);
-  for (uint8_t a = 0; a < 1; a++)
-  {
-    for (uint16_t c = 0; c < 32; c += 3)
-    {
-      for (uint16_t i = 0; i < NUM_INFORMATION_LEDS; i++)
-      {
-        strip->leds[i].green = c;
-      }
-      strip->show();
-      
-      delay(mindelay);
-    }
-    delay(20);
-    for (int16_t c = strip->leds[0].green; c > 0; c -= 3)
-    {
-      for (uint16_t i = 0; i < NUM_INFORMATION_LEDS; i++)
-      {
-        strip->leds[i].subtractFromRGB(4);
-      }
-      strip->show();
-      delay(mindelay);
-    }
-  }
-  //strip->stop();
-  delay(INITDELAY);
-
-  // Show the IP Address at the beginning
-  // so one can take a picture. 
-  // one needs to know the structure of the leds...
-
-  if(LED_COUNT >= 40)
-  {
-    // can show the complete IP Address on the first 40 LEDs
-    for(uint8_t j=0; j<4; j++)
-    {
-      for(uint8_t i=0; i<8; i++)
-      {
-        if((WiFi.localIP()[j] >> i) & 0x01)
-        {
-          strip->_bleds[j * 10 + 7 - i] = CRGB::Red;
-        }
-        else
-        {
-          strip->_bleds[j * 10 + 7 - i] = CRGB(16,16,16);
-        }
-      }
-    }
-  }
-  else if(LED_COUNT >= 8)
-  {
-    // can show the last ocet i.e. 192.168.2.XXX where XXX will be shown
-  }
-  else
-  {
-    // will show the IP as a "hue" on the first LED.
-  }
-  FastLED.show();
-
-  delay(2000);
-
-  readRuntimeDataEEPROM();
-
-  updateConfigFile();
-
-  #endif // HAS_KNOB_CONTROL
-}
-
-#ifdef HAS_KNOB_CONTROL
-uint8_t get_next_field(uint8_t curr_field, bool up) //, fieldtypes *m_fieldtypes)
+uint8_t get_next_field(uint8_t curr_field, bool up) 
 {
   uint8_t ret = curr_field;
   uint8_t first_field = 0;
@@ -2640,7 +2429,6 @@ uint8_t get_next_field(uint8_t curr_field, bool up) //, fieldtypes *m_fieldtypes
     }
   }
   uint8_t sanity = 0;
-  //while(ret == curr_field || m_fieldtypes[ret] > SelectFieldType)
   while(ret == curr_field || fields[ret].type > SelectFieldType)
   {
     // sanity break....
@@ -2652,7 +2440,6 @@ uint8_t get_next_field(uint8_t curr_field, bool up) //, fieldtypes *m_fieldtypes
       if(ret >= last_field)
       {
         ret = last_field;
-        //ret = fieldCount-1;
       }
     }
     else
@@ -2663,15 +2450,14 @@ uint8_t get_next_field(uint8_t curr_field, bool up) //, fieldtypes *m_fieldtypes
       }
       else
       {
-        ret = first_field; //fieldCount-1;
+        ret = first_field; 
       } 
     }
   }
   return ret;
 }
 
-
-uint16_t setEncoderValues(uint8_t curr_field)//, fieldtypes * m_fieldtypes)
+uint16_t setEncoderValues(uint8_t curr_field, uint16_t * knb_maxVal,uint16_t * knb_minVal, uint16_t * knb_curVal, uint16_t * knb_steps)
 {
   uint16_t curr_value = 0;
   //switch (m_fieldtypes[curr_field])
@@ -2682,25 +2468,25 @@ uint16_t setEncoderValues(uint8_t curr_field)//, fieldtypes * m_fieldtypes)
     break;
     case NumberFieldType :
       curr_value = (uint16_t)fields[curr_field].getValue();
-      steps = (fields[curr_field].max - fields[curr_field].min) / 100;
-      if(steps == 0) steps = 1;
-      maxVal = fields[curr_field].max;
-      minVal = fields[curr_field].min;
-      curVal = curr_value;
+      *knb_steps = (fields[curr_field].max - fields[curr_field].min) / 100;
+      if(*knb_steps == 0) *knb_steps = 1;
+      *knb_maxVal = fields[curr_field].max;
+      *knb_minVal = fields[curr_field].min;
+      *knb_curVal = curr_value;
     break;
     case BooleanFieldType :
       curr_value = (uint16_t)fields[curr_field].getValue();
-      steps = 1;
-      maxVal = 1;
-      minVal = 0;
-      curVal = curr_value;
+      *knb_steps = 1;
+      *knb_maxVal = 1;
+      *knb_minVal = 0;
+      *knb_curVal = curr_value;
     break;
     case SelectFieldType :
       curr_value =(uint16_t)fields[curr_field].getValue();
-      steps = 1;
-      maxVal = fields[curr_field].max;
-      minVal = fields[curr_field].min;
-      curVal = curr_value;
+      *knb_steps = 1;
+      *knb_maxVal = fields[curr_field].max;
+      *knb_minVal = fields[curr_field].min;
+      *knb_curVal = curr_value;
     break;
     case ColorFieldType :
       // nothing? - to be done later...
@@ -2714,8 +2500,7 @@ uint16_t setEncoderValues(uint8_t curr_field)//, fieldtypes * m_fieldtypes)
   return curr_value;
 }
 
-
-void showDisplay(uint8_t curr_field)//, fieldtypes *fieldtype)
+void showDisplay(uint8_t curr_field)
 {
   static bool toggle;
   EVERY_N_MILLISECONDS(KNOB_CURSOR_BLINK)
@@ -2987,6 +2772,12 @@ void showDisplay(uint8_t curr_field)//, fieldtypes *fieldtype)
 
 void knob_service(uint32_t now)
 {
+  // ToDo: Use a unique and better name. 
+  // Maybe make this local within the functions?
+  static uint16_t knb_maxVal = 65535;
+  static uint16_t knb_minVal = 0;
+  static uint16_t knb_curVal = 0;
+  static uint16_t knb_steps  = 1;
 
   static uint8_t curr_field = get_next_field(0, true); 
   static uint32_t last_btn_press = 0;
@@ -3014,15 +2805,15 @@ void knob_service(uint32_t now)
 
     if(!in_submenu)
     {
-      maxVal = fieldCount-1;
-      minVal = 0;
-      steps = 1;
-      curVal  = curr_field;
+      knb_maxVal = fieldCount-1;
+      knb_minVal = 0;
+      knb_steps = 1;
+      knb_curVal  = curr_field;
       old_val = curr_field;
     }
     else
     {
-      old_val = setEncoderValues(curr_field);
+      old_val = setEncoderValues(curr_field, &knb_maxVal, &knb_minVal, &knb_curVal, &knb_steps);
     }
   }
   EVERY_N_MILLISECONDS(KNOB_ROT_DEBOUNCE)
@@ -3041,19 +2832,19 @@ void knob_service(uint32_t now)
       last_control_operation = now;
     } 
 
-    if(add < 0 && (curVal <= (minVal + steps)))
+    if(add < 0 && (knb_curVal <= (knb_minVal + knb_steps)))
     {
-      curVal = minVal;
+      knb_curVal = knb_minVal;
     }
-    else if(add > 0 && curVal >= (maxVal-steps))
+    else if(add > 0 && knb_curVal >= (knb_maxVal-knb_steps))
     {
-      curVal = maxVal;
+      knb_curVal = knb_maxVal;
     }
     else
     {
-      curVal = curVal + add * steps;
+      knb_curVal = knb_curVal + add * knb_steps;
     }
-    val = curVal;
+    val = knb_curVal;
 
     if(old_val != val)
     {
@@ -3074,7 +2865,7 @@ void knob_service(uint32_t now)
       {
         if(newfield_selected)
         {
-          old_val = setEncoderValues(curr_field);
+          old_val = setEncoderValues(curr_field, &knb_maxVal, &knb_minVal, &knb_curVal, &knb_steps);
           newfield_selected = false;
         }
         setnewValue = true;
@@ -3082,7 +2873,7 @@ void knob_service(uint32_t now)
       }
       old_val = val;
     }
-    curVal = val;
+    knb_curVal = val;
     EVERY_N_MILLIS(KNOB_ROT_DEBOUNCE)
     {
       if(setnewValue)
@@ -3105,7 +2896,7 @@ void knob_service(uint32_t now)
       TimeoutBar = map((uint16_t)(now-last_control_operation), (uint16_t)0, (uint16_t)KNOB_TIMEOUT_DISPLAY, (uint16_t)127 ,(uint16_t)0);
       curr_field = get_next_field(0, true);
       in_submenu = true;
-      old_val = setEncoderValues(curr_field);
+      old_val = setEncoderValues(curr_field, &knb_maxVal, &knb_minVal, &knb_curVal, &knb_steps);
       mDisplayState = Display_ShowInfo;
       if((strip->getAutoplay() || strip->getAutopal()) && strip->getPower()) last_control_operation = now - KNOB_TIMEOUT_OPERATION - (KNOB_TIMEOUT_OPERATION/10); // keeps the display on as long as we change automatically the mode or the palette
     }
@@ -3143,6 +2934,265 @@ void knob_service(uint32_t now)
 }
 #endif
 
+void setup()
+{
+  // setup network and output pins
+
+  // Sanity delay to get everything settled....
+  delay(INITDELAY);
+
+  mESPrunTime.days    = 0;
+  mESPrunTime.hours   = 0;
+  mESPrunTime.minutes = 0;
+  mESPrunTime.seconds = 0;
+
+  LittleFS.begin();
+  cResetReason = getResetReason();
+
+  
+  EEPROM.begin(strip->getSegmentSize());
+
+  
+  #ifdef HAS_KNOB_CONTROL
+  const uint8_t font_height = 12;
+
+  setupKnobControl();
+
+  uint8_t cursor = 0;
+  display.clear();
+  display.setTextAlignment(TEXT_ALIGN_LEFT);
+  display.setFont(ArialMT_Plain_10);
+
+  cursor = drawtxtline10(cursor, font_height, F("Booting... Bitte Warten"));
+  display.display();
+  
+  #ifdef DEBUG
+  // Open serial communications and wait for port to open:
+  Serial.begin(115200);
+  #endif
+
+  mDisplayState = Display_ShowInfo;
+  switch (cResetReason)
+  {
+  case REASON_DEFAULT_RST:
+    cursor = drawtxtline10(cursor, font_height, F("REASON_DEFAULT_RST"));
+    display.display();
+    break;
+  case REASON_WDT_RST:
+    cursor = drawtxtline10(cursor, font_height, F("REASON_WDT_RST"));
+    display.display();
+    delay(2000);
+    clearCRC(); // should enable default start in case of
+    break;
+  case REASON_EXCEPTION_RST:
+    cursor = drawtxtline10(cursor, font_height, F("REASON_EXCEPTION_RST"));
+    display.display();
+    delay(2000);
+    clearCRC();
+    break;
+  case REASON_SOFT_WDT_RST:
+    cursor = drawtxtline10(cursor, font_height, F("REASON_SOFT_WDT_RST"));
+    display.display();
+    delay(2000);
+    clearCRC();
+    break;
+  case REASON_SOFT_RESTART:
+    cursor = drawtxtline10(cursor, font_height, F("REASON_SOFT_RESTART"));
+    display.display();
+    break;
+  case REASON_DEEP_SLEEP_AWAKE:
+    cursor = drawtxtline10(cursor, font_height, F("REASON_DEEP_SLEEP_AWAKE"));
+    display.display();
+    break;
+  case REASON_EXT_SYS_RST:
+    cursor = drawtxtline10(cursor, font_height, F("REASON_EXT_SYS_RST"));
+    display.display();
+    break;
+
+  default:
+    cursor = drawtxtline10 (cursor, 10, F("Unknown cause..."));
+    display.display();
+    break;
+  }
+  cursor = drawtxtline10 (cursor, 10, F("LED Stripe init"));
+  display.display();
+  
+
+  stripe_setup(STRIP_VOLTAGE,
+               UncorrectedColor); //TypicalLEDStrip);
+
+  updateConfigFile();
+
+  
+
+  //EEPROM.get(0, seg);
+  readRuntimeDataEEPROM();
+
+  if(!seg.wifiDisabled)
+  {
+    cursor = drawtxtline10(cursor, font_height, F("WiFi-Setup"));
+    display.display();
+    setupWiFi();
+    cursor = drawtxtline10(cursor, font_height, F("WebServer Setup"));
+    display.display();
+    setupWebServer();
+    cursor = drawtxtline10(cursor, font_height, F("OTA Setup"));
+    display.display();
+    initOverTheAirUpdate();
+  }  
+  
+  //readRuntimeDataEEPROM();
+
+  updateConfigFile();
+
+  delay(KNOB_BOOT_DELAY);
+  display.clear();
+  cursor = 0;
+  cursor = drawtxtline10(cursor, font_height, "Boot fertig!");
+  cursor = drawtxtline10(cursor, font_height, "Name: " + String(LED_NAME));
+  cursor = drawtxtline10(cursor, font_height, "IP: " + WiFi.localIP().toString());
+  cursor = drawtxtline10(cursor, font_height, "LEDs: " + String(LED_COUNT));
+  display.display();
+  delay(KNOB_BOOT_DELAY);
+
+  display.clear();  
+  
+#else // HAS_KNOB_CONTROL
+
+  #ifdef DEBUG
+  // Open serial communications and wait for port to open:
+  Serial.begin(115200);
+  #endif
+
+  switch (cResetReason)
+  {
+    case REASON_DEFAULT_RST:
+      
+      break;
+    case REASON_WDT_RST:
+      
+      clearCRC(); // should enable default start in case of
+      break;
+    case REASON_EXCEPTION_RST:
+      
+      clearCRC();
+      break;
+    case REASON_SOFT_WDT_RST:
+      
+      clearCRC();
+      break;
+    case REASON_SOFT_RESTART:
+      
+      break;
+    case REASON_DEEP_SLEEP_AWAKE:
+      
+      break;
+    case REASON_EXT_SYS_RST:
+      
+      break;
+
+    default:
+      
+      break;
+  }
+  delay(10);
+   
+  stripe_setup(STRIP_VOLTAGE,
+               UncorrectedColor); //TypicalLEDStrip);
+
+  updateConfigFile();
+
+  
+  // internal LED can be light up when current is limited by FastLED
+  
+  pinMode(2, OUTPUT);
+
+
+  delay(10);
+  
+  setupWiFi();
+
+  setupWebServer();
+
+  if (!MDNS.begin(LED_NAME)) {
+
+  }
+  else
+  {
+    MDNS.addService("http", "tcp", 80);
+  }
+
+  initOverTheAirUpdate();
+
+  // if we got that far, we show by a nice little animation
+  // as setup finished signal....
+  const uint16_t mindelay = map(NUM_INFORMATION_LEDS, LED_COUNT>300?LED_COUNT:300, 0, 1, 100);
+  for (uint8_t a = 0; a < 1; a++)
+  {
+    for (uint16_t c = 0; c < 32; c += 3)
+    {
+      for (uint16_t i = 0; i < NUM_INFORMATION_LEDS; i++)
+      {
+        strip->leds[i].green = c;
+      }
+      strip->show();
+      
+      delay(mindelay);
+    }
+    delay(20);
+    for (int16_t c = strip->leds[0].green; c > 0; c -= 3)
+    {
+      for (uint16_t i = 0; i < NUM_INFORMATION_LEDS; i++)
+      {
+        strip->leds[i].subtractFromRGB(4);
+      }
+      strip->show();
+      delay(mindelay);
+    }
+  }
+  //strip->stop();
+  delay(INITDELAY);
+
+  // Show the IP Address at the beginning
+  // so one can take a picture. 
+  // one needs to know the structure of the leds...
+
+  if(LED_COUNT >= 40)
+  {
+    // can show the complete IP Address on the first 40 LEDs
+    for(uint8_t j=0; j<4; j++)
+    {
+      for(uint8_t i=0; i<8; i++)
+      {
+        if((WiFi.localIP()[j] >> i) & 0x01)
+        {
+          strip->_bleds[j * 10 + 7 - i] = CRGB::Red;
+        }
+        else
+        {
+          strip->_bleds[j * 10 + 7 - i] = CRGB(16,16,16);
+        }
+      }
+    }
+  }
+  else if(LED_COUNT >= 8)
+  {
+    // can show the last ocet i.e. 192.168.2.XXX where XXX will be shown
+  }
+  else
+  {
+    // will show the IP as a "hue" on the first LED.
+  }
+  FastLED.show();
+
+  delay(2000);
+
+  readRuntimeDataEEPROM();
+
+  updateConfigFile();
+
+#endif // HAS_KNOB_CONTROL
+}
 
 void loop()
 {
@@ -3303,4 +3353,24 @@ void loop()
   #ifdef HAS_KNOB_CONTROL
   knob_service(now);
   #endif
+  EVERY_N_MILLISECONDS(1000)
+  {
+    // could have been done with mills directly and just counting the "wrapover"
+    // but this is a bit more "readable" for the outside world
+    if(++mESPrunTime.seconds == 60)
+    {
+      mESPrunTime.seconds = 0;
+      if(++mESPrunTime.minutes == 60)
+      {
+        mESPrunTime.minutes = 0;
+        if(++mESPrunTime.hours == 24)
+        {
+          mESPrunTime.hours = 0;
+          mESPrunTime.days++;  
+          // ToDo: What do we do if the days will wrap over 
+          // to zero after >170 Years :-)
+        }
+      }
+    }
+  }
 }
