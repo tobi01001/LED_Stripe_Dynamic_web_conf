@@ -96,12 +96,16 @@
 
 
 #define DEFAULT_RUNNING 1
-#ifndef DEFAULT_POWER
+#ifndef DEFAULT_POWER     // can be set via compile flag to somewhat address #15
   #define DEFAULT_POWER 0 // starts being switched off
 #elif DEFAULT_POWER < 0
   #define DEFAULT_POWER 0
 #endif
-#define DEFAULT_MODE 0 // Static
+#ifndef DEFAULT_MODE     // can be set via compile flag to somewhat address #15
+  #define DEFAULT_MODE 0 // Static
+#elif DEFAULT_MODE < 0
+  #define DEFAULT_MODE 0
+#endif
 #define DEFAULT_BRIGHTNESS 200        // 0 to 255
 #define DEFAULT_EFFECT 0              // 0 to modecount
 #define DEFAULT_PALETTE 0             // 0 is rainbow colors

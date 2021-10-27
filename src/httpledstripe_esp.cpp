@@ -181,8 +181,11 @@ IPAddress gateway_ip;
 // stats counter (increased as sine function) when stats is called
 // can be used as kind of life check
 uint8_t status_counter = 0; //((uint8_t)(ESP.getChipId()>>16)) + ((uint8_t)(ESP.getChipId()>>8)) + ((uint8_t)(ESP.getChipId()>>0));
-// stores the current reset Reason
-uint8_t cResetReason = 0;
+
+// holds the current reset reason
+String cStrReason = "Current Reset Reason";
+// holds the last reset reason (interesting in case of faults / WD resets)
+String lStrReason = "Last Reset Reason";
 
 //flag for saving data 
 bool shouldSaveRuntime = false;
@@ -191,6 +194,8 @@ bool shouldSaveRuntime = false;
 // used for comparison with the actual segment data
 WS2812FX::segment seg;
 
+// measures / stores the runtime of the ESP since the last boot
+// just because....
 struct ESPrunTime {
   uint8_t seconds;
   uint8_t minutes;
@@ -286,6 +291,12 @@ uint8_t getResetReason        (void);
 // reset reason with "number" resetReason
 const __FlashStringHelper * 
     getResetReasonStr(uint8_t resetReason);
+
+// returns the last ResetReason from the file system
+String readLastResetReason(void);
+// writes the given Reset Reason as "last one"
+// to the file system
+void writeLastResetReason(const String reason);
 
 void broadcastInt(const __FlashStringHelper* name, uint16_t value)
 {
@@ -538,11 +549,6 @@ void checkSegmentChanges(void)
   {
     seg.backgroundBri = strip->getBckndBri();
     broadcastInt(F("BckndBri"), seg.backgroundBri);
-    shouldSaveRuntime = true;
-  }
-  if(seg.lastResetReason != strip->getLastResetReason())
-  {
-    seg.lastResetReason = strip->getLastResetReason();
     shouldSaveRuntime = true;
   }
 
@@ -1909,19 +1915,19 @@ void handleStatus(AsyncWebServerRequest *request)
   {
     sunriseAnswer[F("sunRiseActive")] = F("off");
   }
-    sunriseAnswer[F("sunRiseCurrStep")] = strip->getCurrentSunriseStep();
-    
-    sunriseAnswer[F("sunRiseTotalSteps")] = DEFAULT_SUNRISE_STEPS;
-    
-    sunriseAnswer[F("sunRiseTimeToFinish")] = strip->getSunriseTimeToFinish();
-
-    sunriseAnswer[F("sunRiseTime")] = strip->getSunriseTime();
+  sunriseAnswer[F("sunRiseCurrStep")] = strip->getCurrentSunriseStep();
   
-  statsAnswer[F("Chip_ResetReason")] = getResetReasonStr(getResetReason());
+  sunriseAnswer[F("sunRiseTotalSteps")] = DEFAULT_SUNRISE_STEPS;
+  
+  sunriseAnswer[F("sunRiseTimeToFinish")] = strip->getSunriseTimeToFinish();
 
-  statsAnswer[F("Chip_FaultResetReason")]   = getResetReasonStr(strip->getLastResetReason());
+  sunriseAnswer[F("sunRiseTime")] = strip->getSunriseTime();
+  
+  statsAnswer[F("Chip_ResetReason")] = cStrReason;
+
+  statsAnswer[F("Chip_LastResetReason")]    = lStrReason; 
   statsAnswer[F("Chip_ID")]                 = ESP.getChipId();
-  statsAnswer[F("WIFI_IP")]                 =  WiFi.localIP().toString();
+  statsAnswer[F("WIFI_IP")]                 = WiFi.localIP().toString();
   statsAnswer[F("WIFI_CONNECT_ERR_COUNT")]  = wifi_disconnect_counter;
   statsAnswer[F("WIFI_SIGNAL")]             = WiFi.RSSI();  // for #14
   statsAnswer[F("WIFI_CHAN")]               = WiFi.channel();  // for #14
@@ -1961,11 +1967,6 @@ void factoryReset(void)
   
 //reset and try again
   ESP.restart();
-}
-
-uint8_t getResetReason(void)
-{
-  return (uint8_t)ESP.getResetInfoPtr()->reason;
 }
 
 const __FlashStringHelper * getResetReasonStr(uint8_t resetReason)
@@ -2011,7 +2012,6 @@ void clearCRC(void)
 // invalidating the CRC - in case somthing goes terribly wrong...
   EEPROM.begin(strip->getCRCsize());
   EEPROM.put(0,(uint16_t)0);
-  EEPROM.put((0+strip->getSegmentSize()-1), cResetReason);
   EEPROM.commit();
   EEPROM.end();
   delay(100);
@@ -2934,6 +2934,24 @@ void knob_service(uint32_t now)
 }
 #endif
 
+
+String readLastResetReason(void)
+{
+  File f = LittleFS.open("/lastReset.txt", "r");
+  if(!f) return F("File not found");
+  String r = f.readStringUntil((char)13);
+  f.close();
+  return r;
+}
+
+void writeLastResetReason(const String reason)
+{
+  File f = LittleFS.open("/lastReset.txt", "w");
+  if(!f) return;
+  f.println(reason);
+  f.close();
+}
+
 void setup()
 {
   // setup network and output pins
@@ -2947,11 +2965,12 @@ void setup()
   mESPrunTime.seconds = 0;
 
   LittleFS.begin();
-  cResetReason = getResetReason();
-
   
   EEPROM.begin(strip->getSegmentSize());
 
+  cStrReason = ESP.getResetInfo();
+  lStrReason = readLastResetReason();
+  writeLastResetReason(cStrReason);
   
   #ifdef HAS_KNOB_CONTROL
   const uint8_t font_height = 12;
@@ -2972,46 +2991,33 @@ void setup()
   #endif
 
   mDisplayState = Display_ShowInfo;
-  switch (cResetReason)
+  cursor = drawtxtline10(cursor, font_height, cStrReason);
+  display.display();
+  delay(200);
+  switch (ESP.getResetInfoPtr()->reason)
   {
   case REASON_DEFAULT_RST:
-    cursor = drawtxtline10(cursor, font_height, F("REASON_DEFAULT_RST"));
-    display.display();
     break;
   case REASON_WDT_RST:
-    cursor = drawtxtline10(cursor, font_height, F("REASON_WDT_RST"));
-    display.display();
     delay(2000);
     clearCRC(); // should enable default start in case of
     break;
   case REASON_EXCEPTION_RST:
-    cursor = drawtxtline10(cursor, font_height, F("REASON_EXCEPTION_RST"));
-    display.display();
     delay(2000);
     clearCRC();
     break;
   case REASON_SOFT_WDT_RST:
-    cursor = drawtxtline10(cursor, font_height, F("REASON_SOFT_WDT_RST"));
-    display.display();
     delay(2000);
     clearCRC();
     break;
   case REASON_SOFT_RESTART:
-    cursor = drawtxtline10(cursor, font_height, F("REASON_SOFT_RESTART"));
-    display.display();
     break;
   case REASON_DEEP_SLEEP_AWAKE:
-    cursor = drawtxtline10(cursor, font_height, F("REASON_DEEP_SLEEP_AWAKE"));
-    display.display();
     break;
   case REASON_EXT_SYS_RST:
-    cursor = drawtxtline10(cursor, font_height, F("REASON_EXT_SYS_RST"));
-    display.display();
     break;
 
   default:
-    cursor = drawtxtline10 (cursor, 10, F("Unknown cause..."));
-    display.display();
     break;
   }
   cursor = drawtxtline10 (cursor, 10, F("LED Stripe init"));
@@ -3023,9 +3029,6 @@ void setup()
 
   updateConfigFile();
 
-  
-
-  //EEPROM.get(0, seg);
   readRuntimeDataEEPROM();
 
   if(!seg.wifiDisabled)
@@ -3064,7 +3067,7 @@ void setup()
   Serial.begin(115200);
   #endif
 
-  switch (cResetReason)
+  switch (ESP.getResetInfoPtr()->reason)
   {
     case REASON_DEFAULT_RST:
       
@@ -3340,7 +3343,7 @@ void loop()
 
   strip->service();
 
-  EVERY_N_MILLIS(50)
+  EVERY_N_MILLIS(100)
   {
     checkSegmentChanges();
   }
