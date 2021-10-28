@@ -651,6 +651,13 @@ void initOverTheAirUpdate(void)
     server.end();
     // and we stop (unmount) the Filesystem
     LittleFS.end();
+    // and we stop the websockets
+    if(webSocketsServer)
+    {
+      webSocketsServer->enable(false);
+      webSocketsServer->textAll("OTA started!");
+      webSocketsServer->closeAll();
+    }
     // we indicate our skEtch that OTA is currently running (should actually not be required)
     OTAisRunning = true;
   });

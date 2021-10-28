@@ -135,6 +135,7 @@ enum MODES
   FX_MODE_HEARTBEAT,
   FX_MODE_RAIN,
   FX_MODE_EASE_BAR,
+  FX_MODE_PACIFICA,
  
   FX_MODE_VOID,
   
@@ -160,6 +161,7 @@ extern const TProgmemRGBPalette16
     Shades_Of_Red_p,
     Shades_Of_Green_p,
     Shades_Of_Blue_p,
+    pacifica_palette_p3,
     Random_p;
 
 enum PALETTES
@@ -184,6 +186,7 @@ enum PALETTES
   SHADES_OF_RED_PAL,
   SHADES_OF_GREEN_PAL,
   SHADES_OF_BLUE_PAL,
+  PACIFICA3,
   RANDOM_PAL,
 
   NUM_PALETTES
@@ -470,6 +473,14 @@ public:
       uint8_t  actives[MAX_NUM_BARS];
       uint8_t  cind[MAX_NUM_BARS];
     } rain;
+    struct pacifica
+    {
+      uint32_t sLastms;
+      uint16_t sCIStart1;
+      uint16_t sCIStart2;
+      uint16_t sCIStart3;
+      uint16_t sCIStart4;
+    } pacifica;
   } mode_variables;
 
   // to save some memory, all the "static" variables are now in unions
@@ -558,6 +569,7 @@ public:
     _mode[FX_MODE_HEARTBEAT]              = &WS2812FX::mode_heartbeat;
     _mode[FX_MODE_RAIN]                   = &WS2812FX::mode_rain;
     _mode[FX_MODE_EASE_BAR]               = &WS2812FX::mode_ease_bar;
+    _mode[FX_MODE_PACIFICA]               = &WS2812FX::mode_pacifica;
     _mode[FX_MODE_VOID]                   = &WS2812FX::mode_void;
     _mode[FX_MODE_SUNRISE]                = &WS2812FX::mode_sunrise;
     _mode[FX_MODE_SUNSET]                 = &WS2812FX::mode_sunset;
@@ -595,7 +607,7 @@ public:
     _name[FX_MODE_TWINKLE_FOX]            = F("Twinkle Fox");
     //      _name[FX_MODE_SOFTTWINKLES]               = F("Soft Twinkles"); // FIXME: Broken...
     _name[FX_MODE_FIREWORK]               = F("Firework");
-    _name[FX_MODE_FIRE2012]               = F("Fire 2012");
+    _name[FX_MODE_FIRE2012]               = F("Fire 2012 - Specific Colors");
     _name[FX_MODE_FILL_WAVE]              = F("FILL Wave");
     _name[FX_MODE_LARSON_SCANNER]         = F("Larson Scanner");
     _name[FX_MODE_COMET]                  = F("Comet");
@@ -616,6 +628,7 @@ public:
     _name[FX_MODE_HEARTBEAT]              = F("Heart Beat");
     _name[FX_MODE_RAIN]                   = F("Meteor Shower");
     _name[FX_MODE_EASE_BAR]               = F("Ease Bar");
+    _name[FX_MODE_PACIFICA]               = F("Pacifica - Specific Colors");
     _name[FX_MODE_VOID]                   = F("Void");
     _name[FX_MODE_SUNRISE]                = F("Sunrise");
     _name[FX_MODE_SUNSET]                 = F("Sunset");
@@ -640,6 +653,7 @@ public:
     _pal_name[SHADES_OF_RED_PAL]      = F("Red Shades");
     _pal_name[SHADES_OF_GREEN_PAL]    = F("Green Shades");
     _pal_name[SHADES_OF_BLUE_PAL]     = F("Blue Shades");
+    _pal_name[PACIFICA3]              = F("Pacific Blue");
     _pal_name[RANDOM_PAL]             = F("Random");
 
     _new_mode = 255;
@@ -826,13 +840,11 @@ public:
   CRGBPalette16* getCurrentPalette(void) { return &_currentPalette; };
   CRGBPalette16* getTargetPalette (void) { return &_targetPalette; };
 
-  //String* getCurrentPaletteName(void)    { return &_currentPaletteName; };
-  //String* getTargetPaletteName (void)    { return &_targetPaletteName; };
-
   template <typename T> T map(T x, T x1, T x2, T y1, T y2);
 
 
 private:
+  // internal functions
   void
       strip_off(void),
       fade_out(uint8_t fadeB),
@@ -842,6 +854,9 @@ private:
       brightenOrDarkenEachPixel(fract8 fadeUpAmount, fract8 fadeDownAmount, uint8_t *directionFlags),
       draw_sunrise_step(uint16_t step),
       m_sunrise_sunset(bool isSunrise),
+      pacifica_layer(const CRGBPalette16& p, uint16_t cistart, uint16_t wavescale, uint8_t bri, uint16_t ioff),
+      pacifica_deepen_colors(void),
+      pacifica_add_whitecaps(void),
       addSparks(const uint8_t probability, const bool onBlackOnly, const bool white, const bool synchronous);
 
   uint8_t attackDecayWave8(uint8_t i);
@@ -914,7 +929,8 @@ private:
       mode_ring_ring(void),
       mode_heartbeat(void),
       mode_ease_bar(void),
-      mode_rain(void);
+      mode_rain(void),
+      mode_pacifica(void);
 //      quadbeat(uint16_t in);
 
   CRGB
@@ -939,9 +955,7 @@ private:
 
   CRGBPalette16 getRandomPalette(void);
 
-  //String _currentPaletteName;
-  //String _targetPaletteName;
-
+  
   const TProgmemRGBPalette16 *_palettes[NUM_PALETTES] =
       {
           &RainbowColors_p,
@@ -963,7 +977,9 @@ private:
           &RedGreenWhite_p,
           &Shades_Of_Red_p,
           &Shades_Of_Green_p,
-          &Shades_Of_Blue_p};
+          &Shades_Of_Blue_p,
+          &pacifica_palette_p3
+      };
 
   const __FlashStringHelper *_pal_name[NUM_PALETTES];
 
