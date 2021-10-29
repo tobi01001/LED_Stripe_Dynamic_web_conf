@@ -136,6 +136,8 @@ enum MODES
   FX_MODE_RAIN,
   FX_MODE_EASE_BAR,
   FX_MODE_PACIFICA,
+  FX_MODE_COLOR_WAVES,
+  FX_MODE_TWINKLE_MAP,
  
   FX_MODE_VOID,
   
@@ -481,6 +483,16 @@ public:
       uint16_t sCIStart3;
       uint16_t sCIStart4;
     } pacifica;
+    struct colorwaves
+    {
+      uint16_t sPseudotime;
+      uint16_t sLastMillis;
+      uint16_t sHue16;
+    } colorwaves;
+    struct twinklemap
+    {
+      uint8_t pixelstates[LED_COUNT];
+    } twinklemap;
   } mode_variables;
 
   // to save some memory, all the "static" variables are now in unions
@@ -570,6 +582,8 @@ public:
     _mode[FX_MODE_RAIN]                   = &WS2812FX::mode_rain;
     _mode[FX_MODE_EASE_BAR]               = &WS2812FX::mode_ease_bar;
     _mode[FX_MODE_PACIFICA]               = &WS2812FX::mode_pacifica;
+    _mode[FX_MODE_COLOR_WAVES]            = &WS2812FX::mode_color_waves;
+    _mode[FX_MODE_TWINKLE_MAP]            = &WS2812FX::mode_twinkle_map;
     _mode[FX_MODE_VOID]                   = &WS2812FX::mode_void;
     _mode[FX_MODE_SUNRISE]                = &WS2812FX::mode_sunrise;
     _mode[FX_MODE_SUNSET]                 = &WS2812FX::mode_sunset;
@@ -629,6 +643,8 @@ public:
     _name[FX_MODE_RAIN]                   = F("Meteor Shower");
     _name[FX_MODE_EASE_BAR]               = F("Ease Bar");
     _name[FX_MODE_PACIFICA]               = F("Pacifica - Specific Colors");
+    _name[FX_MODE_COLOR_WAVES]            = F("Color Waves");
+    _name[FX_MODE_TWINKLE_MAP]            = F("Twinkle Base Color");
     _name[FX_MODE_VOID]                   = F("Void");
     _name[FX_MODE_SUNRISE]                = F("Sunrise");
     _name[FX_MODE_SUNSET]                 = F("Sunset");
@@ -930,7 +946,9 @@ private:
       mode_heartbeat(void),
       mode_ease_bar(void),
       mode_rain(void),
-      mode_pacifica(void);
+      mode_pacifica(void),
+      mode_twinkle_map(void),
+      mode_color_waves(void);
 //      quadbeat(uint16_t in);
 
   CRGB
