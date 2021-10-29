@@ -705,7 +705,7 @@ public:
   // setters
   inline void setCRC                  (uint16_t CRC)    { _segment.CRC = CRC; }
   inline void setIsRunning            (bool isRunning)  { _segment.isRunning = isRunning; if(isRunning) { _transition = true; _blend = 0; } }
-  inline void setPower                (bool power)      { _segment.power = power; setTransition(); } // this should fix reopened issue #6
+  inline void setPower                (bool power)      { _segment.power = power; } // #see if it works w/o now (#35) setTransition(); } // this should fix reopened issue #6
   inline void setReverse              (bool rev)        { _segment.reverse = rev; setTransition(); }
   inline void setInverse              (bool inv)        { _segment.inverse = inv; setTransition(); }
   inline void setMirror               (bool mirror)     { _segment.mirror = mirror; setTransition(); }
