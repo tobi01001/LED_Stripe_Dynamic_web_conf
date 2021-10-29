@@ -423,18 +423,32 @@ void WS2812FX::service()
     EVERY_N_MILLISECONDS(STRIP_DELAY_MICROSEC/1000)
     {
       SEGMENT_RUNTIME.next_time = now + (uint32_t)(STRIP_DELAY_MICROSEC/1000);
-      // no need to write data if nothing is shown (safeguard)
+      // no need to write data if nothing is shown (but we safeguard)
       
-      // new version: Will fade rightaway once active led found.
+      // next approach for #35
+      CRGB resCol = CRGB::Black;
       for(uint16_t i = 0; i < LED_COUNT; i++)
       {
-        if(_bleds[i] || leds[i]) {
+        resCol|=leds[i];
+        resCol|=_bleds[i];
+      }
+      if(resCol != CRGB(CRGB::Black)) {
           fadeToBlackBy(_bleds, LED_COUNT, 16);
           fadeToBlackBy(  leds, LED_COUNT, 16);
           FastLED.show();
           return;
+      }
+      /* could be activated to finally fix #35 (if I need to reopen the ticket)
+      else // to be sure for #35 - don't know if this will fix as the root cause was not 
+      {
+        EVERY_N_SECONDS(5)
+        {
+          fill_solid(_bleds, LED_COUNT, CRGB::Black);
+          FastLED.show();
+          return;
         }
       }
+      */
     }
     return;
   }
@@ -442,47 +456,68 @@ void WS2812FX::service()
   
 // check if we fade to a new FX mode.
 #define MAXINVERSE 24
-  uint8_t l_blend = _segment.blur; // to not overshoot during transitions we fade at max to "_segment.blur" parameter.
-  if (_transition)
+uint8_t l_blend = _segment.blur; // to not overshoot during transitions we fade at max to "_segment.blur" parameter.
+if (_transition)
+{
+  l_blend = _blend < _segment.blur ? _blend : _segment.blur;
+  EVERY_N_MILLISECONDS(20)
   {
-    l_blend = _blend < _segment.blur ? _blend : _segment.blur;
-    EVERY_N_MILLISECONDS(20)
-    {
-      // quickly blend from "old" to "new"
-      _blend = qadd8(_blend, 1);
-    }
-
-    // reset once at max...
-    // we could reset at _segment.blur as well
-    // but 255 will always work and transition will be constant
-    if (_blend == 255)
-    {
-      _transition = false;
-      //_blend = 0;
-    }
+    // quickly blend from "old" to "new"
+    _blend = qadd8(_blend, 1);
   }
 
-  // Smooth brightness change?
-  EVERY_N_MILLISECONDS(5)
+  // reset once at max...
+  // we could reset at _segment.blur as well
+  // but 255 will always work and transition will be constant
+  if (_blend == 255)
   {
-    uint8_t b = FastLED.getBrightness();
-    if (_segment.targetBrightness > b)
-    {
-      FastLED.setBrightness(b + 1);
-    }
-    else if (_segment.targetBrightness < b)
-    {
-      FastLED.setBrightness(b - 1);
-    }
+    _transition = false;
+    //_blend = 0;
   }
+}
 
+// Smooth brightness change?
+EVERY_N_MILLISECONDS(5)
+{
+  uint8_t b = FastLED.getBrightness();
+  if (_segment.targetBrightness > b)
+  {
+    FastLED.setBrightness(b + 1);
+  }
+  else if (_segment.targetBrightness < b)
+  {
+    FastLED.setBrightness(b - 1);
+  }
+}
+
+bool LEDupdate = false;
+// if there is time left for another service call, we do not write the led data yet...
+// but if there is less than 300 microseconds left, we do write..
+if(micros() < (last_show + STRIP_DELAY_MICROSEC - FRAME_CALC_WAIT_MICROINTERVAL))
+{
+  // we have the time for another calc cycle and do nothing.
+  LEDupdate = false;
+}
+else
+{
+
+  while(micros() < (last_show + STRIP_DELAY_MICROSEC)) {
+    yield();
+  } // just wait until time is "synced"
   
-  // Thanks to some discussions on Github, I do still not use any memmove 
-  // but I realised that I need to nblend from the calculated frames to the led data.
-  // this could be simplified within the following nested loop which does now all at once and saves 2 loops + 
-  // one nblend over the complete strip data....
-  // as the combination of "mirror" and "reverse" is a bit redundant, this could maybe be simplified as well (later)
-
+  // for FPS calculation
+  _service_Interval_microseconds = (micros() - last_show);
+  last_show = micros();
+  LEDupdate = true;
+}
+  
+// Thanks to some discussions on Github, I do still not use any memmove 
+// but I realised that I need to nblend from the calculated frames to the led data.
+// this could be simplified within the following nested loop which does now all at once and saves 2 loops + 
+// one nblend over the complete strip data....
+// as the combination of "mirror" and "reverse" is a bit redundant, this could maybe be simplified as well (later)
+if(LEDupdate)
+{
   for (uint16_t j = 0; j < _segment.segments; j++)
   {
     for (uint16_t i = 0; i < _segment_runtime.length; i++)
@@ -512,28 +547,28 @@ void WS2812FX::service()
       }
     }
   }
+}
+// Background Color: Good idea, but needs some improvement.
+// TODO: How to mix colors of different RGB values to remove the "glitch" when suddenly background switches to foreground.
+// --> Needs to be done without having to much backgroud at all.
 
-  // Background Color: Good idea, but needs some improvement.
-  // TODO: How to mix colors of different RGB values to remove the "glitch" when suddenly background switches to foreground.
-  // --> Needs to be done without having to much backgroud at all.
+EVERY_N_MILLISECONDS(20)
+{
+  if(_c_bck_b < _segment.backgroundBri)
+    _c_bck_b++;
+  else if (_c_bck_b > _segment.backgroundBri)
+    _c_bck_b--;
 
-  EVERY_N_MILLISECONDS(20)
-  {
-    if(_c_bck_b < _segment.backgroundBri)
-      _c_bck_b++;
-    else if (_c_bck_b > _segment.backgroundBri)
-      _c_bck_b--;
-
-    if(_c_bck_s < _segment.backgroundSat)
-      _c_bck_s++;
-    else if (_c_bck_s > _segment.backgroundSat)
-      _c_bck_s--;
-    
-    if(_c_bck_h < _segment.backgroundHue)
-      _c_bck_h++;
-    else if (_c_bck_h > _segment.backgroundHue)
-      _c_bck_h--;
-  }
+  if(_c_bck_s < _segment.backgroundSat)
+    _c_bck_s++;
+  else if (_c_bck_s > _segment.backgroundSat)
+    _c_bck_s--;
+  
+  if(_c_bck_h < _segment.backgroundHue)
+    _c_bck_h++;
+  else if (_c_bck_h > _segment.backgroundHue)
+    _c_bck_h--;
+}
 
   CRGB BackGroundColor = CHSV(_c_bck_h, _c_bck_s, _c_bck_b);
 
@@ -580,35 +615,7 @@ void WS2812FX::service()
   }
 
   // Write the data
-
-  // if there is time left for another service call, we do not write the led data yet...
-  // but if there is less than 300 microseconds left, we do write..
-  if(micros() < (last_show + STRIP_DELAY_MICROSEC - FRAME_CALC_WAIT_MICROINTERVAL))
-  {
-    // we have the time for another calc cycle and do nothing.
-  }
-  else
-  {
-
-    while(micros() < (last_show + STRIP_DELAY_MICROSEC)) {
-      yield();
-    } // just wait until time is "synced"
-    
-    // for FPS calculation
-    _service_Interval_microseconds = (micros() - last_show);
-    last_show = micros();
-    // Write the data
-    FastLED.show();
-  }
-
-  // May cause flicker at low speeds?
-  /*
-  // Fade to avoid artefacts...
-  EVERY_N_MILLISECONDS(STRIP_MIN_DELAY) //(10)
-  {
-    if(_segment.isRunning) fadeToBlackBy(_bleds, LED_COUNT, 1);
-  }
-  */
+  if(LEDupdate) FastLED.show();
 
   // every "hueTime" we set either the deltaHue (fixed offset)
   // or we increase the offset...
@@ -651,7 +658,7 @@ void WS2812FX::service()
   }
   else
   {
-    EVERY_N_MILLISECONDS(24)
+    EVERY_N_MILLISECONDS(12)
     { // Blend towards the target palette
 
       nblendPaletteTowardPalette(_currentPalette, _targetPalette, 8);
@@ -1536,9 +1543,7 @@ void WS2812FX::setMode(uint8_t m)
   }
   SEGMENT.mode = m;
   // start the transition phase
-  _transition = true;
-  _blend = 0;
-  SEGMENT_RUNTIME.modeinit = true;
+  setTransition();
   setBlur(_pblur);
   
   if (m == FX_MODE_VOID)
@@ -3109,8 +3114,8 @@ uint16_t WS2812FX::mode_beatsin_glow(void)
   if (_segment_runtime.modeinit)
   {
     _segment_runtime.modeinit = false;
-    _transition = true;
-    _blend = 0;
+    //_transition = true;
+    //_blend = 0;
     
     for (uint8_t i = 0; i < SEGMENT.numBars; i++)
     {
