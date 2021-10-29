@@ -3978,3 +3978,116 @@ uint16_t WS2812FX::mode_pacifica()
   return STRIP_MIN_DELAY;
   #undef M_PACIFIC_RT
 }
+
+uint16_t WS2812FX::mode_color_waves()
+{
+  #define M_COLORWAVES_RT _segment_runtime.modevars.colorwaves
+  
+  if (_segment_runtime.modeinit)
+  {
+    _segment_runtime.modeinit = false;
+    M_COLORWAVES_RT.sHue16 = 0;
+    M_COLORWAVES_RT.sLastMillis = millis()-STRIP_MIN_DELAY;
+    M_COLORWAVES_RT.sPseudotime = 0;
+  }
+  
+ 
+  uint8_t brightdepth = beatsin88( max(_segment.beat88/3+5,7)/*341*/, 96, 224);
+  uint16_t brightnessthetainc16 = beatsin88( max(_segment.beat88/4+2,5)/*203*/, (25 * 256), (40 * 256));
+  uint8_t msmultiplier = beatsin88(max(_segment.beat88/6-9,3)/*147*/, 23, 60);
+
+  uint16_t hue16 = M_COLORWAVES_RT.sHue16;//gHue * 256;
+  uint16_t hueinc16 = beatsin88(max(_segment.beat88/8-12,2) /*113*/, 300, 1500);
+  
+  uint16_t ms = millis();
+  uint16_t deltams = ms - M_COLORWAVES_RT.sLastMillis ;
+  M_COLORWAVES_RT.sLastMillis  = ms;
+  M_COLORWAVES_RT.sPseudotime += deltams * msmultiplier;
+  M_COLORWAVES_RT.sHue16 += deltams * beatsin88( max((_segment.beat88*4)/10,8)/*400*/, 5,9);
+  uint16_t brightnesstheta16 = M_COLORWAVES_RT.sPseudotime;
+  
+  for( uint16_t i = 0 ; i < _segment_runtime.length; i++) {
+    hue16 += hueinc16;
+    uint8_t hue8 = hue16 / 256;
+    uint16_t h16_128 = hue16 >> 7;
+    if( h16_128 & 0x100) {
+      hue8 = 255 - (h16_128 >> 1);
+    } else {
+      hue8 = h16_128 >> 1;
+    }
+
+    brightnesstheta16  += brightnessthetainc16;
+    uint16_t b16 = sin16( brightnesstheta16  ) + 32768;
+
+    uint16_t bri16 = (uint32_t)((uint32_t)b16 * (uint32_t)b16) / 65536;
+    uint8_t bri8 = (uint32_t)(((uint32_t)bri16) * brightdepth) / 65536;
+    bri8 += (255 - brightdepth);
+    
+    uint8_t index = hue8;
+    index = scale8( index, 240);
+
+    CRGB newcolor = ColorFromPalette( _currentPalette, index, bri8);
+
+    uint16_t pixelnumber = i;
+    pixelnumber = (_segment_runtime.length-1) - pixelnumber;
+    
+    nblend( leds[pixelnumber], newcolor, 128);
+  }
+  return STRIP_MIN_DELAY;
+  #undef M_COLORWAVES_RT
+}
+
+uint16_t WS2812FX::mode_twinkle_map()
+{
+  #define M_TWINKLEMAP_RT _segment_runtime.modevars.twinklemap
+  
+  if (_segment_runtime.modeinit)
+  {
+    _segment_runtime.modeinit = false;
+    memset8(M_TWINKLEMAP_RT.pixelstates, sizeof(M_TWINKLEMAP_RT.pixelstates), 0);
+    for(uint16_t i=0; i<_segment_runtime.length; i++)
+    {
+      uint8_t index = map(i, (uint16_t)0, (uint16_t)_segment_runtime.length, (uint16_t)0, (uint16_t)255);
+      leds[i] = (ColorFromPalette(_currentPalette, index + _segment_runtime.baseHue, 255, _segment.blendType)).nscale8_video(32);
+    }
+  }
+  for(uint16_t i=0; i<_segment_runtime.length; i++)
+  {
+    uint8_t index  = (uint8_t)map(i, (uint16_t)0, (uint16_t)_segment_runtime.length, (uint16_t)0, (uint16_t)255);
+    uint8_t speedu = ((uint8_t)map((uint16_t)_segment.beat88, (uint16_t)BEAT88_MIN, (uint16_t)BEAT88_MAX , (uint16_t)4, (uint16_t)64));
+    uint8_t speedd = (speedu/2);
+    CRGB baseColor = ColorFromPalette(_currentPalette, index + _segment_runtime.baseHue, 255, _segment.blendType).nscale8_video(32);
+    CRGB peakColor = ColorFromPalette(_currentPalette, index + _segment_runtime.baseHue, 255, _segment.blendType).addToRGB(4);
+    if(M_TWINKLEMAP_RT.pixelstates[i] == 0)
+    {
+      if( random8() < (_segment.twinkleDensity<3?1:_segment.twinkleDensity-2)) {
+        M_TWINKLEMAP_RT.pixelstates[i] = 1;
+      }
+    }
+    else if((M_TWINKLEMAP_RT.pixelstates[i]&0x01) == 0x01)
+    {
+      if( M_TWINKLEMAP_RT.pixelstates[i] == 255) {
+        M_TWINKLEMAP_RT.pixelstates[i] = 2;
+      } else {
+        // otherwise, just keep brightening it:
+        M_TWINKLEMAP_RT.pixelstates[i] = 0x01|(qadd8_lim(M_TWINKLEMAP_RT.pixelstates[i], speedu, 255));
+        leds[i] = blend(baseColor, peakColor, M_TWINKLEMAP_RT.pixelstates[i]);
+      }
+    }
+    else if((M_TWINKLEMAP_RT.pixelstates[i] & 0x01) == 0x00)
+    {
+      if( M_TWINKLEMAP_RT.pixelstates[i] == 254 ) {
+        leds[i] = baseColor; // reset to exact base color, in case we overshot
+        M_TWINKLEMAP_RT.pixelstates[i] = 0;
+      } else {
+        // otherwise, just keep dimming it down:
+        leds[i] = blend(peakColor, baseColor, M_TWINKLEMAP_RT.pixelstates[i]);
+        M_TWINKLEMAP_RT.pixelstates[i] = 0xFE&(qadd8_lim(M_TWINKLEMAP_RT.pixelstates[i], speedd, 254));
+      }
+    }
+    //leds[i] = blend(baseColor, peakColor, beatsin88(_segment.beat88,0,255));
+  }
+  //return STRIP_MIN_DELAY; 
+  return max(STRIP_MIN_DELAY, (uint32_t)(BEAT88_MAX-_segment.beat88)/1800);
+  #undef M_TWINKLEMAP_RT
+}
