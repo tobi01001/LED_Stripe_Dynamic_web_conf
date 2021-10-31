@@ -79,6 +79,84 @@ extern "C"
 // new approach starts here:
 #include "LED_strip/led_strip.h"
 
+struct IBaseType { 
+  virtual String a() {
+    return "I am the BaseType!";
+  }
+  virtual String b() {
+    return "I am not implemented yet!";
+  }
+  virtual ~IBaseType(){
+    Serial.println("\n\t\tBase deleted!\n");
+  } 
+};
+struct cA : IBaseType { 
+  String a() {
+      String ret = "I am cA!";
+      for(uint8_t i = 0; i<10; i++)
+      {
+        ret += " \n\t\t\t" + String(times[i]);
+      }
+      return ret;
+    };
+  String b() {
+    return "Yes, I am here for cA!";
+  }
+  cA() 
+  {
+    Serial.println("\n\tcA created!\n");
+    for(uint8_t i=0; i<10; i++)
+    {
+      times[i] = __clock_cycles();
+    }
+  }
+  ~cA()
+  {
+    Serial.println("\n\t\tcA deleted!\n");
+  }
+  private:
+  uint32_t times[10];
+};
+struct cB : IBaseType { 
+  cB () {
+    _b[0] = "Ich ";
+    _b[1] = "bin ";
+    _b[2] = "ein ";
+    _b[3] = "Berliner!";
+    Serial.println("\n\tcB created!\n");
+  }
+  String a() { 
+    String ret = "NUN: ";
+    for(uint8_t i=0; i<4; i++) ret+=_b[i];
+    return ret + " and I am cB!";
+  };
+  private:
+  String _b[4];
+};
+struct cD : IBaseType { 
+  cD() {
+    Serial.println("\n\tcD created!\n");
+  }
+  String a() { return "I am cD!";};
+  String b() { return "cD is FUN!";};
+  ~cD()
+  {
+    Serial.println("\n\t\tcD deleted!\n");
+  }
+};
+
+struct IFactory { virtual IBaseType* create() = 0; };
+
+template< typename Type > struct Factory : public IFactory {
+   virtual Type* create( ) {
+      return new Type( );
+   }
+};
+
+IFactory *lst[3] = {new Factory<cA>, new Factory<cB>, new Factory <cD>};
+
+
+
 #ifdef HAS_KNOB_CONTROL
   // the roating knob controller as input device
   Encoder myEnc(KNOB_C_PNA, KNOB_C_PNB);
@@ -2979,6 +3057,16 @@ void setup()
   lStrReason = readLastResetReason();
   writeLastResetReason(cStrReason);
   
+    //#ifdef DEBUG
+  // Open serial communications and wait for port to open:
+  Serial.begin(115200);
+  Serial.println("Hello Dear Friend!\n Los geht's dann mal!\n");
+  Serial.println("\tWe did Reset with \t\t" + cStrReason);
+  Serial.println("\tPreviously we did Reset with \t\t" + lStrReason);
+
+
+  //#endif
+
   #ifdef HAS_KNOB_CONTROL
   const uint8_t font_height = 12;
 
@@ -2992,10 +3080,11 @@ void setup()
   cursor = drawtxtline10(cursor, font_height, F("Booting... Bitte Warten"));
   display.display();
   
-  #ifdef DEBUG
+  //#ifdef DEBUG
   // Open serial communications and wait for port to open:
   Serial.begin(115200);
-  #endif
+  Serial.println("Hello Dear Friend!\n Los geht's dann mal!");
+  //#endif
 
   mDisplayState = Display_ShowInfo;
   cursor = drawtxtline10(cursor, font_height, cStrReason);
@@ -3209,6 +3298,8 @@ void loop()
   uint32_t now = millis();
   static uint32_t wifi_check_time = 0;
 
+  
+
   if (OTAisRunning)
     return;
 
@@ -3352,6 +3443,59 @@ void loop()
 
   EVERY_N_MILLIS(100)
   {
+    if(seg.twinkleSpeed != strip->getTwinkleSpeed())
+    {
+      Serial.printf("\n\nStarting with parameter %d \n\n", strip->getTwinkleSpeed());
+      IBaseType *tmpObject = NULL;
+      IBaseType *objArr[3] = {NULL, NULL, NULL};
+      uint32_t free = 0;
+      uint16_t max = 0;
+      uint8_t frag = 0;
+      ESP.getHeapStats(&free, &max, &frag);
+      Serial.println("\tBefore creating any object:");
+      Serial.printf("\t\tFree_1 %d \n\t\tMax_1 %d \n\t\tFrag_1 %d \n", free, max, frag);
+      if(strip->getTwinkleSpeed()< 3)
+      {
+        tmpObject = lst[strip->getTwinkleSpeed()]->create();
+        Serial.printf("\t\tCreated Obj: %d\n\n",strip->getTwinkleSpeed());
+        Serial.println("\t\tObj->a(): "+tmpObject->a()+"\n");
+        Serial.println("\t\tObj->b(): "+tmpObject->b()+"\n");
+
+        ESP.getHeapStats(&free, &max, &frag);
+        Serial.printf("\tAfter creating object: %d\n",strip->getTwinkleSpeed());
+        Serial.printf("\t\tFree_2 %d \n\t\tMax_2 %d \n\t\tFrag_2 %d \n", free, max, frag);
+      }
+      else if(strip->getTwinkleSpeed() == 3)
+      {
+        for(uint8_t i=0; i<3; i++)
+        {
+          objArr[i] = lst[i]->create();
+          Serial.printf("\t\tCreated Obj: %d\n\n",i);
+          Serial.println("\t\tObj->a(): "+objArr[i]->a()+"\n");
+          Serial.println("\t\tObj->b(): "+objArr[i]->b()+"\n");
+          ESP.getHeapStats(&free, &max, &frag);
+          Serial.printf("\tAfter having created %d objects: \n", i+1);
+          Serial.printf("\t\tFree_2 %d \n\t\tMax_2 %d \n\t\tFrag_2 %d \n", free, max, frag);
+        }
+        for(uint8_t i=0; i<3; i++)
+        {
+          if(objArr[i]) {delete objArr[i];}
+          Serial.printf("\t\tDeleted Obj: %d\n\n", i);
+          ESP.getHeapStats(&free, &max, &frag);
+          Serial.printf("\tAfter having deleted %d objects: \n", i+1);
+          Serial.printf("\t\tFree_2 %d \n\t\tMax_2 %d \n\t\tFrag_2 %d \n", free, max, frag);
+        }
+      }
+      if(tmpObject)
+      {
+        delete tmpObject;
+      }
+      ESP.getHeapStats(&free, &max, &frag);
+      Serial.println("\tAfter having deleted all objects: ");
+      Serial.printf("\t\tFree_2 %d \n\t\tMax_2 %d \n\t\tFrag_2 %d \n", free, max, frag);
+      Serial.println("\nDONE for now!\n\n");
+    }
+
     checkSegmentChanges();
   }
 
