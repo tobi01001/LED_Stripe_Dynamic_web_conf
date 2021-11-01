@@ -28,6 +28,13 @@
   #error "You need to give your LED a unique Name (build flag e.g. '-DLED_NAME=\"My_LED\"')!"
 #endif
 
+#ifdef LED_COUNT_TOT
+#define LED_COUNT (LED_COUNT_TOT-LED_OFFSET)
+#else
+#define LED_COUNT_TOT LED_COUNT
+#define LED_OFFSET 0
+#endif
+
 #ifndef LED_COUNT
 #error "You need to define the number of Leds by LED_COUNT (build flag e.g. -DLED_COUNT=50)"
 #elif LED_COUNT < 11

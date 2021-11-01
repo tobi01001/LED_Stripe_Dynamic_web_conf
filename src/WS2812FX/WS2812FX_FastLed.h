@@ -519,11 +519,11 @@ public:
            const LEDColorCorrection colc = TypicalLEDStrip)
   {
 
-
-    _bleds = new CRGB[LED_COUNT];
+    physicalLeds = new CRGB[LED_COUNT_TOT];
+    _bleds = &physicalLeds[LED_OFFSET];
     leds = new CRGB[LED_COUNT];
 
-    FastLED.addLeds<WS2812, LED_PIN, GRB>(_bleds, LED_COUNT);
+    FastLED.addLeds<WS2812, LED_PIN, GRB>(physicalLeds, LED_COUNT_TOT);
     FastLED.setCorrection(colc); //TypicalLEDStrip);
 
 
@@ -688,6 +688,7 @@ public:
 
   CRGB *leds;
   CRGB *_bleds;
+  CRGB *physicalLeds;
 
   void
     init                  (void),
