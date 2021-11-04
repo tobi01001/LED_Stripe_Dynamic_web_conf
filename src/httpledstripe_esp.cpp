@@ -1448,7 +1448,6 @@ void handleSet(AsyncWebServerRequest *request)
     answer[F("HueChangeInt")] = strip->getHueTime();
   }
 
-#pragma message "We could implement a value to change how a palette is distributed accross the strip"
 
   // the hue offset for a given effect (if - e.g. not spread across the whole strip)
   if (request->hasParam(F("deltahue")))
@@ -1824,7 +1823,7 @@ void handleStatus(AsyncWebServerRequest *request)
   currentStateAnswer[F("palette_name")] = strip->getPalName(strip->getTargetPaletteNumber());
   CRGB col = CRGB::Black;
   // We return either black (strip effectively off)
-  // or the color of the first pixel....
+  // or the color of the first lid pixel....
   for (uint16_t i = 0; i < LED_COUNT; i++)
   {
     if (strip->_bleds[i])
@@ -1851,7 +1850,8 @@ void handleStatus(AsyncWebServerRequest *request)
     currentStateAnswer[F("BlendType")] = F("Unknown Blend");
   }
 
-  currentStateAnswer[F("Reverse")] = strip->getReverse();;
+  currentStateAnswer[F("Reverse")] = strip->getReverse();
+  currentStateAnswer[F("Mirrored")] = strip->getMirror();
   currentStateAnswer[F("HueChangeInt")] = strip->getHueTime();
   currentStateAnswer[F("HueDeltaHue")] = strip->getDeltaHue();
   switch(strip->getAutoplay())

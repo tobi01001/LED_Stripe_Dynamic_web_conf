@@ -12,7 +12,7 @@
   #error "Build Version unknown"
 #endif
 //in case of "major upgrades affecting e.g. the structure of field, set this to > 0
-#define RESET_DEFAULTS 1
+#define RESET_DEFAULTS 0
 
 #ifndef PIO_SRC_REV
   #define PIO_SRC_REV "no_git_rev"
@@ -29,6 +29,10 @@
 #endif
 
 #ifdef LED_COUNT_TOT
+#ifndef LED_OFFSET
+#warning "You did Specify a total LED Count (LED_COUNT_TOT) but no LED_OFFSET. We will use 0 as offset and LED_COUNT equals LED_COUNT_TOT!"
+#define LED_OFFSET 0
+#endif
 #define LED_COUNT (LED_COUNT_TOT-LED_OFFSET)
 #else
 #define LED_COUNT_TOT LED_COUNT
@@ -42,7 +46,6 @@
 #elif LED_COUNT > 300
 #warning "This Code was written for up to 300 leds and was not tested for anything beyond"
 #endif
-
 
 // Other parameters being used
 #define SRSS_StartR 0.0

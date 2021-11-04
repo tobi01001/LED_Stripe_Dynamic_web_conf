@@ -40,7 +40,7 @@
 #define FASTLED_ESP8266_DMA
 #define FASTLED_USE_PROGMEM 1
 
-#pragma message "Needs to be corrected. A library should not depend on project inlcudes!"
+// #warning "Needs to be corrected. A library should not depend on project inlcudes!"
 // FIXME: Needs to be corrected. A library should not depend on project inlcudes!
 #include "../../include/defaults.h"
 
@@ -632,9 +632,9 @@ public:
     _name[FX_MODE_SHOOTING_STAR]          = F("Shooting Star");
     _name[FX_MODE_BEATSIN_GLOW]           = F("Sine glows");
     _name[FX_MODE_PIXEL_STACK]            = F("Pixel Stack");
-    _name[FX_MODE_MOVE_BAR_SIN]           = F("1/2 Bar sine");
-    _name[FX_MODE_MOVE_BAR_QUAD]          = F("1/2 Bar²");
-    _name[FX_MODE_MOVE_BAR_CUBE]          = F("1/2 Bar³");
+    _name[FX_MODE_MOVE_BAR_SIN]           = F("1/2 Bar Sine");
+    _name[FX_MODE_MOVE_BAR_QUAD]          = F("1/2 Bar2");
+    _name[FX_MODE_MOVE_BAR_CUBE]          = F("1/2 Bar3");
     _name[FX_MODE_MOVE_BAR_SAWTOOTH]      = F("1/2 Bar");
     _name[FX_MODE_POPCORN]                = F("Popcorn");
     _name[FX_MODE_FIREWORKROCKETS]        = F("Firework Rocket");
