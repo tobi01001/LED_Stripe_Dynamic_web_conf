@@ -49,6 +49,17 @@
 
 WS2812FX *strip;
 
+bool isField(const char * name, FieldList fields, uint8_t count)
+{
+  for (uint8_t i = 0; i < count; i++)
+  {
+    if (strcmp(fields[i].name, name) == 0)
+    {
+      return true;
+    }
+  }
+  return false;
+}
 
 Field getField(const char * name, FieldList fields, uint8_t count)
 {
@@ -68,12 +79,33 @@ String getFieldValue(const char * name, FieldList fields, uint8_t count)
   Field field = getField(name, fields, count);
   if (field.getValue)
   {
+    DynamicJsonBuffer buffer;
+    JsonArray& a = buffer.createArray();
+    switch (field.type)
+    {
+    case NumberFieldType:
+      return String(field.getValue());
+      break;
+    case BooleanFieldType:
+      if(field.getValue())
+      {
+        return "on";
+      }
+      return "off";
+      break;
+    case SelectFieldType:
+      field.getOptions(a);
+      return a[field.getValue()].as<const char*>(); //.asString();
+      break;
+    default:
+      break;
+    }
     return String(field.getValue());
   }
   return String();
 }
 
-void setFieldValue(const char name[], uint16_t value, FieldList fields, uint8_t count)
+void setFieldValue(const char * name, uint16_t value, FieldList fields, uint8_t count)
 {
   Field field = getField(name, fields, count);
   if (field.setValue)
@@ -81,60 +113,6 @@ void setFieldValue(const char name[], uint16_t value, FieldList fields, uint8_t 
     field.setValue(value);
   }
 }
-
-/*
-const char * getFieldsJson(FieldList fields, uint8_t count)
-{
-  String json = "[";
-
-  for (uint8_t i = 0; i < count; i++)
-  {
-    Field field = fields[i];
-
-    json += "{\"name\":\"" + String(field.name) + "\",\"label\":\"" + String(field.label) + "\",\"type\":\"" + String(field.type) + "\"";
-
-    if (field.getValue)
-    {
-      if (field.type == ColorFieldType) // || field.type == (const char*)"String")
-      {
-        json += ",\"value\":\"" + String(field.getValue()) + "\"";
-      }
-      else
-      {
-        json += ",\"value\":" + String(field.getValue());
-      }
-    }
-
-    if (field.type == NumberFieldType)
-    {
-      json += ",\"min\":" + String(field.min);
-      json += ",\"max\":" + String(field.max);
-    }
-
-    if (field.getOptions)
-    {
-      String opts ="";
-      DynamicJsonBuffer buf;
-      JsonArray & jArr = buf.createArray();
-      field.getOptions(jArr);
-      opts.reserve(jArr.measureLength());
-      jArr.printTo(opts);
-      json += ",\"options\":[";
-      json += opts;
-      json += "]";
-    }
-
-    json += "}";
-
-    if (i < count - 1)
-      json += ",";
-  }
-
-  json += "]";
-
-  return json.c_str();
-}
-*/
 
 
 /*
@@ -464,43 +442,42 @@ String getResets() {
 
 FieldList fields = {
   {"title",             LED_NAME,                       TitleFieldType,     0,                                   0,                                             NULL,               NULL,           NULL          },
-  {"powerSection",      "Power / Effects",              SectionFieldType,   0,                                   0,                                             NULL,               NULL,           NULL          },
+  {"s_powerSection",    "Power / Effects",              SectionFieldType,   0,                                   0,                                             NULL,               NULL,           NULL          },
   {"power",             "On/Off",                       BooleanFieldType,   (uint16_t)0,                            (uint16_t)1,                                      getPower,           NULL,           setPower      },
-  {"mo",                "Effect",                       SelectFieldType,    (uint16_t)0,                            (uint16_t)strip->getModeCount(),                  getPattern,         getPatterns,    setPattern    },
-  {"br",                "Brightness",                   NumberFieldType,    (uint16_t)BRIGHTNESS_MIN,               (uint16_t)BRIGHTNESS_MAX,                         getBrightness,      NULL,           setBrightness },
-  {"sp",                "Speed",                        NumberFieldType,    (uint16_t)BEAT88_MIN,                   (uint16_t)BEAT88_MAX,                             getSpeed,           NULL,           setSpeed      },
-  {"pa",                "Color palette",                SelectFieldType,    (uint16_t)0,                            (uint16_t)(strip->getPalCount() + 1),             getPalette,         getPalettes,    setPalette    },
-  {"isRunning",         "Pause",                        BooleanFieldType,   (uint16_t)0,                            (uint16_t)1,                                      getIsRunning,       NULL,           setIsRunning  },
-  //{"basicControl",      "Basic",                        SectionFieldType,   0,                                   0,                                             NULL,               NULL,           NULL          },
-  {"stripeStruture",    "Structure",                    SectionFieldType,   0,                                   0,                                             NULL,               NULL,           NULL          },
+  {"effect",            "Effect",                       SelectFieldType,    (uint16_t)0,                            (uint16_t)strip->getModeCount(),                  getPattern,         getPatterns,    setPattern    },
+  {"brightness",        "Brightness",                   NumberFieldType,    (uint16_t)BRIGHTNESS_MIN,               (uint16_t)BRIGHTNESS_MAX,                         getBrightness,      NULL,           setBrightness },
+  {"speed",             "Speed",                        NumberFieldType,    (uint16_t)BEAT88_MIN,                   (uint16_t)BEAT88_MAX,                             getSpeed,           NULL,           setSpeed      },
+  {"colorPalette",      "Color palette",                SelectFieldType,    (uint16_t)0,                            (uint16_t)(strip->getPalCount() + 1),             getPalette,         getPalettes,    setPalette    },
+  {"running",           "Pause",                        BooleanFieldType,   (uint16_t)0,                            (uint16_t)1,                                      getIsRunning,       NULL,           setIsRunning  },
+  {"s_stripeStruture",  "Structure",                    SectionFieldType,   0,                                   0,                                             NULL,               NULL,           NULL          },
   {"segments",          "Segments",                     NumberFieldType,    (uint16_t)1,                            (uint16_t)max(MAX_NUM_SEGMENTS, 1),               getSegments,        NULL,           setSegments   },
-  {"numBars",           "# LED bars",                   NumberFieldType,    (uint16_t)1,                            (uint16_t)max(MAX_NUM_BARS, 1),                   getNumBars,         NULL,           setNumBars                    },
-  {"reverse",           "Reverse",                      BooleanFieldType,   (uint16_t)0,                            (uint16_t)1,                                      getReverse,         NULL,           setReverse    },
-  {"mirror",            "Mirror",                       BooleanFieldType,   (uint16_t)0,                            (uint16_t)1,                                      getMirror,          NULL,           setMirror     },
-  {"autoplay",          "Autoplay",                     SectionFieldType,   0,                                   0,                                             NULL,               NULL,           NULL          },
-  {"autoplay",          "Auto mode change",             SelectFieldType,    (uint16_t)AUTO_MODE_OFF,                (uint16_t)AUTO_MODE_RANDOM,                       getAutoplay,        getAutoplayModes, setAutoplayMode             },
-  {"autoplayDuration",  "Auto mode interval (s)",       NumberFieldType,    (uint16_t)DEFAULT_T_AUTOMODE_MIN,       (uint16_t)DEFAULT_T_AUTOMODE_MAX,                 getAutoplayDuration, NULL,          setAutoplayDuration           },
-  {"autopal",           "Auto palette change",          SelectFieldType,    (uint16_t)AUTO_MODE_OFF,                (uint16_t)AUTO_MODE_RANDOM,                       getAutopal,         getAutoplayModes, setAutopal                  },
-  {"autopalDuration",   "Auto palette interval (s)",    NumberFieldType,    (uint16_t)DEFAULT_T_AUTOCOLOR_MIN,      (uint16_t)DEFAULT_T_AUTOCOLOR_MAX,                                   getAutopalDuration, NULL,           setAutopalDuration            },
-  {"BackGroundColor",   "Bcknd Color",                  SectionFieldType,   0,                                   0,                                             NULL,               NULL,           NULL                          },
-  {"BckndHue",          "Bcknd Hue",                    NumberFieldType,    (uint16_t)0,                            (uint16_t)255,                                    getBckndHue,        NULL,           setBckndHue                   },
-  {"BckndSat",          "Bcknd Sat",                    NumberFieldType,    (uint16_t)0,                            (uint16_t)255,                                    getBckndSat,        NULL,           setBckndSat                   },
-  {"BckndBri",          "Bcknd Bri",                    NumberFieldType,    (uint16_t)BCKND_MIN_BRI,                (uint16_t)BCKND_MAX_BRI,                          getBckndBri,        NULL,           setBckndBri                   },
-  {"advancedControl",   "Advanced",                     SectionFieldType,   0,                                   0,                                             NULL,               NULL,           NULL                          },
+  {"numEffectBars",     "# LED bars",                   NumberFieldType,    (uint16_t)1,                            (uint16_t)max(MAX_NUM_BARS, 1),                   getNumBars,         NULL,           setNumBars                    },
+  {"reversed",          "Reverse",                      BooleanFieldType,   (uint16_t)0,                            (uint16_t)1,                                      getReverse,         NULL,           setReverse    },
+  {"mirrored",          "Mirror",                       BooleanFieldType,   (uint16_t)0,                            (uint16_t)1,                                      getMirror,          NULL,           setMirror     },
+  {"s_Autoplay",        "Autoplay",                     SectionFieldType,   0,                                   0,                                             NULL,               NULL,           NULL          },
+  {"autoPlay",          "Auto mode change",             SelectFieldType,    (uint16_t)AUTO_MODE_OFF,                (uint16_t)AUTO_MODE_RANDOM,                       getAutoplay,        getAutoplayModes, setAutoplayMode             },
+  {"autoPlayInterval",  "Auto mode interval (s)",       NumberFieldType,    (uint16_t)DEFAULT_T_AUTOMODE_MIN,       (uint16_t)DEFAULT_T_AUTOMODE_MAX,                 getAutoplayDuration, NULL,          setAutoplayDuration           },
+  {"autoPalette",       "Auto palette change",          SelectFieldType,    (uint16_t)AUTO_MODE_OFF,                (uint16_t)AUTO_MODE_RANDOM,                       getAutopal,         getAutoplayModes, setAutopal                  },
+  {"autoPalInterval",   "Auto palette interval (s)",    NumberFieldType,    (uint16_t)DEFAULT_T_AUTOCOLOR_MIN,      (uint16_t)DEFAULT_T_AUTOCOLOR_MAX,                                   getAutopalDuration, NULL,           setAutopalDuration            },
+  {"s_BackGroundColor", "Bcknd Color",                  SectionFieldType,   0,                                   0,                                             NULL,               NULL,           NULL                          },
+  {"backgroundHue",     "Bcknd Hue",                    NumberFieldType,    (uint16_t)0,                            (uint16_t)255,                                    getBckndHue,        NULL,           setBckndHue                   },
+  {"backgroundSat",     "Bcknd Sat",                    NumberFieldType,    (uint16_t)0,                            (uint16_t)255,                                    getBckndSat,        NULL,           setBckndSat                   },
+  {"backgroundBri",     "Bcknd Bri",                    NumberFieldType,    (uint16_t)BCKND_MIN_BRI,                (uint16_t)BCKND_MAX_BRI,                          getBckndBri,        NULL,           setBckndBri                   },
+  {"s_advancedControl", "Advanced",                     SectionFieldType,   0,                                   0,                                             NULL,               NULL,           NULL                          },
   {"blendType",         "Color blend",                  SelectFieldType,    (uint16_t)NOBLEND,                      (uint16_t)LINEARBLEND,                            getBlendType,       getBlendTypes,  setBlendType                  },
-  {"ColorTemperature",  "Color temperature",            SelectFieldType,    (uint16_t)0,                            (uint16_t)20,                                     getColorTemp,       getColorTemps,  setColorTemp                  },
-  {"LEDblur",           "Effect blur / blending",       NumberFieldType,    (uint16_t)0,                            (uint16_t)255,                                    getBlurValue,       NULL,           setBlurValue                  },
-  {"solidColor",        "Solid color",                  SectionFieldType,   0,                                   0,                                             NULL,               NULL,           NULL                          },
+  {"colorTemperature",  "Color temperature",            SelectFieldType,    (uint16_t)0,                            (uint16_t)20,                                     getColorTemp,       getColorTemps,  setColorTemp                  },
+  {"ledBlur",           "Effect blur / blending",       NumberFieldType,    (uint16_t)0,                            (uint16_t)255,                                    getBlurValue,       NULL,           setBlurValue                  },
+  {"s_solidColor",      "Solid color",                  SectionFieldType,   0,                                   0,                                             NULL,               NULL,           NULL                          },
   {"solidColor",        "Color",                        ColorFieldType,     (uint16_t)0,                            (uint16_t)55,                                     getSolidColor,      NULL,           NULL                          },
-  {"glitter",           "Glitter",                      SectionFieldType,   0,                                   0,                                             NULL,               NULL,           NULL                          },
+  {"s_glitter",         "Glitter",                      SectionFieldType,   0,                                   0,                                             NULL,               NULL,           NULL                          },
   {"addGlitter",        "Add Glitter",                  BooleanFieldType,   (uint16_t)0,                            (uint16_t)1,                                      getAddGlitter,      NULL,           setAddGlitter                 },
-  {"WhiteOnly",         "White Glitter",                BooleanFieldType,   (uint16_t)0,                            (uint16_t)1,                                      getWhiteOnly,       NULL,           setWhiteOnly                  },
+  {"whiteGlitter",      "White Glitter",                BooleanFieldType,   (uint16_t)0,                            (uint16_t)1,                                      getWhiteOnly,       NULL,           setWhiteOnly                  },
   {"onBlackOnly",       "On Black",                     BooleanFieldType,   (uint16_t)0,                            (uint16_t)1,                                      getOnBlackOnly,     NULL,           setOnBlackOnly                },
   {"syncGlitter",       "Sync Segments",                BooleanFieldType,   (uint16_t)0,                            (uint16_t)1,                                      getSynched,         NULL,           setSynched,             },
-  {"hue",               "Hue Change",                   SectionFieldType,   0,                                   0,                                             NULL,               NULL,           NULL                          },
-  {"huetime",           "Hue interval (ms)",            NumberFieldType,    (uint16_t)0,                            (uint16_t)5000,                                   getHueTime,         NULL,           setHueTime                    },
-  {"deltahue",          "Hue Offset",                   NumberFieldType,    (uint16_t)0,                            (uint16_t)255,                                    getDeltaHue,        NULL,           setDeltaHue                   },    
-  {"effectSettings",    "Effect Settings",              SectionFieldType,   0,                                   0,                                             NULL,               NULL,           NULL                          },
+  {"s_basicHue",        "Hue Change",                   SectionFieldType,   0,                                   0,                                             NULL,               NULL,           NULL                          },
+  {"hueTime",           "Hue interval (ms)",            NumberFieldType,    (uint16_t)0,                            (uint16_t)5000,                                   getHueTime,         NULL,           setHueTime                    },
+  {"deltaHue",          "Hue Offset",                   NumberFieldType,    (uint16_t)0,                            (uint16_t)255,                                    getDeltaHue,        NULL,           setDeltaHue                   },    
+  {"s_effectSettings",  "Effect Settings",              SectionFieldType,   0,                                   0,                                             NULL,               NULL,           NULL                          },
   {"cooling",           "Cooling",                      NumberFieldType,    (uint16_t)DEFAULT_COOLING_MIN,          (uint16_t)DEFAULT_COOLING_MAX,                    getCooling,         NULL,           setCooling},
   {"sparking",          "Sparking",                     NumberFieldType,    (uint16_t)DEFAULT_SPARKING_MIN,         (uint16_t)DEFAULT_SPARKING_MAX,                   getSparking,        NULL,           setSparking                   },
   {"twinkleSpeed",      "Twinkle speed",                NumberFieldType,    (uint16_t)DEFAULT_TWINKLE_S_MIN,        (uint16_t)DEFAULT_TWINKLE_S_MAX,                  getTwinkleSpeed,    NULL,           setTwinkleSpeed               },
@@ -508,11 +485,11 @@ FieldList fields = {
   {"damping",           "damping for bounce",           NumberFieldType,    (uint16_t)DEFAULT_DAMPING_MIN,          (uint16_t)DEFAULT_DAMPING_MAX,                    getDamping,         NULL,           setDamping                    },
   // time provided in Minutes and capped at 60 minutes actually.
   {"sunriseset",        "sunrise, sunset time in min",  NumberFieldType,    (uint16_t)DEFAULT_SUNRISETIME_MIN,      (uint16_t)DEFAULT_SUNRISETIME_MAX,                getSunRiseTime,     NULL,           setSunRiseTime                }, 
-  {"otherSettings",      "Other settings",              SectionFieldType,   0,                                   0,                                             NULL,               NULL,           NULL                          },
+  {"s_otherSettings",   "Other settings",               SectionFieldType,   0,                                   0,                                             NULL,               NULL,           NULL                          },
   #ifdef HAS_KNOB_CONTROL
-  {"wifiDisabled",       "WiFi Disabled",               BooleanFieldType,   (uint16_t)0,                            (uint16_t)1,                                      getWiFiDisabled,    NULL,           setWiFiDisabled               },  
+  {"wifiDisabled",      "WiFi Disabled",                BooleanFieldType,   (uint16_t)0,                            (uint16_t)1,                                      getWiFiDisabled,    NULL,           setWiFiDisabled               },  
   #endif
-  {"current",           "Current limit",                NumberFieldType,    (uint16_t)100,                          (uint16_t)DEFAULT_CURRENT_MAX,                    getMilliamps,       NULL,           setMilliamps                  },
+  {"currentLimit",      "Current limit",                NumberFieldType,    (uint16_t)100,                          (uint16_t)DEFAULT_CURRENT_MAX,                    getMilliamps,       NULL,           setMilliamps                  },
   // 111 max equals the minimum update time required for 300 pixels
   // this is the minimal delay being used anyway, so no use in being faster
   {"fps",               "max FPS",                      NumberFieldType,    (uint16_t)STRIP_MIN_FPS,                (uint16_t)(STRIP_MAX_FPS),                        getFPSValue,        NULL,           setFPSValue                   },                                                                           
@@ -521,7 +498,7 @@ FieldList fields = {
 
 #ifdef DEBUG
   // With the DEBUG flag enabled we can provoke some resets (SOFT WDT, HW WDT, Exception...)
-  {"Debug",             "DEBUG only - not for production",        SectionFieldType                                                                                                        },
+  {"S_Debug",           "DEBUG only - not for production",        SectionFieldType                                                                                                        },
   {"resets",            "Resets (DEV Debug)",                     SelectFieldType,    (uint16_t)0,                            (uint16_t)5,                                      getReset,         getResets   },
 #endif
 };

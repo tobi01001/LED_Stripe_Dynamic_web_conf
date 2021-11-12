@@ -136,7 +136,8 @@ typedef Field FieldList[];
 
 Field getField(const char * name, FieldList fields, uint8_t count);
 String getFieldValue(const char * name, FieldList fields, uint8_t count);
-void setFieldValue(const char * name, String value, FieldList fields, uint8_t count);
+void setFieldValue(const char * name, uint16_t value, FieldList fields, uint8_t count);
+bool isField(const char * name, FieldList fields, uint8_t count);
 uint16_t getPower(void);
 uint16_t getMilliamps(void);
 uint16_t getBrightness(void);

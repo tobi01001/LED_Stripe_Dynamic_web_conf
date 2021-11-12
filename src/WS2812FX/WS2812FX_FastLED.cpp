@@ -510,7 +510,15 @@ else
   last_show = micros();
   LEDupdate = true;
 }
-  
+
+// When VOID is active, we do nothing. 
+// All data in _bleds just gets written to the LEDS
+if(LEDupdate && SEGMENT.mode == FX_MODE_VOID)
+{
+  FastLED.show();
+  return;
+}
+
 // Thanks to some discussions on Github, I do still not use any memmove 
 // but I realised that I need to nblend from the calculated frames to the led data.
 // this could be simplified within the following nested loop which does now all at once and saves 2 loops + 

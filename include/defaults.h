@@ -12,7 +12,7 @@
   #error "Build Version unknown"
 #endif
 //in case of "major upgrades affecting e.g. the structure of field, set this to > 0
-#define RESET_DEFAULTS 0
+#define RESET_DEFAULTS 1
 
 #ifndef PIO_SRC_REV
   #define PIO_SRC_REV "no_git_rev"
