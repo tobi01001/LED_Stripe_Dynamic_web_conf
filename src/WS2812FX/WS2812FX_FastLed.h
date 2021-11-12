@@ -645,7 +645,7 @@ public:
     _name[FX_MODE_PACIFICA]               = F("Pacifica - Specific Colors");
     _name[FX_MODE_COLOR_WAVES]            = F("Color Waves");
     _name[FX_MODE_TWINKLE_MAP]            = F("Twinkle Base Color");
-    _name[FX_MODE_VOID]                   = F("Void");
+    _name[FX_MODE_VOID]                   = F("Void DOES NOTHING");
     _name[FX_MODE_SUNRISE]                = F("Sunrise");
     _name[FX_MODE_SUNSET]                 = F("Sunset");
 

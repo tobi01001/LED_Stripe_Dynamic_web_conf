@@ -1000,338 +1000,44 @@ void handleSet(AsyncWebServerRequest *request)
   // create the answer object
   JsonObject& answerObj = response->getRoot();
   JsonObject& answer = answerObj.createNestedObject(F("currentState"));
-  
-  // new mode set?
-  if (request->hasParam(F("mo")))
+  uint32_t color = CRGB::Black;
+  for(uint8_t i=0; i<request->params(); i++)
   {
-    // flag to decide if this is an library effect
-    bool isWS2812FX = false;
-    // current library effect number
-    uint8_t effect = strip->getMode();
-
-    
-    // just switch to the next if we get an "u" for up
-    if (request->getParam(F("mo"))->value().c_str()[0] == 'u')
+    if(isField(request->getParam(i)->name().c_str(), fields, fieldCount))
     {
-      isWS2812FX = true;
-      effect = strip->nextMode(AUTO_MODE_UP);
-    }
-    // switch to the previous one if we get a "d" for down
-    else if (request->getParam(F("mo"))->value().c_str()[0] == 'd')
-    {
-      isWS2812FX = true;
-      effect = strip->nextMode(AUTO_MODE_DOWN);
-    }
-    // if we get an "o" for off, we switch off
-    else if (request->getParam(F("mo"))->value().c_str()[0] == 'o')
-    {
-      strip->setPower(false);
-    }
-    // for backward compatibility and FHEM:
-    // --> activate fire flicker
-    else if (request->getParam(F("mo"))->value().c_str()[0] == 'f')
-    {
-      effect = FX_MODE_FIRE_FLICKER_INTENSE;
-      isWS2812FX = true;
-    }
-    // for backward compatibility and FHEM:
-    // --> activate rainbow effect
-    else if (request->getParam(F("mo"))->value().c_str()[0] == 'r')
-    {
-      effect = FX_MODE_RAINBOW_CYCLE;
-      isWS2812FX = true;
-    }
-    // for backward compatibility and FHEM:
-    // --> activate the K.I.T.T. (larson scanner)
-    else if (request->getParam(F("mo"))->value().c_str()[0] == 'k')
-    {
-      effect = FX_MODE_LARSON_SCANNER;
-      isWS2812FX = true;
-    }
-    // for backward compatibility and FHEM:
-    // --> activate Twinkle Fox
-    else if (request->getParam(F("mo"))->value().c_str()[0] == 's')
-    {
-      effect = FX_MODE_TWINKLE_FOX;
-      isWS2812FX = true;
-    }
-    // for backward compatibility and FHEM:
-    // --> activate Twinkle Fox in white...
-    else if (request->getParam(F("mo"))->value().c_str()[0] == 'w')
-    {
-      strip->setColor(CRGBPalette16(CRGB::White));
-      effect = FX_MODE_TWINKLE_FOX;
-      isWS2812FX = true;
-    }
-    // sunrise effect
-    else if (request->getParam(F("mo"))->value() == F("Sunrise"))
-    {
-      // sunrise time in seconds
-      if (request->hasParam(F("sec")))
+      Field f = getField(request->getParam(i)->name().c_str(), fields, fieldCount);
+      if(f.type == ColorFieldType)
       {
-        strip->setSunriseTime(((uint16_t)strtoul(request->getParam(F("sec"))->value().c_str(), NULL, 10)) / 60);
+        // do something to set the "correct" RGB value
+        color = constrain((uint32_t)strtoul(request->getParam(i)->value().c_str(), NULL, 16), 0, 0xffffff);
+        strip->setColor(color);
+        answer.set(F("solidColor"), color);
       }
-      // sunrise time in minutes
-      else if (request->hasParam(F("min")))
+      else
       {
-        strip->setSunriseTime(((uint16_t)strtoul(request->getParam(F("min"))->value().c_str(), NULL, 10)));
+        // normal parameter...
+        setFieldValue(request->getParam(i)->name().c_str(),(uint16_t)(request->getParam(i)->value().toInt()), fields, fieldCount);
+        answer.set(request->getParam(i)->name(), getFieldValue(request->getParam(i)->name().c_str(), fields, fieldCount));
       }
-      isWS2812FX = true;
-      effect = FX_MODE_SUNRISE;
-      strip->setTransition();
-      answer.set(F("sunRiseTime"), strip->getSunriseTime());
-      answer.set(F("sunRiseTimeToFinish"), strip->getSunriseTimeToFinish());
-      answer.set(F("sunRiseMode"), F("sunrise"));
-      answer.set(F("sunRiseActive"), F("on"));
+      
     }
-    // the same for sunset....
-    else if (request->getParam(F("mo"))->value() == F("Sunset"))
-    {
-      // sunrise time in seconds
-      if (request->hasParam(F("sec")))
-      {
-        strip->setSunriseTime(((uint16_t)strtoul(request->getParam(F("sec"))->value().c_str(), NULL, 10)) / 60);
-      }
-      // sunrise time in minutes
-      else if (request->hasParam(F("min")))
-      {
-        strip->setSunriseTime( ((uint16_t)strtoul(request->getParam(F("min"))->value().c_str(), NULL, 10)));
-      }
-
-      // answer for the "calling" party
-      isWS2812FX = true;
-      effect = FX_MODE_SUNSET;
-      strip->setTransition();
-      //broadcastInt("sunriseset", strip->getSunriseTime());
-      //sendStatus = true;
-      answer.set(F("sunRiseTime"), strip->getSunriseTime());
-      answer.set(F("sunRiseTimeToFinish"), strip->getSunriseTimeToFinish());
-      answer.set(F("sunRiseMode"), F("sunset"));
-      answer.set(F("sunRiseActive"), F("on"));
-    }
-    // finally - if nothing matched before - we switch to the effect  being provided.
-    // we don't care if its actually an int or not
-    // because it will be zero anyway if not.
-    else
-    {
-      effect = (uint8_t)strtoul(request->getParam(F("mo"))->value().c_str(), NULL, 10);
-      isWS2812FX = true;
-    }
-    // sanity only, actually handled in the library...
-    if (effect >= strip->getModeCount())
-    {
-      effect = 0;
-    }
-    // activate the effect...
-    if (isWS2812FX)
-    {
-      strip->setMode(effect);
-      // in case it was stopped before
-      // seems to be obsolete but does not hurt anyway...
-      strip->start();
-
-      answer.set(F("wsfxmode_Num"), effect);
-      answer.set(F("wsfxmode"), strip->getModeName(effect));
-      answer.set(F("state"), strip->getPower() ? F("on") : F("off"));
-      answer.set(F("power"), strip->getPower());
-    }
-    else
-    {
-      answer.set(F("state"), strip->getPower() ? F("on") : F("off"));
-      answer.set(F("power"), strip->getPower());
-    }
-    
-  }
-  // global on/off
-  if (request->hasParam(F("power")))
-  {
-    if (request->getParam(F("power"))->value().c_str()[0] == '0')
-    {
-      strip->setPower(false);
-    }
-    else
-    {
-      strip->setPower(true);
-      strip->setMode(strip->getMode());
-    }
-    answer.set(F("state"), strip->getPower() ? F("on") : F("off"));
-    answer.set(F("power"), strip->getPower());
-  }
-  // pause / resume
-  if(request->hasParam(F("isRunning")))
-  {
-    if (request->getParam(F("isRunning"))->value().c_str()[0]  == '0')
-    {
-      strip->setIsRunning(false);
-    }
-    else
-    {
-      strip->setIsRunning(true);
-    }
-    answer.set(F("isRunning"), strip->isRunning() ? F("running") : F("paused"));
-  }
-
-  // if we got a palette change
-  if (request->hasParam(F("pa")))
-  {
-    // TODO: Possibility to setColors and new Palettes...
-    uint8_t pal = (uint8_t)strtoul(request->getParam(F("pa"))->value().c_str(), NULL, 10);
-    strip->setTargetPalette(pal);
-    answer.set(F("palette_num"), strip->getTargetPaletteNumber());
-    answer.set(F("palette_name"), strip->getPalName(strip->getTargetPaletteNumber()));
-    answer.set(F("palette_count"), strip->getPalCount());
-  }
-
-  // if we got a new brightness value
-  if (request->hasParam(F("br")))
-  {
-    uint8_t brightness = strip->getBrightness();
-    if (request->getParam(F("br"))->value().c_str()[0] == 'u')
-    {
-      brightness = changebypercentage(brightness, 110);
-    }
-    else if (request->getParam(F("br"))->value().c_str()[0] == 'd')
-    {
-      brightness = changebypercentage(brightness, 90);
-    }
-    else
-    {
-      brightness = constrain((uint8_t)strtoul(request->getParam(F("br"))->value().c_str(), NULL, 10), BRIGHTNESS_MIN, BRIGHTNESS_MAX);
-    }
-    strip->setBrightness(brightness);
-    answer.set(F("brightness"), strip->getBrightness());
-  }
-
-  // if we got a speed value
-  // for backward compatibility.
-  // is beat88 value anyway
-  if (request->hasParam(F("sp")))
-  {
-    strip->setSpeed(constrain((uint16_t)strtoul(request->getParam(F("sp"))->value().c_str(), NULL, 10), BEAT88_MIN, BEAT88_MAX));
-    answer.set(F("speed"), strip->getSpeed());
-    answer.set(F("beat88"), strip->getSpeed());
-    strip->setTransition();
-  }
-
-  // if we got a speed value (as beat88)
-  if (request->hasParam(F("be")))
-  {
-    uint16_t speed = strip->getBeat88();
-    if (request->getParam(F("be"))->value().c_str()[0] == 'u')
-    {
-      uint16_t ret = max((speed * 115) / 100, 10);
-      if (ret > BEAT88_MAX)
-        ret = BEAT88_MAX;
-      speed = ret;
-    }
-    else if (request->getParam(F("be"))->value().c_str()[0] == 'd')
-    {
-      uint16_t ret = max((speed * 80) / 100, 10);
-      if (ret > BEAT88_MAX)
-        ret = BEAT88_MAX;
-      speed = ret;
-    }
-    else
-    {
-      speed = constrain((uint16_t)strtoul(request->getParam(F("be"))->value().c_str(), NULL, 10), BEAT88_MIN, BEAT88_MAX);
-    }
-    strip->setSpeed(speed);
-    answer.set(F("speed"), strip->getSpeed());
-    answer.set(F("beat88"), strip->getSpeed());
-    strip->setTransition();
-  }
-
-  // color handling
-  // this is a bit tricky, as it handles either RGB as one or different values.
-
-  // current color (first value from palette)
-  uint32_t color = strip->getColor(0);
-  bool setColor = false;
-  // we got red
-  if (request->hasParam(F("re")))
-  {
-    setColor = true;
-    uint8_t re = (color >> 16) & 0xFF; 
-    if (request->getParam(F("re"))->value().c_str()[0] == 'u')
-    {
-      re = changebypercentage(re, 110);
-    }
-    else if (request->getParam(F("re"))->value().c_str()[0] == 'd')
-    {
-      re = changebypercentage(re, 90);
-    }
-    else
-    {
-      re = constrain((uint8_t)strtoul(request->getParam(F("re"))->value().c_str(), NULL, 10), 0, 255);
-    }
-    color = (color & 0x00ffff) | (re << 16);
-  }
-  // we got green
-  if (request->hasParam(F("gr")))
-  {
-    setColor = true;
-    uint8_t gr = (color >> 8) & 0xFF;
-    if (request->getParam(F("gr"))->value().c_str()[0] == 'u')
-    {
-      gr = changebypercentage(gr, 110);
-    }
-    else if (request->getParam(F("gr"))->value().c_str()[0] == 'd')
-    {
-      gr = changebypercentage(gr, 90);
-    }
-    else
-    {
-      gr = constrain((uint8_t)strtoul(request->getParam(F("gr"))->value().c_str(), NULL, 10), 0, 255);
-    }
-    color = (color & 0xff00ff) | (gr << 8);
-  }
-  // we got blue
-  if (request->hasParam(F("bl")))
-  {
-    setColor = true;
-    uint8_t bl = color & 0xFF;
-    if (request->getParam(F("bl"))->value().c_str()[0] == 'u')
-    {
-      bl = changebypercentage(bl, 110);
-    }
-    else if (request->getParam(F("bl"))->value().c_str()[0] == 'd')
-    {
-      bl = changebypercentage(bl, 90);
-    }
-    else
-    {
-      bl = constrain((uint8_t)strtoul(request->getParam(F("bl"))->value().c_str(), NULL, 10), 0, 255);
-    }
-    color = (color & 0xffff00) | (bl << 0);
-  }
-  // we got a 32bit color value (24 actually)
-  if (request->hasParam(F("co")))
-  {
-    setColor = true;
-    color = constrain((uint32_t)strtoul(request->getParam(F("co"))->value().c_str(), NULL, 16), 0, 0xffffff);
-  }
-  // we got one solid color value as r, g, b
-  if (request->hasParam(F("solidColor")))
-  {
-    setColor = true;
-    uint8_t r, g, b;
-    r = constrain((uint8_t)strtoul(request->getParam(F("r"))->value().c_str(), NULL, 10), 0, 255);
-    g = constrain((uint8_t)strtoul(request->getParam(F("g"))->value().c_str(), NULL, 10), 0, 255);
-    b = constrain((uint8_t)strtoul(request->getParam(F("b"))->value().c_str(), NULL, 10), 0, 255);
-    color = (r << 16) | (g << 8) | (b << 0);
   }
   // a single pixel...
+  if(color == CRGB::Black)
+  {
+    color = ColorFromPalette(*(strip->getTargetPalette()), 0, 255, NOBLEND);
+  }
   if (request->hasParam(F("pi")))
   {
     uint16_t pixel = constrain((uint16_t)strtoul(request->getParam(F("pi"))->value().c_str(), NULL, 10), 0, strip->getStripLength() - 1);
-
-    strip->setMode(FX_MODE_VOID);
-    strip->leds[pixel] = CRGB(color);
+    // set the VOID directly avoiding the call to "setTransition"
+    // which would clear the (currently written data first
+    strip->getSegment()->mode = FX_MODE_VOID;
+    strip->setPower(true);
+    strip->_bleds[pixel] = CRGB(color);
     // a range of pixels from start rnS to end rnE
-    answer.set(F("wsfxmode_Num"), FX_MODE_VOID);
-    answer.set(F("wsfxmode"), strip->getModeName(FX_MODE_VOID));
-    answer.set(F("state"), strip->getPower() ? "on" : "off");
-    answer.set(F("power"), strip->getPower());
+    answer.set(F("effect"), strip->getModeName(FX_MODE_VOID));
+    answer.set(F("power"), strip->getPower() ? "on" : "off");
   }
   //FIXME: Does not yet work. Lets simplyfy all of this!
   else if (request->hasParam(F("rnS")) && request->hasParam(F("rnE")))
@@ -1339,392 +1045,27 @@ void handleSet(AsyncWebServerRequest *request)
     uint16_t start = constrain((uint16_t)strtoul(request->getParam(F("rnS"))->value().c_str(), NULL, 10), 0, strip->getStripLength());
     uint16_t end = constrain((uint16_t)strtoul(request->getParam(F("rnE"))->value().c_str(), NULL, 10), start, strip->getStripLength());
 
-    strip->setMode(FX_MODE_VOID);
+    // set the VOID directly avoiding the call to "setTransition"
+    // which would clear the (currently written data first
+    strip->getSegment()->mode = FX_MODE_VOID;
+    strip->setPower(true);
     for (uint16_t i = start; i <= end; i++)
     {
-      strip->leds[i] = CRGB(color);
+      strip->_bleds[i] = CRGB(color);
     }
-    answer.set(F("wsfxmode_Num"), FX_MODE_VOID);
-    answer.set(F("wsfxmode"), strip->getModeName(FX_MODE_VOID));
-    answer.set(F("state"), strip->getPower() ? F("on") : F("off"));
-    answer.set(F("power"), strip->getPower());
+    answer.set(F("effect"), strip->getModeName(FX_MODE_VOID));
+    answer.set(F("power"), strip->getPower() ? F("on") : F("off"));
     // one color for the complete strip
   }
   else if (request->hasParam(F("rgb")))
   {
     strip->setColor(color);
+    strip->setPower(true);
     strip->setMode(FX_MODE_STATIC);
     // finally set a new color
-    answer.set(F("wsfxmode_Num"), FX_MODE_STATIC);
-    answer.set(F("wsfxmode"), strip->getModeName(FX_MODE_STATIC));
-    answer.set(F("state"), strip->getPower() ? F("on") : F("off"));
-    answer.set(F("power"), strip->getPower());
+    answer.set(F("effect"), strip->getModeName(FX_MODE_STATIC));
+    answer.set(F("power"), strip->getPower() ? F("on") : F("off"));
   }
-  else
-  {
-    if (setColor)
-    {
-      strip->setColor(color);
-      answer.set(F("rgb"), color);
-      answer.set(F("rgb_blue"), color & 0xFF);
-      answer.set(F("rgb_green"), (color >> 8) & 0xFF);
-      answer.set(F("rgb_red"), (color >> 16) & 0xFF);
-    }
-  }
-
-  // autoplay flag changes
-  if (request->hasParam(F("autoplay")))
-  {
-    uint16_t value = request->getParam(F("autoplay"))->value().toInt();
-    strip->setAutoplay((AUTOPLAYMODES)value);
-    switch(strip->getAutoplay())
-    {
-      case AUTO_MODE_OFF:
-        answer[F("AutoPlayMode")] = F("Off");
-      break;
-      case AUTO_MODE_UP:
-        answer[F("AutoPlayMode")] = F("Up");
-      break;
-      case AUTO_MODE_DOWN:
-        answer[F("AutoPlayMode")] = F("Down");
-      break;
-      case AUTO_MODE_RANDOM:
-        answer[F("AutoPlayMode")] = F("Random");
-      break;
-      default:
-        answer[F("AutoPlayMode")] = F("unknown error");
-      break;
-    }
-  
-  }
-
-  // autoplay duration changes
-  if (request->hasParam(F("autoplayDuration")))
-  {
-    uint16_t value = request->getParam(F("autoplayDuration"))->value().toInt();
-    strip->setAutoplayDuration(value);
-    answer[F("AutoPlayModeIntervall")] = strip->getAutoplayDuration();
- 
-  }
-
-  // auto plaette change
-  if (request->hasParam(F("autopal")))
-  {
-    uint16_t value = request->getParam(F("autopal"))->value().toInt();
-    strip->setAutopal((AUTOPLAYMODES)value);
-    switch(strip->getAutopal())
-    {
-      case AUTO_MODE_OFF:
-        answer[F("AutoPalette")] = F("Off");
-      break;
-      case AUTO_MODE_UP:
-        answer[F("AutoPalette")] = F("Up");
-      break;
-      case AUTO_MODE_DOWN:
-        answer[F("AutoPalette")] = F("Down");
-      break;
-      case AUTO_MODE_RANDOM:
-        answer[F("AutoPalette")] = F("Random");
-      break;
-      default:
-        answer[F("AutoPalette")] = F("unknown error");
-      break;
-    }
-  }
-
-  // auto palette change duration changes
-  if (request->hasParam(F("autopalDuration")))
-  {
-    uint16_t value = request->getParam(F("autopalDuration"))->value().toInt();
-    strip->setAutopalDuration(value);
-    answer[F("AutoPaletteInterval")] = strip->getAutoplayDuration();
-  }
-
-  // time for cycling through the basehue value changes
-  if (request->hasParam(F("huetime")))
-  {
-    uint16_t value = request->getParam(F("huetime"))->value().toInt();
-    strip->setHuetime(value);
-    answer[F("HueChangeInt")] = strip->getHueTime();
-  }
-
-
-  // the hue offset for a given effect (if - e.g. not spread across the whole strip)
-  if (request->hasParam(F("deltahue")))
-  {
-    uint16_t value = constrain(request->getParam(F("deltahue"))->value().toInt(), 0, 255);
-    strip->setDeltaHue(value);
-    strip->setTransition();
-    answer[F("HueDeltaHue")] = strip->getDeltaHue();
-  }
-
-  // parameter for teh "fire" - flame cooldown
-  if (request->hasParam(F("cooling")))
-  {
-    uint16_t value = request->getParam(F("cooling"))->value().toInt();
-    strip->setCooling(value);
-    strip->setTransition();
-    answer[F("Cooling")] = strip->getCooling();
-  }
-
-  // parameter for the sparking - new flames
-  if (request->hasParam(F("sparking")))
-  {
-    uint16_t value = request->getParam(F("sparking"))->value().toInt();
-    strip->setSparking(value);
-    strip->setTransition();
-    answer[F("Sparking")] = strip->getSparking();
-  }
-
-  // parameter for twinkle fox (speed)
-  if (request->hasParam(F("twinkleSpeed")))
-  {
-    uint16_t value = request->getParam(F("twinkleSpeed"))->value().toInt();
-    strip->setTwinkleSpeed(value);
-    strip->setTransition();
-    answer[F("TwinkleSpeed")] = strip->getTwinkleSpeed();
-  }
-
-  // parameter for twinkle fox (density)
-  if (request->hasParam(F("twinkleDensity")))
-  {
-    uint16_t value = request->getParam(F("twinkleDensity"))->value().toInt();
-    strip->setTwinkleDensity(value);
-    strip->setTransition();
-    answer[F("TwinkleDensity")] = strip->getTwinkleDensity();
-  }
-
-  // parameter for number of bars (beat sine glows etc...)
-  if (request->hasParam(F("numBars")))
-  {
-    uint16_t value = request->getParam(F("numBars"))->value().toInt();
-    if (value > MAX_NUM_BARS)
-    {
-      value = max(MAX_NUM_BARS, 1);
-    }
-    strip->setNumBars(value);
-    strip->setTransition();
-    answer[F("NumBars")] = strip->getNumBars();
-  }
-
-  // parameter to change the palette blend type for cetain effects
-  if (request->hasParam(F("blendType")))
-  {
-    uint16_t value = request->getParam(F("blendType"))->value().toInt();
-    if (value)
-    {
-      strip->setBlendType(LINEARBLEND);
-      answer[F("BlendType")] = F("Linear Blend");
-    }
-    else
-    {
-      strip->setBlendType(NOBLEND);
-      answer[F("BlendType")] = F("No Blend");
-    }
-    strip->setTransition();
-  }
-
-  // parameter to change the Color Temperature of the Strip
-  if (request->hasParam(F("ColorTemperature")))
-  {
-    uint8_t value = request->getParam(F("ColorTemperature"))->value().toInt();
-    strip->setColorTemperature(value);
-    strip->setTransition();
-    answer[F("ColorTemperature")] = strip->getColorTempName(strip->getColorTemp());
-  }
-
-  // parameter to change direction of certain effects..
-  if (request->hasParam(F("reverse")))
-  {
-    uint16_t value = request->getParam(F("reverse"))->value().toInt();
-    strip->getSegment()->reverse = value;
-    strip->setTransition();
-    answer[F("Reverse")] = strip->getReverse();
-  }
-
-  // parameter to invert colors of all effects..
-  if (request->hasParam(F("inverse")))
-  {
-    uint16_t value = request->getParam(F("inverse"))->value().toInt();
-    strip->setInverse(value);
-    strip->setTransition();
-    answer[F("Inverse")] = strip->getInverse();
-  }
-
-  // parameter to divide LEDS into two equal halfs...
-  if (request->hasParam(F("mirror")))
-  {
-    uint16_t value = request->getParam(F("mirror"))->value().toInt();
-    strip->setMirror(value);
-    strip->setTransition();
-    answer[F("Mirrored")] = strip->getMirror();
-  }
-
-  // parameter so set the max current the leds will draw
-  if (request->hasParam(F("current")))
-  {
-    uint16_t value = request->getParam(F("current"))->value().toInt();
-    strip->setMilliamps(value);
-    answer[F("Lamp_max_current")] = strip->getMilliamps();
-  }
-
-  // parameter for the blur against the previous LED values
-  if (request->hasParam(F("LEDblur")))
-  {
-    uint8_t value = request->getParam(F("LEDblur"))->value().toInt();
-    strip->setBlur(value);
-    strip->setTransition();
-    answer[F("Led_blur")] = strip->getBlurValue();
-  }
-
-  // parameter for the frames per second (FPS)
-  if (request->hasParam(F("fps")))
-  {
-    uint8_t value = request->getParam(F("fps"))->value().toInt();
-    strip->setMaxFPS(value);
-    strip->setTransition();
-    answer[F("max_FPS")] = strip->getMaxFPS();
-  }
-
-  // switcvhes dithering on/off
-  if (request->hasParam(F("dithering")))
-  {
-    uint8_t value = request->getParam(F("dithering"))->value().toInt();
-    strip->setDithering(value);
-    answer[F("Dithering")] = strip->getDithering();
-  }
-  // sunrise / sunset time
-  if (request->hasParam(F("sunriseset")))
-  {
-    uint8_t value = request->getParam(F("sunriseset"))->value().toInt();
-    strip->getSegment()->sunrisetime = value;
-    answer[F("sunRiseTime")] = strip->getSunriseTime();
-  }
-
-  // reset to default values
-  if (request->hasParam(F("resetdefaults")))
-  {
-    uint8_t value = request->getParam(F("resetdefaults"))->value().toInt();
-    if (value)
-      strip->resetDefaults();
-    strip->setTransition();
-  }
-  // damping for bouncing effects
-  if (request->hasParam(F("damping")))
-  {
-    uint8_t value = constrain(request->getParam(F("damping"))->value().toInt(), 0, 100);
-    strip->getSegment()->damping = value;
-    answer[F("Damping")] = strip->getDamping();
-  }
-  // adds or not global glitter
-  if (request->hasParam(F("addGlitter")))
-  {
-    uint8_t value = constrain(request->getParam(F("addGlitter"))->value().toInt(), 0, 100);
-    strip->setAddGlitter(value);
-    answer[F("Glitter_Add")] = strip->getAddGlitter();
-  }
-  // if only white glitter shown
-  if (request->hasParam(F("WhiteOnly")))
-  {
-    uint8_t value = constrain(request->getParam(F("WhiteOnly"))->value().toInt(), 0, 100);
-    strip->setWhiteGlitter(value);
-    answer[F("Glitter_White")] = strip->getWhiteGlitter();
-  }
-  // if only on black (clear pixels)
-  if (request->hasParam(F("onBlackOnly")))
-  {
-    uint8_t value = constrain(request->getParam(F("onBlackOnly"))->value().toInt(), 0, 100);
-    strip->setOnBlackOnly(value);
-    answer[F("Glitter_OnBlackOnly")] = strip->getOnBlackOnly();
-  }
-  // if global glitter is random over all leds or synced with the segment
-  if (request->hasParam(F("syncGlitter")))
-  {
-    uint8_t value = constrain(request->getParam(F("syncGlitter"))->value().toInt(), 0, 100);
-    strip->setSynchronous(value);
-    answer[F("Glitter_syncGlitter")] = strip->getSynchronous();
-  }
-#ifdef DEBUG
-  // Testing different Resets
-  // can then be triggered via web interface (at the very bottom)
-  if (request->hasParam(F("resets")))
-  {
-    uint8_t value = request->getParam(F("resets"))->value().toInt();
-    volatile uint8_t d = 1;
-    switch (value)
-    {
-    case 0:
-      break;
-    case 1: //
-      ESP.reset();
-      break;
-    case 2:
-      ESP.restart();
-      break;
-    case 3:
-      ESP.wdtDisable();
-      break;
-    case 4:
-      while (d)
-      {
-        d=1;
-      }
-      break;
-    case 5:
-      volatile uint8_t a = 0;
-      volatile uint8_t b = 5;
-      volatile uint8_t c = 0;
-      c = b / a;
-      break;
-    }
-  }
-#endif
-
-  // parameter for number of segments
-  if (request->hasParam(F("segments")))
-  {
-    uint16_t value = request->getParam(F("segments"))->value().toInt();
-    strip->getSegment()->segments = constrain(value, 1, MAX_NUM_SEGMENTS);
-    strip->setTransition();
-    answer[F("Segments")] = strip->getSegments();
-  }
-  // hue for the background color
-  if (request->hasParam(F("BckndHue")))
-  {
-    uint8_t value = request->getParam(F("BckndHue"))->value().toInt();
-    strip->setBckndHue(value);
-    answer[F("BckndHue")] = strip->getBckndHue();
-  }
-  // saturation for the background color
-  if (request->hasParam(F("BckndSat")))
-  {
-    uint8_t value = request->getParam(F("BckndSat"))->value().toInt();
-    strip->setBckndSat(value);
-    answer[F("BckndSat")] = strip->getBckndSat();
-  }
-  // brightness for the background color
-  if (request->hasParam(F("BckndBri")))
-  {
-    uint8_t value = request->getParam(F("BckndBri"))->value().toInt();
-    strip->setBckndBri(value);
-    answer[F("BckndBri")] = strip->getBckndBri();
-  }
-
-
-  #ifdef HAS_KNOB_CONTROL
-  // disable the Wifi - only whern there is knob control and display
-  if (request->hasParam(F("wifiDisabled")))
-  {
-    uint16_t value = request->getParam(F("wifiDisabled"))->value().toInt();
-    if(value)
-      strip->setWiFiDisabled(true);
-    else
-      strip->setWiFiDisabled(false);    
-
-    answer[F("wifiDisabled")] = strip->getWiFiDisabled();
-  }
-  #endif
-  // return the values being effectively set
   response->setLength();
   request->send(response);
 }
@@ -1783,44 +1124,38 @@ void handleStatus(AsyncWebServerRequest *request)
 
   AsyncJsonResponse * response = new AsyncJsonResponse();
 
-  JsonObject &answerObj = response->getRoot();
+  JsonObject& answerObj = response->getRoot();
   JsonObject& currentStateAnswer = answerObj.createNestedObject(F("currentState"));
   JsonObject& sunriseAnswer = answerObj.createNestedObject(F("sunRiseState"));
   JsonObject& statsAnswer = answerObj.createNestedObject(F("Stats"));
 
   uint16_t num_leds_on = strip->getLedsOn();
 
-
-  currentStateAnswer[F("power")] = strip->getPower();
-  if (strip->getPower())
+  for(uint8_t i=0; i<fieldCount; i++)
   {
-    currentStateAnswer[F("state")] = F("on");
-  }
-  else
-  {
-    currentStateAnswer[F("state")] = F("off");
+    if(fields[i].getValue)
+    {
+      if(fields[i].type == ColorFieldType)
+      {
+        CRGB col = ColorFromPalette(*strip->getCurrentPalette(),0,255, NOBLEND);
+        currentStateAnswer[fields[i].name] = (((col.r << 16) | (col.g << 8) | (col.b << 0)) & 0xffffff);
+      }
+      else
+      {
+        currentStateAnswer[fields[i].name] = getFieldValue(fields[i].name, fields, fieldCount);
+      }
+      
+    }
   }
 
-
-  currentStateAnswer[F("Buildversion")] = build_version;
-  currentStateAnswer[F("Git_Revision")] = git_revision;
-  currentStateAnswer[F("Lampname")] = LED_NAME;
-  currentStateAnswer[F("LED_Count")] = LED_COUNT;
-  currentStateAnswer[F("Lamp_max_current")] = strip->getMilliamps();
-  currentStateAnswer[F("Lamp_max_power")] = strip->getVoltage() * strip->getMilliamps();
-  currentStateAnswer[F("Lamp_current_power")] = strip->getCurrentPower();
-  currentStateAnswer[F("LEDs_On")] = num_leds_on;
-  currentStateAnswer[F("mode_Name")] = strip->getModeName(strip->getMode());
-  currentStateAnswer[F("wsfxmode")] = strip->getModeName(strip->getMode());
-  currentStateAnswer[F("wsfxmode_Num")] = strip->getMode();
-  currentStateAnswer[F("wsfxmode_count")] = strip->getModeCount();
-  currentStateAnswer[F("beat88")] = strip->getBeat88();
-  currentStateAnswer[F("speed")] = strip->getBeat88();
-  currentStateAnswer[F("brightness")] = strip->getBrightness();
-  // Palettes and Colors
-  currentStateAnswer[F("palette_count")] = strip->getPalCount();
-  currentStateAnswer[F("palette_num")] = strip->getTargetPaletteNumber();
-  currentStateAnswer[F("palette_name")] = strip->getPalName(strip->getTargetPaletteNumber());
+  currentStateAnswer[F("buildVersion")] = build_version;
+  currentStateAnswer[F("gitRevision")] = git_revision;
+  currentStateAnswer[F("lampName")] = LED_NAME;
+  currentStateAnswer[F("ledCount")] = LED_COUNT;
+  currentStateAnswer[F("lampMaxCurrent")] = strip->getMilliamps();
+  currentStateAnswer[F("lampMaxPower")] = strip->getVoltage() * strip->getMilliamps();
+  currentStateAnswer[F("lampCurrentPower")] = strip->getCurrentPower();
+  currentStateAnswer[F("ledsOn")] = num_leds_on;
   CRGB col = CRGB::Black;
   // We return either black (strip effectively off)
   // or the color of the first lid pixel....
@@ -1832,67 +1167,11 @@ void handleStatus(AsyncWebServerRequest *request)
       break;
     }
   }
-  currentStateAnswer[F("rgb")] = (((col.r << 16) | (col.g << 8) | (col.b << 0)) & 0xffffff);
-  currentStateAnswer[F("rgb_red")] = col.r;
-  currentStateAnswer[F("rgb_green")] = col.g;
-  currentStateAnswer[F("rgb_blue")] = col.b;
 
-  if (strip->getSegment()->blendType == NOBLEND)
-  {
-    currentStateAnswer[F("BlendType")] = F("No Blend");
-  }
-  else if (strip->getSegment()->blendType == LINEARBLEND)
-  {
-    currentStateAnswer[F("BlendType")] = F("Linear Blend");
-  }
-  else
-  {
-    currentStateAnswer[F("BlendType")] = F("Unknown Blend");
-  }
-
-  currentStateAnswer[F("Reverse")] = strip->getReverse();
-  currentStateAnswer[F("Mirrored")] = strip->getMirror();
-  currentStateAnswer[F("HueChangeInt")] = strip->getHueTime();
-  currentStateAnswer[F("HueDeltaHue")] = strip->getDeltaHue();
-  switch(strip->getAutoplay())
-  {
-    case AUTO_MODE_OFF:
-      currentStateAnswer[F("AutoPlayMode")] = F("Off");
-    break;
-    case AUTO_MODE_UP:
-      currentStateAnswer[F("AutoPlayMode")] = F("Up");
-    break;
-    case AUTO_MODE_DOWN:
-      currentStateAnswer[F("AutoPlayMode")] = F("Down");
-    break;
-    case AUTO_MODE_RANDOM:
-      currentStateAnswer[F("AutoPlayMode")] = F("Random");
-    break;
-    default:
-      currentStateAnswer[F("AutoPlayMode")] = F("unknown error");
-    break;
-  }
-  currentStateAnswer[F("AutoPlayModeIntervall")] = strip->getAutoplayDuration();
-  switch(strip->getAutopal())
-  {
-    case AUTO_MODE_OFF:
-      currentStateAnswer[F("AutoPalette")] = F("Off");
-    break;
-    case AUTO_MODE_UP:
-      currentStateAnswer[F("AutoPalette")] = F("Up");
-    break;
-    case AUTO_MODE_DOWN:
-      currentStateAnswer[F("AutoPalette")] = F("Down");
-    break;
-    case AUTO_MODE_RANDOM:
-      currentStateAnswer[F("AutoPalette")] = F("Random");
-    break;
-    default:
-      currentStateAnswer[F("AutoPalette")] = F("unknown error");
-    break;
-  }
-  currentStateAnswer[F("AutoPaletteInterval")] = strip->getAutoplayDuration();
-
+  currentStateAnswer[F("rgb")]        = (((col.r << 16) | (col.g << 8) | (col.b << 0)) & 0xffffff);
+  currentStateAnswer[F("rgb_red")]    = col.r;
+  currentStateAnswer[F("rgb_green")]  = col.g;
+  currentStateAnswer[F("rgb_blue")]   = col.b;
 
   if (strip->getMode() == FX_MODE_SUNRISE)
   {
@@ -1907,46 +1186,35 @@ void handleStatus(AsyncWebServerRequest *request)
     sunriseAnswer[F("sunRiseMode")] = F("None");
   }
   
-  if (strip->getMode() == FX_MODE_SUNRISE || strip->getMode() == FX_MODE_SUNSET)
+  if(num_leds_on && (strip->getMode() == FX_MODE_SUNRISE || strip->getMode() == FX_MODE_SUNSET))
   {
-    if(num_leds_on)
-    {
-      sunriseAnswer[F("sunRiseActive")] = F("on");
-    }
-    else
-    {
-      sunriseAnswer[F("sunRiseActive")] = F("off");
-    }
+    sunriseAnswer[F("sunRiseActive")]     = F("on");
   }
   else
   {
-    sunriseAnswer[F("sunRiseActive")] = F("off");
+    sunriseAnswer[F("sunRiseActive")]       = F("off");
   }
-  sunriseAnswer[F("sunRiseCurrStep")] = strip->getCurrentSunriseStep();
+  sunriseAnswer[F("sunRiseCurrStep")]       = strip->getCurrentSunriseStep();
+  sunriseAnswer[F("sunRiseTotalSteps")]     = DEFAULT_SUNRISE_STEPS;
+  sunriseAnswer[F("sunRiseTimeToFinish")]   = strip->getSunriseTimeToFinish();
+  sunriseAnswer[F("sunRiseTime")]           = strip->getSunriseTime();
   
-  sunriseAnswer[F("sunRiseTotalSteps")] = DEFAULT_SUNRISE_STEPS;
-  
-  sunriseAnswer[F("sunRiseTimeToFinish")] = strip->getSunriseTimeToFinish();
-
-  sunriseAnswer[F("sunRiseTime")] = strip->getSunriseTime();
-  
-  statsAnswer[F("Chip_ResetReason")] = cStrReason;
-
-  statsAnswer[F("Chip_LastResetReason")]    = lStrReason; 
-  statsAnswer[F("Chip_ID")]                 = ESP.getChipId();
-  statsAnswer[F("WIFI_IP")]                 = WiFi.localIP().toString();
-  statsAnswer[F("WIFI_CONNECT_ERR_COUNT")]  = wifi_disconnect_counter;
-  statsAnswer[F("WIFI_SIGNAL")]             = WiFi.RSSI();  // for #14
-  statsAnswer[F("WIFI_CHAN")]               = WiFi.channel();  // for #14
-  statsAnswer[F("WIFI_GATEWAY")]            = gateway_ip.toString();
-  statsAnswer[F("WIFI_BSSID")]              = WiFi.BSSIDstr();
-  statsAnswer[F("WIFI_BSSIDCRC")]           = strip->calc_CRC16((unsigned int)0x5555, (unsigned char*)WiFi.BSSID(), 6);
-  statsAnswer[F("Stats_Counter")]           = sin8(status_counter++);
-  statsAnswer[F("FPS")]                     = FastLED.getFPS();
-  statsAnswer[F("ESP_Runtime_Days")]        = mESPrunTime.days;
-  statsAnswer[F("ESP_Runtime_Hours")]       = mESPrunTime.hours;
-  statsAnswer[F("ESP_Runtime_Minutes")]     = mESPrunTime.minutes;
-  statsAnswer[F("ESP_Runtime_Seconds")]     = mESPrunTime.seconds;
+  statsAnswer[F("chip_ResetReason")]        = cStrReason;
+  statsAnswer[F("chip_LastResetReason")]    = lStrReason; 
+  statsAnswer[F("chip_ID")]                 = ESP.getChipId();
+  statsAnswer[F("wifi_IP")]                 = WiFi.localIP().toString();
+  statsAnswer[F("wifi_CONNECT_ERR_COUNT")]  = wifi_disconnect_counter;
+  statsAnswer[F("wifi_SIGNAL")]             = WiFi.RSSI();  // for #14
+  statsAnswer[F("wifi_CHAN")]               = WiFi.channel();  // for #14
+  statsAnswer[F("wifi_GATEWAY")]            = gateway_ip.toString();
+  statsAnswer[F("wifi_BSSID")]              = WiFi.BSSIDstr();
+  statsAnswer[F("wifi_BSSIDCRC")]           = strip->calc_CRC16((unsigned int)0x5555, (unsigned char*)WiFi.BSSID(), 6);
+  statsAnswer[F("statsCounter")]           = sin8(status_counter++);
+  statsAnswer[F("fps")]                     = FastLED.getFPS();
+  statsAnswer[F("esp_Runtime_Days")]        = mESPrunTime.days;
+  statsAnswer[F("esp_Runtime_Hours")]       = mESPrunTime.hours;
+  statsAnswer[F("esp_Runtime_Minutes")]     = mESPrunTime.minutes;
+  statsAnswer[F("esp_Runtime_Seconds")]     = mESPrunTime.seconds;
 
   response->setLength();
   request->send(response);
