@@ -208,7 +208,6 @@ void WS2812FX::init()
 
   // initialising segment
   setReverse              (_segment.reverse);
-  setInverse              (_segment.inverse);
   setMirror               (_segment.mirror);
   setAutoplay             (_segment.autoplay);
   setAutopal              (_segment.autoPal);
@@ -242,6 +241,7 @@ void WS2812FX::init()
   setBckndHue             (_segment.backgroundHue);
   setBckndSat             (_segment.backgroundSat);
   setBckndBri             (_segment.backgroundBri);
+  setColCor               (_segment.colCor);
 
   #ifdef HAS_KNOB_CONTROL
   setWiFiDisabled         (_segment.wifiDisabled);
@@ -274,7 +274,6 @@ void WS2812FX::resetDefaults(void)
   setIsRunning              (DEFAULT_RUNNING );
   setPower                  (DEFAULT_POWER);
   setReverse                (DEFAULT_REVERSE );
-  setInverse                (DEFAULT_INVERTED );
   setMirror                 (DEFAULT_MIRRORED );
   setAutoplay               (DEFAULT_AUTOMODE );
   setAutopal                (DEFAULT_AUTOCOLOR );
@@ -308,6 +307,7 @@ void WS2812FX::resetDefaults(void)
   setWhiteGlitter           (DEFAULT_GLITTER_WHITE);
   setOnBlackOnly            (DEFAULT_GLITTER_ONBLACK);
   setSynchronous            (DEFAULT_GLITTER_SYNC);
+  setColCor                 (COR_UncorrectedColor);
   #ifdef HAS_KNOB_CONTROL
   setWiFiDisabled           (DEFAULT_WIFI_DISABLED);
   #endif
@@ -455,7 +455,6 @@ void WS2812FX::service()
   
   
 // check if we fade to a new FX mode.
-#define MAXINVERSE 24
 uint8_t l_blend = _segment.blur; // to not overshoot during transitions we fade at max to "_segment.blur" parameter.
 if (_transition)
 {
@@ -941,38 +940,6 @@ void WS2812FX::setColorTemperature(uint8_t index)
   case 8:
     SEGMENT.colorTemp = ClearBlueSky;
     break;
-  /*
-  case 9:
-    SEGMENT.colorTemp = WarmFluorescent;
-    break;
-  case 10:
-    SEGMENT.colorTemp = StandardFluorescent;
-    break;
-  case 11:
-    SEGMENT.colorTemp = CoolWhiteFluorescent;
-    break;
-  case 12:
-    SEGMENT.colorTemp = FullSpectrumFluorescent;
-    break;
-  case 13:
-    SEGMENT.colorTemp = GrowLightFluorescent;
-    break;
-  case 14:
-    SEGMENT.colorTemp = BlackLightFluorescent;
-    break;
-  case 15:
-    SEGMENT.colorTemp = MercuryVapor;
-    break;
-  case 16:
-    SEGMENT.colorTemp = SodiumVapor;
-    break;
-  case 17:
-    SEGMENT.colorTemp = MetalHalide;
-    break;
-  case 18:
-    SEGMENT.colorTemp = HighPressureSodium;
-    break;
-  */
   default:
     SEGMENT.colorTemp = UncorrectedTemperature;
     break;
@@ -3691,7 +3658,26 @@ void WS2812FX::m_sunrise_sunset(bool isSunrise)
     }
     else
     {
-      SRMVSR.sunRiseStep = sunriseSteps;
+      uint8_t  Luma       = 255;
+      uint32_t LumaSum    = 0;
+      SRMVSR.sunRiseStep  = sunriseSteps;
+      for(uint16_t i=0; i<_segment_runtime.length; i++)
+      {
+        LumaSum += leds[i].getLuma();
+      }
+      if(LumaSum)
+      {
+        Luma = (uint8_t)(LumaSum/_segment_runtime.length);
+      }
+      if(Luma < 96) Luma = 96;
+      for(uint16_t i=sunriseSteps; i>0; i--)
+      {
+        if(Luma > calcSunriseColorValue(i).getLuma())
+        {
+          SRMVSR.sunRiseStep = i;
+          break;
+        }
+      }
     }
   }
   draw_sunrise_step(SRMVSR.sunRiseStep);

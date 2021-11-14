@@ -156,9 +156,6 @@ inline uint16_t getSegments(void) {
 inline uint16_t getMirror() {
   return (uint16_t)(strip->getMirror());
 }
-inline uint16_t getInverse() {
-  return (uint16_t)(strip->getInverse());
-}
 inline uint16_t getAddGlitter(void) {
   return (uint16_t)(strip->getAddGlitter());
 }
@@ -237,7 +234,9 @@ inline uint16_t getBckndSat() {
 inline uint16_t getBckndBri() {
   return (uint16_t)(strip->getBckndBri());
 }
-
+inline uint16_t getColCor() {
+  return (uint16_t)(strip->getColorCorrectionEnum());
+}
 
 
 #ifdef HAS_KNOB_CONTROL
@@ -286,6 +285,11 @@ void getColorTemps(JsonArray &jArr)
     jArr.add(strip->getColorTempName(i));
   }
 }
+void getColCorValues(JsonArray &jArr) {
+  jArr.add("TypicalLEDStrip");
+  jArr.add("TypicalPixelString");
+  jArr.add("UncorrectedColor");
+}
 
 /*
  * Setters
@@ -329,9 +333,6 @@ void setSegments(uint16_t val) {
 }
 void setMirror(uint16_t val) {
   strip->setMirror(val);
-}
-void setInverse(uint16_t val) {
-  strip->setInverse(val);
 }
 void setAddGlitter(uint16_t val) {
   strip->setAddGlitter(val);
@@ -414,6 +415,9 @@ void setBckndSat(uint16_t val) {
 void setBckndBri(uint16_t val) {
   strip->setBckndBri(val);
 }
+void setColCor(uint16_t val) {
+  strip->setColCor((COLORCORRECTIONS)val);
+}
 
 #ifdef HAS_KNOB_CONTROL
 void setWiFiDisabled(uint16_t val) {
@@ -490,6 +494,7 @@ FieldList fields = {
   {"wifiDisabled",      "WiFi Disabled",                BooleanFieldType,   (uint16_t)0,                            (uint16_t)1,                                      getWiFiDisabled,    NULL,           setWiFiDisabled               },  
   #endif
   {"currentLimit",      "Current limit",                NumberFieldType,    (uint16_t)100,                          (uint16_t)DEFAULT_CURRENT_MAX,                    getMilliamps,       NULL,           setMilliamps                  },
+  {"colorCorrection",   "ColorCorrection",              SelectFieldType,    (uint16_t)0,                            (uint16_t)(COR_NUMCORRECTIONS-1),                 getColCor,          getColCorValues, setColCor                    },
   // 111 max equals the minimum update time required for 300 pixels
   // this is the minimal delay being used anyway, so no use in being faster
   {"fps",               "max FPS",                      NumberFieldType,    (uint16_t)STRIP_MIN_FPS,                (uint16_t)(STRIP_MAX_FPS),                        getFPSValue,        NULL,           setFPSValue                   },                                                                           

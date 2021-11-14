@@ -8,6 +8,7 @@
    - Adafruit Neopixel https://github.com/adafruit/Adafruit_NeoPixel
    - WS2812FX library https://github.com/kitesurfer1404/WS2812FX
    - fhem esp8266 implementation - Idea from https://github.com/sw-home/FHEM-LEDStripe 
+   - fhem module for this project on https://github.com/tobi01001/FHEM-LED_CONTROL-
    - FastLED library - see http://www.fastLed.io
    - ESPWebserver - see https://github.com/jasoncoon/esp8266-fastled-webserver
   
@@ -190,6 +191,8 @@ String lStrReason = "Last Reset Reason";
 //flag for saving data 
 bool shouldSaveRuntime = false;
 
+bool newSolidColor = false;
+
 // "local" copy of the segment data (to be saved)
 // used for comparison with the actual segment data
 WS2812FX::segment seg;
@@ -326,12 +329,40 @@ void broadcastInt(const __FlashStringHelper* name, uint16_t value)
   }
 }
 
+void broadcastColor(const __FlashStringHelper* name, CRGB Col)
+{
+  // if we do have Knob control, we check if WiFi is supposed to be enabled or not.
+  // the check if there is a WS server is always done
+  #ifdef HAS_KNOB_CONTROL
+  if(webSocketsServer == NULL  || strip->getWiFiDisabled() || !WiFiConnected)
+  #else
+  if(webSocketsServer == NULL)
+  #endif
+  {
+    // nothing to be done -> return
+    return;
+  }
+  // store the name / value pair in a json buffer 
+  DynamicJsonBuffer jsonBuffer;
+  JsonObject& answerObj = jsonBuffer.createObject();
+  answerObj[F("name")] = name;
+  answerObj[F("value")] = (((Col.r << 16) | (Col.g << 8) | (Col.b << 0)) & 0xffffff);;
+
+  size_t len = answerObj.measureLength();
+  // create a message buffer, write to it and send it to the WS clients
+  AsyncWebSocketMessageBuffer * buffer = webSocketsServer->makeBuffer(len); //  creates a buffer (len + 1) for you.
+  if (buffer) {
+      answerObj.printTo((char *)buffer->get(), len + 1);
+      webSocketsServer->textAll(buffer);
+  }
+}
+
 void checkSegmentChanges(void) 
 {
   // check the segment changes
   // broadcast the change and 
   // set the shouldSaveRuntime = true where applicable
-  
+  // ToDo: Check and implement based on the "fields"?
   #ifdef DEBUG
   bool save = shouldSaveRuntime;
   #endif
@@ -343,27 +374,27 @@ void checkSegmentChanges(void)
   }
   if(seg.isRunning != strip->isRunning()) {
     seg.isRunning = strip->isRunning();
-    broadcastInt(F("isRunning"), seg.isRunning);
+    broadcastInt(F("running"), seg.isRunning);
     shouldSaveRuntime = true;
   }
   if(seg.targetBrightness != strip->getTargetBrightness()) {
     seg.targetBrightness = strip->getTargetBrightness();
-    broadcastInt(F("br"), seg.targetBrightness);
+    broadcastInt(F("brightness"), seg.targetBrightness);
     shouldSaveRuntime = true;
   }
   if(seg.mode != strip->getMode()){
     seg.mode = strip->getMode();
-    broadcastInt(F("mo"), seg.mode);
+    broadcastInt(F("effect"), seg.mode);
     shouldSaveRuntime = true;
   }
   if(seg.targetPaletteNum != strip->getTargetPaletteNumber()) {
     seg.targetPaletteNum = strip->getTargetPaletteNumber();
-    broadcastInt(F("pa"), seg.targetPaletteNum);
+    broadcastInt(F("colorPalette"), seg.targetPaletteNum);
     shouldSaveRuntime = true;
   }
   if(seg.beat88 != strip->getBeat88()) {
     seg.beat88 = strip->getBeat88();
-    broadcastInt(F("sp"), seg.beat88);
+    broadcastInt(F("speed"), seg.beat88);
     shouldSaveRuntime = true;
   }
   if(seg.blendType != strip->getBlendType()) {
@@ -374,19 +405,19 @@ void checkSegmentChanges(void)
   if(seg.colorTemp != strip->getColorTemperature())
   {
     seg.colorTemp = strip->getColorTemperature();
-    broadcastInt(F("ColorTemperature"), strip->getColorTemp());
+    broadcastInt(F("colorTemperature"), strip->getColorTemp());
     shouldSaveRuntime = true;
   }
   if(seg.blur != strip->getBlurValue())
   {
     seg.blur = strip->getBlurValue();
-    broadcastInt(F("LEDblur"), seg.blur);
+    broadcastInt(F("ledBlur"), seg.blur);
     shouldSaveRuntime = true;
   }
   if(seg.reverse != strip->getReverse())
   {
     seg.reverse = strip->getReverse();
-    broadcastInt(F("reverse"), seg.reverse);
+    broadcastInt(F("reversed"), seg.reverse);
     shouldSaveRuntime = true;
   }
   if(seg.segments != strip->getSegments())
@@ -398,57 +429,57 @@ void checkSegmentChanges(void)
   if(seg.mirror != strip->getMirror())
   {
     seg.mirror = strip->getMirror();
-    broadcastInt(F("mirror"), seg.mirror);
-    shouldSaveRuntime = true;
-  }
-  if(seg.inverse != strip->getInverse())
-  {
-    seg.inverse = strip->getInverse();
-    broadcastInt(F("inverse"),seg.inverse);
+    broadcastInt(F("mirrored"), seg.mirror);
     shouldSaveRuntime = true;
   }
   if(seg.hueTime != strip->getHueTime())
   {
     seg.hueTime = strip->getHueTime();
-    broadcastInt(F("huetime"), seg.hueTime);
+    broadcastInt(F("hueTime"), seg.hueTime);
     shouldSaveRuntime = true;
   }
   if(seg.deltaHue != strip->getDeltaHue())
   { 
     seg.deltaHue = strip->getDeltaHue();
-    broadcastInt(F("deltahue"), seg.deltaHue);
+    broadcastInt(F("deltaHue"), seg.deltaHue);
     shouldSaveRuntime = true;
   }
   if(seg.autoplay != strip->getAutoplay())
   {
     seg.autoplay = strip->getAutoplay();
-    broadcastInt(F("autoplay"), seg.autoplay);
+    broadcastInt(F("autoPlay"), seg.autoplay);
     shouldSaveRuntime = true;
   }
   if(seg.autoplayDuration != strip->getAutoplayDuration())
   {
     seg.autoplayDuration = strip->getAutoplayDuration();
-    broadcastInt(F("autoplayDuration"), seg.autoplayDuration);
+    broadcastInt(F("autoPlayInterval"), seg.autoplayDuration);
     shouldSaveRuntime = true;
   }
   if(seg.autoPal != strip->getAutopal())
   {
     seg.autoPal = strip->getAutopal();
-    broadcastInt(F("autopal"), seg.autoPal);
+    broadcastInt(F("autoPalette"), seg.autoPal);
     shouldSaveRuntime = true;
   }
   if(seg.autoPalDuration != strip->getAutopalDuration())
   {
     seg.autoPalDuration = strip->getAutopalDuration();
-    broadcastInt(F("autopalDuration"), seg.autoPalDuration);
+    broadcastInt(F("autoPalInterval"), seg.autoPalDuration);
     shouldSaveRuntime = true;
   }
-  /*
+    /*
   "solidColor" -> currently not possible to save?
   --> for this to work we need to add 32bit color to the structure 
       and to "set" this including palette creation...
       ...and the palette creation depends on the current palette number?
   */
+  if(newSolidColor)
+  {
+    newSolidColor = false;
+    broadcastColor(F("solidColor"), ColorFromPalette(*(strip->getTargetPalette()), 0, 255, NOBLEND));
+  }
+
   if(seg.cooling != strip->getCooling())
   {
     seg.cooling = strip->getCooling();
@@ -476,7 +507,7 @@ void checkSegmentChanges(void)
   if(seg.numBars != strip->getNumBars())
   {
     seg.numBars = strip->getNumBars();
-    broadcastInt(F("numBars"), seg.numBars);
+    broadcastInt(F("numEffectBars"), seg.numBars);
     shouldSaveRuntime = true;
   }
   if(seg.damping != strip->getDamping())
@@ -494,7 +525,7 @@ void checkSegmentChanges(void)
   if(seg.milliamps != strip->getMilliamps())
   {
     seg.milliamps = strip->getMilliamps();
-    broadcastInt(F("current"), seg.milliamps);
+    broadcastInt(F("currentLimit"), seg.milliamps);
     shouldSaveRuntime = true;
   }
   if(seg.fps != strip->getMaxFPS())
@@ -518,7 +549,7 @@ void checkSegmentChanges(void)
   if(seg.whiteGlitter != strip->getWhiteGlitter())
   {
     seg.whiteGlitter= strip->getWhiteGlitter();
-    broadcastInt(F("WhiteOnly"), seg.whiteGlitter);
+    broadcastInt(F("whiteGlitter"), seg.whiteGlitter);
     shouldSaveRuntime = true;
   }
   if(seg.onBlackOnly != strip->getOnBlackOnly())
@@ -536,19 +567,19 @@ void checkSegmentChanges(void)
   if(seg.backgroundHue != strip->getBckndHue())
   {
     seg.backgroundHue = strip->getBckndHue();
-    broadcastInt(F("BckndHue"), seg.backgroundHue);
+    broadcastInt(F("backgroundHue"), seg.backgroundHue);
     shouldSaveRuntime = true;
   }
   if(seg.backgroundSat != strip->getBckndSat())
   {
     seg.backgroundSat = strip->getBckndSat();
-    broadcastInt(F("BckndSat"), seg.backgroundSat);
+    broadcastInt(F("backgroundSat"), seg.backgroundSat);
     shouldSaveRuntime = true;
   }
   if(seg.backgroundBri != strip->getBckndBri())
   {
     seg.backgroundBri = strip->getBckndBri();
-    broadcastInt(F("BckndBri"), seg.backgroundBri);
+    broadcastInt(F("backgroundBri"), seg.backgroundBri);
     shouldSaveRuntime = true;
   }
 
@@ -1008,10 +1039,23 @@ void handleSet(AsyncWebServerRequest *request)
       Field f = getField(request->getParam(i)->name().c_str(), fields, fieldCount);
       if(f.type == ColorFieldType)
       {
-        // do something to set the "correct" RGB value
-        color = constrain((uint32_t)strtoul(request->getParam(i)->value().c_str(), NULL, 16), 0, 0xffffff);
+        // comes from the web-Page currently as rgb
+        if(request->getParam(i)->value() == "solidColor")
+        {
+           uint8_t r,g,b;
+           r=g=b=0;
+           if(request->hasParam("r")) r = constrain((uint8_t)request->getParam("r")->value().toInt(), 0, 0xff);
+           if(request->hasParam("g")) g = constrain((uint8_t)request->getParam("g")->value().toInt(), 0, 0xff);
+           if(request->hasParam("b")) b = constrain((uint8_t)request->getParam("b")->value().toInt(), 0, 0xff);
+           color = (((r << 16) | (g << 8) | (b << 0)) & 0xffffff);
+        }
+        else
+        {
+          color = constrain((uint32_t)strtoul(request->getParam(i)->value().c_str(), NULL, 16), 0, 0xffffff);
+        }    
         strip->setColor(color);
-        answer.set(F("solidColor"), color);
+        answer.set(f.name, color);
+        newSolidColor = true;
       }
       else
       {
@@ -1137,7 +1181,7 @@ void handleStatus(AsyncWebServerRequest *request)
     {
       if(fields[i].type == ColorFieldType)
       {
-        CRGB col = ColorFromPalette(*strip->getCurrentPalette(),0,255, NOBLEND);
+        CRGB col = ColorFromPalette(*strip->getTargetPalette(),0,255, NOBLEND);
         currentStateAnswer[fields[i].name] = (((col.r << 16) | (col.g << 8) | (col.b << 0)) & 0xffffff);
       }
       else
@@ -1349,7 +1393,7 @@ void updateConfigFile(void)
       if (field.type == ColorFieldType)//(const char *)"Color")
       {
         CRGB solidColor = (*strip->getTargetPalette()).entries[0];
-        obj[F("value")] = String(solidColor.r) + String(",") + String(solidColor.g)+","+String(solidColor.b);
+        obj[F("value")] = (((solidColor.r << 16) | (solidColor.g << 8) | (solidColor.b << 0)) & 0xffffff);
       }
       else
       {
@@ -1403,7 +1447,16 @@ void setupWebServer(void)
       {
         JsonObject &obj = arr.createNestedObject();
         obj["name"] =  fields[i].name;
-        obj["value"] = fields[i].getValue();
+        if(fields[i].type == ColorFieldType)
+        {
+          CRGB solidColor = (*strip->getTargetPalette()).entries[0];
+          obj[F("value")] = (((solidColor.r << 16) | (solidColor.g << 8) | (solidColor.b << 0)) & 0xffffff); //String(solidColor.r) + "," + String(solidColor.g) + "," + String(solidColor.b);   
+        }
+        else
+        {
+          obj["value"] = fields[i].getValue();   
+        }
+        
       }
     }
     response->setLength();
@@ -2300,7 +2353,7 @@ void setup()
   
 
   stripe_setup(STRIP_VOLTAGE,
-               UncorrectedColor); //TypicalLEDStrip);
+               TypicalLEDStrip); //TypicalLEDStrip);
 
   updateConfigFile();
 
