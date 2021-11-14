@@ -203,6 +203,14 @@ enum AUTOPLAYMODES
   AUTO_MODE_RANDOM
 };
 
+enum COLORCORRECTIONS
+{
+  COR_TypicalLEDStrip,
+  COR_TypicalPixelString,
+  COR_UncorrectedColor,
+  COR_NUMCORRECTIONS
+};
+
 #define qsubd(x, b) ((x > b) ? b : 0)     // Digital unsigned subtraction macro. if result <0, then => 0. Otherwise, take on fixed value.
 #define qsuba(x, b) ((x > b) ? x - b : 0) // Analog Unsigned subtraction macro. if result <0, then => 0
 
@@ -244,10 +252,10 @@ public:
     uint8_t backgroundHue;
     uint8_t backgroundSat;
     uint8_t backgroundBri;
+    COLORCORRECTIONS colCor;
     bool power;
     bool isRunning;
     bool reverse;
-    bool inverse;
     bool mirror;
     bool addGlitter;
     bool whiteGlitter;
@@ -524,7 +532,7 @@ public:
     leds = new CRGB[LED_COUNT];
 
     FastLED.addLeds<WS2812, LED_PIN, GRB>(physicalLeds, LED_COUNT_TOT);
-    FastLED.setCorrection(colc); //TypicalLEDStrip);
+    FastLED.setCorrection(_segment.colCor); //TypicalLEDStrip);
 
 
     _mode[FX_MODE_STATIC]                 = &WS2812FX::mode_static;
@@ -724,7 +732,6 @@ public:
   inline void setIsRunning            (bool isRunning)  { _segment.isRunning = isRunning; if(isRunning) { _transition = true; _blend = 0; } }
   inline void setPower                (bool power)      { _segment.power = power; } // #see if it works w/o now (#35) setTransition(); } // this should fix reopened issue #6
   inline void setReverse              (bool rev)        { _segment.reverse = rev; setTransition(); }
-  inline void setInverse              (bool inv)        { _segment.inverse = inv; setTransition(); }
   inline void setMirror               (bool mirror)     { _segment.mirror = mirror; setTransition(); }
   inline void setAddGlitter           (bool addGlitter) { _segment.addGlitter = addGlitter; }
   inline void setWhiteGlitter         (bool whiteGlitter) { _segment.whiteGlitter = whiteGlitter; }
@@ -761,6 +768,7 @@ public:
   inline void setBckndSat             (uint8_t s)       { _segment.backgroundSat = s; }
   inline void setBckndHue             (uint8_t h)       { _segment.backgroundHue = h; }
   inline void setBckndBri             (uint8_t b)       { _segment.backgroundBri = constrain(b, BCKND_MIN_BRI, BCKND_MAX_BRI); }
+  inline void setColCor               (COLORCORRECTIONS c) { _segment.colCor = (COLORCORRECTIONS)constrain(c, 0, COR_NUMCORRECTIONS-1); FastLED.setCorrection(colorCorrectionValues[_segment.colCor]);}
 
   inline void setTransition           (void)            { _transition = true; _segment_runtime.modeinit = true; _blend = 0; }
   
@@ -771,7 +779,6 @@ public:
   inline bool           isRunning(void)               { return _segment.isRunning; }
   inline bool           getPower(void)                { return _segment.power; }
   inline bool           getReverse(void)              { return _segment.reverse; }
-  inline bool           getInverse(void)              { return _segment.inverse; }
   inline bool           getMirror(void)               { return _segment.mirror; }
   inline bool           getAddGlitter(void)           { return _segment.addGlitter; }
   inline bool           getWhiteGlitter(void)         { return _segment.whiteGlitter; }
@@ -820,6 +827,10 @@ public:
 
   inline uint16_t getCurrentSunriseStep(void) { if(_segment.mode == FX_MODE_SUNRISE || _segment.mode == FX_MODE_SUNSET) return _segment_runtime.modevars.sunrise_step.sunRiseStep; else return 0; }
   inline uint16_t getFPS(void) { if(_service_Interval_microseconds > 0) { return ((1000000 / _service_Interval_microseconds) + 1) ; } else { return 65535; } }
+
+  inline COLORCORRECTIONS getColorCorrectionEnum(void) { return _segment.colCor; }
+
+  
 
   uint8_t
   getMode(void),
@@ -879,6 +890,7 @@ private:
   uint8_t attackDecayWave8(uint8_t i);
 
   CRGB calcSunriseColorValue(uint16_t step);
+  CRGB colorCorrectionValues[3] = {TypicalLEDStrip, TypicalPixelString, UncorrectedColor };
 
   uint16_t
       mode_ease(void),

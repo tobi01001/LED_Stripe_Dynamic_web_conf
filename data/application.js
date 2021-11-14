@@ -26,7 +26,7 @@ const fieldtype = Object.freeze({
   InvalidFieldType : 6
 });
 
-var DEBUGME = false; //for console loggin. 
+var DEBUGME = false; //for console logging. 
 
 var ignoreColorChange = false;
 
@@ -318,6 +318,8 @@ function addSelectField(field) {
   $("#form").append(template);
 }
 
+
+
 function addColorFieldPicker(field) {
   var template = $("#colorTemplate").clone();
 
@@ -330,16 +332,23 @@ function addColorFieldPicker(field) {
 
   var input = template.find(".minicolors");
   input.attr("id", id);
+  if(DEBUGME) console.log("Field " + field);
+  if(DEBUGME) console.log("\tName:  " + field.name);
+  if(DEBUGME) console.log("\tValue: " + field.value);
+  var value = colToRGB(field.value);
+  if(!value.startsWith("rgb("))
+    value = "rgb(" + value;
 
-  if(!field.value.startsWith("rgb("))
-    field.value = "rgb(" + field.value;
+  if(!value.endsWith(")"))
+    value += ")";
 
-  if(!field.value.endsWith(")"))
-    field.value += ")";
+  if(DEBUGME) console.log("Field " + field);
+  if(DEBUGME) console.log("\tName:  " + field.name);
+  if(DEBUGME) console.log("\tValue: " + field.value);
+  // fixes #42
+  $("#" + id).minicolors("value", value);
 
-  input.val(field.value);
-
-  var components = rgbToComponents(field.value);
+  var components = rgbToComponents(value);
 
   var redInput = template.find(".color-red-input");
   var greenInput = template.find(".color-green-input");
@@ -366,6 +375,7 @@ function addColorFieldPicker(field) {
   blueSlider.val(components.b);
 
   redInput.on("change", function() {
+    if(DEBUGME) console.log("redInput.on change");
     var value = $("#" + id).val();
     var r = $(this).val();
     var components = rgbToComponents(value);
@@ -375,6 +385,7 @@ function addColorFieldPicker(field) {
   });
 
   greenInput.on("change", function() {
+    if(DEBUGME) console.log("greenInput.on change");
     var value = $("#" + id).val();
     var g = $(this).val();
     var components = rgbToComponents(value);
@@ -384,6 +395,7 @@ function addColorFieldPicker(field) {
   });
 
   blueInput.on("change", function() {
+    if(DEBUGME) console.log("blueInput.on change");
     var value = $("#" + id).val();
     var b = $(this).val();
     var components = rgbToComponents(value);
@@ -393,6 +405,7 @@ function addColorFieldPicker(field) {
   });
 
   redSlider.on("change", function() {
+    if(DEBUGME) console.log("redSlider.on change");
     var value = $("#" + id).val();
     var r = $(this).val();
     var components = rgbToComponents(value);
@@ -402,6 +415,7 @@ function addColorFieldPicker(field) {
   });
 
   greenSlider.on("change", function() {
+    if(DEBUGME) console.log("greenSlider.on change");
     var value = $("#" + id).val();
     var g = $(this).val();
     var components = rgbToComponents(value);
@@ -411,6 +425,7 @@ function addColorFieldPicker(field) {
   });
 
   blueSlider.on("change", function() {
+    if(DEBUGME) console.log("blueSlider.on change");
     var value = $("#" + id).val();
     var b = $(this).val();
     var components = rgbToComponents(value);
@@ -420,21 +435,25 @@ function addColorFieldPicker(field) {
   });
 
   redSlider.on("change mousemove", function() {
+    if(DEBUGME) console.log("redSlider.on change mousemove");
     redInput.val($(this).val());
   });
 
   greenSlider.on("change mousemove", function() {
+    if(DEBUGME) console.log("greenSlider.on change mousemove");
     greenInput.val($(this).val());
   });
 
   blueSlider.on("change mousemove", function() {
+    if(DEBUGME) console.log("blueSlider.on change mousemove");
     blueInput.val($(this).val());
   });
 
   input.on("change", function() {
     if (ignoreColorChange) return;
-
+    if(DEBUGME) console.log("ColorPicker input.on change");
     var value = $(this).val();
+    if(DEBUGME) console.log("ColorPicker input.on value = " + value);
     var components = rgbToComponents(value);
 
     redInput.val(components.r);
@@ -507,7 +526,7 @@ function updateFieldValue(name, value) {
   var group = $("#form-group-" + name);
 
   var type = group.attr("data-field-type");
-
+  if(DEBUGME) console.log("Updating " + name  + " with " + value);
   if (type == "0") { // NumberFieldType  : 0,
     var input = group.find(".form-control");
     input.val(value);
@@ -523,7 +542,18 @@ function updateFieldValue(name, value) {
     select.val(value);
   } else if (type == "3") { // ColorFieldType   : 3
     var input = group.find(".form-control");
-    input.val("rgb(" + value + ")");
+    if(DEBUGME) console.log("Updating " + input.toString());
+    if(DEBUGME) console.log("\tName:  " + name);
+    if(DEBUGME) console.log("\tValue: " + value);
+    var comp = colToCompomponents(value);
+    // fixes #42
+    $("#" + input["0"].id).minicolors("value", colToRGB(value));
+    input["1"].value = comp.r;
+    input["2"].value = comp.r;
+    input["3"].value = comp.g;
+    input["4"].value = comp.g;
+    input["5"].value = comp.b;
+    input["6"].value = comp.b;
   }
 };
 
@@ -576,6 +606,7 @@ function postColor(name, value) {
   var body = { name: name, r: value.r, g: value.g, b: value.b };
 
   $.get(urlBase + "/set?" + name + "=" + name + "&r=" + value.r + "&g=" + value.g + "&b=" + value.b, body, function(data) {
+    if(DEBUGME) console.log("Sending Color as = " + "/set?" + name + "=" + name + "&r=" + value.r + "&g=" + value.g + "&b=" + value.b);
     updateStatus("Set /set?" + name + "=" + name + "&r=" + value.r + "&g=" + value.g + "&b=" + value.b, true);
   })
   .fail(function(jqXHR, textStatus, errorThrown) { 
@@ -617,4 +648,20 @@ function rgbToComponents(rgb) {
   components.b = parseInt(rgb[3]);
 
   return components;
+}
+
+function colToCompomponents(col) {
+  var comp = {};
+  comp.r   = (col>>16)&0xff;
+  comp.g   = (col>> 8)&0xff;
+  comp.b   = (col)    &0xff;
+  return comp;
+}
+
+function colToRGB(col)
+{
+  var r = (col>>16)&0xff;
+  var g = (col>> 8)&0xff;
+  var b = (col)    &0xff;
+  return "rgb("+r+","+g+","+b+")";
 }
