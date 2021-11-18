@@ -541,6 +541,7 @@ function updateFieldValue(name, value) {
     var select = group.find(".form-control");
     select.val(value);
   } else if (type == "3") { // ColorFieldType   : 3
+    ignoreColorChange = true;
     var input = group.find(".form-control");
     if(DEBUGME) console.log("Updating " + input.toString());
     if(DEBUGME) console.log("\tName:  " + name);
@@ -554,6 +555,7 @@ function updateFieldValue(name, value) {
     input["4"].value = comp.g;
     input["5"].value = comp.b;
     input["6"].value = comp.b;
+    ignoreColorChange = false;
   }
 };
 

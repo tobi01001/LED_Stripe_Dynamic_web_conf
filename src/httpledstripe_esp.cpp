@@ -1053,6 +1053,7 @@ void handleSet(AsyncWebServerRequest *request)
         {
           color = constrain((uint32_t)strtoul(request->getParam(i)->value().c_str(), NULL, 16), 0, 0xffffff);
         }    
+        (*strip->getSegment()).solidColor = color;
         strip->setColor(color);
         answer.set(f.name, color);
         newSolidColor = true;
@@ -1181,8 +1182,8 @@ void handleStatus(AsyncWebServerRequest *request)
     {
       if(fields[i].type == ColorFieldType)
       {
-        CRGB col = ColorFromPalette(*strip->getTargetPalette(),0,255, NOBLEND);
-        currentStateAnswer[fields[i].name] = (((col.r << 16) | (col.g << 8) | (col.b << 0)) & 0xffffff);
+        //CRGB col = ColorFromPalette(*strip->getTargetPalette(),0,255, NOBLEND);
+        currentStateAnswer[fields[i].name] = ((((*strip->getSegment()).solidColor.r << 16) | ((*strip->getSegment()).solidColor.g << 8) | ((*strip->getSegment()).solidColor.b << 0)) & 0xffffff);
       }
       else
       {
@@ -1392,8 +1393,7 @@ void updateConfigFile(void)
     {
       if (field.type == ColorFieldType)//(const char *)"Color")
       {
-        CRGB solidColor = (*strip->getTargetPalette()).entries[0];
-        obj[F("value")] = (((solidColor.r << 16) | (solidColor.g << 8) | (solidColor.b << 0)) & 0xffffff);
+        obj[F("value")] = ((((*strip->getSegment()).solidColor.r << 16) | ((*strip->getSegment()).solidColor.g << 8) | ((*strip->getSegment()).solidColor.b << 0)) & 0xffffff);
       }
       else
       {
@@ -1449,8 +1449,7 @@ void setupWebServer(void)
         obj["name"] =  fields[i].name;
         if(fields[i].type == ColorFieldType)
         {
-          CRGB solidColor = (*strip->getTargetPalette()).entries[0];
-          obj[F("value")] = (((solidColor.r << 16) | (solidColor.g << 8) | (solidColor.b << 0)) & 0xffffff); //String(solidColor.r) + "," + String(solidColor.g) + "," + String(solidColor.b);   
+          obj[F("value")] = ((((*strip->getSegment()).solidColor.r << 16) | ((*strip->getSegment()).solidColor.g << 8) | ((*strip->getSegment()).solidColor.b << 0)) & 0xffffff); //String(solidColor.r) + "," + String(solidColor.g) + "," + String(solidColor.b);   
         }
         else
         {

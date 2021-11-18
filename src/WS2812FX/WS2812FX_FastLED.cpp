@@ -270,6 +270,7 @@ void WS2812FX::resetDefaults(void)
   FastLED.show();      // We show once to write the Led data.
 
   _brightness = 255;
+  _segment.solidColor = 0xC0C000;
 
   setIsRunning              (DEFAULT_RUNNING );
   setPower                  (DEFAULT_POWER);
@@ -1472,9 +1473,14 @@ void WS2812FX::setTargetPalette(CRGBPalette16 p, String Name = "Custom")
  */
 void WS2812FX::setTargetPalette(uint8_t n = 0)
 {
-  if (n >= getPalCount())
+  if (n > getPalCount())
   {
     n = 0;
+  }
+  if (n == NUM_PALETTES)
+  {
+    setTargetPalette(CRGBPalette16(_segment.solidColor));
+    return;
   }
   if (n == RANDOM_PAL)
   {
@@ -1642,7 +1648,6 @@ void WS2812FX::setColor(CRGBPalette16 c)
 
 void WS2812FX::setColor(uint32_t c)
 {
-
   setColor(CRGBPalette16(c));
   setBrightness(_brightness);
 }

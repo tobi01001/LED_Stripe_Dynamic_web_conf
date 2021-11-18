@@ -97,6 +97,9 @@ String getFieldValue(const char * name, FieldList fields, uint8_t count)
       field.getOptions(a);
       return a[field.getValue()].as<const char*>(); //.asString();
       break;
+    case ColorFieldType:
+      return String((*strip->getSegment()).solidColor);
+    break;
     default:
       break;
     }
