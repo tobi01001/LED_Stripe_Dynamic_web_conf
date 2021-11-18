@@ -226,7 +226,7 @@ public:
   {
     uint16_t CRC;
     uint16_t beat88;
-
+    CRGB solidColor;
     ColorTemperature colorTemp;
 
     uint16_t hueTime;
