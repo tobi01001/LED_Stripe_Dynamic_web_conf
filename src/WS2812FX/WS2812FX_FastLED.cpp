@@ -379,10 +379,10 @@ void WS2812FX::service()
       _segment.numBars = max(((LED_COUNT / _segment.segments) / MAX_NUM_BARS_FACTOR),1);
     }
     // 12.04.2019
-    // There are artefacts remeianing if the distribution is not equal.
+    // There are artefacts remaining if the distribution is not equal.
     // as we blend towards the new effect, we will remove the artefacts by clearing the leds array...
     fill_solid(leds, LED_COUNT, CRGB::Black);
-    fill_solid(_bleds, LED_COUNT, CRGB::Black);
+    //fill_solid(_bleds, LED_COUNT, CRGB::Black);
     
     setTransition();
     
@@ -526,6 +526,9 @@ if(LEDupdate && SEGMENT.mode == FX_MODE_VOID)
 // as the combination of "mirror" and "reverse" is a bit redundant, this could maybe be simplified as well (later)
 if(LEDupdate)
 {
+  // try to generally fade a bit to slowly remove any artefacts remaining
+  // this should not affect the effect running as long the the l_blend value is 255
+  fadeToBlackBy(_bleds, LED_COUNT, 1);
   for (uint16_t j = 0; j < _segment.segments; j++)
   {
     for (uint16_t i = 0; i < _segment_runtime.length; i++)

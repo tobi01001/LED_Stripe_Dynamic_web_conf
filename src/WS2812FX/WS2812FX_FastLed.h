@@ -514,7 +514,6 @@ public:
     uint16_t start;
     uint16_t stop;
     uint16_t length;
-    // uint32_t timebase;
     uint32_t nextHue;
     uint32_t nextAuto;
     uint32_t nextPalette;
@@ -523,16 +522,16 @@ public:
   } segment_runtime;
 
 public:
-  WS2812FX(const uint8_t volt = 5,
+  WS2812FX(CRGB * pleds, CRGB* eleds, const uint8_t volt = 5,
            const LEDColorCorrection colc = TypicalLEDStrip)
   {
 
-    physicalLeds = new CRGB[LED_COUNT_TOT];
+    physicalLeds = pleds; //= new CRGB[LED_COUNT_TOT];
     _bleds = &physicalLeds[LED_OFFSET];
-    leds = new CRGB[LED_COUNT];
+    leds = eleds; // new CRGB[LED_COUNT];
 
     FastLED.addLeds<WS2812, LED_PIN, GRB>(physicalLeds, LED_COUNT_TOT);
-    FastLED.setCorrection(_segment.colCor); //TypicalLEDStrip);
+    FastLED.setCorrection(_segment.colCor); 
 
 
     _mode[FX_MODE_STATIC]                 = &WS2812FX::mode_static;
@@ -690,8 +689,8 @@ public:
 
   ~WS2812FX()
   {
-    delete leds;
-    delete _bleds;
+    //delete leds;
+    //delete _bleds;
   }
 
   CRGB *leds;
@@ -769,12 +768,13 @@ public:
   inline void setBckndHue             (uint8_t h)       { _segment.backgroundHue = h; }
   inline void setBckndBri             (uint8_t b)       { _segment.backgroundBri = constrain(b, BCKND_MIN_BRI, BCKND_MAX_BRI); }
   inline void setColCor               (COLORCORRECTIONS c) { _segment.colCor = (COLORCORRECTIONS)constrain(c, 0, COR_NUMCORRECTIONS-1); FastLED.setCorrection(colorCorrectionValues[_segment.colCor]);}
+  inline void setSolidColor           (uint32_t c)      { _segment.solidColor = CRGB(c); }
 
   inline void setTransition           (void)            { _transition = true; _segment_runtime.modeinit = true; _blend = 0; }
   
   // getters
-  inline size_t         getCRCsize(void)          { return sizeof(_segment.CRC); }
-    
+  inline size_t         getCRCsize(void)              { return sizeof(_segment.CRC); }
+  inline CRGB           getSolidColor(void)           { return _segment.solidColor; }
   inline uint16_t       getCRC(void)                  { return _segment.CRC; }
   inline bool           isRunning(void)               { return _segment.isRunning; }
   inline bool           getPower(void)                { return _segment.power; }

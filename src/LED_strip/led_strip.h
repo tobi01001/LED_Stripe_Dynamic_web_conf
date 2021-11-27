@@ -61,7 +61,7 @@ extern WS2812FX *strip;
 // initialize the strip during boot (or at changes)
 // strip can be any neopixel arrangement
 // but is currently limited to NEO_GRB
-void stripe_setup(  const uint8_t volt ,
+void stripe_setup(  CRGB * pleds, CRGB* eleds, const uint8_t volt ,
                     const LEDColorCorrection colc);
 
 // Field.h
@@ -84,8 +84,8 @@ void stripe_setup(  const uint8_t volt ,
 */
 
 
-typedef void (*FieldSetter)(uint16_t);
-typedef uint16_t (*FieldGetter)();
+typedef void (*FieldSetter)(uint32_t);
+typedef uint32_t (*FieldGetter)();
 typedef void (*FieldGetterOpts)(JsonArray & arr);
 
 enum fieldtypes {
@@ -111,7 +111,6 @@ struct Field {
   FieldSetter setValue;
 };
 
-typedef Field FieldList[];
 
 // /End Field.h
 
@@ -134,35 +133,51 @@ typedef Field FieldList[];
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-Field getField(const char * name, FieldList fields, uint8_t count);
-String getFieldValue(const char * name, FieldList fields, uint8_t count);
-void setFieldValue(const char * name, uint16_t value, FieldList fields, uint8_t count);
-bool isField(const char * name, FieldList fields, uint8_t count);
-uint16_t getPower(void);
-uint16_t getMilliamps(void);
-uint16_t getBrightness(void);
-uint16_t getPattern(void);
-JsonArray& getPatterns(void);
-uint16_t getPalette(void);
-JsonArray& getPalettes(void);
-uint16_t getAutoplay(void); 
-uint16_t getAutoplayDuration(void);
-uint16_t getAutopal(void);
-uint16_t getAutopalDuration(void);
-uint16_t getSolidColor(void);
-uint16_t getCooling(void);
-uint16_t getSparking(void);
-uint16_t getSpeed(void);
-uint16_t getTwinkleSpeed(void);
-uint16_t getTwinkleDensity(void);
-uint16_t getBlendType(void);
-JsonArray& getBlendTypes(void);
-uint16_t getReverse(void);
-uint16_t getHueTime(void);
-uint16_t getDeltaHue(void);
+Field getField(const char * name);
+String getFieldValue(const char * name);
+void setFieldValue(const char * name, uint32_t value);
+bool isField(const char * name);
+const Field * getFields(void);
+uint8_t getFieldCount(void);
+// writes all Name / value pairs to the provided JSON Array
+// "values": [
+//    {
+//       "name": "power",
+//       "value": 0
+//    },
+//    {
+//       "name": "effect",
+//       "value": 0
+//    },
+//    {
+//       "name": "brightness",
+//       "value": 200
+//    },
+// returns true if at least on object was written
+bool getAllValuesJSONArray(JsonArray &arr);
 
-extern FieldList fields;
-extern uint8_t fieldCount;
+// writes all fields to the JSON obj as array.
+// {
+// "name": "power",
+// "label": "On/Off",
+// "type": 1,
+// "value": 0
+// },
+// {
+// "name": "effect",
+// "label": "Effect",
+// "type": 2,
+// "value": 0,
+// "options": [
+// "Static",
+// "Ease",
+// returns true if at least on object was written
+void getAllJSON(JsonArray &arr);
+// writes all Name / value pairs to the provided JSON
+// "power": "off",
+// "effect": "Static",
+// "brightness": "200"...
+bool getAllValuesJSON(JsonObject & obj);
 
 // /End Fields.h
 

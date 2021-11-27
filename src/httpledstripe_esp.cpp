@@ -170,6 +170,9 @@ struct pingPong {
 
 /* END Network Definitions */
 
+CRGB pLeds[LED_COUNT_TOT];
+CRGB eLeds[LED_COUNT];
+
 #include "FSBrowser.h"
 
 // helpers
@@ -184,14 +187,23 @@ IPAddress gateway_ip;
 uint8_t status_counter = 0; //((uint8_t)(ESP.getChipId()>>16)) + ((uint8_t)(ESP.getChipId()>>8)) + ((uint8_t)(ESP.getChipId()>>0));
 
 // holds the current reset reason
-String cStrReason = "Current Reset Reason";
+String cStrReason = "";
 // holds the last reset reason (interesting in case of faults / WD resets)
-String lStrReason = "Last Reset Reason";
+String lStrReason = "";
 
 //flag for saving data 
 bool shouldSaveRuntime = false;
 
 bool newSolidColor = false;
+
+// check if we need to Reset
+// We had to use a flag as the Async Responce caused
+// Watchdog reset.
+enum doResets {
+  LED_CTRL_NO_RESET,
+  LED_CTRL_RESET_DEFAULTS,
+  LED_CTRL_RESET_FACTORY
+} ledCtrlDoResets;
 
 // "local" copy of the segment data (to be saved)
 // used for comparison with the actual segment data
@@ -250,7 +262,7 @@ void clearCRC              (void);
 void clearEEPROM           (void);
 // deletes the EEPRORM as wel as WiFi settings
 // and restarts fresh
-void factoryReset          (void);
+void checkFactoryReset          (void);
 // reads the runtime data from EEPROM
 // and checks for validity (CRC)
 // if CRC does not match it will reset to default values
@@ -1034,9 +1046,9 @@ void handleSet(AsyncWebServerRequest *request)
   uint32_t color = CRGB::Black;
   for(uint8_t i=0; i<request->params(); i++)
   {
-    if(isField(request->getParam(i)->name().c_str(), fields, fieldCount))
+    if(isField(request->getParam(i)->name().c_str()))
     {
-      Field f = getField(request->getParam(i)->name().c_str(), fields, fieldCount);
+      Field f = getField(request->getParam(i)->name().c_str());
       if(f.type == ColorFieldType)
       {
         // comes from the web-Page currently as rgb
@@ -1053,7 +1065,7 @@ void handleSet(AsyncWebServerRequest *request)
         {
           color = constrain((uint32_t)strtoul(request->getParam(i)->value().c_str(), NULL, 16), 0, 0xffffff);
         }    
-        (*strip->getSegment()).solidColor = color;
+        strip->setSolidColor(color);
         strip->setColor(color);
         answer.set(f.name, color);
         newSolidColor = true;
@@ -1061,8 +1073,8 @@ void handleSet(AsyncWebServerRequest *request)
       else
       {
         // normal parameter...
-        setFieldValue(request->getParam(i)->name().c_str(),(uint16_t)(request->getParam(i)->value().toInt()), fields, fieldCount);
-        answer.set(request->getParam(i)->name(), getFieldValue(request->getParam(i)->name().c_str(), fields, fieldCount));
+        setFieldValue(request->getParam(i)->name().c_str(),(uint16_t)(request->getParam(i)->value().toInt()));
+        answer.set(request->getParam(i)->name(), getFieldValue(request->getParam(i)->name().c_str()));
       }
       
     }
@@ -1176,31 +1188,18 @@ void handleStatus(AsyncWebServerRequest *request)
 
   uint16_t num_leds_on = strip->getLedsOn();
 
-  for(uint8_t i=0; i<fieldCount; i++)
+  if(!getAllValuesJSON(currentStateAnswer))
   {
-    if(fields[i].getValue)
-    {
-      if(fields[i].type == ColorFieldType)
-      {
-        //CRGB col = ColorFromPalette(*strip->getTargetPalette(),0,255, NOBLEND);
-        currentStateAnswer[fields[i].name] = ((((*strip->getSegment()).solidColor.r << 16) | ((*strip->getSegment()).solidColor.g << 8) | ((*strip->getSegment()).solidColor.b << 0)) & 0xffffff);
-      }
-      else
-      {
-        currentStateAnswer[fields[i].name] = getFieldValue(fields[i].name, fields, fieldCount);
-      }
-      
-    }
+    currentStateAnswer[F("ValueError")] = F("Could not read any Name Value Pair!");
   }
-
-  currentStateAnswer[F("buildVersion")] = build_version;
-  currentStateAnswer[F("gitRevision")] = git_revision;
-  currentStateAnswer[F("lampName")] = LED_NAME;
-  currentStateAnswer[F("ledCount")] = LED_COUNT;
-  currentStateAnswer[F("lampMaxCurrent")] = strip->getMilliamps();
-  currentStateAnswer[F("lampMaxPower")] = strip->getVoltage() * strip->getMilliamps();
+  currentStateAnswer[F("buildVersion")]     = build_version;
+  currentStateAnswer[F("gitRevision")]      = git_revision;
+  currentStateAnswer[F("lampName")]         = LED_NAME;
+  currentStateAnswer[F("ledCount")]         = LED_COUNT;
+  currentStateAnswer[F("lampMaxCurrent")]   = strip->getMilliamps();
+  currentStateAnswer[F("lampMaxPower")]     = strip->getVoltage() * strip->getMilliamps();
   currentStateAnswer[F("lampCurrentPower")] = strip->getCurrentPower();
-  currentStateAnswer[F("ledsOn")] = num_leds_on;
+  currentStateAnswer[F("ledsOn")]           = num_leds_on;
   CRGB col = CRGB::Black;
   // We return either black (strip effectively off)
   // or the color of the first lid pixel....
@@ -1243,9 +1242,15 @@ void handleStatus(AsyncWebServerRequest *request)
   sunriseAnswer[F("sunRiseTotalSteps")]     = DEFAULT_SUNRISE_STEPS;
   sunriseAnswer[F("sunRiseTimeToFinish")]   = strip->getSunriseTimeToFinish();
   sunriseAnswer[F("sunRiseTime")]           = strip->getSunriseTime();
-  
   statsAnswer[F("chip_ResetReason")]        = cStrReason;
   statsAnswer[F("chip_LastResetReason")]    = lStrReason; 
+  uint32_t free = 0;
+  uint16_t max  = 0;
+  uint8_t  frag = 0;
+  ESP.getHeapStats(&free, &max, &frag);
+  statsAnswer[F("chip_FreeHeap")]           = free;
+  statsAnswer[F("chip_MaxHeap")]            = max;
+  statsAnswer[F("chip_HeapFrag")]           = frag;
   statsAnswer[F("chip_ID")]                 = ESP.getChipId();
   statsAnswer[F("wifi_IP")]                 = WiFi.localIP().toString();
   statsAnswer[F("wifi_CONNECT_ERR_COUNT")]  = wifi_disconnect_counter;
@@ -1254,7 +1259,7 @@ void handleStatus(AsyncWebServerRequest *request)
   statsAnswer[F("wifi_GATEWAY")]            = gateway_ip.toString();
   statsAnswer[F("wifi_BSSID")]              = WiFi.BSSIDstr();
   statsAnswer[F("wifi_BSSIDCRC")]           = strip->calc_CRC16((unsigned int)0x5555, (unsigned char*)WiFi.BSSID(), 6);
-  statsAnswer[F("statsCounter")]           = sin8(status_counter++);
+  statsAnswer[F("statsCounter")]            = sin8(status_counter++);
   statsAnswer[F("fps")]                     = FastLED.getFPS();
   statsAnswer[F("esp_Runtime_Days")]        = mESPrunTime.days;
   statsAnswer[F("esp_Runtime_Hours")]       = mESPrunTime.hours;
@@ -1265,28 +1270,54 @@ void handleStatus(AsyncWebServerRequest *request)
   request->send(response);
 }
 
-void factoryReset(void)
+void checkFactoryReset()
 {
-  // on factory reset, each led will be red
-  // increasing from led 0 to max.
-  for (uint16_t i = 0; i < strip->getStripLength(); i++)
+  switch (ledCtrlDoResets)
   {
-    strip->leds[i] = 0xa00000;
-    strip->show();
-    delay(2);
+  case LED_CTRL_NO_RESET:
+    break;
+  case LED_CTRL_RESET_DEFAULTS:
+  {
+    strip->setTargetPalette(0);
+    strip->setMode(0);
+    strip->stop();
+    strip->resetDefaults();
+    delay(INITDELAY);
+    checkSegmentChanges();
+    delay(INITDELAY);
+    shouldSaveRuntime = true;
+    delay(INITDELAY);
+    saveEEPROMData();
+    delay(INITDELAY);
+    ESP.restart();
   }
-  strip->show();
-  DNSServer dns;
-  AsyncWiFiManager wifimgr(&server, &dns);
-  delay(INITDELAY);
-  wifimgr.resetSettings();
-  // wifimgr.erase(); // seems to be removed from WiFiManager
-  delay(INITDELAY);
-  clearEEPROM();
-  WiFi.persistent(false);
-  
-//reset and try again
-  ESP.restart();
+    break;
+  case LED_CTRL_RESET_FACTORY:
+  {
+    // on factory reset, each led will be red
+    // increasing from led 0 to max.
+    for (uint16_t i = 0; i < strip->getStripLength(); i++)
+    {
+      // if we call strip->show(); then we can write data to leds array.
+      // if FastLED.show() would have been directly called, we need tov write to the raw data in e.g. _bleds
+      strip->leds[i] = 0xa00000;
+      strip->show();
+      delay(5);
+    }
+    DNSServer dns;
+    AsyncWiFiManager wifimgr(&server, &dns);
+    delay(INITDELAY);
+    wifimgr.resetSettings();
+    delay(INITDELAY);
+    clearEEPROM();
+    WiFi.persistent(false); 
+    ESP.restart();
+  }
+    break;
+  default:
+    break;
+  }
+  ledCtrlDoResets = LED_CTRL_NO_RESET;
 }
 
 const __FlashStringHelper * getResetReasonStr(uint8_t resetReason)
@@ -1358,61 +1389,21 @@ void handleResetRequest(AsyncWebServerRequest * request)
   if (request->getParam(F("rst"))->value() == F("FactoryReset"))
   {
     request->send(200, F("text/plain"), F("Will now Reset to factory settings. You need to connect to the WLAN AP afterwards...."));
-    factoryReset();
+    ledCtrlDoResets = LED_CTRL_RESET_FACTORY;
   }
   else if (request->getParam(F("rst"))->value() == F("Defaults"))
   {
-    strip->setTargetPalette(0);
-    strip->setMode(0);
-    strip->stop();
-    strip->resetDefaults();
     request->send(200, F("text/plain"), F("Strip was reset to the default values..."));
-    delay(INITDELAY);
-    checkSegmentChanges();
-    delay(INITDELAY);
-    shouldSaveRuntime = true;
-    delay(INITDELAY);
-    saveEEPROMData();
-    delay(INITDELAY);
-    ESP.restart();
+    ledCtrlDoResets = LED_CTRL_RESET_DEFAULTS;
   }
 }
 
 void updateConfigFile(void)
 {
   DynamicJsonBuffer buffer;
-  JsonArray& root = buffer.createArray();   
-  for (uint8_t i = 0; i < fieldCount; i++)
-  {
-    Field field = fields[i];
-    JsonObject& obj = root.createNestedObject();
-    obj[F("name")]  = field.name;
-    obj[F("label")] = field.label;
-    obj[F("type")]  = (int)field.type;
-    if (field.getValue)
-    {
-      if (field.type == ColorFieldType)//(const char *)"Color")
-      {
-        obj[F("value")] = ((((*strip->getSegment()).solidColor.r << 16) | ((*strip->getSegment()).solidColor.g << 8) | ((*strip->getSegment()).solidColor.b << 0)) & 0xffffff);
-      }
-      else
-      {
-        obj[F("value")] = field.getValue();
-      }
-    }
-
-    if (field.type == NumberFieldType) //(const char *)"Number")
-    {
-      obj["min"] = field.min;
-      obj["max"] = field.max;
-    }
-
-    if (field.getOptions)
-    {
-      JsonArray &arr = obj.createNestedArray("options");
-      field.getOptions(arr);
-    }
-  }
+  JsonArray& root = buffer.createArray();
+  
+  getAllJSON(root);
 
   File config_Json = LittleFS.open("/config_all.json", "w");
 
@@ -1441,22 +1432,10 @@ void setupWebServer(void)
 
     JsonObject &root = response->getRoot();
     JsonArray &arr = root.createNestedArray("values");
-    for(uint8_t i=0; i<fieldCount; i++)
+    if(!getAllValuesJSONArray(arr))
     {
-      if(fields[i].type < TitleFieldType)
-      {
-        JsonObject &obj = arr.createNestedObject();
-        obj["name"] =  fields[i].name;
-        if(fields[i].type == ColorFieldType)
-        {
-          obj[F("value")] = ((((*strip->getSegment()).solidColor.r << 16) | ((*strip->getSegment()).solidColor.g << 8) | ((*strip->getSegment()).solidColor.b << 0)) & 0xffffff); //String(solidColor.r) + "," + String(solidColor.g) + "," + String(solidColor.b);   
-        }
-        else
-        {
-          obj["value"] = fields[i].getValue();   
-        }
-        
-      }
+      JsonObject &obj = arr.createNestedObject();
+      obj[F("ValueError")] = F("Did not read any values!");
     }
     response->setLength();
     request->send(response);
@@ -1464,7 +1443,7 @@ void setupWebServer(void)
 
   server.on("/fieldValue", HTTP_GET, [](AsyncWebServerRequest *request) {
     String name = request->getParam(F("name"))->value();
-    String response = getFieldValue(name.c_str(), fields, fieldCount);
+    String response = getFieldValue(name.c_str());
     request->send(200, F("text/plain"), response);
   });
 
@@ -1739,6 +1718,8 @@ uint8_t drawtxtline10(uint8_t y, uint8_t fontheight, String txt)
 
 uint8_t get_next_field(uint8_t curr_field, bool up) 
 {
+  const uint8_t fieldCount = getFieldCount();
+  const Field * fields = getFields();
   uint8_t ret = curr_field;
   uint8_t first_field = 0;
   uint8_t last_field = fieldCount-1;
@@ -1786,6 +1767,7 @@ uint8_t get_next_field(uint8_t curr_field, bool up)
 
 uint16_t setEncoderValues(uint8_t curr_field, uint16_t * knb_maxVal,uint16_t * knb_minVal, uint16_t * knb_curVal, uint16_t * knb_steps)
 {
+  const Field * fields = getFields();
   uint16_t curr_value = 0;
   //switch (m_fieldtypes[curr_field])
   switch (fields[curr_field].type)
@@ -1817,6 +1799,7 @@ uint16_t setEncoderValues(uint8_t curr_field, uint16_t * knb_maxVal,uint16_t * k
     break;
     case ColorFieldType :
       // nothing? - to be done later...
+      // we could certainly add some preselected vbalues as list???
     break;
     case SectionFieldType :
       // nothing?
@@ -1836,6 +1819,7 @@ void showDisplay(uint8_t curr_field)
   }
   EVERY_N_MILLISECONDS(1000/KNOB_DISPLAY_FPS)
   {
+    const Field * fields = getFields();
     uint16_t val = (uint16_t)fields[curr_field].getValue();
     display.clear();
     display.setTextAlignment(TEXT_ALIGN_LEFT);
@@ -2101,6 +2085,8 @@ void knob_service(uint32_t now)
 {
   // ToDo: Use a unique and better name. 
   // Maybe make this local within the functions?
+  const uint8_t fieldCount  = getFieldCount();
+  const Field * fields      = getFields();
   static uint16_t knb_maxVal = 65535;
   static uint16_t knb_minVal = 0;
   static uint16_t knb_curVal = 0;
@@ -2264,7 +2250,7 @@ void knob_service(uint32_t now)
 
 String readLastResetReason(void)
 {
-  File f = LittleFS.open("/lastReset.txt", "r");
+  File f = LittleFS.open(F("/lastReset.txt"), "r");
   if(!f) return F("File not found");
   String r = f.readStringUntil((char)13);
   f.close();
@@ -2273,7 +2259,7 @@ String readLastResetReason(void)
 
 void writeLastResetReason(const String reason)
 {
-  File f = LittleFS.open("/lastReset.txt", "w");
+  File f = LittleFS.open(F("/lastReset.txt"), "w");
   if(!f) return;
   f.println(reason);
   f.close();
@@ -2286,6 +2272,8 @@ void setup()
   // Sanity delay to get everything settled....
   delay(INITDELAY);
 
+  // init some values
+  ledCtrlDoResets = LED_CTRL_NO_RESET;
   mESPrunTime.days    = 0;
   mESPrunTime.hours   = 0;
   mESPrunTime.minutes = 0;
@@ -2351,7 +2339,7 @@ void setup()
   display.display();
   
 
-  stripe_setup(STRIP_VOLTAGE,
+  stripe_setup(pLeds, eLeds, STRIP_VOLTAGE,
                TypicalLEDStrip); //TypicalLEDStrip);
 
   updateConfigFile();
@@ -2379,7 +2367,7 @@ void setup()
   display.clear();
   cursor = 0;
   cursor = drawtxtline10(cursor, font_height, "Boot fertig!");
-  cursor = drawtxtline10(cursor, font_height, "Name: " + String(LED_NAME));
+  cursor = drawtxtline10(cursor, font_height, "Name: " + String(F(LED_NAME)));
   cursor = drawtxtline10(cursor, font_height, "IP: " + WiFi.localIP().toString());
   cursor = drawtxtline10(cursor, font_height, "LEDs: " + String(LED_COUNT));
   display.display();
@@ -2427,7 +2415,7 @@ void setup()
   }
   delay(10);
    
-  stripe_setup(STRIP_VOLTAGE,
+  stripe_setup(pLeds, eLeds, STRIP_VOLTAGE,
                UncorrectedColor); //TypicalLEDStrip);
 
   updateConfigFile();
@@ -2539,11 +2527,15 @@ void loop()
   {
     if (WiFi.status() != WL_CONNECTED)
     {
+      server.end();
+      webSocketsServer->enable(false);
       wifi_err_counter+=2;
       wifi_disconnect_counter+=4;
     }
     else
     {
+      server.begin();
+      webSocketsServer->enable(true);
       if(wifi_err_counter > 0) wifi_err_counter--;
       if(wifi_disconnect_counter > 0) wifi_disconnect_counter--;
     }
@@ -2554,6 +2546,7 @@ void loop()
       WiFi.mode(WIFI_OFF);
       delay(2000);
       setupWiFi();
+
     }
 
     if(wifi_err_counter > 40)
@@ -2623,6 +2616,8 @@ void loop()
   {
     if (WiFi.status() != WL_CONNECTED)
     {
+      server.end();
+      webSocketsServer->enable(false);
       if(WiFiConnected) last_control_operation = now;    // Will switch the display on. Only needed when we had connection and now lose it...
       wifi_err_counter+=1;
       //wifi_disconnect_counter+=2;
@@ -2630,6 +2625,8 @@ void loop()
     }
     else
     {
+      server.begin();
+      webSocketsServer->enable(true);
       if(wifi_err_counter > 0) wifi_err_counter--;
       // if(wifi_disconnect_counter > 0) wifi_disconnect_counter--;
       // Maybe we implement one line as status message (e.g. "WiFi Reconnected")
@@ -2673,6 +2670,7 @@ void loop()
   EVERY_N_MILLIS(100)
   {
     checkSegmentChanges();
+    checkFactoryReset();
   }
 
   EVERY_N_MILLIS(EEPROM_SAVE_INTERVAL_MS)
