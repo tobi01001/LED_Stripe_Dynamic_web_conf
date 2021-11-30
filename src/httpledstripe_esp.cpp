@@ -2386,9 +2386,7 @@ void setup()
 
   FastLED.addLeds<WS2812, LED_PIN, GRB>(pLeds, LED_COUNT_TOT);  
 
-  stripe_setup(pLeds, eLeds, STRIP_VOLTAGE,
-               TypicalLEDStrip); //TypicalLEDStrip);
-
+  stripe_setup(pLeds, eLeds);
 
   readRuntimeDataEEPROM();
 
