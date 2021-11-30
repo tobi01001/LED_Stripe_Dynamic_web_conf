@@ -55,7 +55,7 @@
 #include <AsyncJson.h>
 #include <ESPAsyncWiFiManager.h>
 #include <ArduinoOTA.h>
-#include <EEPROM.h>
+#include <EEPROM_Rotate.h>
 #include <ESP8266mDNS.h>
 
 #ifdef HAS_KNOB_CONTROL
@@ -69,6 +69,8 @@
 #define FASTLED_ESP8266_RAW_PIN_ORDER
 #define FASTLED_ESP8266_DMA
 #define FASTLED_USE_PROGMEM 1
+
+EEPROM_Rotate EEPROM;
 
 #include "defaults.h"
 
@@ -281,10 +283,15 @@ void saveEEPROMData        (void);
 // removes the Websocket Client from the list of 
 // connected clients
 void removeClient          (uint32_t iD);
-// will update the file containing all parameters, the structure and values (JSON)
+
+// will delete the configFile (which gets recreated once /all is called)
+void deleteConfigFile      (void);
+
+// will update the file containing all parameters and the structure  (JSON)
 // this is used by the website to generate the menu, boundaries etc...
 // As the amount of data is too much for the Async-Webserver 
 // to manage during runtime, we use a file on the Filesystem for this.
+// And it is quite static as long as the structure does not change
 void updateConfigFile      (void);
 
 // will return a "relatively" increased or decreased value by the given percentage
@@ -690,16 +697,22 @@ void initOverTheAirUpdate(void)
     display.drawString(0, 0, F("Starting OTA..."));
     display.displayOn();
     display.display();
+    // delete the configFile - gets recreated on request
+    deleteConfigFile();
     // we stop the webserver to not get interrupted....
     server.end();
     // and we stop (unmount) the Filesystem
     LittleFS.end();
+
+    EEPROM.rotate(false);
+    EEPROM.commit();
+
     // and we stop the websockets
     if(webSocketsServer)
     {
-      webSocketsServer->enable(false);
       webSocketsServer->textAll("OTA started!");
       webSocketsServer->closeAll();
+      webSocketsServer->enable(false);
     }
     // we indicate our skEtch that OTA is currently running (should actually not be required)
     OTAisRunning = true;
@@ -796,11 +809,24 @@ void initOverTheAirUpdate(void)
       strip->show();
       delay(500);
     }
+    // delete the configFile - gets recreated on request
+    deleteConfigFile();
     // we stop the webserver to not get interrupted....
     server.end();
     // and we stop (unmount) the Filesystem
     LittleFS.end();
-    // we indicate our sketch that OTA is currently running (should actually not be required)
+
+    EEPROM.rotate(false);
+    EEPROM.commit();
+
+    // and we stop the websockets
+    if(webSocketsServer)
+    {
+      webSocketsServer->textAll("OTA started!");
+      webSocketsServer->closeAll();
+      webSocketsServer->enable(false);
+    }
+    // we indicate our skEtch that OTA is currently running (should actually not be required)
     OTAisRunning = true;
   });
   // what to do if OTA is finished...
@@ -1282,6 +1308,9 @@ void checkFactoryReset()
     strip->setMode(0);
     strip->stop();
     strip->resetDefaults();
+
+    deleteConfigFile();
+
     delay(INITDELAY);
     checkSegmentChanges();
     delay(INITDELAY);
@@ -1304,6 +1333,9 @@ void checkFactoryReset()
       strip->show();
       delay(5);
     }
+
+    deleteConfigFile();
+
     DNSServer dns;
     AsyncWiFiManager wifimgr(&server, &dns);
     delay(INITDELAY);
@@ -1359,7 +1391,13 @@ void clearCRC(void)
  * Clear the CRC to startup Fresh....
  * Used in case we end up in a WDT reset (either SW or HW)
  */
-
+  // we will reset anyway... so lets stop the server
+  server.end();
+  if(webSocketsServer)
+  {
+    webSocketsServer->enable(false);
+  }
+  deleteConfigFile();
 // invalidating the CRC - in case somthing goes terribly wrong...
   EEPROM.begin(strip->getCRCsize());
   EEPROM.put(0,(uint16_t)0);
@@ -1371,7 +1409,8 @@ void clearCRC(void)
 
 void clearEEPROM(void)
 {
-//Clearing EEPROM
+  deleteConfigFile();
+  //Clearing EEPROM
   EEPROM.begin(strip->getSegmentSize());
   for (uint32_t i = 0; i < EEPROM.length(); i++)
   {
@@ -1398,6 +1437,14 @@ void handleResetRequest(AsyncWebServerRequest * request)
   }
 }
 
+void deleteConfigFile(void)
+{
+  if(LittleFS.exists(F("/config_all.json")))
+  {
+    LittleFS.remove(F("/config_all.json"));
+  }
+}
+
 void updateConfigFile(void)
 {
   DynamicJsonBuffer buffer;
@@ -1405,7 +1452,7 @@ void updateConfigFile(void)
   
   getAllJSON(root);
 
-  File config_Json = LittleFS.open("/config_all.json", "w");
+  File config_Json = LittleFS.open(F("/config_all.json"), "w");
 
   root.printTo(config_Json);
 
@@ -1505,7 +1552,6 @@ void setupWebServer(void)
 
   if(webSocketsServer == NULL) webSocketsServer = new AsyncWebSocket("/ws");
   webSocketsServer->enable(true);
-  //webSocketsServer->begin();
   
   webSocketsServer->onEvent(webSocketEvent);
 
@@ -2337,12 +2383,12 @@ void setup()
   }
   cursor = drawtxtline10 (cursor, 10, F("LED Stripe init"));
   display.display();
-  
+
+  FastLED.addLeds<WS2812, LED_PIN, GRB>(pLeds, LED_COUNT_TOT);  
 
   stripe_setup(pLeds, eLeds, STRIP_VOLTAGE,
                TypicalLEDStrip); //TypicalLEDStrip);
 
-  updateConfigFile();
 
   readRuntimeDataEEPROM();
 
@@ -2358,10 +2404,6 @@ void setup()
     display.display();
     initOverTheAirUpdate();
   }  
-  
-  //readRuntimeDataEEPROM();
-
-  updateConfigFile();
 
   delay(KNOB_BOOT_DELAY);
   display.clear();
@@ -2414,11 +2456,10 @@ void setup()
       break;
   }
   delay(10);
-   
-  stripe_setup(pLeds, eLeds, STRIP_VOLTAGE,
-               UncorrectedColor); //TypicalLEDStrip);
-
-  updateConfigFile();
+  
+  FastLED.addLeds<WS2812, LED_PIN, GRB>(pLeds, LED_COUNT_TOT);
+ 
+  stripe_setup(pLeds, eLeds);
 
   
   // internal LED can be light up when current is limited by FastLED
@@ -2507,7 +2548,6 @@ void setup()
 
   readRuntimeDataEEPROM();
 
-  updateConfigFile();
 
 #endif // HAS_KNOB_CONTROL
 }

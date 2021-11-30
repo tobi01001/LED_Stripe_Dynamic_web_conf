@@ -522,26 +522,19 @@ public:
   } segment_runtime;
 
 public:
-  WS2812FX(CRGB * pleds, CRGB* eleds, const uint8_t volt = 5,
-           const LEDColorCorrection colc = TypicalLEDStrip)
+  WS2812FX(CRGB * pleds, CRGB* eleds)
   {
 
-    physicalLeds = pleds; //= new CRGB[LED_COUNT_TOT];
+    physicalLeds = pleds; 
     _bleds = &physicalLeds[LED_OFFSET];
-    leds = eleds; // new CRGB[LED_COUNT];
-
-    FastLED.addLeds<WS2812, LED_PIN, GRB>(physicalLeds, LED_COUNT_TOT);
-    FastLED.setCorrection(_segment.colCor); 
-
+    leds = eleds; 
 
     _mode[FX_MODE_STATIC]                 = &WS2812FX::mode_static;
-    //_mode[FX_MODE_TWINKLE_EASE]           = &WS2812FX::mode_twinkle_ease;
     _mode[FX_MODE_EASE]                   = &WS2812FX::mode_ease;
     _mode[FX_MODE_MULTI_DYNAMIC]          = &WS2812FX::mode_multi_dynamic;
     _mode[FX_MODE_RAINBOW]                = &WS2812FX::mode_rainbow;
     _mode[FX_MODE_RAINBOW_CYCLE]          = &WS2812FX::mode_rainbow_cycle;
     _mode[FX_MODE_PRIDE]                  = &WS2812FX::mode_pride;
-    //_mode[FX_MODE_PRIDE_GLITTER]          = &WS2812FX::mode_pride_glitter;
     _mode[FX_MODE_SCAN]                   = &WS2812FX::mode_scan;
     _mode[FX_MODE_DUAL_SCAN]              = &WS2812FX::mode_dual_scan;
     _mode[FX_MODE_FADE]                   = &WS2812FX::mode_fade;
@@ -550,15 +543,11 @@ public:
     _mode[FX_MODE_THEATER_CHASE_RAINBOW]  = &WS2812FX::mode_theater_chase_rainbow;
     _mode[FX_MODE_TWINKLE_FADE]           = &WS2812FX::mode_twinkle_fade;
     _mode[FX_MODE_TWINKLE_FOX]            = &WS2812FX::mode_twinkle_fox;
-    //      _mode[FX_MODE_SOFTTWINKLES]            = &WS2812FX::mode_softtwinkles; // FIXME: Broken
     _mode[FX_MODE_LARSON_SCANNER]         = &WS2812FX::mode_larson_scanner;
     _mode[FX_MODE_COMET]                  = &WS2812FX::mode_comet;
-    //_mode[FX_MODE_FIRE_FLICKER]           = &WS2812FX::mode_fire_flicker;
-    //_mode[FX_MODE_FIRE_FLICKER_SOFT]      = &WS2812FX::mode_fire_flicker_soft;
     _mode[FX_MODE_FIRE_FLICKER_INTENSE]   = &WS2812FX::mode_fire_flicker_intense;
     _mode[FX_MODE_BREATH]                 = &WS2812FX::mode_breath;
     _mode[FX_MODE_RUNNING_LIGHTS]         = &WS2812FX::mode_running_lights;
-    //_mode[FX_MODE_TWINKLE_NOISEMOVER]     = &WS2812FX::mode_inoise8_mover_twinkle;
     _mode[FX_MODE_NOISEMOVER]             = &WS2812FX::mode_inoise8_mover;
     _mode[FX_MODE_PLASMA]                 = &WS2812FX::mode_plasma;
     _mode[FX_MODE_JUGGLE_PAL]             = &WS2812FX::mode_juggle_pal;
@@ -597,10 +586,8 @@ public:
 
     _name[FX_MODE_STATIC]                 = F("Static");
     _name[FX_MODE_EASE]                   = F("Ease");
-    //_name[FX_MODE_TWINKLE_EASE]           = F("Ease Twinkle");
     _name[FX_MODE_BREATH]                 = F("Breath");
     _name[FX_MODE_NOISEMOVER]             = F("iNoise8");
-    //_name[FX_MODE_TWINKLE_NOISEMOVER]     = F("Twinkle iNoise8 Mover");
     _name[FX_MODE_PLASMA]                 = F("Plasma");
     _name[FX_MODE_JUGGLE_PAL]             = F("Juggle Pixels");
     _name[FX_MODE_FILL_BEAT]              = F("Color Fill");
@@ -614,7 +601,6 @@ public:
     _name[FX_MODE_RAINBOW]                = F("Rainbow");
     _name[FX_MODE_RAINBOW_CYCLE]          = F("Rainbow Cycle");
     _name[FX_MODE_PRIDE]                  = F("Pride");
-    //_name[FX_MODE_PRIDE_GLITTER]          = F("Pride Glitter");
     _name[FX_MODE_SCAN]                   = F("Scan");
     _name[FX_MODE_DUAL_SCAN]              = F("Dual Scan");
     _name[FX_MODE_FADE]                   = F("Fade");
@@ -626,14 +612,11 @@ public:
     _name[FX_MODE_FILL_BRIGHT]            = F("Wave Bright");
     _name[FX_MODE_TWINKLE_FADE]           = F("Twinkle Fade");
     _name[FX_MODE_TWINKLE_FOX]            = F("Twinkle Fox");
-    //      _name[FX_MODE_SOFTTWINKLES]               = F("Soft Twinkles"); // FIXME: Broken...
     _name[FX_MODE_FIREWORK]               = F("Firework");
     _name[FX_MODE_FIRE2012]               = F("Fire 2012 - Specific Colors");
     _name[FX_MODE_FILL_WAVE]              = F("FILL Wave");
     _name[FX_MODE_LARSON_SCANNER]         = F("Larson Scanner");
     _name[FX_MODE_COMET]                  = F("Comet");
-    //_name[FX_MODE_FIRE_FLICKER]           = F("Fire Flicker");
-    //_name[FX_MODE_FIRE_FLICKER_SOFT]      = F("Fire Flicker (soft)");
     _name[FX_MODE_FIRE_FLICKER_INTENSE]   = F("Fire Flicker");
     _name[FX_MODE_BUBBLE_SORT]            = F("Bubble Sort");
     _name[FX_MODE_SHOOTING_STAR]          = F("Shooting Star");
@@ -689,8 +672,7 @@ public:
 
   ~WS2812FX()
   {
-    //delete leds;
-    //delete _bleds;
+
   }
 
   CRGB *leds;

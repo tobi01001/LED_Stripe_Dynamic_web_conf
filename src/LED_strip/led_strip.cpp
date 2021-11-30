@@ -470,11 +470,7 @@ void getAllJSON(JsonArray &arr)
     obj[F("name")]  = field.name;
     obj[F("label")] = field.label;
     obj[F("type")]  = (int)field.type;
-    if (field.getValue)
-    {
-      obj[F("value")] = field.getValue();
-    }
-
+    
     if (field.type == NumberFieldType) //(const char *)"Number")
     {
       obj[F("min")] = field.min;
@@ -585,10 +581,9 @@ uint8_t getFieldCount(void)
 
   
 
-void stripe_setup(CRGB * pleds, CRGB* eleds, const uint8_t volt = (uint8_t)5,
-                  const LEDColorCorrection colc = UncorrectedColor /*TypicalLEDStrip*/)
+void stripe_setup(CRGB * pleds, CRGB* eleds)
 {
-  strip = new WS2812FX(pleds, eleds, volt, colc);
+  strip = new WS2812FX(pleds, eleds);
   strip->init();
   strip->start();
   strip->show();
