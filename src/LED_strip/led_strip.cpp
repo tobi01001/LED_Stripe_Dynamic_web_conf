@@ -494,7 +494,7 @@ bool getAllValuesJSON(JsonObject & obj)
     if(fields[i].getValue)
     {
       ret = true;
-      obj[fields[i].name] = fields[i].getValue();  
+      obj[fields[i].name] = getFieldValue(fields[i].name);
     }
   }
   return ret;
