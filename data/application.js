@@ -124,16 +124,10 @@ $(document).ready(function() {
 		updateStatus("Loading, please wait...", true);
 
 		$.each(data, function(index, field) {
-			//if(DEBUGME) console.log("Field " + field.label + " with type " + field.type);
 			if (field.type == fieldtype.NumberFieldType) {
 				addNumberField(field);
 			} else if (field.type == fieldtype.TitleFieldType) {
-        /*
-        if (document.title != field.label) {
-					document.title = field.label;
-					$("#nameLink").html(field.label);
-        }
-        */
+
 			} else if (field.type == fieldtype.BooleanFieldType) {
 				addBooleanField(field);
 			} else if (field.type == fieldtype.SelectFieldType) {
@@ -160,7 +154,7 @@ $(document).ready(function() {
 	.done(function(name, value, test) {
 		updateStatus("Structure ready, updating values", true);
 		$.get(urlBase + "/allvalues", function(rec) {
-			updateStatus("Loading, status...", true);
+			updateStatus("Loading, current values...", true);
 			for(i=0; i<rec.values.length; i++) {
 				if(DEBUGME) console.log("Name: " + rec.values[i].name + " value " +  rec.values[i].value);
 				updateFieldValue( rec.values[i].name,  rec.values[i].value);
@@ -202,8 +196,11 @@ function addNumberField(field) {
     input.attr("step", field.step);
     slider.attr("step", field.step);
   }
-  input.val(field.value);
-  slider.val(field.value);
+  if (field.value != null)
+  {
+	input.val(field.value);
+	slider.val(field.value);
+  }
 
   slider.on("change mousemove", function() {
     input.val($(this).val());
@@ -247,9 +244,12 @@ function addBooleanField(field) {
   btnOn.attr("id", "btnOn" + field.name);
   btnOff.attr("id", "btnOff" + field.name);
 
-  btnOn.attr("class", field.value ? "btn btn-primary" : "btn btn-default");
-  btnOff.attr("class", !field.value ? "btn btn-primary" : "btn btn-default");
-
+  if(field.value != null)
+  {
+	if(DEBUGME) console.log("\t\tValue: " + field.value);
+	btnOn.attr("class", field.value ? "btn btn-primary" : "btn btn-default");
+	btnOff.attr("class", !field.value ? "btn btn-primary" : "btn btn-default");
+  }						 
   btnOn.click(function() {
     setBooleanFieldValue(field, btnOn, btnOff, 1)
   });
@@ -284,9 +284,11 @@ function addSelectField(field) {
     option.attr("value", i);
     select.append(option);
   }
-
-  select.val(field.value);
-
+  if(field.value != null)
+  {
+	  if(DEBUGME) console.log("\t\tValue: " + field.value);
+	  select.val(field.value);
+  }
   select.change(function() {
     var value = template.find("#" + id + " option:selected").index();
     postValue(field.name, value);
@@ -332,9 +334,7 @@ function addColorFieldPicker(field) {
 
   var input = template.find(".minicolors");
   input.attr("id", id);
-  if(DEBUGME) console.log("Field " + field);
-  if(DEBUGME) console.log("\tName:  " + field.name);
-  if(DEBUGME) console.log("\tValue: " + field.value);
+  if(field.value == null) field.value = 0;
   var value = colToRGB(field.value);
   if(!value.startsWith("rgb("))
     value = "rgb(" + value;
@@ -587,7 +587,7 @@ function postValue(name, value) {
   })
   .done(function(name, value, test)
   {
-	  updateStatus("success", false, 2000);
+	  updateStatus("success setting " + JSON.stringify(name.currentState), false, 3000);
   });
   if(ws_connected)
   {
@@ -616,7 +616,7 @@ function postColor(name, value) {
   })
   .done(function(name, value, test)
   {
-	  updateStatus("success", false, 2000);
+	  updateStatus("success setting "  + JSON.stringify(name.currentState), false, 3000);
   });
   
   if(ws_connected)

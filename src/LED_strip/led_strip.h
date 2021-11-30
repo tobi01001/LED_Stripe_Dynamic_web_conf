@@ -61,8 +61,7 @@ extern WS2812FX *strip;
 // initialize the strip during boot (or at changes)
 // strip can be any neopixel arrangement
 // but is currently limited to NEO_GRB
-void stripe_setup(  CRGB * pleds, CRGB* eleds, const uint8_t volt ,
-                    const LEDColorCorrection colc);
+void stripe_setup(  CRGB * pleds, CRGB* eleds);
 
 // Field.h
 /*
