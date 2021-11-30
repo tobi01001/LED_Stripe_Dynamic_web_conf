@@ -471,7 +471,7 @@ void getAllJSON(JsonArray &arr)
     obj[F("label")] = field.label;
     obj[F("type")]  = (int)field.type;
     
-    if (field.type == NumberFieldType) //(const char *)"Number")
+    if (field.type == NumberFieldType) 
     {
       obj[F("min")] = field.min;
       obj[F("max")] = field.max;
@@ -494,7 +494,7 @@ bool getAllValuesJSON(JsonObject & obj)
     if(fields[i].getValue)
     {
       ret = true;
-      obj[fields[i].name] = getFieldValue(fields[i].name);
+      obj[fields[i].name] = fields[i].getValue();  
     }
   }
   return ret;
@@ -535,6 +535,7 @@ String getFieldValue(const char * name)
     switch (field.type)
     {
     case NumberFieldType:
+    case ColorFieldType:
       return String(field.getValue());
       break;
     case BooleanFieldType:
@@ -546,11 +547,8 @@ String getFieldValue(const char * name)
       break;
     case SelectFieldType:
       field.getOptions(a);
-      return a[field.getValue()].as<const char*>(); //.asString();
+      return a[field.getValue()].as<const char*>(); 
       break;
-    case ColorFieldType:
-      return String(strip->getSolidColor());
-    break;
     default:
       break;
     }
