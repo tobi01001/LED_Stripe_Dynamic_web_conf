@@ -180,7 +180,7 @@ CRGB eLeds[LED_COUNT];
 // helpers
 // counts the errors on the wifi connection
 uint8_t wifi_err_counter = 0;
-// counts the wifi disconnects
+// error counter for the wifi disconnects (30 per check up, 1 down)
 uint16_t wifi_disconnect_counter = 0;
 // the adress of the gateway being connected to
 IPAddress gateway_ip;
@@ -1005,7 +1005,7 @@ void setupWiFi(uint16_t timeout = 240)
   else
   {
     WiFiConnected = true;
-    wifi_disconnect_counter++;// number of times we (re-)connected // = 0; // reset only in case we actually reconnected via setup routine
+    wifi_disconnect_counter+=30; // number of times we (re-)connected // = 0; // reset only in case we actually reconnected via setup routine
     if(WiFi.getMode() != WIFI_STA)
     {
       WiFi.mode(WIFI_STA);
@@ -2568,7 +2568,7 @@ void loop()
       server.end();
       webSocketsServer->enable(false);
       wifi_err_counter+=2;
-      wifi_disconnect_counter+=4;
+      wifi_disconnect_counter+=30; 
     }
     else
     {
@@ -2586,8 +2586,11 @@ void loop()
       setupWiFi();
 
     }
-
-    if(wifi_err_counter > 40)
+    // restart if there is no WiFi for more than one minute
+    // ToDo: check if we make this an increaing value (to end in restarts every minute....) 
+    // but the reconnect currently should also wait in the config portal?!
+    // also to be checked, why we do restart here while doing a new "setup" with the Knob Control?
+    if(wifi_err_counter > (uint8_t)(60000/WIFI_TIMEOUT))
     {
       for (uint16_t i = 0; i < NUM_INFORMATION_LEDS; i++)
       {
@@ -2658,7 +2661,7 @@ void loop()
       webSocketsServer->enable(false);
       if(WiFiConnected) last_control_operation = now;    // Will switch the display on. Only needed when we had connection and now lose it...
       wifi_err_counter+=1;
-      //wifi_disconnect_counter+=2;
+      wifi_disconnect_counter+=30;
       WiFiConnected = false;
     }
     else
@@ -2666,13 +2669,13 @@ void loop()
       server.begin();
       webSocketsServer->enable(true);
       if(wifi_err_counter > 0) wifi_err_counter--;
-      // if(wifi_disconnect_counter > 0) wifi_disconnect_counter--;
+      if(wifi_disconnect_counter > 0) wifi_disconnect_counter--;
       // Maybe we implement one line as status message (e.g. "WiFi Reconnected")
       if(!WiFiConnected) last_control_operation = now;  // Will switch the display on (also on reconnection (once)..
       WiFiConnected = true;
     }
 
-    if(wifi_err_counter > (10 * (wifi_disconnect_counter%12)))
+    if(wifi_err_counter > (uint8_t)(60000/WIFI_TIMEOUT)) // (10 * (wifi_disconnect_counter%12)))
     {
       WiFi.mode(WIFI_OFF);
       setupWiFi();

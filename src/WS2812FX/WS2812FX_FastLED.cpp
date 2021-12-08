@@ -258,8 +258,6 @@ void WS2812FX::init()
 
 void WS2812FX::resetDefaults(void)
 {
-  
-
   _segment_runtime.start = 0;
   _segment_runtime.stop = LED_COUNT - 1;
   _segment_runtime.length = LED_COUNT;
