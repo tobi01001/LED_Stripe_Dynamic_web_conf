@@ -180,7 +180,7 @@ CRGB eLeds[LED_COUNT];
 // helpers
 // counts the errors on the wifi connection
 uint8_t wifi_err_counter = 0;
-// error counter for the wifi disconnects (30 per check up, 1 down)
+// error counter for the wifi disconnects (50 per check up every 5s, 1 down every 30s)
 uint16_t wifi_disconnect_counter = 0;
 // the adress of the gateway being connected to
 IPAddress gateway_ip;
@@ -976,7 +976,7 @@ void setupWiFi(uint16_t timeout = 240)
     showInitColor(CRGB::Red);
     ESP.restart();
   }
-
+  wifi_disconnect_counter+=50;
   if(WiFi.getMode() != WIFI_STA)
   {
     WiFi.mode(WIFI_STA);
@@ -1005,7 +1005,7 @@ void setupWiFi(uint16_t timeout = 240)
   else
   {
     WiFiConnected = true;
-    wifi_disconnect_counter+=30; // number of times we (re-)connected // = 0; // reset only in case we actually reconnected via setup routine
+    wifi_disconnect_counter+=50; // number of times we (re-)connected // = 0; // reset only in case we actually reconnected via setup routine
     if(WiFi.getMode() != WIFI_STA)
     {
       WiFi.mode(WIFI_STA);
@@ -2568,14 +2568,18 @@ void loop()
       server.end();
       webSocketsServer->enable(false);
       wifi_err_counter+=2;
-      wifi_disconnect_counter+=30; 
+      wifi_disconnect_counter+=50; 
     }
     else
     {
       server.begin();
       webSocketsServer->enable(true);
       if(wifi_err_counter > 0) wifi_err_counter--;
-      if(wifi_disconnect_counter > 0) wifi_disconnect_counter--;
+      static uint8_t resetCnt = 0;
+      resetCnt = (resetCnt + 1)%6;
+      broadcastInt(F("resetCnt"), resetCnt);
+      broadcastInt(F("wifiErrCnt"), wifi_disconnect_counter);
+      if(wifi_disconnect_counter > 0 && !resetCnt) wifi_disconnect_counter--;
     }
 
     if(wifi_err_counter > 20)
@@ -2661,21 +2665,23 @@ void loop()
       webSocketsServer->enable(false);
       if(WiFiConnected) last_control_operation = now;    // Will switch the display on. Only needed when we had connection and now lose it...
       wifi_err_counter+=1;
-      wifi_disconnect_counter+=30;
+      wifi_disconnect_counter+=50;
       WiFiConnected = false;
     }
     else
     {
       server.begin();
       webSocketsServer->enable(true);
+      static uint8_t resetCnt = 0;
+      resetCnt = (resetCnt + 1)%6;
       if(wifi_err_counter > 0) wifi_err_counter--;
-      if(wifi_disconnect_counter > 0) wifi_disconnect_counter--;
+      if(wifi_disconnect_counter > 0 && !resetCnt) wifi_disconnect_counter--;
       // Maybe we implement one line as status message (e.g. "WiFi Reconnected")
       if(!WiFiConnected) last_control_operation = now;  // Will switch the display on (also on reconnection (once)..
       WiFiConnected = true;
     }
 
-    if(wifi_err_counter > (uint8_t)(60000/WIFI_TIMEOUT)) // (10 * (wifi_disconnect_counter%12)))
+    if(wifi_err_counter > (uint8_t)(60000/WIFI_TIMEOUT)) 
     {
       WiFi.mode(WIFI_OFF);
       setupWiFi();
