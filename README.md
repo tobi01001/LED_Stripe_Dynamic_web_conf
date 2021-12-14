@@ -21,17 +21,17 @@ HW used (in addition to the LED stripe and the WEMOD D1 mini (or other ESP8266) 
 - 2x Resistor 1700 Ohm
 - 1x Resistor 980 Ohm
 Schematics:
-![Knob Control Schematics](https://github.com/tobi01001/LED_Stripe_Dynamic_web_conf/blob/KnobControl/circuit.png)
+![Knob Control Schematics](https://github.com/tobi01001/LED_Stripe_Dynamic_web_conf/blob/main/circuit.png)
 The debouncing circuits (RC part) may not be required but makes the rotary input quite stable.
 
-The rest of the Project can be modified to your needs in platformio. See the Build flags in [platformio.ini]( https://github.com/tobi01001/LED_Stripe_Dynamic_web_conf/blob/KnobControl/platformio.ini) to see how to define the number of LEDs, the Controller / LED lamp name and if it has Knob control.
+The rest of the Project can be modified to your needs in platformio. See the Build flags in [platformio.ini]( https://github.com/tobi01001/LED_Stripe_Dynamic_web_conf/blob/main/platformio.ini) to see how to define the number of LEDs, the Controller / LED lamp name and if it has Knob control.
 
 Have fun and let me know if theres anything not working as expected....
 
 Pictures:
-![Status Screen](https://github.com/tobi01001/LED_Stripe_Dynamic_web_conf/blob/KnobControl/20200227_210857.jpg)
+![Status Screen](https://github.com/tobi01001/LED_Stripe_Dynamic_web_conf/blob/main/20200227_210857.jpg)
 Switches Off after some time to be not "disturbing" and switches on if one uses the rotary encoder and on some other conditions.
-![Menu Screen](https://github.com/tobi01001/LED_Stripe_Dynamic_web_conf/blob/KnobControl/20200227_210707.jpg)
+![Menu Screen](https://github.com/tobi01001/LED_Stripe_Dynamic_web_conf/blob/main/20200227_210707.jpg)
 Sub Menu screen for a boolean parameter. Numbers are represented as progress bar and value. Text selection as scrollable list.
 The menu Screen follows the same structure as the online version and is derived from the code...
 
