@@ -1,6 +1,6 @@
 {
-    "name": "%TITLE%",
-    "short_name": "%TITLE%",
+    "name": "MY_LED_control",
+    "short_name": "MY_LED_control",
     "icons": [
         {
             "src": "/images/android-chrome-192x192.png",

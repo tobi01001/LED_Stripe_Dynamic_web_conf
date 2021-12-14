@@ -2317,7 +2317,7 @@ void setup()
 
   // Sanity delay to get everything settled....
   delay(INITDELAY);
-
+  Serial.begin(115200);
   // init some values
   ledCtrlDoResets = LED_CTRL_NO_RESET;
   mESPrunTime.days    = 0;
