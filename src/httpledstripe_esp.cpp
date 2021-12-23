@@ -54,6 +54,7 @@
 #include <ESPAsyncWebServer.h>
 #include <AsyncJson.h>
 #include <ESPAsyncWiFiManager.h>
+#include <SPIFFSEditor.h>
 #include <ArduinoOTA.h>
 #include <EEPROM_Rotate.h>
 #include <ESP8266mDNS.h>
@@ -175,7 +176,6 @@ struct pingPong {
 CRGB pLeds[LED_COUNT_TOT];
 CRGB eLeds[LED_COUNT];
 
-#include "FSBrowser.h"
 
 // helpers
 // counts the errors on the wifi connection
@@ -1511,37 +1511,6 @@ void setupWebServer(void)
     request->send(200,  F("text/plain"), "" );
   });
 
-  //list directory
-  server.on("/list", HTTP_GET, handleFileList);
-  //load editor
-  server.on("/edit", HTTP_GET, [](AsyncWebServerRequest *request) {
-    String path = "/edit.htm";
-    
-    String pathWithGz = path + ".gz";
-    if(LittleFS.exists(pathWithGz) || LittleFS.exists(path)){
-      if(LittleFS.exists(pathWithGz))
-        path += ".gz";
-      //File file = LittleFS.open(path, "r");
-      String contentType = getContentType(path);
-      //size_t sent = server.streamFile(file, contentType);
-      request->send(LittleFS, path, contentType);
-      //server.streamFile(file, contentType);
-      //file.close();
-    }
-    else
-    {
-      request->send(404, "text/plain", "FileNotFound: " + path);
-    }
-    Dir dir = LittleFS.openDir("/");
-  });
-  //create file
-  server.on("/edit", HTTP_PUT, handleFileCreate);
-  //delete file
-  server.on("/edit", HTTP_DELETE, handleFileDelete);
-  //first callback is called after the request has ended with all parsed arguments
-  //second callback handles file uploads at that location
-  server.on("/edit", HTTP_POST, handleFileUpload);
-
   server.serveStatic("/", LittleFS, "/").setCacheControl("max-age=1");
   delay(INITDELAY);
 
@@ -1556,7 +1525,8 @@ void setupWebServer(void)
   webSocketsServer->onEvent(webSocketEvent);
 
   server.addHandler(webSocketsServer);
-
+  server.addHandler(new SPIFFSEditor("","", LittleFS));
+  
   server.begin();
 
   showInitColor(CRGB::Yellow);
@@ -2297,7 +2267,7 @@ void knob_service(uint32_t now)
 String readLastResetReason(void)
 {
   File f = LittleFS.open(F("/lastReset.txt"), "r");
-  if(!f) return F("File not found");
+  if(!f) return F("FS Upload? File not found");
   String r = f.readStringUntil((char)13);
   f.close();
   return r;
