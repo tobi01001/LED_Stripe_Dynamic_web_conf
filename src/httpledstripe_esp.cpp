@@ -730,15 +730,13 @@ void initOverTheAirUpdate(void)
     if(RESET_DEFAULTS)
     {
       clearCRC();
-      // attention: clearCRC() will also reset the ESP, so the below code will never run!
-      // thats why we indicate that with a return statement:
-      return;
     }
 
     // indicate that OTA is no longer running.
     OTAisRunning = false;
     delay(100);
     display.displayOff();
+    writeLastResetReason("OTA finished");
     // no need to reset ESP as this is done by the OTA handler by default
   });
   // show the progress  on the display
@@ -776,6 +774,7 @@ void initOverTheAirUpdate(void)
     display.drawStringMaxWidth(0, 0,  128, F("Update failed!"));
     display.drawStringMaxWidth(0, 22, 128, err);
     display.drawStringMaxWidth(0, 43, 128, F("Reset in 5 Secs"));
+    writeLastResetReason("OTA Error: " + err);
     delay(5000);
     ESP.restart();
   });
@@ -854,13 +853,9 @@ void initOverTheAirUpdate(void)
     // as this will (hopefully) reset to defaults on SW updates
     if(RESET_DEFAULTS)
     {
-      
       clearCRC();
-      // attention: clearCRC() will also reset the ESP, so the below code will never run!
-      // thats why we indicate that with a return statement:
-      return;
     }
-    
+    writeLastResetReason("OTA finished");
 
     // indicate that OTA is no longer running. (rather useless)
     OTAisRunning = false;
@@ -881,15 +876,22 @@ void initOverTheAirUpdate(void)
 
   // something went wrong, we gonna show an error "message" via LEDs.
   ArduinoOTA.onError([](ota_error_t error) {
+    String err = F("OTA Fehler: ");
+
     if (error == OTA_AUTH_ERROR) {
+      err = err + F("Auth Failed");
     }
     else if (error == OTA_BEGIN_ERROR) {
+      err = err + F("Begin Failed");
     }
     else if (error == OTA_CONNECT_ERROR) {
+      err = err + F("Connect Failed");
     }
     else if (error == OTA_RECEIVE_ERROR) {
+      err = err + F("Receive Failed");
     }
     else if (error == OTA_END_ERROR) {
+      err = err + F("End Failed");
     }
     // something went wrong during OTA.
     // We will fade in to red...
@@ -902,6 +904,7 @@ void initOverTheAirUpdate(void)
       strip->show();
       delay(2);
     }
+    writeLastResetReason("OTA Error: " + err);
     // We wait 5 seconds and then restart the ESP...
     delay(5000);
     ESP.restart();
@@ -974,6 +977,7 @@ void setupWiFi(uint16_t timeout = 240)
     showInitColor(CRGB::Yellow);
     delay(6*INITDELAY);
     showInitColor(CRGB::Red);
+    writeLastResetReason("WifiManager Timeout");
     ESP.restart();
   }
   wifi_disconnect_counter+=50;
@@ -1318,6 +1322,7 @@ void checkFactoryReset()
     delay(INITDELAY);
     saveEEPROMData();
     delay(INITDELAY);
+    writeLastResetReason("Reset Default Values");
     ESP.restart();
   }
     break;
@@ -1343,6 +1348,7 @@ void checkFactoryReset()
     delay(INITDELAY);
     clearEEPROM();
     WiFi.persistent(false); 
+    writeLastResetReason("Factory Reset");
     ESP.restart();
   }
     break;
@@ -1404,7 +1410,6 @@ void clearCRC(void)
   EEPROM.commit();
   EEPROM.end();
   delay(100);
-  ESP.restart();
 }
 
 void clearEEPROM(void)
@@ -2362,14 +2367,20 @@ void setup()
   case REASON_WDT_RST:
     delay(2000);
     clearCRC(); // should enable default start in case of
+    writeLastResetReason(lStrReason);
+    ESP.restart();
     break;
   case REASON_EXCEPTION_RST:
     delay(2000);
     clearCRC();
+    writeLastResetReason(lStrReason);
+    ESP.restart();
     break;
   case REASON_SOFT_WDT_RST:
     delay(2000);
     clearCRC();
+    writeLastResetReason(lStrReason);
+    ESP.restart();
     break;
   case REASON_SOFT_RESTART:
     break;
@@ -2430,14 +2441,20 @@ void setup()
     case REASON_WDT_RST:
       
       clearCRC(); // should enable default start in case of
+      writeLastResetReason(lStrReason);
+      ESP.restart();
       break;
     case REASON_EXCEPTION_RST:
       
       clearCRC();
+      writeLastResetReason(lStrReason);
+      ESP.restart();
       break;
     case REASON_SOFT_WDT_RST:
       
       clearCRC();
+      writeLastResetReason(lStrReason);
+      ESP.restart();
       break;
     case REASON_SOFT_RESTART:
       
@@ -2554,6 +2571,7 @@ void loop()
 {
   uint32_t now = millis();
   static uint32_t wifi_check_time = 0;
+  bool WLAN_Connected = (WiFi.status() == WL_CONNECTED);
 
   if (OTAisRunning)
     return;
@@ -2563,7 +2581,7 @@ void loop()
   // Reset on disconnection
   if (now > wifi_check_time)
   {
-    if (WiFi.status() != WL_CONNECTED)
+    if (!WLAN_Connected)
     {
       server.end();
       webSocketsServer->enable(false);
@@ -2603,29 +2621,33 @@ void loop()
       strip->show();
       // Reset after 3 seconds....
       delay(3000);
+      writeLastResetReason("WiFi disconnect Timeout");
       ESP.restart();
     }
 
     wifi_check_time = now + (WIFI_TIMEOUT);
   }
 
-  ArduinoOTA.handle(); // check and handle OTA updates of the code....
-
-  MDNS.update();
-
-  EVERY_N_SECONDS(2)
+  if(WLAN_Connected)
   {
-    DynamicJsonBuffer jB;
-    for(const auto& c: webSocketsServer->getClients())
-    {
-      uint8_t i = getClient(c->id());     
-      c->text("{\"Client\": " + String(c->id()) + "}");
-      my_pingPongs[i].ping = random8();
-      c->ping( &my_pingPongs[i].ping, sizeof(uint8_t));
-    }
-    webSocketsServer->cleanupClients();
-  }
+    ArduinoOTA.handle(); // check and handle OTA updates of the code....
 
+    MDNS.update();
+
+    EVERY_N_SECONDS(2)
+    {
+      DynamicJsonBuffer jB;
+      for(const auto& c: webSocketsServer->getClients())
+      {
+        uint8_t i = getClient(c->id());     
+        c->text("{\"Client\": " + String(c->id()) + "}");
+        my_pingPongs[i].ping = random8();
+        c->ping( &my_pingPongs[i].ping, sizeof(uint8_t));
+      }
+      webSocketsServer->cleanupClients();
+    }
+  }
+  
   #else
 
   static bool WiFiIsDisabled = strip->getWiFiDisabled();
@@ -2638,6 +2660,7 @@ void loop()
       checkSegmentChanges();
       shouldSaveRuntime = true;
       saveEEPROMData();
+      writeLastResetReason("WiFi disabled toggle");
       ESP.restart();
     }
     else
@@ -2659,7 +2682,7 @@ void loop()
     // since we have Knob-Control. We do not care about "No Connection"
   if (!WiFiIsDisabled && now > wifi_check_time)
   {
-    if (WiFi.status() != WL_CONNECTED)
+    if (!WLAN_Connected)
     {
       server.end();
       webSocketsServer->enable(false);
@@ -2714,10 +2737,13 @@ void loop()
 
   strip->service();
 
-  EVERY_N_MILLIS(100)
+  if(WLAN_Connected)
   {
-    checkSegmentChanges();
-    checkFactoryReset();
+    EVERY_N_MILLIS(100)
+    {
+      checkSegmentChanges();
+      checkFactoryReset();
+    }
   }
 
   EVERY_N_MILLIS(EEPROM_SAVE_INTERVAL_MS)
