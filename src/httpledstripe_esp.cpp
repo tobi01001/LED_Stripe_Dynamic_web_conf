@@ -76,7 +76,7 @@ EEPROM_Rotate EEPROM;
 
 extern "C"
 {
-#include "user_interface.h"
+  #include "user_interface.h"
 }
 
 // new approach starts here:
@@ -730,15 +730,13 @@ void initOverTheAirUpdate(void)
     if(RESET_DEFAULTS)
     {
       clearCRC();
-      // attention: clearCRC() will also reset the ESP, so the below code will never run!
-      // thats why we indicate that with a return statement:
-      return;
     }
 
     // indicate that OTA is no longer running.
     OTAisRunning = false;
     delay(100);
     display.displayOff();
+    writeLastResetReason(F("OTA finished"));
     // no need to reset ESP as this is done by the OTA handler by default
   });
   // show the progress  on the display
@@ -754,7 +752,7 @@ void initOverTheAirUpdate(void)
 
   // something went wrong, we gonna show an error "message".
   ArduinoOTA.onError([](ota_error_t error) {
-    String err = F("OTA Fehler: ");
+    String err = F("OTA Error: ");
 
     if (error == OTA_AUTH_ERROR) {
       err = err + F("Auth Failed");
@@ -776,6 +774,7 @@ void initOverTheAirUpdate(void)
     display.drawStringMaxWidth(0, 0,  128, F("Update failed!"));
     display.drawStringMaxWidth(0, 22, 128, err);
     display.drawStringMaxWidth(0, 43, 128, F("Reset in 5 Secs"));
+    writeLastResetReason(err);
     delay(5000);
     ESP.restart();
   });
@@ -822,7 +821,7 @@ void initOverTheAirUpdate(void)
     // and we stop the websockets
     if(webSocketsServer)
     {
-      webSocketsServer->textAll("OTA started!");
+      webSocketsServer->textAll(F("OTA started!"));
       webSocketsServer->closeAll();
       webSocketsServer->enable(false);
     }
@@ -854,13 +853,9 @@ void initOverTheAirUpdate(void)
     // as this will (hopefully) reset to defaults on SW updates
     if(RESET_DEFAULTS)
     {
-      
       clearCRC();
-      // attention: clearCRC() will also reset the ESP, so the below code will never run!
-      // thats why we indicate that with a return statement:
-      return;
     }
-    
+    writeLastResetReason(F("OTA finished"));
 
     // indicate that OTA is no longer running. (rather useless)
     OTAisRunning = false;
@@ -881,15 +876,22 @@ void initOverTheAirUpdate(void)
 
   // something went wrong, we gonna show an error "message" via LEDs.
   ArduinoOTA.onError([](ota_error_t error) {
+    String err = F("OTA Error: ");
+
     if (error == OTA_AUTH_ERROR) {
+      err = err + F("Auth Failed");
     }
     else if (error == OTA_BEGIN_ERROR) {
+      err = err + F("Begin Failed");
     }
     else if (error == OTA_CONNECT_ERROR) {
+      err = err + F("Connect Failed");
     }
     else if (error == OTA_RECEIVE_ERROR) {
+      err = err + F("Receive Failed");
     }
     else if (error == OTA_END_ERROR) {
+      err = err + F("End Failed");
     }
     // something went wrong during OTA.
     // We will fade in to red...
@@ -902,6 +904,7 @@ void initOverTheAirUpdate(void)
       strip->show();
       delay(2);
     }
+    writeLastResetReason(err);
     // We wait 5 seconds and then restart the ESP...
     delay(5000);
     ESP.restart();
@@ -974,9 +977,11 @@ void setupWiFi(uint16_t timeout = 240)
     showInitColor(CRGB::Yellow);
     delay(6*INITDELAY);
     showInitColor(CRGB::Red);
+    writeLastResetReason(F("WifiManager Timeout"));
     ESP.restart();
   }
-  wifi_disconnect_counter+=50;
+  // reset the disconnect Counter
+  wifi_disconnect_counter = 0;
   if(WiFi.getMode() != WIFI_STA)
   {
     WiFi.mode(WIFI_STA);
@@ -1005,7 +1010,7 @@ void setupWiFi(uint16_t timeout = 240)
   else
   {
     WiFiConnected = true;
-    wifi_disconnect_counter+=50; // number of times we (re-)connected // = 0; // reset only in case we actually reconnected via setup routine
+    wifi_disconnect_counter = 0; // number of times we (re-)connected // = 0; // reset only in case we actually reconnected via setup routine
     if(WiFi.getMode() != WIFI_STA)
     {
       WiFi.mode(WIFI_STA);
@@ -1120,7 +1125,7 @@ void handleSet(AsyncWebServerRequest *request)
     strip->_bleds[pixel] = CRGB(color);
     // a range of pixels from start rnS to end rnE
     answer.set(F("effect"), strip->getModeName(FX_MODE_VOID));
-    answer.set(F("power"), strip->getPower() ? "on" : "off");
+    answer.set(F("power"), strip->getPower() ? F("on") : F("off"));
   }
   //FIXME: Does not yet work. Lets simplyfy all of this!
   else if (request->hasParam(F("rnS")) && request->hasParam(F("rnE")))
@@ -1157,7 +1162,7 @@ void handleNotFound(AsyncWebServerRequest * request)
 {
   // if something unknown was called...
   AsyncWebServerResponse *response = request->beginResponse(404); //Sends 404 File Not Found
-  response->addHeader("Server",LED_NAME);
+  response->addHeader(F("Server"),LED_NAME);
   request->send(response);
 }
 
@@ -1318,6 +1323,7 @@ void checkFactoryReset()
     delay(INITDELAY);
     saveEEPROMData();
     delay(INITDELAY);
+    writeLastResetReason(F("Reset Default Values"));
     ESP.restart();
   }
     break;
@@ -1343,6 +1349,7 @@ void checkFactoryReset()
     delay(INITDELAY);
     clearEEPROM();
     WiFi.persistent(false); 
+    writeLastResetReason(F("Factory Reset"));
     ESP.restart();
   }
     break;
@@ -1404,7 +1411,6 @@ void clearCRC(void)
   EEPROM.commit();
   EEPROM.end();
   delay(100);
-  ESP.restart();
 }
 
 void clearEEPROM(void)
@@ -1465,12 +1471,12 @@ void setupWebServer(void)
   delay(INITDELAY);
   
 
-  server.on("/all", HTTP_GET, [](AsyncWebServerRequest *request) {
-    if(!LittleFS.exists("/config_all.json"))
+  server.on(("/all"), HTTP_GET, [](AsyncWebServerRequest *request) {
+    if(!LittleFS.exists(F("/config_all.json")))
     {
       updateConfigFile();
     }
-    request->send(LittleFS, "/config_all.json", "application/json");
+    request->send(LittleFS, F("/config_all.json"), F("application/json"));
   });
 
 
@@ -1478,7 +1484,7 @@ void setupWebServer(void)
     AsyncJsonResponse * response = new AsyncJsonResponse();
 
     JsonObject &root = response->getRoot();
-    JsonArray &arr = root.createNestedArray("values");
+    JsonArray &arr = root.createNestedArray(F("values"));
     if(!getAllValuesJSONArray(arr))
     {
       JsonObject &obj = arr.createNestedObject();
@@ -1515,7 +1521,7 @@ void setupWebServer(void)
   server.on("/list", HTTP_GET, handleFileList);
   //load editor
   server.on("/edit", HTTP_GET, [](AsyncWebServerRequest *request) {
-    String path = "/edit.htm";
+    String path = F("/edit.htm");
     
     String pathWithGz = path + ".gz";
     if(LittleFS.exists(pathWithGz) || LittleFS.exists(path)){
@@ -1530,7 +1536,7 @@ void setupWebServer(void)
     }
     else
     {
-      request->send(404, "text/plain", "FileNotFound: " + path);
+      request->send(404, F("text/plain"), "FileNotFound: " + path);
     }
     Dir dir = LittleFS.openDir("/");
   });
@@ -1545,10 +1551,10 @@ void setupWebServer(void)
   server.serveStatic("/", LittleFS, "/").setCacheControl("max-age=1");
   delay(INITDELAY);
 
-  DefaultHeaders::Instance().addHeader("Access-Control-Allow-Methods", "*");
-  DefaultHeaders::Instance().addHeader("Access-Control-Allow-Headers", "*");
-  DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
-  DefaultHeaders::Instance().addHeader("Access-Control-Max-Age", "1");
+  DefaultHeaders::Instance().addHeader(F("Access-Control-Allow-Methods"), "*");
+  DefaultHeaders::Instance().addHeader(F("Access-Control-Allow-Headers"), "*");
+  DefaultHeaders::Instance().addHeader(F("Access-Control-Allow-Origin"), "*");
+  DefaultHeaders::Instance().addHeader(F("Access-Control-Max-Age"), "1");
 
   if(webSocketsServer == NULL) webSocketsServer = new AsyncWebSocket("/ws");
   webSocketsServer->enable(true);
@@ -2297,7 +2303,7 @@ void knob_service(uint32_t now)
 String readLastResetReason(void)
 {
   File f = LittleFS.open(F("/lastReset.txt"), "r");
-  if(!f) return F("File not found");
+  if(!f) return F("FS upload? File not found");
   String r = f.readStringUntil((char)13);
   f.close();
   return r;
@@ -2307,7 +2313,10 @@ void writeLastResetReason(const String reason)
 {
   File f = LittleFS.open(F("/lastReset.txt"), "w");
   if(!f) return;
-  f.println(reason);
+  random16_add_entropy(ESP.getFreeHeap());
+  random16_add_entropy(WiFi.RSSI());
+  random16_add_entropy(analogRead(PIN_A0));
+  f.println(reason + " " + String(random16()));
   f.close();
 }
 
@@ -2318,6 +2327,13 @@ void setup()
   // Sanity delay to get everything settled....
   delay(INITDELAY);
 
+  // only used to add entropy to the random numbers
+  pinMode(A0, INPUT);
+
+  #ifdef DEBUG
+  // Open serial communications and wait for port to open:
+  Serial.begin(115200);
+  #endif
   // init some values
   ledCtrlDoResets = LED_CTRL_NO_RESET;
   mESPrunTime.days    = 0;
@@ -2346,10 +2362,6 @@ void setup()
   cursor = drawtxtline10(cursor, font_height, F("Booting... Bitte Warten"));
   display.display();
   
-  #ifdef DEBUG
-  // Open serial communications and wait for port to open:
-  Serial.begin(115200);
-  #endif
 
   mDisplayState = Display_ShowInfo;
   cursor = drawtxtline10(cursor, font_height, cStrReason);
@@ -2362,14 +2374,17 @@ void setup()
   case REASON_WDT_RST:
     delay(2000);
     clearCRC(); // should enable default start in case of
+    ESP.restart();
     break;
   case REASON_EXCEPTION_RST:
     delay(2000);
     clearCRC();
+    ESP.restart();
     break;
   case REASON_SOFT_WDT_RST:
     delay(2000);
     clearCRC();
+    ESP.restart();
     break;
   case REASON_SOFT_RESTART:
     break;
@@ -2406,7 +2421,7 @@ void setup()
   delay(KNOB_BOOT_DELAY);
   display.clear();
   cursor = 0;
-  cursor = drawtxtline10(cursor, font_height, "Boot fertig!");
+  cursor = drawtxtline10(cursor, font_height, F("System ready!"));
   cursor = drawtxtline10(cursor, font_height, "Name: " + String(F(LED_NAME)));
   cursor = drawtxtline10(cursor, font_height, "IP: " + WiFi.localIP().toString());
   cursor = drawtxtline10(cursor, font_height, "LEDs: " + String(LED_COUNT));
@@ -2417,27 +2432,24 @@ void setup()
   
 #else // HAS_KNOB_CONTROL
 
-  #ifdef DEBUG
-  // Open serial communications and wait for port to open:
-  Serial.begin(115200);
-  #endif
 
   switch (ESP.getResetInfoPtr()->reason)
   {
     case REASON_DEFAULT_RST:
-      
       break;
     case REASON_WDT_RST:
-      
       clearCRC(); // should enable default start in case of
+
+      ESP.restart();
       break;
     case REASON_EXCEPTION_RST:
-      
       clearCRC();
+      ESP.restart();
       break;
     case REASON_SOFT_WDT_RST:
       
       clearCRC();
+      ESP.restart();
       break;
     case REASON_SOFT_RESTART:
       
@@ -2554,6 +2566,7 @@ void loop()
 {
   uint32_t now = millis();
   static uint32_t wifi_check_time = 0;
+  bool WLAN_Connected = (WiFi.status() == WL_CONNECTED);
 
   if (OTAisRunning)
     return;
@@ -2563,7 +2576,7 @@ void loop()
   // Reset on disconnection
   if (now > wifi_check_time)
   {
-    if (WiFi.status() != WL_CONNECTED)
+    if (!WLAN_Connected)
     {
       server.end();
       webSocketsServer->enable(false);
@@ -2603,29 +2616,33 @@ void loop()
       strip->show();
       // Reset after 3 seconds....
       delay(3000);
+      writeLastResetReason(F("WiFi disconnect Timeout"));
       ESP.restart();
     }
 
     wifi_check_time = now + (WIFI_TIMEOUT);
   }
 
-  ArduinoOTA.handle(); // check and handle OTA updates of the code....
-
-  MDNS.update();
-
-  EVERY_N_SECONDS(2)
+  if(WLAN_Connected)
   {
-    DynamicJsonBuffer jB;
-    for(const auto& c: webSocketsServer->getClients())
-    {
-      uint8_t i = getClient(c->id());     
-      c->text("{\"Client\": " + String(c->id()) + "}");
-      my_pingPongs[i].ping = random8();
-      c->ping( &my_pingPongs[i].ping, sizeof(uint8_t));
-    }
-    webSocketsServer->cleanupClients();
-  }
+    ArduinoOTA.handle(); // check and handle OTA updates of the code....
 
+    MDNS.update();
+
+    EVERY_N_SECONDS(2)
+    {
+      DynamicJsonBuffer jB;
+      for(const auto& c: webSocketsServer->getClients())
+      {
+        uint8_t i = getClient(c->id());     
+        c->text("{\"Client\": " + String(c->id()) + "}");
+        my_pingPongs[i].ping = random8();
+        c->ping( &my_pingPongs[i].ping, sizeof(uint8_t));
+      }
+      webSocketsServer->cleanupClients();
+    }
+  }
+  
   #else
 
   static bool WiFiIsDisabled = strip->getWiFiDisabled();
@@ -2638,6 +2655,7 @@ void loop()
       checkSegmentChanges();
       shouldSaveRuntime = true;
       saveEEPROMData();
+      writeLastResetReason(F("WiFi disabled toggle"));
       ESP.restart();
     }
     else
@@ -2659,7 +2677,7 @@ void loop()
     // since we have Knob-Control. We do not care about "No Connection"
   if (!WiFiIsDisabled && now > wifi_check_time)
   {
-    if (WiFi.status() != WL_CONNECTED)
+    if (!WLAN_Connected)
     {
       server.end();
       webSocketsServer->enable(false);
@@ -2714,10 +2732,13 @@ void loop()
 
   strip->service();
 
-  EVERY_N_MILLIS(100)
+  if(WLAN_Connected)
   {
-    checkSegmentChanges();
-    checkFactoryReset();
+    EVERY_N_MILLIS(100)
+    {
+      checkSegmentChanges();
+      checkFactoryReset();
+    }
   }
 
   EVERY_N_MILLIS(EEPROM_SAVE_INTERVAL_MS)
