@@ -76,7 +76,7 @@ EEPROM_Rotate EEPROM;
 
 extern "C"
 {
-#include "user_interface.h"
+  #include "user_interface.h"
 }
 
 // new approach starts here:
@@ -1010,7 +1010,7 @@ void setupWiFi(uint16_t timeout = 240)
   else
   {
     WiFiConnected = true;
-    wifi_disconnect_counter+=50; // number of times we (re-)connected // = 0; // reset only in case we actually reconnected via setup routine
+    wifi_disconnect_counter = 0; // number of times we (re-)connected // = 0; // reset only in case we actually reconnected via setup routine
     if(WiFi.getMode() != WIFI_STA)
     {
       WiFi.mode(WIFI_STA);
@@ -2313,7 +2313,10 @@ void writeLastResetReason(const String reason)
 {
   File f = LittleFS.open(F("/lastReset.txt"), "w");
   if(!f) return;
-  f.println(reason + " " + String(random8()));
+  random16_add_entropy(ESP.getFreeHeap());
+  random16_add_entropy(WiFi.RSSI());
+  random16_add_entropy(analogRead(PIN_A0));
+  f.println(reason + " " + String(random16()));
   f.close();
 }
 
@@ -2323,6 +2326,9 @@ void setup()
 
   // Sanity delay to get everything settled....
   delay(INITDELAY);
+
+  // only used to add entropy to the random numbers
+  pinMode(A0, INPUT);
 
   #ifdef DEBUG
   // Open serial communications and wait for port to open:
@@ -2368,19 +2374,16 @@ void setup()
   case REASON_WDT_RST:
     delay(2000);
     clearCRC(); // should enable default start in case of
-    writeLastResetReason(lStrReason);
     ESP.restart();
     break;
   case REASON_EXCEPTION_RST:
     delay(2000);
     clearCRC();
-    writeLastResetReason(lStrReason);
     ESP.restart();
     break;
   case REASON_SOFT_WDT_RST:
     delay(2000);
     clearCRC();
-    writeLastResetReason(lStrReason);
     ESP.restart();
     break;
   case REASON_SOFT_RESTART:
@@ -2418,7 +2421,7 @@ void setup()
   delay(KNOB_BOOT_DELAY);
   display.clear();
   cursor = 0;
-  cursor = drawtxtline10(cursor, font_height, F("Boot fertig!"));
+  cursor = drawtxtline10(cursor, font_height, F("System ready!"));
   cursor = drawtxtline10(cursor, font_height, "Name: " + String(F(LED_NAME)));
   cursor = drawtxtline10(cursor, font_height, "IP: " + WiFi.localIP().toString());
   cursor = drawtxtline10(cursor, font_height, "LEDs: " + String(LED_COUNT));
@@ -2433,24 +2436,19 @@ void setup()
   switch (ESP.getResetInfoPtr()->reason)
   {
     case REASON_DEFAULT_RST:
-      
       break;
     case REASON_WDT_RST:
-      
       clearCRC(); // should enable default start in case of
-      writeLastResetReason(lStrReason);
+
       ESP.restart();
       break;
     case REASON_EXCEPTION_RST:
-      
       clearCRC();
-      writeLastResetReason(lStrReason);
       ESP.restart();
       break;
     case REASON_SOFT_WDT_RST:
       
       clearCRC();
-      writeLastResetReason(lStrReason);
       ESP.restart();
       break;
     case REASON_SOFT_RESTART:
