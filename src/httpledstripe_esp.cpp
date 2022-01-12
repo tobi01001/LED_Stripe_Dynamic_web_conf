@@ -316,9 +316,13 @@ const __FlashStringHelper *
 
 // returns the last ResetReason from the file system
 String readLastResetReason(void);
+
 // writes the given Reset Reason as "last one"
 // to the file system
 void writeLastResetReason(const String reason);
+
+// adds entropy to the random16
+void addEntropy(void);
 
 void broadcastInt(const __FlashStringHelper* name, uint16_t value)
 {
@@ -833,6 +837,13 @@ void initOverTheAirUpdate(void)
     // OTA finished.
     // We fade out the green Leds being activated during OTA.
     bool ledsActive = true;
+    
+    // need to mount again since we did unmount during OTA
+    LittleFS.begin();
+    writeLastResetReason(F("OTA success"));
+    // and we stop (unmount) the Filesystem again
+    LittleFS.end();
+
     while(ledsActive)
     {
       ledsActive = false;
@@ -855,7 +866,7 @@ void initOverTheAirUpdate(void)
     {
       clearCRC();
     }
-    writeLastResetReason(F("OTA finished"));
+    
 
     // indicate that OTA is no longer running. (rather useless)
     OTAisRunning = false;
@@ -904,7 +915,12 @@ void initOverTheAirUpdate(void)
       strip->show();
       delay(2);
     }
+    // need to mount again since we did unmount during OTA
+    LittleFS.begin();
     writeLastResetReason(err);
+    // and we stop (unmount) the Filesystem again
+    LittleFS.end();
+
     // We wait 5 seconds and then restart the ESP...
     delay(5000);
     ESP.restart();
@@ -2309,13 +2325,20 @@ String readLastResetReason(void)
   return r;
 }
 
-void writeLastResetReason(const String reason)
+void addEntropy(void)
 {
-  File f = LittleFS.open(F("/lastReset.txt"), "w");
-  if(!f) return;
+  random16_add_entropy(ESP.getChipId());
+  random16_add_entropy(esp_get_cycle_count());
   random16_add_entropy(ESP.getFreeHeap());
   random16_add_entropy(WiFi.RSSI());
   random16_add_entropy(analogRead(PIN_A0));
+}
+
+void writeLastResetReason(const String reason)
+{
+  File f = LittleFS.open(F("/lastReset.txt"), "w");
+  addEntropy();
+  if(!f) return;
   f.println(reason + " " + String(random16()));
   f.close();
 }
@@ -2329,6 +2352,8 @@ void setup()
 
   // only used to add entropy to the random numbers
   pinMode(A0, INPUT);
+
+  addEntropy();
 
   #ifdef DEBUG
   // Open serial communications and wait for port to open:
@@ -2430,7 +2455,7 @@ void setup()
 
   display.clear();  
   
-#else // HAS_KNOB_CONTROL
+  #else // HAS_KNOB_CONTROL
 
 
   switch (ESP.getResetInfoPtr()->reason)
