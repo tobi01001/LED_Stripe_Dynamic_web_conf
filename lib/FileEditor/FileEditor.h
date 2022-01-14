@@ -13,7 +13,7 @@ class FileEditor: public AsyncWebHandler {
 #ifdef ESP32
     FileEditor(const fs::FS& fs, const String& username=String(), const String& password=String());
 #else
-    FileEditor(const String& username=String(), const String& password=String(), const fs::FS& fs=LittleFS);
+    FileEditor(const fs::FS& fs, const String& username=String(), const String& password=String());
 #endif
     virtual bool canHandle(AsyncWebServerRequest *request) override final;
     virtual void handleRequest(AsyncWebServerRequest *request) override final;

@@ -175,7 +175,7 @@ struct pingPong {
 CRGB pLeds[LED_COUNT_TOT];
 CRGB eLeds[LED_COUNT];
 
-#include "FileEditor.h"
+#include "../lib/FileEditor/FileEditor.h"
 
 // helpers
 // counts the errors on the wifi connection
@@ -1541,7 +1541,7 @@ void setupWebServer(void)
     request->send(200,  F("text/plain"), "" );
   });
 
-  server.addHandler(new FileEditor(String(), String(), LittleFS));
+  server.addHandler(new FileEditor(LittleFS, String(), String()));
 
   server.serveStatic("/", LittleFS, "/").setCacheControl("max-age=1");
   delay(INITDELAY);

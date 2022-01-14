@@ -114,7 +114,7 @@ static bool isExcluded(fs::FS &_fs, const char *filename) {
 #ifdef ESP32
 FileEditor::FileEditor(const fs::FS& fs, const String& username, const String& password)
 #else
-FileEditor::FileEditor(const String& username, const String& password, const fs::FS& fs)
+FileEditor::FileEditor(const fs::FS& fs, const String& username, const String& password)
 #endif
 :_fs(fs)
 ,_username(username)
