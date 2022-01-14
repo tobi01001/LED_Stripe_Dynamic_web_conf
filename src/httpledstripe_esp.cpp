@@ -175,7 +175,7 @@ struct pingPong {
 CRGB pLeds[LED_COUNT_TOT];
 CRGB eLeds[LED_COUNT];
 
-#include "FSBrowser.h"
+#include "FileEditor.h"
 
 // helpers
 // counts the errors on the wifi connection
@@ -742,7 +742,7 @@ void initOverTheAirUpdate(void)
     display.displayOff();
         // need to mount again since we did unmount during OTA
     LittleFS.begin();
-    writeLastResetReason(F("OTA finished"));
+    writeLastResetReason(F("OTA success"));
     // and we stop (unmount) the Filesystem again
     LittleFS.end();
     // no need to reset ESP as this is done by the OTA handler by default
@@ -1541,36 +1541,7 @@ void setupWebServer(void)
     request->send(200,  F("text/plain"), "" );
   });
 
-  //list directory
-  server.on("/list", HTTP_GET, handleFileList);
-  //load editor
-  server.on("/edit", HTTP_GET, [](AsyncWebServerRequest *request) {
-    String path = F("/edit.htm");
-    
-    String pathWithGz = path + ".gz";
-    if(LittleFS.exists(pathWithGz) || LittleFS.exists(path)){
-      if(LittleFS.exists(pathWithGz))
-        path += ".gz";
-      //File file = LittleFS.open(path, "r");
-      String contentType = getContentType(path);
-      //size_t sent = server.streamFile(file, contentType);
-      request->send(LittleFS, path, contentType);
-      //server.streamFile(file, contentType);
-      //file.close();
-    }
-    else
-    {
-      request->send(404, F("text/plain"), "FileNotFound: " + path);
-    }
-    Dir dir = LittleFS.openDir("/");
-  });
-  //create file
-  server.on("/edit", HTTP_PUT, handleFileCreate);
-  //delete file
-  server.on("/edit", HTTP_DELETE, handleFileDelete);
-  //first callback is called after the request has ended with all parsed arguments
-  //second callback handles file uploads at that location
-  server.on("/edit", HTTP_POST, handleFileUpload);
+  server.addHandler(new FileEditor(String(), String(), LittleFS));
 
   server.serveStatic("/", LittleFS, "/").setCacheControl("max-age=1");
   delay(INITDELAY);
