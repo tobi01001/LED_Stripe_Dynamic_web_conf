@@ -207,40 +207,6 @@ void FileEditor::handleRequest(AsyncWebServerRequest *request){
 #else
         entry.close();
 #endif
-        if(dir.isDirectory())
-        {
-          Dir dir2 = _fs.openDir(dir.fileName());
-#ifdef ESP32
-          File entry2 = dir2.openNextFile();
-          while(entry2){
-#else
-          while(dir2.next()){
-            fs::File entry2 = dir2.openFile("r");
-#endif
-            if (isExcluded(_fs, entry2.name())) {
-#ifdef ESP32
-              entry2 = dir2.openNextFile();
-#endif
-              continue;
-            }
-            if (output != "[") output += ',';
-            output += "{\"type\":\"";
-            output += entry2.isDirectory()?"dir":"file";
-            output += "\",\"name\":\"";
-            output += String(entry2.fullName());
-            output += "\",\"size\":";
-            output += String(entry2.size());
-            output += "}";
-#ifdef ESP32
-            entry = dir2.openNextFile();
-#else
-            entry2.close();
-#endif
-          }
-#ifdef ESP32
-          dir2.close();
-#endif
-        }
       }
 #ifdef ESP32
       dir.close();

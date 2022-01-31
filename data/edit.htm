@@ -383,24 +383,35 @@ function createTree(element, editor){
     };
   }
 
-  function createTreeLeaf(path, name, size){
+  function createTreeLeaf(path, name, size, type){
     var leaf = ce("li");
     leaf.id = name;
+    if(path != "/") path = "/" + path + "/";
     var label = ce("span");
     label.innerHTML = name;
     leaf.appendChild(label);
-    leaf.onclick = function(e){
-      if(isTextFile(leaf.id.toLowerCase())){
-        editor.loadUrl(leaf.id);
-      } else if(isImageFile(leaf.id.toLowerCase())){
-        loadPreview(leaf.id);
-      }
-    };
-    leaf.oncontextmenu = function(e){
-      e.preventDefault();
-      e.stopPropagation();
-      showContextMenu(e, leaf.id, true);
-    };
+    if(type === "dir")
+    {
+      leaf.onclick = function(e){
+        treeRoot.removeChild(treeRoot.childNodes[0]);
+        httpGet(treeRoot, name);
+      };
+    }
+    else if(type === "file")
+    {
+      leaf.onclick = function(e){
+        if(isTextFile(leaf.id.toLowerCase())){
+          editor.loadUrl(path + leaf.id);
+        } else if(isImageFile(leaf.id.toLowerCase())){
+          loadPreview(path + leaf.id);
+        } 
+      };
+      leaf.oncontextmenu = function(e){
+        e.preventDefault();
+        e.stopPropagation();
+        showContextMenu(e, leaf.id, true);
+      };  
+    }
     return leaf;
   }
 
@@ -409,9 +420,14 @@ function createTree(element, editor){
     var list = ce("ul");
     parent.appendChild(list);
     var ll = items.length;
+    list.appendChild(createTreeLeaf("/", "/", 0, "dir"));
+    for(var i = 0; i < ll; i++){
+      if(items[i].type === "dir")
+        list.appendChild(createTreeLeaf(path, items[i].name, items[i].size, items[i].type));
+    }
     for(var i = 0; i < ll; i++){
       if(items[i].type === "file")
-        list.appendChild(createTreeLeaf(path, items[i].name, items[i].size));
+        list.appendChild(createTreeLeaf(path, items[i].name, items[i].size, items[i].type));
     }
 
   }
