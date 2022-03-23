@@ -203,6 +203,7 @@ bool newSolidColor = false;
 // Watchdog reset.
 enum doResets {
   LED_CTRL_NO_RESET,
+  LED_CTRL_SAVE_RESTART,
   LED_CTRL_RESET_DEFAULTS,
   LED_CTRL_RESET_FACTORY
 } ledCtrlDoResets;
@@ -1329,56 +1330,65 @@ void checkFactoryReset()
 {
   switch (ledCtrlDoResets)
   {
-  case LED_CTRL_NO_RESET:
-    break;
-  case LED_CTRL_RESET_DEFAULTS:
-  {
-    strip->setTargetPalette(0);
-    strip->setMode(0);
-    strip->stop();
-    strip->resetDefaults();
-
-    deleteConfigFile();
-
-    delay(INITDELAY);
-    checkSegmentChanges();
-    delay(INITDELAY);
-    shouldSaveRuntime = true;
-    delay(INITDELAY);
-    saveEEPROMData();
-    delay(INITDELAY);
-    writeLastResetReason(F("Reset Default Values"));
-    ESP.restart();
-  }
-    break;
-  case LED_CTRL_RESET_FACTORY:
-  {
-    // on factory reset, each led will be red
-    // increasing from led 0 to max.
-    for (uint16_t i = 0; i < strip->getStripLength(); i++)
+    case LED_CTRL_NO_RESET:
+      break;
+    case LED_CTRL_SAVE_RESTART:
     {
-      // if we call strip->show(); then we can write data to leds array.
-      // if FastLED.show() would have been directly called, we need tov write to the raw data in e.g. _bleds
-      strip->leds[i] = 0xa00000;
-      strip->show();
-      delay(5);
+      shouldSaveRuntime = true;
+      saveEEPROMData();
+      EEPROM.end();
+      ESP.restart();
+      break;
     }
+    case LED_CTRL_RESET_DEFAULTS:
+    {
+      strip->setTargetPalette(0);
+      strip->setMode(0);
+      strip->stop();
+      strip->resetDefaults();
 
-    deleteConfigFile();
+      deleteConfigFile();
 
-    DNSServer dns;
-    AsyncWiFiManager wifimgr(&server, &dns);
-    delay(INITDELAY);
-    wifimgr.resetSettings();
-    delay(INITDELAY);
-    clearEEPROM();
-    WiFi.persistent(false); 
-    writeLastResetReason(F("Factory Reset"));
-    ESP.restart();
-  }
-    break;
-  default:
-    break;
+      delay(INITDELAY);
+      checkSegmentChanges();
+      delay(INITDELAY);
+      shouldSaveRuntime = true;
+      delay(INITDELAY);
+      saveEEPROMData();
+      delay(INITDELAY);
+      writeLastResetReason(F("Reset Default Values"));
+      ESP.restart();
+      break;
+    }
+      
+    case LED_CTRL_RESET_FACTORY:
+    {
+      // on factory reset, each led will be red
+      // increasing from led 0 to max.
+      for (uint16_t i = 0; i < strip->getStripLength(); i++)
+      {
+        // if we call strip->show(); then we can write data to leds array.
+        // if FastLED.show() would have been directly called, we need tov write to the raw data in e.g. _bleds
+        strip->leds[i] = 0xa00000;
+        strip->show();
+        delay(5);
+      }
+
+      deleteConfigFile();
+
+      DNSServer dns;
+      AsyncWiFiManager wifimgr(&server, &dns);
+      delay(INITDELAY);
+      wifimgr.resetSettings();
+      delay(INITDELAY);
+      clearEEPROM();
+      WiFi.persistent(false); 
+      writeLastResetReason(F("Factory Reset"));
+      ESP.restart();
+      break;
+    }
+    default:
+      break;
   }
   ledCtrlDoResets = LED_CTRL_NO_RESET;
 }
@@ -1452,20 +1462,30 @@ void clearEEPROM(void)
 
 void handleResetRequest(AsyncWebServerRequest * request)
 {
-  // received a reset request
-  // lets check which one is valid
-
-  if (request->getParam(F("rst"))->value() == F("FactoryReset"))
+  if(request->hasParam(F("rst")))
   {
-    request->send(200, F("text/plain"), F("Will now Reset to factory settings. You need to connect to the WLAN AP afterwards...."));
-    ledCtrlDoResets = LED_CTRL_RESET_FACTORY;
+    if ((request->getParam(F("rst"))->value() == F("Restart")))
+    {
+      request->send(200, F("text/plain"), F("Will save EEPROM Data and restart..."));
+      ledCtrlDoResets = LED_CTRL_SAVE_RESTART;
+      return;
+    }
+    else if (request->getParam(F("rst"))->value() == F("FactoryReset"))
+    {
+      request->send(200, F("text/plain"), F("Will now Reset to factory settings. You need to connect to the WLAN AP afterwards...."));
+      ledCtrlDoResets = LED_CTRL_RESET_FACTORY;
+      return;
+    }
+    else if (request->getParam(F("rst"))->value() == F("Defaults"))
+    {
+      request->send(200, F("text/plain"), F("Strip was reset to the default values..."));
+      ledCtrlDoResets = LED_CTRL_RESET_DEFAULTS;
+      return;
+    }
   }
-  else if (request->getParam(F("rst"))->value() == F("Defaults"))
-  {
-    request->send(200, F("text/plain"), F("Strip was reset to the default values..."));
-    ledCtrlDoResets = LED_CTRL_RESET_DEFAULTS;
-  }
+  request->send(200, F("text/plain"), F("/reset needs a Parameter:\n\t - Restart (Will save EEPROM and restart the ESP)\n\t - Defaults (Will reset to default values and restart the ESP)\n\t - FactoryReset (Will reset everything to Factory values)"));
 }
+
 
 void deleteConfigFile(void)
 {
@@ -1527,7 +1547,7 @@ void setupWebServer(void)
   
   // keepAlive
   server.on("/ping", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send(200, F("text/plain"), F("OK"));
+    request->send(200, F("text/plain"), F("Pong"));
   });
 
   server.on("/set", handleSet);
@@ -1535,15 +1555,20 @@ void setupWebServer(void)
   server.on("/getpals", handleGetPals);
   server.on("/status", handleStatus);
   server.on("/reset", handleResetRequest);
-  server.onNotFound(handleNotFound);
+  //server.onNotFound(handleNotFound);
+  server.onNotFound([](AsyncWebServerRequest *request) {
+    request->redirect("/");
+  });
 
+  /* should work without as we serve static below
   server.on("/", HTTP_OPTIONS, [](AsyncWebServerRequest *request) {
     request->send(200,  F("text/plain"), "" );
   });
+  */
 
   server.addHandler(new FileEditor(LittleFS, String(), String()));
 
-  server.serveStatic("/", LittleFS, "/").setCacheControl("max-age=1");
+  server.serveStatic("/", LittleFS, "/").setCacheControl("max-age=60");
   delay(INITDELAY);
 
   DefaultHeaders::Instance().addHeader(F("Access-Control-Allow-Methods"), "*");
@@ -2608,7 +2633,7 @@ void loop()
 
     }
     // restart if there is no WiFi for more than one minute
-    // ToDo: check if we make this an increaing value (to end in restarts every minute....) 
+    // ToDo: check if we make this an increasing value (to end in restarts every minute....) 
     // but the reconnect currently should also wait in the config portal?!
     // also to be checked, why we do restart here while doing a new "setup" with the Knob Control?
     if(wifi_err_counter > (uint8_t)(60000/WIFI_TIMEOUT))
