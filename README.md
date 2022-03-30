@@ -13,7 +13,7 @@ So thanks to:
 Now this is awesome as it provides a direct haptic feedback and direct control to the LEDs with a nice and shiny display. :-)
 Using platformio, this should be ready to be used rightaway.
 
-HW used (in addition to the LED stripe and the WEMOD D1 mini (or other ESP8266) of course): 
+HW used (in addition to the LED stripe and the WEMOS D1 mini (or other ESP8266) of course): 
 - Rotary Encoder KY-040
 - 0.96 128x64 I2C OLED
 - 2x Capacitors 6n8
