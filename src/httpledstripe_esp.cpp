@@ -1466,19 +1466,22 @@ void handleResetRequest(AsyncWebServerRequest * request)
   {
     if ((request->getParam(F("rst"))->value() == F("Restart")))
     {
-      request->send(200, F("text/plain"), F("Will save EEPROM Data and restart..."));
+      request->redirect("/");
+      //request->send(200, F("text/plain"), F("Will save EEPROM Data and restart..."));
       ledCtrlDoResets = LED_CTRL_SAVE_RESTART;
       return;
     }
     else if (request->getParam(F("rst"))->value() == F("FactoryReset"))
     {
-      request->send(200, F("text/plain"), F("Will now Reset to factory settings. You need to connect to the WLAN AP afterwards...."));
+      request->redirect("/");
+      //request->send(200, F("text/plain"), F("Will now Reset to factory settings. You need to connect to the WLAN AP afterwards...."));
       ledCtrlDoResets = LED_CTRL_RESET_FACTORY;
       return;
     }
     else if (request->getParam(F("rst"))->value() == F("Defaults"))
     {
-      request->send(200, F("text/plain"), F("Strip was reset to the default values..."));
+      request->redirect("/");
+      //request->send(200, F("text/plain"), F("Strip was reset to the default values..."));
       ledCtrlDoResets = LED_CTRL_RESET_DEFAULTS;
       return;
     }
