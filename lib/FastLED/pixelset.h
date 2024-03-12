@@ -161,7 +161,7 @@ public:
 
   // Color util functions
   inline CPixelView & fill_solid(const PIXEL_TYPE & color) { *this = color; return *this; }
-  inline CPixelView & fill_solid(const CHSV & color) { if(dir>0) { *this = color; return *this; } }
+  inline CPixelView & fill_solid(const CHSV & color) { if(dir>0) { *this = color; return *this; }else{ return NULL; } }
 
   inline CPixelView & fill_rainbow(uint8_t initialhue, uint8_t deltahue=5) {
     if(dir >= 0) {

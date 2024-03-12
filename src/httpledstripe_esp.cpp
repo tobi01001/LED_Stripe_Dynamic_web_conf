@@ -172,7 +172,7 @@ struct pingPong {
 
 /* END Network Definitions */
 
-CRGB pLeds[LED_COUNT_TOT];
+CRGB pLeds[LED_COUNT_TOT+1]; // 2024-01-24 Try to prevent from sudden restarts but I have no idea of the source...
 CRGB eLeds[LED_COUNT];
 
 #include "../lib/FileEditor/FileEditor.h"
@@ -1136,27 +1136,42 @@ void handleSet(AsyncWebServerRequest *request)
     }
   }
   // a single pixel...
-  if(color == CRGB::Black)
+  if(!newSolidColor)
   {
-    color = ColorFromPalette(*(strip->getTargetPalette()), 0, 255, NOBLEND);
+    color = CRGB::Red; 
   }
+  
+  #if LED_OFFSET > 0
+  uint32_t fColor = 0x000000;
+  if(request->hasParam(F("fC")))
+  {
+    fColor = constrain((uint32_t)strtoul(request->getParam(F("fC"))->value().c_str(), NULL, 16), 0, 0xffffff);
+  }
+  #endif
+
+  // in VOID it should be possible to access the whole strip just including offset.
+  // so we write to the physicalleds below
   if (request->hasParam(F("pi")))
   {
-    uint16_t pixel = constrain((uint16_t)strtoul(request->getParam(F("pi"))->value().c_str(), NULL, 10), 0, strip->getStripLength() - 1);
+    uint16_t pixel = constrain((uint16_t)strtoul(request->getParam(F("pi"))->value().c_str(), NULL, 10), 0, LED_COUNT_TOT - 1);
     // set the VOID directly avoiding the call to "setTransition"
     // which would clear the (currently written data first
     strip->getSegment()->mode = FX_MODE_VOID;
     strip->setPower(true);
-    strip->_bleds[pixel] = CRGB(color);
+    pLeds[pixel] = CRGB(color);
     // a range of pixels from start rnS to end rnE
+    answer.set(F("pixel"), pixel);
+    char col[10];
+    sprintf(col, "%06X", color);    
+    answer.set(F("color"), col);
     answer.set(F("effect"), strip->getModeName(FX_MODE_VOID));
     answer.set(F("power"), strip->getPower() ? F("on") : F("off"));
   }
   //FIXME: Does not yet work. Lets simplyfy all of this!
   else if (request->hasParam(F("rnS")) && request->hasParam(F("rnE")))
   {
-    uint16_t start = constrain((uint16_t)strtoul(request->getParam(F("rnS"))->value().c_str(), NULL, 10), 0, strip->getStripLength());
-    uint16_t end = constrain((uint16_t)strtoul(request->getParam(F("rnE"))->value().c_str(), NULL, 10), start, strip->getStripLength());
+    uint16_t start = constrain((uint16_t)strtoul(request->getParam(F("rnS"))->value().c_str(), NULL, 10), 0, LED_COUNT_TOT - 1);
+    uint16_t end = constrain((uint16_t)strtoul(request->getParam(F("rnE"))->value().c_str(), NULL, 10), start, LED_COUNT_TOT - 1);
 
     // set the VOID directly avoiding the call to "setTransition"
     // which would clear the (currently written data first
@@ -1164,8 +1179,13 @@ void handleSet(AsyncWebServerRequest *request)
     strip->setPower(true);
     for (uint16_t i = start; i <= end; i++)
     {
-      strip->_bleds[i] = CRGB(color);
+      pLeds[i] = CRGB(color);
     }
+    answer.set(F("rnS"), start);
+    answer.set(F("rnE"), end);
+    char col[10];
+    sprintf(col, "%06X", color);    
+    answer.set(F("color"), col);
     answer.set(F("effect"), strip->getModeName(FX_MODE_VOID));
     answer.set(F("power"), strip->getPower() ? F("on") : F("off"));
     // one color for the complete strip
@@ -1176,9 +1196,44 @@ void handleSet(AsyncWebServerRequest *request)
     strip->setPower(true);
     strip->setMode(FX_MODE_STATIC);
     // finally set a new color
+    char col[10];
+    sprintf(col, "%06X", color);    
+    answer.set(F("color"), col);
     answer.set(F("effect"), strip->getModeName(FX_MODE_STATIC));
     answer.set(F("power"), strip->getPower() ? F("on") : F("off"));
   }
+  // if we work with offset (i.e. dead pixel at the beginning), we can use this for setting pixels without affecting the effects at all
+  // this is the first try for that.
+  // 
+  #if LED_OFFSET > 0
+  else if (request->hasParam(F("fpi")))
+  {
+    uint16_t pixel = constrain((uint16_t)strtoul(request->getParam(F("fpi"))->value().c_str(), NULL, 10), 0, LED_OFFSET - 1);
+    pLeds[pixel] = CRGB(fColor);
+    // a single pixel at fpi
+    answer.set(F("fpi"), pixel);
+    char col[10];
+    sprintf(col, "%06X", fColor);    
+    answer.set(F("fColor"), col);
+    answer.set(F("power"), strip->getPower() ? F("on") : F("off"));
+  }
+  else if (request->hasParam(F("fS")) && request->hasParam(F("fE")))
+  {
+    uint16_t start = constrain((uint16_t)strtoul(request->getParam(F("fS"))->value().c_str(), NULL, 10), 0, LED_OFFSET - 1);
+    uint16_t end = constrain((uint16_t)strtoul(request->getParam(F("fE"))->value().c_str(), NULL, 10), start, LED_OFFSET - 1);
+    for (uint16_t i = start; i <= end; i++)
+    {
+      pLeds[i] = CRGB(fColor);
+    }
+    answer.set(F("fS"), start);
+    answer.set(F("fE"), end);
+    char col[10];
+    sprintf(col, "%06X", fColor);    
+    answer.set(F("color"), col);
+    answer.set(F("power"), strip->getPower() ? F("on") : F("off"));
+    // one color for the complete strip
+  }
+  #endif
   response->setLength();
   request->send(response);
 }
@@ -1307,6 +1362,8 @@ void handleStatus(AsyncWebServerRequest *request)
   statsAnswer[F("chip_FreeHeap")]           = free;
   statsAnswer[F("chip_MaxHeap")]            = max;
   statsAnswer[F("chip_HeapFrag")]           = frag;
+  ESP.resetFreeContStack();
+  statsAnswer[F("chip_FreeStack")]          = ESP.getFreeContStack();
   statsAnswer[F("chip_ID")]                 = ESP.getChipId();
   statsAnswer[F("wifi_IP")]                 = WiFi.localIP().toString();
   statsAnswer[F("wifi_CONNECT_ERR_COUNT")]  = wifi_disconnect_counter;
@@ -1578,13 +1635,17 @@ void setupWebServer(void)
   DefaultHeaders::Instance().addHeader(F("Access-Control-Allow-Headers"), "*");
   DefaultHeaders::Instance().addHeader(F("Access-Control-Allow-Origin"), "*");
   DefaultHeaders::Instance().addHeader(F("Access-Control-Max-Age"), "1");
-
+  #ifndef DO_NOT_USE_WEBSOCKET
   if(webSocketsServer == NULL) webSocketsServer = new AsyncWebSocket("/ws");
-  webSocketsServer->enable(true);
+  #endif
+  if(webSocketsServer)
+  {
+    webSocketsServer->enable(true);
   
-  webSocketsServer->onEvent(webSocketEvent);
+    webSocketsServer->onEvent(webSocketEvent);
 
-  server.addHandler(webSocketsServer);
+    server.addHandler(webSocketsServer);
+  }
 
   server.begin();
 
@@ -1592,6 +1653,9 @@ void setupWebServer(void)
   delay(INITDELAY);
 
   
+  
+ 
+ 
  
   if (!MDNS.begin(LED_NAME)) {
 
@@ -1609,6 +1673,7 @@ void setupWebServer(void)
 
 uint8_t addClient(uint32_t iD)
 {
+  if(!webSocketsServer) return 0;
   // add a client to the pingpong list
   #ifdef HAS_KNOB_CONTROL
   if(strip->getWiFiDisabled()) return DEFAULT_MAX_WS_CLIENTS;
@@ -1669,6 +1734,9 @@ void webSocketEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsE
   #ifdef HAS_KNOB_CONTROL
   if(strip->getWiFiDisabled()) return;
   #endif
+  
+  if(!webSocketsServer) return;
+
   if(type == WS_EVT_CONNECT){
     //client connected
     #ifdef DEBUG
@@ -2611,14 +2679,14 @@ void loop()
     if (!WLAN_Connected)
     {
       server.end();
-      webSocketsServer->enable(false);
+      if(webSocketsServer) webSocketsServer->enable(false);
       wifi_err_counter+=2;
       wifi_disconnect_counter+=50; 
     }
     else
     {
       server.begin();
-      webSocketsServer->enable(true);
+      if(webSocketsServer) webSocketsServer->enable(true);
       if(wifi_err_counter > 0) wifi_err_counter--;
       static uint8_t resetCnt = 0;
       resetCnt = (resetCnt + 1)%6;
@@ -2663,15 +2731,18 @@ void loop()
 
     EVERY_N_SECONDS(2)
     {
-      DynamicJsonBuffer jB;
-      for(const auto& c: webSocketsServer->getClients())
+      if(webSocketsServer)
       {
-        uint8_t i = getClient(c->id());     
-        c->text("{\"Client\": " + String(c->id()) + "}");
-        my_pingPongs[i].ping = random8();
-        c->ping( &my_pingPongs[i].ping, sizeof(uint8_t));
+        DynamicJsonBuffer jB;
+        for(const auto& c: webSocketsServer->getClients())
+        {
+          uint8_t i = getClient(c->id());     
+          c->text("{\"Client\": " + String(c->id()) + "}");
+          my_pingPongs[i].ping = random8();
+          c->ping( &my_pingPongs[i].ping, sizeof(uint8_t));
+        }
+        webSocketsServer->cleanupClients();
       }
-      webSocketsServer->cleanupClients();
     }
   }
   
@@ -2712,7 +2783,7 @@ void loop()
     if (!WLAN_Connected)
     {
       server.end();
-      webSocketsServer->enable(false);
+      if(webSocketsServer) webSocketsServer->enable(false);
       if(WiFiConnected) last_control_operation = now;    // Will switch the display on. Only needed when we had connection and now lose it...
       wifi_err_counter+=1;
       wifi_disconnect_counter+=50;
@@ -2721,7 +2792,7 @@ void loop()
     else
     {
       server.begin();
-      webSocketsServer->enable(true);
+      if(webSocketsServer) webSocketsServer->enable(true);
       static uint8_t resetCnt = 0;
       resetCnt = (resetCnt + 1)%6;
       if(wifi_err_counter > 0) wifi_err_counter--;
@@ -2746,17 +2817,19 @@ void loop()
 
     EVERY_N_SECONDS(2)
     {
-      DynamicJsonBuffer jB;
-      for(const auto& c: webSocketsServer->getClients())
+      if(webSocketsServer)
       {
-        uint8_t i = getClient(c->id());     
-        c->text("{\"Client\": " + String(c->id()) + "}");
-        my_pingPongs[i].ping = random8();
-        c->ping( &my_pingPongs[i].ping, sizeof(uint8_t));
+        DynamicJsonBuffer jB;
+        for(const auto& c: webSocketsServer->getClients())
+        {
+          uint8_t i = getClient(c->id());     
+          c->text("{\"Client\": " + String(c->id()) + "}");
+          my_pingPongs[i].ping = random8();
+          c->ping( &my_pingPongs[i].ping, sizeof(uint8_t));
+        }
+        webSocketsServer->cleanupClients(2);
       }
-      webSocketsServer->cleanupClients(2);
     }
-
   }
 
 

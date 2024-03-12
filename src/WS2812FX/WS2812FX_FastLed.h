@@ -49,8 +49,8 @@
 #define LED_PIN 3
 #endif
 
-#define STRIP_MIN_DELAY max((uint32_t)((1000000 - FRAME_CALC_WAIT_MICROINTERVAL) / (_segment.fps * 1000)), (uint32_t)((MIN_LED_WRITE_CYCLE-FRAME_CALC_WAIT_MICROINTERVAL) / 1000))
-#define STRIP_DELAY_MICROSEC  ((uint32_t)max((uint32_t)(1000000 / (_segment.fps)), (uint32_t)(MIN_LED_WRITE_CYCLE)))
+#define STRIP_MIN_DELAY max((uint32_t)((1000000 - FRAME_CALC_WAIT_MICROINTERVAL) / (SEG.fps * 1000)), (uint32_t)((MIN_LED_WRITE_CYCLE-FRAME_CALC_WAIT_MICROINTERVAL) / 1000))
+#define STRIP_DELAY_MICROSEC  ((uint32_t)max((uint32_t)(1000000 / (SEG.fps)), (uint32_t)(MIN_LED_WRITE_CYCLE)))
 
 #define FASTLED_INTERNAL
 #include "FastLED.h"
@@ -66,8 +66,9 @@ FASTLED_USING_NAMESPACE
 #error "SPEED_MIN define is no longer used!"
 #endif
 
-#define SEGMENT _segment
-#define SEGMENT_RUNTIME _segment_runtime
+#define SEG _segment
+#define SEG_RT _segment_runtime
+#define SEG_RT_MV _segment_runtime.modevars
 // #define SEGMENT_LENGTH   LED_COUNT //(SEGMENT.stop - SEGMENT.start + 1)
 // ToDo: Reset Runtime as inline funtion with new timebase?"
 #define RESET_RUNTIME memset(&_segment_runtime, 0, sizeof(_segment_runtime))
@@ -709,108 +710,108 @@ public:
    * _segment set functions
    */ 
   // setters
-  inline void setCRC                  (uint16_t CRC)    { _segment.CRC = CRC; }
-  inline void setIsRunning            (bool isRunning)  { _segment.isRunning = isRunning; if(isRunning) { _transition = true; _blend = 0; } }
-  inline void setPower                (bool power)      { _segment.power = power; } // #see if it works w/o now (#35) setTransition(); } // this should fix reopened issue #6
-  inline void setReverse              (bool rev)        { _segment.reverse = rev; setTransition(); }
-  inline void setMirror               (bool mirror)     { _segment.mirror = mirror; setTransition(); }
-  inline void setAddGlitter           (bool addGlitter) { _segment.addGlitter = addGlitter; }
-  inline void setWhiteGlitter         (bool whiteGlitter) { _segment.whiteGlitter = whiteGlitter; }
-  inline void setOnBlackOnly          (bool onBlackOnly){ _segment.onBlackOnly = onBlackOnly; }
-  inline void setSynchronous          (bool sync)       { _segment.synchronous = sync; }
+  inline void setCRC                  (uint16_t CRC)    { SEG.CRC = CRC; }
+  inline void setIsRunning            (bool isRunning)  { SEG.isRunning = isRunning; if(isRunning) { _transition = true; _blend = 0; } }
+  inline void setPower                (bool power)      { SEG.power = power; } // #see if it works w/o now (#35) setTransition(); } // this should fix reopened issue #6
+  inline void setReverse              (bool rev)        { SEG.reverse = rev; setTransition(); }
+  inline void setMirror               (bool mirror)     { SEG.mirror = mirror; setTransition(); }
+  inline void setAddGlitter           (bool addGlitter) { SEG.addGlitter = addGlitter; }
+  inline void setWhiteGlitter         (bool whiteGlitter) { SEG.whiteGlitter = whiteGlitter; }
+  inline void setOnBlackOnly          (bool onBlackOnly){ SEG.onBlackOnly = onBlackOnly; }
+  inline void setSynchronous          (bool sync)       { SEG.synchronous = sync; }
   #ifdef HAS_KNOB_CONTROL
-  inline void setWiFiDisabled          (bool wifiDisabled){ _segment.wifiDisabled = wifiDisabled; }
+  inline void setWiFiDisabled          (bool wifiDisabled){ SEG.wifiDisabled = wifiDisabled; }
   #endif
-  inline void setAutoplay             (AUTOPLAYMODES m) { _segment.autoplay = m; }
-  inline void setAutopal              (AUTOPLAYMODES p) { _segment.autoPal = p; }
-  inline void setBeat88               (uint16_t b)      { _segment.beat88 = constrain(b, BEAT88_MIN, BEAT88_MAX); }
+  inline void setAutoplay             (AUTOPLAYMODES m) { SEG.autoplay = m; }
+  inline void setAutopal              (AUTOPLAYMODES p) { SEG.autoPal = p; }
+  inline void setBeat88               (uint16_t b)      { SEG.beat88 = constrain(b, BEAT88_MIN, BEAT88_MAX); }
   inline void setSpeed                (uint16_t s)      { setBeat88(s); }
-  inline void setHuetime              (uint16_t t)      { _segment.hueTime = t; SEGMENT_RUNTIME.nextHue = 0; }
-  inline void setMilliamps            (uint16_t m)      { _segment.milliamps = constrain(m, 100, DEFAULT_CURRENT_MAX); FastLED.setMaxPowerInVoltsAndMilliamps(_volts, _segment.milliamps); }
-  inline void setAutoplayDuration     (uint16_t t)      { _segment.autoplayDuration = t; SEGMENT_RUNTIME.nextAuto = 0; }
-  inline void setAutopalDuration      (uint16_t t)      { _segment.autoPalDuration = t; SEGMENT_RUNTIME.nextPalette = 0; }
-  inline void setSegments             (uint8_t s)       { _segment.segments = constrain(s, 1, max(MAX_NUM_SEGMENTS, 1)); }
-  inline void setCooling              (uint8_t cool)    { _segment.cooling = constrain(cool, DEFAULT_COOLING_MIN, DEFAULT_COOLING_MAX); }
-  inline void setSparking             (uint8_t spark)   { _segment.sparking = constrain(spark, DEFAULT_SPARKING_MIN, DEFAULT_SPARKING_MAX); }
-  inline void setTwinkleSpeed         (uint8_t speed)   { _segment.twinkleSpeed = constrain(speed, DEFAULT_TWINKLE_S_MIN, DEFAULT_TWINKLE_S_MAX); }
-  inline void setTwinkleDensity       (uint8_t density) { _segment.twinkleDensity = constrain(density, DEFAULT_TWINKLE_NUM_MIN, DEFAULT_TWINKLE_NUM_MAX); }
-  inline void setNumBars              (uint8_t numBars) { _segment.numBars = constrain(numBars, 1, max((LED_COUNT / _segment.segments) / MAX_NUM_BARS_FACTOR, 1)); setTransition(); }
+  inline void setHuetime              (uint16_t t)      { SEG.hueTime = t; SEG_RT.nextHue = 0; }
+  inline void setMilliamps            (uint16_t m)      { SEG.milliamps = constrain(m, 100, DEFAULT_CURRENT_MAX); FastLED.setMaxPowerInVoltsAndMilliamps(_volts, SEG.milliamps); }
+  inline void setAutoplayDuration     (uint16_t t)      { SEG.autoplayDuration = t; SEG_RT.nextAuto = 0; }
+  inline void setAutopalDuration      (uint16_t t)      { SEG.autoPalDuration = t; SEG_RT.nextPalette = 0; }
+  inline void setSegments             (uint8_t s)       { SEG.segments = constrain(s, 1, max(MAX_NUM_SEGMENTS, 1)); }
+  inline void setCooling              (uint8_t cool)    { SEG.cooling = constrain(cool, DEFAULT_COOLING_MIN, DEFAULT_COOLING_MAX); }
+  inline void setSparking             (uint8_t spark)   { SEG.sparking = constrain(spark, DEFAULT_SPARKING_MIN, DEFAULT_SPARKING_MAX); }
+  inline void setTwinkleSpeed         (uint8_t speed)   { SEG.twinkleSpeed = constrain(speed, DEFAULT_TWINKLE_S_MIN, DEFAULT_TWINKLE_S_MAX); }
+  inline void setTwinkleDensity       (uint8_t density) { SEG.twinkleDensity = constrain(density, DEFAULT_TWINKLE_NUM_MIN, DEFAULT_TWINKLE_NUM_MAX); }
+  inline void setNumBars              (uint8_t numBars) { SEG.numBars = constrain(numBars, 1, max((LED_COUNT / SEG.segments) / MAX_NUM_BARS_FACTOR, 1)); setTransition(); }
   // setMode --> treated separately...
-  inline void setMaxFPS               (uint8_t fps)     { _segment.fps = constrain(fps, 10, STRIP_MAX_FPS); /*FastLED.setMaxRefreshRate(fps);*/ }
-  inline void setDeltaHue             (uint8_t dh)      { _segment.deltaHue = dh; }
-  inline void setBlur                 (uint8_t b)       { _segment.blur = b; _pblur = b; }
-  inline void setDamping              (uint8_t d)       { _segment.damping = constrain(d, DEFAULT_DAMPING_MIN, DEFAULT_DAMPING_MAX); }
-  inline void setDithering            (uint8_t dither)  { _segment.dithering = dither; FastLED.setDither(dither); }
-  inline void setSunriseTime          (uint8_t t)       { _segment.sunrisetime = constrain(t, DEFAULT_SUNRISETIME_MIN, DEFAULT_SUNRISETIME_MAX); }
+  inline void setMaxFPS               (uint8_t fps)     { SEG.fps = constrain(fps, 10, STRIP_MAX_FPS); /*FastLED.setMaxRefreshRate(fps);*/ }
+  inline void setDeltaHue             (uint8_t dh)      { SEG.deltaHue = dh; }
+  inline void setBlur                 (uint8_t b)       { SEG.blur = b; _pblur = b; }
+  inline void setDamping              (uint8_t d)       { SEG.damping = constrain(d, DEFAULT_DAMPING_MIN, DEFAULT_DAMPING_MAX); }
+  inline void setDithering            (uint8_t dither)  { SEG.dithering = dither; FastLED.setDither(dither); }
+  inline void setSunriseTime          (uint8_t t)       { SEG.sunrisetime = constrain(t, DEFAULT_SUNRISETIME_MIN, DEFAULT_SUNRISETIME_MAX); }
   inline void setTargetBrightness     (uint8_t b)       { setBrightness(b); }
   inline void setTargetPaletteNumber  (uint8_t p)       { setTargetPalette(p); }
   inline void setCurrentPaletteNumber (uint8_t p)       { setCurrentPalette(p); }
   inline void setColorTemp            (uint8_t c)       { setColorTemperature(c); }
-  inline void setBckndSat             (uint8_t s)       { _segment.backgroundSat = s; }
-  inline void setBckndHue             (uint8_t h)       { _segment.backgroundHue = h; }
-  inline void setBckndBri             (uint8_t b)       { _segment.backgroundBri = constrain(b, BCKND_MIN_BRI, BCKND_MAX_BRI); }
-  inline void setColCor               (COLORCORRECTIONS c) { _segment.colCor = (COLORCORRECTIONS)constrain(c, 0, COR_NUMCORRECTIONS-1); FastLED.setCorrection(colorCorrectionValues[_segment.colCor]);}
-  inline void setSolidColor           (uint32_t c)      { _segment.solidColor = CRGB(c); }
+  inline void setBckndSat             (uint8_t s)       { SEG.backgroundSat = s; }
+  inline void setBckndHue             (uint8_t h)       { SEG.backgroundHue = h; }
+  inline void setBckndBri             (uint8_t b)       { SEG.backgroundBri = constrain(b, BCKND_MIN_BRI, BCKND_MAX_BRI); }
+  inline void setColCor               (COLORCORRECTIONS c) { SEG.colCor = (COLORCORRECTIONS)constrain(c, 0, COR_NUMCORRECTIONS-1); FastLED.setCorrection(colorCorrectionValues[SEG.colCor]);}
+  inline void setSolidColor           (uint32_t c)      { SEG.solidColor = CRGB(c); }
 
   inline void setTransition           (void)            { _transition = true; _segment_runtime.modeinit = true; _blend = 0; }
   
   // getters
-  inline size_t         getCRCsize(void)              { return sizeof(_segment.CRC); }
-  inline CRGB           getSolidColor(void)           { return _segment.solidColor; }
-  inline uint16_t       getCRC(void)                  { return _segment.CRC; }
-  inline bool           isRunning(void)               { return _segment.isRunning; }
-  inline bool           getPower(void)                { return _segment.power; }
-  inline bool           getReverse(void)              { return _segment.reverse; }
-  inline bool           getMirror(void)               { return _segment.mirror; }
-  inline bool           getAddGlitter(void)           { return _segment.addGlitter; }
-  inline bool           getWhiteGlitter(void)         { return _segment.whiteGlitter; }
-  inline bool           getOnBlackOnly(void)          { return _segment.onBlackOnly; }
-  inline bool           getSynchronous(void)          { return _segment.synchronous; }
+  inline size_t         getCRCsize(void)              { return sizeof(SEG.CRC); }
+  inline CRGB           getSolidColor(void)           { return SEG.solidColor; }
+  inline uint16_t       getCRC(void)                  { return SEG.CRC; }
+  inline bool           isRunning(void)               { return SEG.isRunning; }
+  inline bool           getPower(void)                { return SEG.power; }
+  inline bool           getReverse(void)              { return SEG.reverse; }
+  inline bool           getMirror(void)               { return SEG.mirror; }
+  inline bool           getAddGlitter(void)           { return SEG.addGlitter; }
+  inline bool           getWhiteGlitter(void)         { return SEG.whiteGlitter; }
+  inline bool           getOnBlackOnly(void)          { return SEG.onBlackOnly; }
+  inline bool           getSynchronous(void)          { return SEG.synchronous; }
   #ifdef HAS_KNOB_CONTROL
-  inline bool           getWiFiDisabled(void)         { return _segment.wifiDisabled; }
+  inline bool           getWiFiDisabled(void)         { return SEG.wifiDisabled; }
   #endif
-  inline AUTOPLAYMODES  getAutoplay(void)             { return _segment.autoplay; }
-  inline AUTOPLAYMODES  getAutopal(void)              { return _segment.autoPal; }
+  inline AUTOPLAYMODES  getAutoplay(void)             { return SEG.autoplay; }
+  inline AUTOPLAYMODES  getAutopal(void)              { return SEG.autoPal; }
   inline uint16_t       getSpeed(void)                { return getBeat88(); }
-  inline uint16_t       getBeat88(void)               { return _segment.beat88; }
-  inline uint16_t       getHueTime(void)              { return _segment.hueTime; }
-  inline uint16_t       getMilliamps(void)            { return _segment.milliamps; }
-  inline uint16_t       getAutoplayDuration(void)     { return _segment.autoplayDuration; }
-  inline uint16_t       getAutopalDuration(void)      { return _segment.autoPalDuration; }
-  inline uint8_t        getSegments(void)             { return _segment.segments; }
-  inline uint8_t        getCooling(void)              { return _segment.cooling; }
-  inline uint8_t        getSparking(void)             { return _segment.sparking; }
-  inline uint8_t        getTwinkleSpeed(void)         { return _segment.twinkleSpeed; }  
-  inline uint8_t        getTwinkleDensity(void)       { return _segment.twinkleDensity; }
-  inline uint8_t        getNumBars(void)              { return _segment.numBars; }
+  inline uint16_t       getBeat88(void)               { return SEG.beat88; }
+  inline uint16_t       getHueTime(void)              { return SEG.hueTime; }
+  inline uint16_t       getMilliamps(void)            { return SEG.milliamps; }
+  inline uint16_t       getAutoplayDuration(void)     { return SEG.autoplayDuration; }
+  inline uint16_t       getAutopalDuration(void)      { return SEG.autoPalDuration; }
+  inline uint8_t        getSegments(void)             { return SEG.segments; }
+  inline uint8_t        getCooling(void)              { return SEG.cooling; }
+  inline uint8_t        getSparking(void)             { return SEG.sparking; }
+  inline uint8_t        getTwinkleSpeed(void)         { return SEG.twinkleSpeed; }  
+  inline uint8_t        getTwinkleDensity(void)       { return SEG.twinkleDensity; }
+  inline uint8_t        getNumBars(void)              { return SEG.numBars; }
   // getmode -> see below
-  inline uint8_t        getMaxFPS(void)               { return _segment.fps; }
-  inline uint8_t        getDeltaHue(void)             { return _segment.deltaHue; }
-  inline uint8_t        getBlurValue(void)            { return _segment.blur; }
-  inline uint8_t        getDamping(void)              { return _segment.damping; }
-  inline uint8_t        getDithering(void)            { return _segment.dithering; }
-  inline uint8_t        getSunriseTime(void)          { return _segment.sunrisetime; }
+  inline uint8_t        getMaxFPS(void)               { return SEG.fps; }
+  inline uint8_t        getDeltaHue(void)             { return SEG.deltaHue; }
+  inline uint8_t        getBlurValue(void)            { return SEG.blur; }
+  inline uint8_t        getDamping(void)              { return SEG.damping; }
+  inline uint8_t        getDithering(void)            { return SEG.dithering; }
+  inline uint8_t        getSunriseTime(void)          { return SEG.sunrisetime; }
   inline uint8_t        getBrightness(void)           { return getTargetBrightness(); }
-  inline uint8_t        getTargetBrightness(void)     { return _segment.targetBrightness; }
-  inline uint8_t        getTargetPaletteNumber(void)  { return _segment.targetPaletteNum; }
-  inline uint8_t        getCurrentPaletteNumber(void) { return _segment.currentPaletteNum; }
-  inline uint8_t        getBckndSat(void)             { return _segment.backgroundSat; }
-  inline uint8_t        getBckndHue(void)             { return _segment.backgroundHue; }
-  inline uint8_t        getBckndBri(void)             { return _segment.backgroundBri; }
+  inline uint8_t        getTargetBrightness(void)     { return SEG.targetBrightness; }
+  inline uint8_t        getTargetPaletteNumber(void)  { return SEG.targetPaletteNum; }
+  inline uint8_t        getCurrentPaletteNumber(void) { return SEG.currentPaletteNum; }
+  inline uint8_t        getBckndSat(void)             { return SEG.backgroundSat; }
+  inline uint8_t        getBckndHue(void)             { return SEG.backgroundHue; }
+  inline uint8_t        getBckndBri(void)             { return SEG.backgroundBri; }
 
-  inline TBlendType     getBlendType(void)            { return _segment.blendType; }
+  inline TBlendType     getBlendType(void)            { return SEG.blendType; }
          uint8_t        getColorTemp(void);
-  inline ColorTemperature getColorTemperature(void)   { return _segment.colorTemp; }
+  inline ColorTemperature getColorTemperature(void)   { return SEG.colorTemp; }
          uint32_t       getCurrentPower(void) ;
  
   // return a pointer to the complete segment structure
   inline WS2812FX::segment *getSegment(void) { return &_segment; }
   inline size_t getSegmentSize(void) { return sizeof(_segment); }
 
-  inline uint16_t getCurrentSunriseStep(void) { if(_segment.mode == FX_MODE_SUNRISE || _segment.mode == FX_MODE_SUNSET) return _segment_runtime.modevars.sunrise_step.sunRiseStep; else return 0; }
+  inline uint16_t getCurrentSunriseStep(void) { if(SEG.mode == FX_MODE_SUNRISE || SEG.mode == FX_MODE_SUNSET) return _segment_runtime.modevars.sunrise_step.sunRiseStep; else return 0; }
   inline uint16_t getFPS(void) { if(_service_Interval_microseconds > 0) { return ((1000000 / _service_Interval_microseconds) + 1) ; } else { return 65535; } }
 
-  inline COLORCORRECTIONS getColorCorrectionEnum(void) { return _segment.colCor; }
+  inline COLORCORRECTIONS getColorCorrectionEnum(void) { return SEG.colCor; }
 
   
 

@@ -13,3 +13,4 @@
 .vscode/settings.json
 .vscode/tasks.json
 desktop.ini
+compile_commands.json
