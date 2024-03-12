@@ -197,19 +197,19 @@ void getPalettes(JsonArray &jArr) {
     jArr.add(strip->getPalName(i));
   }
 
-  jArr.add("Custom");
+  jArr.add(F("Custom"));
 }
 
 void getAutoplayModes(JsonArray &jArr) {
-  jArr.add("Off");
-  jArr.add("Up");
-  jArr.add("Down");
-  jArr.add("Random");
+  jArr.add(F("Off"));
+  jArr.add(F("Up"));
+  jArr.add(F("Down"));
+  jArr.add(F("Random"));
 }
 void getBlendTypes(JsonArray &jArr)
 {
-  jArr.add("NoBlend");
-  jArr.add("LinearBlend");
+  jArr.add(F("NoBlend"));
+  jArr.add(F("LinearBlend"));
 }
 void getColorTemps(JsonArray &jArr)
 {
@@ -220,9 +220,9 @@ void getColorTemps(JsonArray &jArr)
   }
 }
 void getColCorValues(JsonArray &jArr) {
-  jArr.add("TypicalLEDStrip");
-  jArr.add("TypicalPixelString");
-  jArr.add("UncorrectedColor");
+  jArr.add(F("TypicalLEDStrip"));
+  jArr.add(F("TypicalPixelString"));
+  jArr.add(F("UncorrectedColor"));
 }
 
 /*
