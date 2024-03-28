@@ -32,8 +32,8 @@
 
 */
 
-#ifndef WS2812FX_FastLED_h
-#define WS2812FX_FastLED_h
+#ifndef LedEffects_h
+#define LedEffects_h
 
 /* <FastLED implementation> */
 #define FASTLED_ESP8266_RAW_PIN_ORDER
@@ -215,11 +215,11 @@ enum COLORCORRECTIONS
 #define qsubd(x, b) ((x > b) ? b : 0)     // Digital unsigned subtraction macro. if result <0, then => 0. Otherwise, take on fixed value.
 #define qsuba(x, b) ((x > b) ? x - b : 0) // Analog Unsigned subtraction macro. if result <0, then => 0
 
-class WS2812FX
+class cLedEffects
 {
-  //class WS2812FX : public Adafruit_NeoPixel {
+  
 
-  typedef uint16_t (WS2812FX::*mode_ptr)(void);
+  typedef uint16_t (cLedEffects::*mode_ptr)(void);
 
   // segment parameters
 public:
@@ -523,67 +523,67 @@ public:
   } segment_runtime;
 
 public:
-  WS2812FX(CRGB * pleds, CRGB* eleds)
+  cLedEffects(CRGB * pleds, CRGB* eleds)
   {
 
     physicalLeds = pleds; 
     _bleds = &physicalLeds[LED_OFFSET];
     leds = eleds; 
 
-    _mode[FX_MODE_STATIC]                 = &WS2812FX::mode_static;
-    _mode[FX_MODE_EASE]                   = &WS2812FX::mode_ease;
-    _mode[FX_MODE_MULTI_DYNAMIC]          = &WS2812FX::mode_multi_dynamic;
-    _mode[FX_MODE_RAINBOW]                = &WS2812FX::mode_rainbow;
-    _mode[FX_MODE_RAINBOW_CYCLE]          = &WS2812FX::mode_rainbow_cycle;
-    _mode[FX_MODE_PRIDE]                  = &WS2812FX::mode_pride;
-    _mode[FX_MODE_SCAN]                   = &WS2812FX::mode_scan;
-    _mode[FX_MODE_DUAL_SCAN]              = &WS2812FX::mode_dual_scan;
-    _mode[FX_MODE_FADE]                   = &WS2812FX::mode_fade;
-    _mode[FX_MODE_THEATER_CHASE]          = &WS2812FX::mode_theater_chase;
-    _mode[FX_MODE_THEATER_CHASE_DUAL_P]   = &WS2812FX::mode_theater_chase_dual_pal;
-    _mode[FX_MODE_THEATER_CHASE_RAINBOW]  = &WS2812FX::mode_theater_chase_rainbow;
-    _mode[FX_MODE_TWINKLE_FADE]           = &WS2812FX::mode_twinkle_fade;
-    _mode[FX_MODE_TWINKLE_FOX]            = &WS2812FX::mode_twinkle_fox;
-    _mode[FX_MODE_LARSON_SCANNER]         = &WS2812FX::mode_larson_scanner;
-    _mode[FX_MODE_COMET]                  = &WS2812FX::mode_comet;
-    _mode[FX_MODE_FIRE_FLICKER_INTENSE]   = &WS2812FX::mode_fire_flicker_intense;
-    _mode[FX_MODE_BREATH]                 = &WS2812FX::mode_breath;
-    _mode[FX_MODE_RUNNING_LIGHTS]         = &WS2812FX::mode_running_lights;
-    _mode[FX_MODE_NOISEMOVER]             = &WS2812FX::mode_inoise8_mover;
-    _mode[FX_MODE_PLASMA]                 = &WS2812FX::mode_plasma;
-    _mode[FX_MODE_JUGGLE_PAL]             = &WS2812FX::mode_juggle_pal;
-    _mode[FX_MODE_FILL_BEAT]              = &WS2812FX::mode_fill_beat;
-    _mode[FX_MODE_DOT_BEAT]               = &WS2812FX::mode_dot_beat;
-    _mode[FX_MODE_DOT_COL_WIPE]           = &WS2812FX::mode_dot_col_move;
-    _mode[FX_MODE_COLOR_WIPE_SAWTOOTH]    = &WS2812FX::mode_col_wipe_sawtooth;
-    _mode[FX_MODE_COLOR_WIPE_SINE]        = &WS2812FX::mode_col_wipe_sine;
-    _mode[FX_MODE_COLOR_WIPE_QUAD]        = &WS2812FX::mode_col_wipe_quad;
-    _mode[FX_MODE_COLOR_WIPE_TRIWAVE]     = &WS2812FX::mode_col_wipe_triwave;
-    _mode[FX_MODE_TO_INNER]               = &WS2812FX::mode_to_inner;
-    _mode[FX_MODE_FILL_BRIGHT]            = &WS2812FX::mode_fill_bright;
-    _mode[FX_MODE_FIREWORK]               = &WS2812FX::mode_firework;
-    _mode[FX_MODE_FIRE2012]               = &WS2812FX::mode_fire2012WithPalette;
-    _mode[FX_MODE_FILL_WAVE]              = &WS2812FX::mode_fill_wave;
-    _mode[FX_MODE_BUBBLE_SORT]            = &WS2812FX::mode_bubble_sort;
-    _mode[FX_MODE_SHOOTING_STAR]          = &WS2812FX::mode_shooting_star;
-    _mode[FX_MODE_BEATSIN_GLOW]           = &WS2812FX::mode_beatsin_glow;
-    _mode[FX_MODE_PIXEL_STACK]            = &WS2812FX::mode_pixel_stack;
-    _mode[FX_MODE_MOVE_BAR_SIN]           = &WS2812FX::mode_move_bar_sin;
-    _mode[FX_MODE_MOVE_BAR_QUAD]          = &WS2812FX::mode_move_bar_quad;
-    _mode[FX_MODE_MOVE_BAR_CUBE]          = &WS2812FX::mode_move_bar_cubic;
-    _mode[FX_MODE_MOVE_BAR_SAWTOOTH]      = &WS2812FX::mode_move_bar_sawtooth;
-    _mode[FX_MODE_POPCORN]                = &WS2812FX::mode_popcorn;
-    _mode[FX_MODE_FIREWORKROCKETS]        = &WS2812FX::mode_firework2;
-    _mode[FX_MODE_RING_RING]              = &WS2812FX::mode_ring_ring;
-    _mode[FX_MODE_HEARTBEAT]              = &WS2812FX::mode_heartbeat;
-    _mode[FX_MODE_RAIN]                   = &WS2812FX::mode_rain;
-    _mode[FX_MODE_EASE_BAR]               = &WS2812FX::mode_ease_bar;
-    _mode[FX_MODE_PACIFICA]               = &WS2812FX::mode_pacifica;
-    _mode[FX_MODE_COLOR_WAVES]            = &WS2812FX::mode_color_waves;
-    _mode[FX_MODE_TWINKLE_MAP]            = &WS2812FX::mode_twinkle_map;
-    _mode[FX_MODE_VOID]                   = &WS2812FX::mode_void;
-    _mode[FX_MODE_SUNRISE]                = &WS2812FX::mode_sunrise;
-    _mode[FX_MODE_SUNSET]                 = &WS2812FX::mode_sunset;
+    _mode[FX_MODE_STATIC]                 = &cLedEffects::mode_static;
+    _mode[FX_MODE_EASE]                   = &cLedEffects::mode_ease;
+    _mode[FX_MODE_MULTI_DYNAMIC]          = &cLedEffects::mode_multi_dynamic;
+    _mode[FX_MODE_RAINBOW]                = &cLedEffects::mode_rainbow;
+    _mode[FX_MODE_RAINBOW_CYCLE]          = &cLedEffects::mode_rainbow_cycle;
+    _mode[FX_MODE_PRIDE]                  = &cLedEffects::mode_pride;
+    _mode[FX_MODE_SCAN]                   = &cLedEffects::mode_scan;
+    _mode[FX_MODE_DUAL_SCAN]              = &cLedEffects::mode_dual_scan;
+    _mode[FX_MODE_FADE]                   = &cLedEffects::mode_fade;
+    _mode[FX_MODE_THEATER_CHASE]          = &cLedEffects::mode_theater_chase;
+    _mode[FX_MODE_THEATER_CHASE_DUAL_P]   = &cLedEffects::mode_theater_chase_dual_pal;
+    _mode[FX_MODE_THEATER_CHASE_RAINBOW]  = &cLedEffects::mode_theater_chase_rainbow;
+    _mode[FX_MODE_TWINKLE_FADE]           = &cLedEffects::mode_twinkle_fade;
+    _mode[FX_MODE_TWINKLE_FOX]            = &cLedEffects::mode_twinkle_fox;
+    _mode[FX_MODE_LARSON_SCANNER]         = &cLedEffects::mode_larson_scanner;
+    _mode[FX_MODE_COMET]                  = &cLedEffects::mode_comet;
+    _mode[FX_MODE_FIRE_FLICKER_INTENSE]   = &cLedEffects::mode_fire_flicker_intense;
+    _mode[FX_MODE_BREATH]                 = &cLedEffects::mode_breath;
+    _mode[FX_MODE_RUNNING_LIGHTS]         = &cLedEffects::mode_running_lights;
+    _mode[FX_MODE_NOISEMOVER]             = &cLedEffects::mode_inoise8_mover;
+    _mode[FX_MODE_PLASMA]                 = &cLedEffects::mode_plasma;
+    _mode[FX_MODE_JUGGLE_PAL]             = &cLedEffects::mode_juggle_pal;
+    _mode[FX_MODE_FILL_BEAT]              = &cLedEffects::mode_fill_beat;
+    _mode[FX_MODE_DOT_BEAT]               = &cLedEffects::mode_dot_beat;
+    _mode[FX_MODE_DOT_COL_WIPE]           = &cLedEffects::mode_dot_col_move;
+    _mode[FX_MODE_COLOR_WIPE_SAWTOOTH]    = &cLedEffects::mode_col_wipe_sawtooth;
+    _mode[FX_MODE_COLOR_WIPE_SINE]        = &cLedEffects::mode_col_wipe_sine;
+    _mode[FX_MODE_COLOR_WIPE_QUAD]        = &cLedEffects::mode_col_wipe_quad;
+    _mode[FX_MODE_COLOR_WIPE_TRIWAVE]     = &cLedEffects::mode_col_wipe_triwave;
+    _mode[FX_MODE_TO_INNER]               = &cLedEffects::mode_to_inner;
+    _mode[FX_MODE_FILL_BRIGHT]            = &cLedEffects::mode_fill_bright;
+    _mode[FX_MODE_FIREWORK]               = &cLedEffects::mode_firework;
+    _mode[FX_MODE_FIRE2012]               = &cLedEffects::mode_fire2012WithPalette;
+    _mode[FX_MODE_FILL_WAVE]              = &cLedEffects::mode_fill_wave;
+    _mode[FX_MODE_BUBBLE_SORT]            = &cLedEffects::mode_bubble_sort;
+    _mode[FX_MODE_SHOOTING_STAR]          = &cLedEffects::mode_shooting_star;
+    _mode[FX_MODE_BEATSIN_GLOW]           = &cLedEffects::mode_beatsin_glow;
+    _mode[FX_MODE_PIXEL_STACK]            = &cLedEffects::mode_pixel_stack;
+    _mode[FX_MODE_MOVE_BAR_SIN]           = &cLedEffects::mode_move_bar_sin;
+    _mode[FX_MODE_MOVE_BAR_QUAD]          = &cLedEffects::mode_move_bar_quad;
+    _mode[FX_MODE_MOVE_BAR_CUBE]          = &cLedEffects::mode_move_bar_cubic;
+    _mode[FX_MODE_MOVE_BAR_SAWTOOTH]      = &cLedEffects::mode_move_bar_sawtooth;
+    _mode[FX_MODE_POPCORN]                = &cLedEffects::mode_popcorn;
+    _mode[FX_MODE_FIREWORKROCKETS]        = &cLedEffects::mode_firework2;
+    _mode[FX_MODE_RING_RING]              = &cLedEffects::mode_ring_ring;
+    _mode[FX_MODE_HEARTBEAT]              = &cLedEffects::mode_heartbeat;
+    _mode[FX_MODE_RAIN]                   = &cLedEffects::mode_rain;
+    _mode[FX_MODE_EASE_BAR]               = &cLedEffects::mode_ease_bar;
+    _mode[FX_MODE_PACIFICA]               = &cLedEffects::mode_pacifica;
+    _mode[FX_MODE_COLOR_WAVES]            = &cLedEffects::mode_color_waves;
+    _mode[FX_MODE_TWINKLE_MAP]            = &cLedEffects::mode_twinkle_map;
+    _mode[FX_MODE_VOID]                   = &cLedEffects::mode_void;
+    _mode[FX_MODE_SUNRISE]                = &cLedEffects::mode_sunrise;
+    _mode[FX_MODE_SUNSET]                 = &cLedEffects::mode_sunset;
 
     _name[FX_MODE_STATIC]                 = F("Static");
     _name[FX_MODE_EASE]                   = F("Ease");
@@ -671,7 +671,7 @@ public:
     resetDefaults();
   }
 
-  ~WS2812FX()
+  ~cLedEffects()
   {
 
   }
@@ -805,7 +805,7 @@ public:
          uint32_t       getCurrentPower(void) ;
  
   // return a pointer to the complete segment structure
-  inline WS2812FX::segment *getSegment(void) { return &_segment; }
+  inline cLedEffects::segment *getSegment(void) { return &_segment; }
   inline size_t getSegmentSize(void) { return sizeof(_segment); }
 
   inline uint16_t getCurrentSunriseStep(void) { if(SEG.mode == FX_MODE_SUNRISE || SEG.mode == FX_MODE_SUNSET) return _segment_runtime.modevars.sunrise_step.sunRiseStep; else return 0; }
@@ -868,6 +868,9 @@ private:
       pacifica_layer(const CRGBPalette16& p, uint16_t cistart, uint16_t wavescale, uint8_t bri, uint16_t ioff),
       pacifica_deepen_colors(void),
       pacifica_add_whitecaps(void),
+      handleSegmentChanges(void),
+      handleModeInit(void),
+      blendToNewMode(void),
       addSparks(const uint8_t probability, const bool onBlackOnly, const bool white, const bool synchronous);
 
   uint8_t attackDecayWave8(uint8_t i);
@@ -948,11 +951,12 @@ private:
 //      quadbeat(uint16_t in);
 
   CRGB
-      computeOneTwinkle(uint32_t *ms, uint8_t *salt),
+      computeOneTwinkle(uint32_t *ms, const uint8_t *salt),
       makeBrighter(const CRGB &color, fract8 howMuchBrighter),
       makeDarker(const CRGB &color, fract8 howMuchDarker);
 
   bool
+      managePower(unsigned long now, uint32_t *last_show),
       getPixelDirection(uint16_t i, uint8 *directionFlags);
 
   inline uint16_t
@@ -1026,4 +1030,4 @@ private:
   segment_runtime _segment_runtime; // SRAM footprint: 14 bytes per element
 };
 
-#endif // WS2812FX_FastLED_h
+#endif // LedEffects_h

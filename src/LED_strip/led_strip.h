@@ -47,7 +47,7 @@
 #define led_strip_h
 
 // we gonna need our own adoption from the library. 
-#include "../WS2812FX/WS2812FX_FastLED.h"
+#include "../LedEffects/LedEffects.h"
 #include <ArduinoJson.h>
 
 // These define modes besides the fx library
@@ -56,7 +56,7 @@
 #define FX_SUNSET       2
 #define FX_WS2812       3
 
-extern WS2812FX *strip; 
+extern cLedEffects *strip; 
 
 // initialize the strip during boot (or at changes)
 // strip can be any neopixel arrangement

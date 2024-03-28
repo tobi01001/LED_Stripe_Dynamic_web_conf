@@ -47,7 +47,7 @@
 #include "led_strip.h"
 #endif
 
-WS2812FX *strip;
+cLedEffects *strip;
 
 
 /*
@@ -581,7 +581,7 @@ uint8_t getFieldCount(void)
 
 void stripe_setup(CRGB * pleds, CRGB* eleds)
 {
-  strip = new WS2812FX(pleds, eleds);
+  strip = new cLedEffects(pleds, eleds);
   strip->init();
   strip->start();
   strip->show();

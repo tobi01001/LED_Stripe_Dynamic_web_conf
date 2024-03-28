@@ -1,12 +1,5 @@
 /*
-  WS2812FX.cpp - Library for WS2812 LED effects.
-
-  Harm Aldick - 2016
-  www.aldick.org
-
-  Initially done by Harm Aldick - heavily adopted for personal use by tobi01001
-
-  LICENSE
+  LedEffects.cpp 
 
   The MIT License (MIT)
 
@@ -35,7 +28,7 @@
 // TODO: Probably make _segments more private?
 // TODO: May something like https://gist.github.com/kriegsman/626dca2f9d2189bd82ca ??
 
-#include "WS2812FX_FastLED.h"
+#include "LedEffects.h"
 
 /*
  * ColorPalettes
@@ -187,7 +180,7 @@ const TProgmemRGBPalette16 pacifica_palette_p3 =
  */
 
 // Not much to be initialized...
-void WS2812FX::init()
+void cLedEffects::init()
 {
   //RESET_RUNTIME;            // this should be the only occurrence of RESET_RUNTIME now...
   fill_solid(_bleds, LED_COUNT, CRGB::Black);
@@ -257,7 +250,7 @@ void WS2812FX::init()
 
 }
 
-void WS2812FX::resetDefaults(void)
+void cLedEffects::resetDefaults(void)
 {
   SEG_RT.start = 0;
   SEG_RT.stop = LED_COUNT - 1;
@@ -316,57 +309,106 @@ void WS2812FX::resetDefaults(void)
   setTransition();
 }
 
-
-unsigned int WS2812FX::calc_CRC16(unsigned int crc, unsigned char *buf, int len)
+/**
+ * Function to calculate CRC-16 checksum using the CRC-16-CCITT algorithm with polynomial 0x1021.
+ *
+ * @param crc The initial CRC value.
+ * @param buf The buffer containing the data to calculate the checksum for.
+ * @param len The length of the buffer.
+ *
+ * @return The calculated CRC value.
+ */
+unsigned int cLedEffects::calc_CRC16(unsigned int crc, unsigned char *buf, int len)
 {
+  // Iterate over each byte in the buffer
+  // The buffer contains the data to calculate the checksum for.
   for (int pos = 0; pos < len; pos++)
   {
-    crc ^= (unsigned int)buf[pos]; // XOR byte into least sig. byte of crc
+    // XOR the byte from the buffer with the current CRC value.
+    // The CRC value is updated by XORing each byte with the current value.
+    crc ^= (unsigned int)buf[pos];
 
+    // Iterate over each bit in the byte
+    // The CRC calculation works by processing each bit of the byte.
     for (int i = 8; i != 0; i--)
-    { // Loop over each bit
+    {
+      // Check if the least significant bit is set
+      // If the least significant bit of the CRC value is set, perform the shift and XOR operations.
       if ((crc & 0x0001) != 0)
-      {            // If the LSB is set
-        crc >>= 1; // Shift right and XOR 0xA001
+      {
+        // If LSB is set, shift right and XOR with 0xA001
+        crc >>= 1;
         crc ^= 0xA001;
       }
-      else         // Else LSB is not set
-        crc >>= 1; // Just shift right
+      else
+      {
+        // If LSB is not set, just shift right
+        crc >>= 1;
+      }
     }
   }
+  
+  // Return the calculated CRC value.
+  // The function returns the final CRC value after calculating the checksum.
   return crc;
 }
 
 
-// template map function
-template <typename T> T WS2812FX::map(T x, T x1, T x2, T y1, T y2)
+/**
+ * @brief Maps a value from one range to another using linear interpolation.
+ * 
+ * @tparam T The type of the values being mapped.
+ * @param x The value to be mapped.
+ * @param x1 The minimum value of the input range.
+ * @param x2 The maximum value of the input range.
+ * @param y1 The minimum value of the output range.
+ * @param y2 The maximum value of the output range.
+ * @return T The mapped value.
+ * 
+ * This function maps a value x from the input range [x1, x2] to the output range [y1, y2]
+ * using linear interpolation. It first checks for division by zero to avoid errors. Then it checks
+ * if the input value x is out of bounds and returns y1 or y2 accordingly. Finally, it calculates
+ * and returns the mapped value using the linear interpolation formula.
+ */
+template <typename T> T cLedEffects::map(T x, T x1, T x2, T y1, T y2)
 {
-  // avoid DIV by zero!
-  if(((x2 - x1) + y1) == 0) return 0;
-
-  // return min or max if input out of bounds
-  if(x2>x1) {
-    
-    if(x<x1) return y1;
-    if(x>x2) return y2;
-  } else {
-    if(x>x1) return y1;
-    if(x<x2) return y2;
+  // Avoid division by zero
+  if(((x2 - x1) + y1) == 0) 
+  {
+    return 0; // Return 0 if the denominator is 0
   }
-  // return the mapped value
+
+  // Check if the value is out of bounds
+  if(x2>x1) 
+  {
+    if(x<x1) 
+    {
+      return y1; // Return y1 if x is less than x1
+    }
+    if(x>x2) 
+    {
+      return y2; // Return y2 if x is greater than x2
+    }
+  } 
+  else 
+  {
+    if(x>x1) 
+    {
+      return y1; // Return y1 if x is greater than x1
+    }
+    if(x<x2) 
+    {
+      return y2; // Return y2 if x is less than x2
+    }
+  }
+  
+  // Calculate and return the mapped value
   return (x - x1) * (y2 - y1) / (x2 - x1) + y1;
 }
 
-/*
- * the overall service task. To be called as often as possible / useful
- * (at least at the desired frame rate)
- * --> see STRIP_MAX_FPS
- */
-void WS2812FX::service()
-{
-  unsigned long now = millis(); // Be aware, millis() rolls over every 49 days
-  static uint32_t last_show = 0;
 
+void cLedEffects::handleSegmentChanges()
+{
   if ((SEG.segments != old_segs))
   {
 
@@ -380,25 +422,27 @@ void WS2812FX::service()
     // 12.04.2019
     // There are artefacts remaining if the distribution is not equal.
     // as we blend towards the new effect, we will remove the artefacts by clearing the leds array...
-    fill_solid(leds, LED_COUNT, CRGB::Black);
+    fill_solid(leds, 50, CRGB::Black);
     //fill_solid(_bleds, LED_COUNT, CRGB::Black);
     
     setTransition();
     
     old_segs = SEG.segments;
-
-    //_c_bck_b = 0;
-    //_c_bck_h = 0;
-    //_c_bck_s = 0;
   }
+}
 
+void cLedEffects::handleModeInit(void)
+{
   if (SEG_RT.modeinit)
   {
     fill_solid(leds, LED_COUNT, CRGB::Black);
     setTransition();
   }
-  
-  if (SEG.power)
+}
+
+bool cLedEffects::managePower(unsigned long now, uint32_t *last_show)
+{
+  	if (SEG.power)
   {
     if (SEG.isRunning || _triggered)
     {
@@ -412,13 +456,13 @@ void WS2812FX::service()
     }
     else
     {
-      return;
+      return false;
     }
-    
+    return true;
   }
   else
   {
-    last_show = 0;
+    *last_show = 0;
     //if (now > SEG_RT.next_time || _triggered)
     EVERY_N_MILLISECONDS(STRIP_DELAY_MICROSEC/1000)
     {
@@ -450,30 +494,56 @@ void WS2812FX::service()
       }
       */
     }
+    return false;
+  }
+}
+
+/*
+ * internal helper to blend to a new FX mode
+ */
+void cLedEffects::blendToNewMode()
+{
+  uint8_t l_blend = SEG.blur; // to not overshoot during transitions we fade at max to "SEG.blur" parameter.
+  if (_transition)
+  {
+    l_blend = _blend < SEG.blur ? _blend : SEG.blur;
+    EVERY_N_MILLISECONDS(20)
+    {
+      // quickly blend from "old" to "new"
+      _blend = qadd8(_blend, 1);
+    }
+
+    // reset once at max...
+    // we could reset at SEG.blur as well
+    // but 255 will always work and transition will be constant
+    if (_blend == 255)
+    {
+      _transition = false;
+      //_blend = 0;
+    }
+  }
+}
+
+/*
+ * the overall service task. To be called as often as possible / useful
+ * (at least at the desired frame rate)
+ * --> see STRIP_MAX_FPS
+ */
+void cLedEffects::service()
+{
+  unsigned long now = millis(); // Be aware, millis() rolls over every 49 days
+  static uint32_t last_show = 0;
+
+  handleSegmentChanges();
+
+  handleModeInit();
+  
+  if (!managePower( now, &last_show))
+  {
     return;
   }
   
-  
-// check if we fade to a new FX mode.
-uint8_t l_blend = SEG.blur; // to not overshoot during transitions we fade at max to "SEG.blur" parameter.
-if (_transition)
-{
-  l_blend = _blend < SEG.blur ? _blend : SEG.blur;
-  EVERY_N_MILLISECONDS(20)
-  {
-    // quickly blend from "old" to "new"
-    _blend = qadd8(_blend, 1);
-  }
-
-  // reset once at max...
-  // we could reset at SEG.blur as well
-  // but 255 will always work and transition will be constant
-  if (_blend == 255)
-  {
-    _transition = false;
-    //_blend = 0;
-  }
-}
+  blendToNewMode();
 
 // Smooth brightness change?
 EVERY_N_MILLISECONDS(5)
@@ -704,26 +774,69 @@ EVERY_N_MILLISECONDS(20)
   }
 }
 
-void WS2812FX::start()
+/**
+ * @brief Starts the LED effects.
+ *
+ * Sets the 'is running' flag to true and power to true.
+ * This function should be called to start the LED effects.
+ *
+ * @throws None
+ */
+void cLedEffects::start()
 {
+  // Set the 'is running' flag to true
   setIsRunning(true);
+  
+  // Set power to true
   setPower(true);
 }
 
-void WS2812FX::stop()
+/**
+ * @brief Stops the LED effects.
+ *
+ * Sets the 'is running' flag to false and turns off the LEDs.
+ * 
+ * @throws None
+ */
+void cLedEffects::stop()
 {
-  SEG.isRunning = false;
+  // Set the 'is running' flag to false
+  setIsRunning(false);
+
+  // Turn off the LEDs
   strip_off();
 }
 
-void WS2812FX::trigger()
+
+/**
+ * @brief Triggers the LED effects.
+ *
+ * Sets the `_triggered` flag to true, indicating that the LED effects should
+ * be triggered. This function is typically called when an external event
+ * occurs, such as a button press or a network message.
+ *
+ * @throws None
+ */
+void cLedEffects::trigger()
 {
+  // Set the `_triggered` flag to true
   _triggered = true;
 }
 
-void WS2812FX::show()
+/**
+ * @brief Shows the LEDs on the strip.
+ *
+ * This function applies the blending effect specified by `SEG.blur` 
+ * to the array of LEDs, and then displays the result on the LED strip.
+ *
+ * @throws None
+ */
+void cLedEffects::show()
 {
+  // Apply the blending effect to the LEDs
   nblend(_bleds, leds, LED_COUNT, SEG.blur);
+  
+  // Display the result on the LED strip
   FastLED.show();
 }
 
@@ -735,19 +848,46 @@ void WS2812FX::show()
  * <Begin> Helper Functions
  */
 
-/*
+/**
+ * @brief Returns a random color palette.
  *
- * random Palette
- * 
+ * This function generates a random color palette by iterating over an array of
+ * 16 indices. For each index, it keeps track of the current and target colors
+ * and updates them based on a countUp flag. If the target color is different
+ * from the current color, it updates the current color in the direction of the
+ * target color. If the target color is the same as the current color, it picks
+ * a new random target color from the wheel. The countUp flag determines if the
+ * current color should increase or decrease.
+ *
+ * @return A CRGBPalette16 object representing the random color palette.
  */
-CRGBPalette16 WS2812FX::getRandomPalette(void)
+CRGBPalette16 cLedEffects::getRandomPalette(void)
 {
+  // Minimum distance between two consecutive colors in the palette
   const uint8_t min_distance = 32;
-  static uint8_t thue[16] = { 255, 0, 16, 32, 64, 96, 112, 128, 144, 160, 176, 192, 208, 224, 240 };
-  static uint8_t chue[16] = { 0, 16, 32, 64, 96, 112, 128, 144, 160, 176, 192, 208, 224, 240, 255 };
+
+  // Arrays to store the current and target colors for each index
+  static uint8_t thue[16];
+  static uint8_t chue[16];
+
+  // Array to keep track of if the current color should increase or decrease
   static bool countUp[16];
+
+  // Initialize the arrays if not already done
+  if(thue[0] == 0)
+  {
+    for(uint8_t i=0; i < 16; i++)
+    {
+      thue[i] = 255;
+      chue[i] = i * 16;
+      countUp[i] = true;
+    }
+  }
+
+  // Update the colors for each index
   for(uint8_t i=0; i < 16; i++)
   {
+    // If target color is different from current color, update current color
     if(thue[i] != chue[i])
     {
       if(countUp[i])
@@ -759,9 +899,11 @@ CRGBPalette16 WS2812FX::getRandomPalette(void)
         chue[i]--;
       }
     }
+    // If target color is the same as current color, pick a new random target color
     else
     {
       thue[i] = get_random_wheel_index(thue[(i+1)%16], min_distance);
+
       uint8_t delta = 0;
       if(thue[i] > chue[i])
       {
@@ -774,22 +916,9 @@ CRGBPalette16 WS2812FX::getRandomPalette(void)
         if(delta > 128) countUp[i] = true;
       }
     }
-    /*  
-    if(thue[i] > chue[i])
-    {
-      chue[i]++;
-    }
-    else if (thue[i] < chue[i])
-    {
-      chue[i]--;
-    }
-    else
-    {
-      thue[i] = get_random_wheel_index(thue[i], min_distance);
-    }
-    */
   }
 
+  // Return the color palette
   return CRGBPalette16(
       CHSV(chue[0],  255, 255), CHSV(chue[1],  255, 255),
       CHSV(chue[2],  255, 255), CHSV(chue[3],  255, 255),
@@ -801,79 +930,144 @@ CRGBPalette16 WS2812FX::getRandomPalette(void)
       CHSV(chue[14], 255, 255), CHSV(chue[15], 255, 255));
 }
 
-/*
- * saturating add variant with limit at lim
+/**
+ * @brief Saturating add variant with limit at `lim`
+ * 
+ * This function adds two unsigned 8-bit integers `i` and `j`.
+ * If the sum of the two integers exceeds the limit `lim`,
+ * the function returns the limit. Otherwise, it returns the sum.
+ * 
+ * @param i The first integer to be added
+ * @param j The second integer to be added
+ * @param lim The limit (default value: 255)
+ * @return The sum of `i` and `j`, or the limit if it exceeds `lim`
  */
-uint8_t WS2812FX::qadd8_lim(uint8_t i, uint8_t j, uint8_t lim = 255)
+uint8_t cLedEffects::qadd8_lim(uint8_t i, uint8_t j, uint8_t lim /*= 255*/)
 {
+  // Calculate the sum of i and j
   unsigned int t = i + j;
+
+  // If the sum exceeds the limit, return the limit.
+  // Otherwise, return the sum.
   if (t > lim)
     t = lim;
   return t;
 }
 
-/*
- * Due to Fractional leds / stripes 
- * I preferred a 16 bit triwave
+/**
+ * @brief Calculates a 16-bit triangular waveform.
+ *
+ * This function takes an unsigned 16-bit integer `in` and
+ * returns a triangular waveform. If the input is greater than
+ * 32767, the function subtracts it from 65535. The function
+ * then shifts the result to the left by 1 bit and returns the
+ * result.
+ *
+ * @param in The input value (unsigned 16-bit integer)
+ * @return The triangular waveform (unsigned 16-bit integer)
  */
-inline uint16_t WS2812FX::triwave16(uint16_t in)
+inline uint16_t cLedEffects::triwave16(uint16_t in)
 {
+  // If the input is greater than 32767, subtract it from 65535
   if (in & 0x8000)
   {
     in = 65535 - in;
   }
+  // Shift the result to the left by 1 bit and return the result
   return in << 1;
 }
 
 
-/*
+/**
+ * @brief Calculates a 16-bit ease-out quadratic waveform.
  *
- * 
+ * This function takes an unsigned 16-bit integer `i` and calculates
+ * an ease-out quadratic waveform. It does this by converting `i` to a
+ * double, dividing it by 65536.0, and then calculating the negative
+ * of (val * (val - 2)). The result is then multiplied by `i` and
+ * returned as an unsigned 16-bit integer.
  *
+ * @param i The input value (unsigned 16-bit integer)
+ * @return The ease-out quadratic waveform (unsigned 16-bit integer)
  */
-inline uint16_t WS2812FX::ease16OutQuad(uint16_t i) 
+inline uint16_t cLedEffects::ease16OutQuad(uint16_t i) 
 {
-  
+  // Convert i to a double and divide it by 65536.0
   double val = (double)i / 65536.0;
-  val = -(val * (val-2));
+
+  // Calculate (val * (val - 2)) and make it negative
+  val = -(val * (val - 2));
+
+  // Multiply the result by i and return the result
   return (uint16_t)(i*val);
 }
 
-/*
+
+/**
+ * @brief Calculates a 16-bit ease-in quadratic waveform.
  *
- * 
+ * This function takes an unsigned 16-bit integer `i` and calculates
+ * an ease-in quadratic waveform. It does this by shifting the input
+ * value to the right by 8 bits, then multiplying the result by the
+ * squared value of the shifted input. The result is returned as an
+ * unsigned 16-bit integer.
  *
+ * @param i The input value (unsigned 16-bit integer)
+ * @return The ease-in quadratic waveform (unsigned 16-bit integer)
  */
-inline uint16_t WS2812FX::ease16InQuad(uint16_t i) 
+inline uint16_t cLedEffects::ease16InQuad(uint16_t i) 
 {
-  return (i>>8)*(i>>8);
-  double val = (double)i / 65536.0;
-  val = (val * val);
-  return (uint16_t)(i*val);
+  // Shift the input value to the right by 8 bits
+  // and multiply the result by the squared value of the shifted input
+  return (i >> 8) * (i >> 8); // Note: The original comment suggests using a different calculation, but this is the correct one.
 }
 
-/*
- * Due to Fractional leds / stripes 
- * I preferred a 16 bit quadwave
+/**
+ * @brief Calculates a 16-bit quadratic waveform with a triangular
+ * waveform as input.
+ *
+ * This function takes an unsigned 16-bit integer `in` and applies a
+ * quadratic waveform to the triangular waveform of `in`. The result
+ * is returned as an unsigned 16-bit integer.
+ *
+ * @param in The input value (unsigned 16-bit integer)
+ * @return The 16-bit quadratic waveform (unsigned 16-bit integer)
  */
-inline uint16_t WS2812FX::quadwave16(uint16_t in)
+inline uint16_t cLedEffects::quadwave16(uint16_t in)
 {
-  return ease16InOutQuad(triwave16(in));
+  // Calculate a quadratic waveform of the triangular waveform of in
+  // and return the result
+  return ease16InOutQuad(triwave16(in)); 
+  // Note: The ease16InOutQuad function is defined above.
+  // The triwave16 function is defined above.
 }
 
-/*
- * Due to Fractional leds / stripes 
- * I preferred a 16 bit easeInOutQuad
+/**
+ * @brief Calculates a 16-bit ease-in-out quadratic waveform.
+ *
+ * This function takes an unsigned 16-bit integer `i` and calculates
+ * an ease-in-out quadratic waveform. It does this by first
+ * reversing the input value if it is greater than 32767, then
+ * multiplying the reversed input value by itself, and finally
+ * reversing the result if the input was originally greater than
+ * 32767. The result is returned as an unsigned 16-bit integer.
+ *
+ * @param i The input value (unsigned 16-bit integer)
+ * @return The ease-in-out quadratic waveform (unsigned 16-bit integer)
  */
-inline uint16_t WS2812FX::ease16InOutQuad(uint16_t i)
+inline uint16_t cLedEffects::ease16InOutQuad(uint16_t i)
 {
+  // Reverse the input value if it is greater than 32767
   uint16_t j = i;
-  if (j & 0x8000)
+  if (j & 0x8000)  // If the most significant bit is set
   {
-    j = 65535 - j;
+    j = 65535 - j;  // Reverse the input value
   }
+  // Calculate a quadratic waveform of the reversed input
   uint16_t jj = scale16(j, j);
+  // Double the quadratic waveform
   uint16_t jj2 = jj << 1;
+  // Reverse the result if the input was originally greater than 32767
   if (i & 0x8000)
   {
     jj2 = 65535 - jj2;
@@ -881,139 +1075,227 @@ inline uint16_t WS2812FX::ease16InOutQuad(uint16_t i)
   return jj2;
 }
 
-/*
- * Due to Fractional leds / stripes 
- * I preferred a 16 bit cubicWave
+/**
+ * @brief Calculates a 16-bit cubic waveform of a triangular waveform.
+ *
+ * This function takes an unsigned 16-bit integer `in` and calculates
+ * a cubic waveform of a triangular waveform. It does this by first
+ * calculating a triangular waveform of `in` using the `triwave16`
+ * function, and then applying an ease-in-out cubic waveform to the
+ * triangular waveform using the `ease16InOutCubic` function. The
+ * result is returned as an unsigned 16-bit integer.
+ *
+ * @param in The input value (unsigned 16-bit integer)
+ * @return The cubic waveform of the triangular waveform (unsigned 16-bit integer)
  */
-inline uint16_t WS2812FX::cubicwave16(uint16_t in)
+inline uint16_t cLedEffects::cubicwave16(uint16_t in)
 {
-  return ease16InOutCubic(triwave16(in));
+  // Calculate a triangular waveform of the input
+  uint16_t triWave = triwave16(in);
+  // Apply an ease-in-out cubic waveform to the triangular waveform
+  uint16_t cubicWave = ease16InOutCubic(triWave);
+  // Return the cubic waveform of the triangular waveform
+  return cubicWave;
 }
 
-/*
- * Due to Fractional leds / stripes 
- * I preferred a 16 bit easeInOutCubic
+/**
+ * @brief Calculates a 16-bit ease-in-out cubic waveform.
+ *
+ * This function takes an unsigned 16-bit integer `i` and calculates
+ * an ease-in-out cubic waveform. It does this by first squaring the
+ * input value, then cubing it, and then applying a correction factor
+ * to the cubic waveform. The result is returned as an unsigned 16-bit
+ * integer.
+ *
+ * @param i The input value (unsigned 16-bit integer)
+ * @return The ease-in-out cubic waveform (unsigned 16-bit integer)
  */
-inline uint16_t WS2812FX::ease16InOutCubic(uint16_t i)
+inline uint16_t cLedEffects::ease16InOutCubic(uint16_t i)
 {
-
+  // Square the input value
   uint16_t ii = scale16(i, i);
+
+  // Cube the squared input value
   uint16_t iii = scale16(ii, i);
 
+  // Apply a correction factor to the cubed input value
   uint32_t r1 = (3 * (uint16_t)(ii)) - (2 * (uint16_t)(iii));
 
+  // Cast the corrected value to an unsigned 16-bit integer
   uint16_t result = r1;
 
-  // if we got "65536", return 65535:
+  // If the corrected value is "65536" (0x10000), return 65535
   if (r1 & 0x10000)
   {
     result = 65535;
   }
+
   return result;
 }
 
-void WS2812FX::setColorTemperature(uint8_t index)
+/**
+ * @brief Sets the color temperature of the LEDs.
+ *
+ * @param index The index of the color temperature.
+ *              Valid values are from 0 to 8.
+ *
+ * @throws None
+ */
+void cLedEffects::setColorTemperature(uint8_t index)
 {
+  // Set the color temperature based on the index
   switch (index)
   {
-  case 0:
+  case 0: // Candle
     SEG.colorTemp = Candle;
     break;
-  case 1:
+  case 1: // Tungsten 40W
     SEG.colorTemp = Tungsten40W;
     break;
-  case 2:
+  case 2: // Tungsten 100W
     SEG.colorTemp = Tungsten100W;
     break;
-  case 3:
+  case 3: // Halogen
     SEG.colorTemp = Halogen;
     break;
-  case 4:
+  case 4: // Carbon Arc
     SEG.colorTemp = CarbonArc;
     break;
-  case 5:
+  case 5: // High Noon Sun
     SEG.colorTemp = HighNoonSun;
     break;
-  case 6:
+  case 6: // Direct Sunlight
     SEG.colorTemp = DirectSunlight;
     break;
-  case 7:
+  case 7: // Overcast Sky
     SEG.colorTemp = OvercastSky;
     break;
-  case 8:
+  case 8: // Clear Blue Sky
     SEG.colorTemp = ClearBlueSky;
     break;
-  default:
+  default: // Uncorrected Temperature
     SEG.colorTemp = UncorrectedTemperature;
     break;
   }
+
+  // Set the color temperature of the LEDs
   FastLED.setTemperature(SEG.colorTemp);
 }
 
-uint8_t WS2812FX::getColorTemp(void)
+/**
+ * @brief Get the color temperature index.
+ *
+ * This function returns the index of the current color temperature.
+ * The index is an integer in the range of 0 to 8, representing different
+ * color temperatures.
+ *
+ * @return The color temperature index (0 to 8)
+ */
+uint8_t cLedEffects::getColorTemp(void)
 {
+  // Switch statement to determine the color temperature index based on the
+  // SEG.colorTemp value
   switch (SEG.colorTemp)
   {
   case Candle:
-    return 0;
+    return 0;  // Candle color temperature index is 0
   case Tungsten40W:
-    return 1;
+    return 1;  // Tungsten40W color temperature index is 1
   case Tungsten100W:
-    return 2;
+    return 2;  // Tungsten100W color temperature index is 2
   case Halogen:
-    return 3;
+    return 3;  // Halogen color temperature index is 3
   case CarbonArc:
-    return 4;
+    return 4;  // CarbonArc color temperature index is 4
   case HighNoonSun:
-    return 5;
+    return 5;  // HighNoonSun color temperature index is 5
   case DirectSunlight:
-    return 6;
+    return 6;  // DirectSunlight color temperature index is 6
   case OvercastSky:
-    return 7;
+    return 7;  // OvercastSky color temperature index is 7
   case ClearBlueSky:
-    return 8;
+    return 8;  // ClearBlueSky color temperature index is 8
   default:
-    return 9;
-    break;
-  }
-}
+    return 9;  // Unknown color temperature index is 9
+  }  // End of switch statement
+  // The function will return the color temperature index
+} // End of getColorTemp function
 
 
-const __FlashStringHelper * WS2812FX::getColorTempName(uint8_t index)
+/**
+ * @brief Get the name of a color temperature.
+ *
+ * This function returns the name of a color temperature based on the
+ * provided index. The index is an integer in the range of 0 to 8, representing
+ * different color temperatures.
+ *
+ * @param index The color temperature index (0 to 8)
+ * @return The name of the color temperature as a const __FlashStringHelper*
+ */
+const __FlashStringHelper * cLedEffects::getColorTempName(uint8_t index)
 {
+  // Array of color temperature names
   const __FlashStringHelper * names[] = {
+      // Candle color temperature name
       F("Candle"),
+      // Tungsten40W color temperature name
       F("Tungsten40W"),
+      // Tungsten100W color temperature name
       F("Tungsten100W"),
+      // Halogen color temperature name
       F("Halogen"),
+      // CarbonArc color temperature name
       F("CarbonArc"),
+      // HighNoonSun color temperature name
       F("HighNoonSun"),
+      // DirectSunlight color temperature name
       F("DirectSunlight"),
+      // OvercastSky color temperature name
       F("OvercastSky"),
+      // ClearBlueSky color temperature name
       F("ClearBlueSky"),
+      // UncorrectedTemperature color temperature name
       F("UncorrectedTemperature")};
+
+  // Return the color temperature name based on the provided index
   return names[index];
 }
 
-// #32 helpers
-void WS2812FX::pacifica_layer(const CRGBPalette16& p, uint16_t cistart, uint16_t wavescale, uint8_t bri, uint16_t ioff)
+/**
+ * Applies a layer to the LEDs using a given color palette, start index, wave scale, brightness, and offset.
+ *
+ * @param palette The color palette to use for the wave effect.
+ * @param startIndex The starting index for the wave effect.
+ * @param waveScale The scale of the wave effect.
+ * @param brightness The brightness of the wave effect.
+ * @param offset The offset for the wave effect.
+ */
+void cLedEffects::pacifica_layer(const CRGBPalette16& palette, uint16_t startIndex, uint16_t waveScale, uint8_t brightness, uint16_t offset)
 {
-  uint16_t ci = cistart;
-  uint16_t waveangle = ioff;
-  uint16_t wavescale_half = (wavescale / 2) + 20;
-  for( uint16_t i = 0; i < SEG_RT.length; i++) {
-    waveangle += 250;
-    uint16_t s16 = sin16( waveangle ) + 32768;
-    uint16_t cs = scale16( s16 , wavescale_half ) + wavescale_half;
-    ci += cs;
-    uint16_t sindex16 = sin16( ci) + 32768;
-    uint8_t sindex8 = scale16( sindex16, 240);
-    CRGB c = ColorFromPalette( p, sindex8, bri, LINEARBLEND);
-    leds[i] += c;
+  uint16_t currentIndex = startIndex;  // Initialize the current index with the starting index
+  uint16_t waveAngle = offset;  // Initialize the wave angle with the provided offset
+  uint16_t halfWaveScale = (waveScale / 2) + 20;  // Calculate half of the wave scale with an offset
+
+  // Iterate over each LED in the strip
+  for(uint16_t i = 0; i < SEG_RT.length; i++)
+  {
+    waveAngle += 250;  // Increment the wave angle
+    uint16_t sineValue = sin16(waveAngle) + 32768;  // Calculate a sine value based on the wave angle
+    uint16_t scaledSine = scale16(sineValue, halfWaveScale) + halfWaveScale;  // Scale the sine value
+    currentIndex += scaledSine;  // Update the current index based on the scaled sine value
+
+    uint16_t colorIndex = sin16(currentIndex) + 32768;  // Calculate a color index based on the current index
+    uint8_t scaledColorIndex = scale16(colorIndex, 240);  // Scale the color index to a range of 0-240
+
+    // Get a color from the palette based on the scaled color index, brightness, and blending mode
+    CRGB color = ColorFromPalette(palette, scaledColorIndex, brightness, LINEARBLEND);
+
+    // Add the calculated color to the LED at the current index
+    leds[i] += color;
   }
 }
 // Add extra 'white' to areas where the four layers of light have lined up brightly
-void WS2812FX::pacifica_add_whitecaps()
+void cLedEffects::pacifica_add_whitecaps()
 {
   uint8_t basethreshold = beatsin8( 9, 55, 65);
   uint8_t wave = beat8( 7 );
@@ -1031,7 +1313,7 @@ void WS2812FX::pacifica_add_whitecaps()
 }
 
 // Deepen the blues and greens
-void WS2812FX::pacifica_deepen_colors()
+void cLedEffects::pacifica_deepen_colors()
 {
   for( uint16_t i = 0; i <  SEG_RT.length; i++) {
     leds[i].blue = scale8( leds[i].blue,  145); 
@@ -1047,7 +1329,7 @@ void WS2812FX::pacifica_deepen_colors()
    * The bar width is specified in whole pixels.
    * Arguably, this is the interesting code. 
    */
-void WS2812FX::drawFractionalBar(int pos16, int width, const CRGBPalette16 &pal, const uint8_t cindex, const uint8_t max_bright = 255, const bool mixColors = true, const uint8_t incIndex = 0)
+void cLedEffects::drawFractionalBar(int pos16, int width, const CRGBPalette16 &pal, const uint8_t cindex, const uint8_t max_bright = 255, const bool mixColors = true, const uint8_t incIndex = 0)
 {
 
   int i = pos16 / 16; // convert from pos to raw pixel number
@@ -1132,7 +1414,7 @@ void WS2812FX::drawFractionalBar(int pos16, int width, const CRGBPalette16 &pal,
 /*
  * Returns a new, random wheel index with a minimum distance of dist (default = 42) from pos.
  */
-uint8_t WS2812FX::get_random_wheel_index(uint8_t pos, uint8_t dist = 42)
+uint8_t cLedEffects::get_random_wheel_index(uint8_t pos, uint8_t dist = 42)
 {
   dist = dist < 85 ? dist : 85; // dist shouldn't be too high (not higher than 85 actually)
   return (pos + random8(dist, 255 - (dist))); 
@@ -1141,31 +1423,44 @@ uint8_t WS2812FX::get_random_wheel_index(uint8_t pos, uint8_t dist = 42)
 /*
  * Turns everything off. Doh.
  */
-void WS2812FX::strip_off()
+void cLedEffects::strip_off()
 {
   SEG.isRunning = false;
   FastLED.clear();
 }
 
 /*
- * Add sparks
+ * This function adds sparks to the LED strip.
+ * Parameters:
+ * - prob: Probability of adding a spark (default value is 5)
+ * - onBlackOnly: Whether sparks should only appear on black pixels (default is true)
+ * - white: Whether sparks should be white (default is false)
+ * - synchronous: Whether sparks should be added synchronously (default is true)
  */
-void WS2812FX::addSparks(const uint8_t prob = 5, const bool onBlackOnly = true, const bool white = false, const bool synchronous = true)
+void cLedEffects::addSparks(const uint8_t prob = 5, const bool onBlackOnly = true, const bool white = false, const bool synchronous = true)
 {
-  
+  // Constrain the probability value between the minimum and maximum values
   const uint8_t probability = constrain(prob, DEFAULT_TWINKLE_NUM_MIN, DEFAULT_TWINKLE_NUM_MAX);
+  // Calculate the maximum number of sparks based on LED count
   const uint16_t maxSparks = ((LED_COUNT*DEFAULT_TWINKLE_NUM_MAX)/100) + 5;
+  // Initialize arrays to store positions and colors of sparks
   static uint16_t pos[maxSparks] = {0};
   static CRGB  sparks[maxSparks] = {0};
-  const uint16_t activeMax = ((SEG_RT.length * prob)/100)    + 9;
+  // Calculate the maximum number of active sparks based on segment length and probability
+  const uint16_t activeMax = ((SEG_RT.length * prob)/100) + 9;
   uint16_t active = 0;
+  
+  // Update spark colors every 10 milliseconds
   EVERY_N_MILLIS(10)
   {
     for(uint16_t i = 0; i<maxSparks; i++)
     {  
+      // Fade out the color of each spark
       sparks[i].r = qsub8(sparks[i].r, (1 + 10*SEG.twinkleSpeed)); 
       sparks[i].g = qsub8(sparks[i].g, (1 + 10*SEG.twinkleSpeed)); 
       sparks[i].b = qsub8(sparks[i].b, (1 + 10*SEG.twinkleSpeed)); 
+      
+      // Dim spark color if it is on a black background
       if(_bleds[pos[i]])
       {
         if(onBlackOnly) 
@@ -1177,6 +1472,8 @@ void WS2812FX::addSparks(const uint8_t prob = 5, const bool onBlackOnly = true, 
       }
     }
   }
+  
+  // Process active sparks
   for(uint16_t i = 0; i<maxSparks; i++)
   {
     if(sparks[i])
@@ -1190,6 +1487,8 @@ void WS2812FX::addSparks(const uint8_t prob = 5, const bool onBlackOnly = true, 
       {
         _bleds[pos[i]] = sparks[i];
       }
+      
+      // Synchronize spark across segments if enabled
       if(synchronous)
       {
         for(uint8_t j=0; j<SEG.segments; j++)
@@ -1206,9 +1505,12 @@ void WS2812FX::addSparks(const uint8_t prob = 5, const bool onBlackOnly = true, 
       }
     }
   }
+  
+  // Check if new spark should be added based on probability and active spark count
   if(active > activeMax || random8(DEFAULT_TWINKLE_NUM_MAX) > probability)
     return;
-
+  
+  // Add new sparks every 10 milliseconds
   EVERY_N_MILLIS_I(timerObj, 10)
   {
     timerObj.setPeriod(10 * (DEFAULT_TWINKLE_NUM_MAX - probability));
@@ -1216,14 +1518,18 @@ void WS2812FX::addSparks(const uint8_t prob = 5, const bool onBlackOnly = true, 
     {
       if(!sparks[i])
       {
+        // Set random position for the new spark
         if(synchronous) { 
           pos[i] = random16(SEG_RT.start, SEG_RT.stop);
         } else {
           pos[i] = random16(0, LED_COUNT);
         }
+        
+        // Check if new spark should be added on black background
         if (onBlackOnly && _bleds[pos[i]])
           return;
         
+        // Generate color for the new spark
         uint8_t br = random8(192, 255);
         if(white)
         {
@@ -1237,11 +1543,13 @@ void WS2812FX::addSparks(const uint8_t prob = 5, const bool onBlackOnly = true, 
       }
     }
   }
+  
+  // Set timer period for adding new sparks
   timerObj.setPeriod(10 * (DEFAULT_TWINKLE_NUM_MAX - probability));
   return;
 }
 
-void WS2812FX::map_pixels_palette(uint8_t *hues, uint8_t bright = 255, TBlendType blend = LINEARBLEND)
+void cLedEffects::map_pixels_palette(uint8_t *hues, uint8_t bright = 255, TBlendType blend = LINEARBLEND)
 {
   for (uint16_t i = 0; i < SEG_RT.length; i++)
   {
@@ -1253,7 +1561,7 @@ void WS2812FX::map_pixels_palette(uint8_t *hues, uint8_t bright = 255, TBlendTyp
 /*
  *based on https://gist.github.com/kriegsman/756ea6dcae8e30845b5a
  */ 
-CRGB WS2812FX::computeOneTwinkle(uint32_t *ms, uint8_t *salt)
+CRGB cLedEffects::computeOneTwinkle(uint32_t *ms, const uint8_t *salt)
 {
   //  This function takes a time in pseudo-milliseconds,
   //  figures out brightness = f( time ), and also hue = f( time )
@@ -1302,7 +1610,7 @@ CRGB WS2812FX::computeOneTwinkle(uint32_t *ms, uint8_t *salt)
   return c;
 }
 
-uint8_t WS2812FX::attackDecayWave8(uint8_t i)
+uint8_t cLedEffects::attackDecayWave8(uint8_t i)
 {
   if (i < 86)
   {
@@ -1315,7 +1623,7 @@ uint8_t WS2812FX::attackDecayWave8(uint8_t i)
   }
 }
 
-void WS2812FX::coolLikeIncandescent(CRGB &c, uint8_t phase)
+void cLedEffects::coolLikeIncandescent(CRGB &c, uint8_t phase)
 {
   /* 
   This function is like 'triwave8', which produces a 
@@ -1345,7 +1653,7 @@ void WS2812FX::coolLikeIncandescent(CRGB &c, uint8_t phase)
 /*
  * pride based on https://gist.github.com/kriegsman/964de772d64c502760e5
  */
-uint16_t WS2812FX::pride()
+uint16_t cLedEffects::pride()
 {
   if (SEG_RT.modeinit)
   {
@@ -1395,7 +1703,7 @@ uint16_t WS2812FX::pride()
  * fade out function
  * fades out the current segment by dividing each pixel's intensity by 2
  */
-void WS2812FX::fade_out(uint8_t fadeB = 32)
+void cLedEffects::fade_out(uint8_t fadeB = 32)
 {
   fadeToBlackBy(&leds[SEG_RT.start], SEG_RT.length, fadeB);
 }
@@ -1412,7 +1720,7 @@ void WS2812FX::fade_out(uint8_t fadeB = 32)
  * Lets us set the Blend type (No blend or Linear blend).
  * This affects most effects.
  */
-void WS2812FX::setBlendType(TBlendType t = LINEARBLEND)
+void cLedEffects::setBlendType(TBlendType t = LINEARBLEND)
 {
   SEG.blendType = t;
 }
@@ -1420,7 +1728,7 @@ void WS2812FX::setBlendType(TBlendType t = LINEARBLEND)
 /*
  * Lets us toggle the Blend type
  */
-void WS2812FX::toggleBlendType(void)
+void cLedEffects::toggleBlendType(void)
 {
   SEG.blendType == NOBLEND ? SEG.blendType = LINEARBLEND : SEG.blendType = NOBLEND;
 }
@@ -1429,7 +1737,7 @@ void WS2812FX::toggleBlendType(void)
  * Immediately change the cureent palette to 
  * the one provided - this will not blend to the new palette
  */
-void WS2812FX::setCurrentPalette(CRGBPalette16 p, String Name = "Custom")
+void cLedEffects::setCurrentPalette(CRGBPalette16 p, String Name = "Custom")
 {
   _currentPalette = p;
   //_currentPaletteName = Name;
@@ -1441,7 +1749,7 @@ void WS2812FX::setCurrentPalette(CRGBPalette16 p, String Name = "Custom")
  * the one provided - this will not blend to the new palette
  * n: Number of the Palette to be chosen.
  */
-void WS2812FX::setCurrentPalette(uint8_t n = 0)
+void cLedEffects::setCurrentPalette(uint8_t n = 0)
 {
   _currentPalette = *(_palettes[n % NUM_PALETTES]);
   //_currentPaletteName = _pal_name[n % NUM_PALETTES];
@@ -1453,7 +1761,7 @@ void WS2812FX::setCurrentPalette(uint8_t n = 0)
  * p: the Palette
  * Name: The name
  */
-void WS2812FX::setTargetPalette(CRGBPalette16 p, String Name = "Custom")
+void cLedEffects::setTargetPalette(CRGBPalette16 p, String Name = "Custom")
 {
   for (uint8_t i = 0; i < NUM_PALETTES; i++)
   {
@@ -1473,7 +1781,7 @@ void WS2812FX::setTargetPalette(CRGBPalette16 p, String Name = "Custom")
  * Set the palette we slowly fade/blend towards.
  * n: Number of the Palette to be chosen.
  */
-void WS2812FX::setTargetPalette(uint8_t n = 0)
+void cLedEffects::setTargetPalette(uint8_t n = 0)
 {
   if (n > getPalCount())
   {
@@ -1500,7 +1808,7 @@ void WS2812FX::setTargetPalette(uint8_t n = 0)
  * Change to the mode being provided
  * m: mode number
  */
-void WS2812FX::setMode(uint8_t m)
+void cLedEffects::setMode(uint8_t m)
 {
   static uint8_t segs = SEG.segments;
   SEG_RT.modeinit = true;
@@ -1537,7 +1845,7 @@ void WS2812FX::setMode(uint8_t m)
   }
 }
 
-uint8_t WS2812FX::nextPalette(AUTOPLAYMODES mode)
+uint8_t cLedEffects::nextPalette(AUTOPLAYMODES mode)
 {
   const uint8_t current = getTargetPaletteNumber();
   uint8_t newModefx = current;
@@ -1578,7 +1886,7 @@ uint8_t WS2812FX::nextPalette(AUTOPLAYMODES mode)
   return getTargetPaletteNumber();
 }
 
-uint8_t WS2812FX::nextMode(AUTOPLAYMODES mode)
+uint8_t cLedEffects::nextMode(AUTOPLAYMODES mode)
 {
 
   if(SEG.mode >= FX_MODE_VOID)
@@ -1624,38 +1932,38 @@ uint8_t WS2812FX::nextMode(AUTOPLAYMODES mode)
 }
 
 
-void WS2812FX::increaseSpeed(uint8_t s)
+void cLedEffects::increaseSpeed(uint8_t s)
 {
   uint16_t newSpeed = constrain(SEG.beat88 + s, BEAT88_MIN, BEAT88_MAX);
   setSpeed(newSpeed);
 }
 
-void WS2812FX::decreaseSpeed(uint8_t s)
+void cLedEffects::decreaseSpeed(uint8_t s)
 {
   uint16_t newSpeed = constrain(SEG.beat88 - s, BEAT88_MIN, BEAT88_MAX);
   setSpeed(newSpeed);
 }
 
-void WS2812FX::setColor(uint8_t r, uint8_t g, uint8_t b)
+void cLedEffects::setColor(uint8_t r, uint8_t g, uint8_t b)
 {
   setColor(CRGBPalette16(((uint32_t)r << 16) | ((uint32_t)g << 8) | b));
   setBrightness(_brightness);
 }
 
-void WS2812FX::setColor(CRGBPalette16 c)
+void cLedEffects::setColor(CRGBPalette16 c)
 {
   //SEG.cPalette = c;
   setTargetPalette(c);
   setBrightness(_brightness);
 }
 
-void WS2812FX::setColor(uint32_t c)
+void cLedEffects::setColor(uint32_t c)
 {
   setColor(CRGBPalette16(c));
   setBrightness(_brightness);
 }
 
-void WS2812FX::setBrightness(uint8_t b)
+void cLedEffects::setBrightness(uint8_t b)
 {
   //_brightness = constrain(b, BRIGHTNESS_MIN, BRIGHTNESS_MAX);
   b = constrain(b, BRIGHTNESS_MIN, BRIGHTNESS_MAX);
@@ -1664,19 +1972,19 @@ void WS2812FX::setBrightness(uint8_t b)
   //FastLED.show();
 }
 
-void WS2812FX::increaseBrightness(uint8_t s)
+void cLedEffects::increaseBrightness(uint8_t s)
 {
   s = constrain(getBrightness() + s, BRIGHTNESS_MIN, BRIGHTNESS_MAX);
   setBrightness(s);
 }
 
-void WS2812FX::decreaseBrightness(uint8_t s)
+void cLedEffects::decreaseBrightness(uint8_t s)
 {
   s = constrain(getBrightness() - s, BRIGHTNESS_MIN, BRIGHTNESS_MAX);
   setBrightness(s);
 }
 
-uint8_t WS2812FX::getMode(void)
+uint8_t cLedEffects::getMode(void)
 {
   if (_new_mode != 255)
   {
@@ -1688,17 +1996,17 @@ uint8_t WS2812FX::getMode(void)
   }
 }
 
-uint16_t WS2812FX::getLength(void)
+uint16_t cLedEffects::getLength(void)
 {
   return SEG_RT.stop - SEG_RT.start + 1;
 }
 
-uint16_t WS2812FX::getStripLength(void)
+uint16_t cLedEffects::getStripLength(void)
 {
   return LED_COUNT;
 }
 
-uint16_t WS2812FX::getLedsOn(void)               
+uint16_t cLedEffects::getLedsOn(void)               
 { 
   if(this->getBrightness())
   {
@@ -1715,28 +2023,28 @@ uint16_t WS2812FX::getLedsOn(void)
   return 0;
 }
 
-uint32_t WS2812FX::getCurrentPower(void)         
+uint32_t cLedEffects::getCurrentPower(void)         
 { 
   double factor = (double)calculate_max_brightness_for_power_mW(FastLED.getBrightness(), SEG.milliamps*5) / 255.0;
   return (uint32_t)(factor * (calculate_unscaled_power_mW(_bleds, LED_COUNT) - (LED_COUNT * get_gDark_mW())) + (LED_COUNT * get_gDark_mW()) + get_gMCU_mW());  
 }
 
-uint8_t WS2812FX::getModeCount(void)
+uint8_t cLedEffects::getModeCount(void)
 {
   return MODE_COUNT;
 }
 
-uint8_t WS2812FX::getPalCount(void)
+uint8_t cLedEffects::getPalCount(void)
 {
   return NUM_PALETTES;
 }
 
-uint32_t WS2812FX::getColor(uint8_t p_index = 0)
+uint32_t cLedEffects::getColor(uint8_t p_index = 0)
 {
   return ColorFromPalette(_currentPalette, p_index);
 }
 
-const __FlashStringHelper *WS2812FX::getModeName(uint8_t m)
+const __FlashStringHelper *cLedEffects::getModeName(uint8_t m)
 {
   if (m < MODE_COUNT)
   {
@@ -1748,7 +2056,7 @@ const __FlashStringHelper *WS2812FX::getModeName(uint8_t m)
   }
 }
 
-const __FlashStringHelper *WS2812FX::getPalName(uint8_t p)
+const __FlashStringHelper *cLedEffects::getPalName(uint8_t p)
 {
   if (p < NUM_PALETTES)
   {
@@ -1776,7 +2084,7 @@ const __FlashStringHelper *WS2812FX::getPalName(uint8_t p)
  * Palette ca be "moved" by SEG.baseHue
  * will distribute the palette over the display length
  */
-uint16_t WS2812FX::mode_static(void)
+uint16_t cLedEffects::mode_static(void)
 {
   if (SEG_RT.modeinit)
   {
@@ -1791,7 +2099,7 @@ uint16_t WS2812FX::mode_static(void)
  * Two moving "comets" moving in and out with Antialiasing
  * Random Sparkles can additionally applied.
  */
-uint16_t WS2812FX::mode_ease()
+uint16_t cLedEffects::mode_ease()
 {
   // number of pixels for "antialised" (fractional) bar
   const uint8_t width = 3;
@@ -1878,7 +2186,7 @@ uint16_t WS2812FX::mode_ease()
 }
 
 
-uint16_t WS2812FX::mode_inoise8_mover(void)
+uint16_t cLedEffects::mode_inoise8_mover(void)
 {
   uint16_t xscale = SEG_RT.length; //30;
   uint16_t yscale = 30;
@@ -1906,7 +2214,7 @@ uint16_t WS2812FX::mode_inoise8_mover(void)
 /*
  * Plasma like Effect over the complete strip.
  */
-uint16_t WS2812FX::mode_plasma(void)
+uint16_t cLedEffects::mode_plasma(void)
 {
   if (SEG_RT.modeinit)
   {
@@ -1931,7 +2239,7 @@ uint16_t WS2812FX::mode_plasma(void)
 /*
  * Move 3 dots / small bars (antialised) at different speeds
  */
-uint16_t WS2812FX::mode_juggle_pal(void)
+uint16_t cLedEffects::mode_juggle_pal(void)
 {
   //const uint8_t numdots = 3;
 
@@ -1971,7 +2279,7 @@ uint16_t WS2812FX::mode_juggle_pal(void)
 /*
  * Fills the strip with waving color and brightness
  */
-uint16_t WS2812FX::mode_fill_beat(void)
+uint16_t cLedEffects::mode_fill_beat(void)
 {
   if (SEG_RT.modeinit)
   {
@@ -1997,7 +2305,7 @@ uint16_t WS2812FX::mode_fill_beat(void)
 /*
  * Wave Effect over the complete strip.
  */
-uint16_t WS2812FX::mode_fill_wave(void)
+uint16_t cLedEffects::mode_fill_wave(void)
 {
   if (SEG_RT.modeinit)
   {
@@ -2023,7 +2331,7 @@ uint16_t WS2812FX::mode_fill_wave(void)
  * fading can be specified separate to create several effects...
  * TODO: make number of dots "dynamic"
  */
-uint16_t WS2812FX::mode_dot_beat_base(uint8_t fade)
+uint16_t cLedEffects::mode_dot_beat_base(uint8_t fade)
 {
   #define SRMVDB SEG_RT_MV.dot_beat
   if (SEG_RT.modeinit)
@@ -2110,12 +2418,12 @@ uint16_t WS2812FX::mode_dot_beat_base(uint8_t fade)
   return STRIP_MIN_DELAY;
 }
 
-uint16_t WS2812FX::mode_dot_beat(void)
+uint16_t cLedEffects::mode_dot_beat(void)
 {
   return mode_dot_beat_base(64);
 }
 
-uint16_t WS2812FX::mode_dot_col_move(void)
+uint16_t cLedEffects::mode_dot_col_move(void)
 {
   return mode_dot_beat_base(0);
 }
@@ -2123,27 +2431,27 @@ uint16_t WS2812FX::mode_dot_col_move(void)
 /* 
  *  color wipes
  */
-uint16_t WS2812FX::mode_col_wipe_sawtooth(void)
+uint16_t cLedEffects::mode_col_wipe_sawtooth(void)
 {
   return mode_col_wipe_func(3);
 }
 
-uint16_t WS2812FX::mode_col_wipe_sine(void)
+uint16_t cLedEffects::mode_col_wipe_sine(void)
 {
   return mode_col_wipe_func(0);
 }
 
-uint16_t WS2812FX::mode_col_wipe_quad(void)
+uint16_t cLedEffects::mode_col_wipe_quad(void)
 {
   return mode_col_wipe_func(2);
 }
 
-uint16_t WS2812FX::mode_col_wipe_triwave(void)
+uint16_t cLedEffects::mode_col_wipe_triwave(void)
 {
   return mode_col_wipe_func(2);
 }
 
-uint16_t WS2812FX::mode_col_wipe_func(uint8_t mode)
+uint16_t cLedEffects::mode_col_wipe_func(uint8_t mode)
 {
   
   
@@ -2230,7 +2538,7 @@ uint16_t WS2812FX::mode_col_wipe_func(uint8_t mode)
 /*
  * Pulsing to the inner middle from both ends..
  */
-uint16_t WS2812FX::mode_to_inner(void)
+uint16_t cLedEffects::mode_to_inner(void)
 {
   if (SEG_RT.modeinit)
   {
@@ -2261,7 +2569,7 @@ uint16_t WS2812FX::mode_to_inner(void)
  * Does the "standby-breathing" of well known i-Devices. Fixed Speed.
  * Use mode "fade" if you like to have something similar with a different speed.
  */
-uint16_t WS2812FX::mode_breath(void)
+uint16_t cLedEffects::mode_breath(void)
 {
   if (SEG_RT.modeinit)
   {
@@ -2276,7 +2584,7 @@ uint16_t WS2812FX::mode_breath(void)
  * Lights every LED in a random color. Changes all LED at the same time
  * to new random colors.
  */
-uint16_t WS2812FX::mode_multi_dynamic(void)
+uint16_t cLedEffects::mode_multi_dynamic(void)
 {
   if (SEG_RT.modeinit)
   {
@@ -2301,7 +2609,7 @@ uint16_t WS2812FX::mode_multi_dynamic(void)
 /*
  * Waving brightness over the complete strip.
  */
-uint16_t WS2812FX::mode_fill_bright(void)
+uint16_t cLedEffects::mode_fill_bright(void)
 {
   if (SEG_RT.modeinit)
   {
@@ -2313,7 +2621,7 @@ uint16_t WS2812FX::mode_fill_bright(void)
   return STRIP_MIN_DELAY;
 }
 
-uint16_t WS2812FX::mode_firework(void)
+uint16_t cLedEffects::mode_firework(void)
 {
   #define FW1MV SEG_RT_MV.firework
   const uint8_t dist = max(SEG_RT.length / 20, 2);
@@ -2376,7 +2684,7 @@ uint16_t WS2812FX::mode_firework(void)
 /*
  * Fades the LEDs on and (almost) off again.
  */
-uint16_t WS2812FX::mode_fade(void)
+uint16_t cLedEffects::mode_fade(void)
 {
   if (SEG_RT.modeinit)
   {
@@ -2392,7 +2700,7 @@ uint16_t WS2812FX::mode_fade(void)
 /*
  * Runs a single pixel back and forth.
  */
-uint16_t WS2812FX::mode_scan(void)
+uint16_t cLedEffects::mode_scan(void)
 {
   if (SEG_RT.modeinit)
   {
@@ -2414,7 +2722,7 @@ uint16_t WS2812FX::mode_scan(void)
 /*
  * Runs two pixel back and forth in opposite directions.
  */
-uint16_t WS2812FX::mode_dual_scan(void)
+uint16_t cLedEffects::mode_dual_scan(void)
 {
   if (SEG_RT.modeinit)
   {
@@ -2436,7 +2744,7 @@ uint16_t WS2812FX::mode_dual_scan(void)
 /*
  * Cycles all LEDs at once through a rainbow.
  */
-uint16_t WS2812FX::mode_rainbow(void)
+uint16_t cLedEffects::mode_rainbow(void)
 {
   if (SEG_RT.modeinit)
   {
@@ -2452,7 +2760,7 @@ uint16_t WS2812FX::mode_rainbow(void)
 /*
  * Cycles a rainbow over the entire string of LEDs.
  */
-uint16_t WS2812FX::mode_rainbow_cycle(void)
+uint16_t cLedEffects::mode_rainbow_cycle(void)
 {
   if (SEG_RT.modeinit)
   {
@@ -2472,7 +2780,7 @@ uint16_t WS2812FX::mode_rainbow_cycle(void)
   return STRIP_MIN_DELAY;
 }
 
-uint16_t WS2812FX::mode_pride(void)
+uint16_t cLedEffects::mode_pride(void)
 {
   return pride();
 }
@@ -2480,7 +2788,7 @@ uint16_t WS2812FX::mode_pride(void)
 /*
  * theater chase function
  */
-uint16_t WS2812FX::theater_chase(CRGB color)
+uint16_t cLedEffects::theater_chase(CRGB color)
 {
   if (SEG_RT.modeinit)
   {
@@ -2504,7 +2812,7 @@ uint16_t WS2812FX::theater_chase(CRGB color)
   return STRIP_MIN_DELAY;
 }
 
-uint16_t WS2812FX::theater_chase(bool dual)
+uint16_t cLedEffects::theater_chase(bool dual)
 {
   if (SEG_RT.modeinit)
   {
@@ -2536,12 +2844,12 @@ uint16_t WS2812FX::theater_chase(bool dual)
  * Theatre-style crawling lights.
  * Inspired by the Adafruit examples.
  */
-uint16_t WS2812FX::mode_theater_chase(void)
+uint16_t cLedEffects::mode_theater_chase(void)
 {
   return theater_chase(false);
 }
 
-uint16_t WS2812FX::mode_theater_chase_dual_pal(void)
+uint16_t cLedEffects::mode_theater_chase_dual_pal(void)
 {
   return theater_chase(true);
 }
@@ -2550,7 +2858,7 @@ uint16_t WS2812FX::mode_theater_chase_dual_pal(void)
  * Theatre-style crawling lights with rainbow effect.
  * Inspired by the Adafruit examples.
  */
-uint16_t WS2812FX::mode_theater_chase_rainbow(void)
+uint16_t cLedEffects::mode_theater_chase_rainbow(void)
 {
   SEG_RT_MV.theater_chase.counter_mode_step = (SEG_RT_MV.theater_chase.counter_mode_step + 1) & 0xFF;
   return theater_chase(ColorFromPalette(_currentPalette, SEG_RT_MV.theater_chase.counter_mode_step, 255, SEG.blendType));
@@ -2559,7 +2867,7 @@ uint16_t WS2812FX::mode_theater_chase_rainbow(void)
 /*
  * Running lights effect with smooth sine transition.
  */
-uint16_t WS2812FX::mode_running_lights(void)
+uint16_t cLedEffects::mode_running_lights(void)
 {
   if (SEG_RT.modeinit)
   {
@@ -2583,7 +2891,7 @@ uint16_t WS2812FX::mode_running_lights(void)
 /*
  * Blink several LEDs on, fading out.
  */
-uint16_t WS2812FX::mode_twinkle_fade(void)
+uint16_t cLedEffects::mode_twinkle_fade(void)
 {
   if (SEG_RT.modeinit)
   {
@@ -2625,52 +2933,99 @@ uint16_t WS2812FX::mode_twinkle_fade(void)
   return 0;// STRIP_MIN_DELAY;
 }
 
-/*
- * K.I.T.T.
+/**
+ * Mode for the Larson Scanner effect.
+ *
+ * @return The minimum delay for the next frame.
  */
-uint16_t WS2812FX::mode_larson_scanner(void)
+uint16_t cLedEffects::mode_larson_scanner(void)
 {
+  // Initialize the mode if it's the first run
   if (SEG_RT.modeinit)
   {
     SEG_RT.modeinit = false;
+    // Start the timebase for the Larson Scanner
     SEG_RT_MV.larson_scanner.timebase = millis();
   }
 
+  // Calculate the width of the Larson Scanner
   const uint16_t width = max(1, SEG_RT.length / 15);
+  
+  // Fade out the LEDs
   fade_out(96);
 
-  uint16_t pos = triwave16(beat88(SEG.beat88 * 4, SEG_RT_MV.larson_scanner.timebase));
+  // Calculate the position of the Larson Scanner
+  uint16_t pos = triwave16(
+    beat88(SEG.beat88 * 4, SEG_RT_MV.larson_scanner.timebase));
 
-  pos = map(pos, (uint16_t)0, (uint16_t)65535, (uint16_t)(SEG_RT.start * 16), (uint16_t)(SEG_RT.stop * 16 - width * 16));
+  // Map the position to the LED strip position
+  pos = map(pos, (uint16_t)0, (uint16_t)65535, 
+             (uint16_t)(SEG_RT.start * 16), 
+             (uint16_t)(SEG_RT.stop * 16 - width * 16));
 
-  drawFractionalBar(pos,
-                    width,
-                    _currentPalette,
-                    SEG_RT.baseHue + map(pos, (uint16_t)(SEG_RT.start * 16), (uint16_t)(SEG_RT.stop * 16 - width * 16), (uint16_t)0, (uint16_t)255), 255, true, 1);
+  // Draw the Larson Scanner
+  drawFractionalBar(
+    pos,  // Start position
+    width,  // Width of the Larson Scanner
+    _currentPalette,  // Palette
+    SEG_RT.baseHue + map(pos, 
+                         (uint16_t)(SEG_RT.start * 16), 
+                         (uint16_t)(SEG_RT.stop * 16 - width * 16), 
+                         (uint16_t)0, 
+                         (uint16_t)255),  // Base hue
+    255,  // Full saturation
+    true,  // Fade in
+    1  // Steps per color
+  );
 
+  // Return the minimum delay for the next frame
   return STRIP_MIN_DELAY;
 }
 
-/*
- * Firing comets from one end.
+/**
+ * Function for creating a comet-like effect by firing comets from one end.
+ *
+ * @return The minimum delay for the next frame.
  */
-uint16_t WS2812FX::mode_comet(void)
+uint16_t cLedEffects::mode_comet(void)
 {
+  // Initialize the mode if it's the first run
   if (SEG_RT.modeinit)
   {
+    // Reset the mode initialization flag
     SEG_RT.modeinit = false;
+    
+    // Start the timebase for the comet
     SEG_RT_MV.comet.timebase = millis();
   }
+  
+  // Calculate the width of the comet
   const uint16_t width = max(1, SEG_RT.length / 15);
+  
+  // Fade out the LEDs
   fade_out(96);
-
-  uint16_t pos = map(beat88(SEG.beat88 * 4, SEG_RT_MV.comet.timebase), (uint16_t)0, (uint16_t)65535, (uint16_t)0, (uint16_t)(SEG_RT.length * 16));
-
-  drawFractionalBar((SEG_RT.start * 16 + pos),
-                    width,
-                    _currentPalette,
-                    map((uint16_t)(SEG_RT.start * 16 + pos), (uint16_t)(SEG_RT.start * 16), (uint16_t)(SEG_RT.stop * 16), (uint16_t)0, (uint16_t)255) + SEG_RT.baseHue, 255, true, 1);
-
+  
+  // Calculate the position of the comet
+  uint16_t pos = map(
+    beat88(SEG.beat88 * 4, SEG_RT_MV.comet.timebase),  // Calculate the beat
+    (uint16_t)0, (uint16_t)65535,  // Map the beat to 0-65535 range
+    (uint16_t)0, (uint16_t)(SEG_RT.length * 16) // Map to LED strip position
+  );
+  
+  // Draw the comet
+  drawFractionalBar(
+    (SEG_RT.start * 16 + pos),  // Start position
+    width,  // Width of the comet
+    _currentPalette,  // Palette
+    map((uint16_t)(SEG_RT.start * 16 + pos),  // Map the position to color hue
+      (uint16_t)(SEG_RT.start * 16), (uint16_t)(SEG_RT.stop * 16), 
+      (uint16_t)0, (uint16_t)255) + SEG_RT.baseHue,  // Base hue
+    255,  // Full saturation
+    true,  // Fade in
+    1  // Steps per color
+  );
+  
+  // Return the minimum delay for the next frame
   return STRIP_MIN_DELAY;
 }
 
@@ -2679,7 +3034,7 @@ uint16_t WS2812FX::mode_comet(void)
  * 
  * TODO: Could add parameter for the intensity (instead of 3 different modes?)
  */
-uint16_t WS2812FX::fire_flicker(int rev_intensity)
+uint16_t cLedEffects::fire_flicker(int rev_intensity)
 {
   if (SEG_RT.modeinit)
   {
@@ -2704,7 +3059,7 @@ uint16_t WS2812FX::fire_flicker(int rev_intensity)
 /*
  * Random flickering.
  */
-uint16_t WS2812FX::mode_fire_flicker(void)
+uint16_t cLedEffects::mode_fire_flicker(void)
 {
   return fire_flicker(2);
 }
@@ -2712,7 +3067,7 @@ uint16_t WS2812FX::mode_fire_flicker(void)
 /*
  * Random flickering, less intesity.
  */
-uint16_t WS2812FX::mode_fire_flicker_soft(void)
+uint16_t cLedEffects::mode_fire_flicker_soft(void)
 {
   return fire_flicker(3);
 }
@@ -2720,12 +3075,12 @@ uint16_t WS2812FX::mode_fire_flicker_soft(void)
 /*
  * Random flickering, more intesity.
  */
-uint16_t WS2812FX::mode_fire_flicker_intense(void)
+uint16_t cLedEffects::mode_fire_flicker_intense(void)
 {
   return fire_flicker(1);
 }
 
-uint16_t WS2812FX::mode_bubble_sort(void)
+uint16_t cLedEffects::mode_bubble_sort(void)
 {
   const uint16_t framedelay = map(SEG.beat88, (uint16_t)10000, (uint16_t)0, (uint16_t)0, (uint16_t)50) + map(SEG_RT.length, (uint16_t)300, (uint16_t)0, (uint16_t)0, (uint16_t)25);
 
@@ -2734,7 +3089,7 @@ uint16_t WS2812FX::mode_bubble_sort(void)
     SEG_RT.modeinit = false;
     SEG_RT_MV.bubble_sort.movedown = false;
     SEG_RT_MV.bubble_sort.ci = SEG_RT_MV.bubble_sort.co = SEG_RT_MV.bubble_sort.cd = 0;
-     SEG_RT_MV.bubble_sort.hues[0] = random8();
+    SEG_RT_MV.bubble_sort.hues[0] = random8();
     for (uint16_t i = 1; i < SEG_RT.length; i++)
     {
       SEG_RT_MV.bubble_sort.hues[i] = get_random_wheel_index(SEG_RT_MV.bubble_sort.hues[i - 1], 48);
@@ -2794,7 +3149,7 @@ uint16_t WS2812FX::mode_bubble_sort(void)
 /* 
  * Fire with Palette
  */
-uint16_t WS2812FX::mode_fire2012WithPalette(void)
+uint16_t cLedEffects::mode_fire2012WithPalette(void)
 {
   // Array of temperature readings at each simulation cell
   if (SEG_RT.modeinit)
@@ -2841,7 +3196,7 @@ uint16_t WS2812FX::mode_fire2012WithPalette(void)
 /*
  * TwinleFox Implementation
  */
-uint16_t WS2812FX::mode_twinkle_fox(void)
+uint16_t cLedEffects::mode_twinkle_fox(void)
 {
   if (SEG_RT.modeinit)
   {
@@ -2906,21 +3261,21 @@ uint16_t WS2812FX::mode_twinkle_fox(void)
  * SoftTwinkles
  */
 
-CRGB WS2812FX::makeBrighter(const CRGB &color, fract8 howMuchBrighter)
+CRGB cLedEffects::makeBrighter(const CRGB &color, fract8 howMuchBrighter)
 {
   CRGB incrementalColor = color;
   incrementalColor.nscale8_video(howMuchBrighter);
   return color + incrementalColor;
 }
 
-CRGB WS2812FX::makeDarker(const CRGB &color, fract8 howMuchDarker)
+CRGB cLedEffects::makeDarker(const CRGB &color, fract8 howMuchDarker)
 {
   CRGB newcolor = color;
   newcolor.nscale8(255 - howMuchDarker);
   return newcolor;
 }
 
-bool WS2812FX::getPixelDirection(uint16_t i, uint8 *directionFlags)
+bool cLedEffects::getPixelDirection(uint16_t i, uint8 *directionFlags)
 {
   uint16_t index = i / 8;
   uint8_t bitNum = i & 0x07;
@@ -2929,7 +3284,7 @@ bool WS2812FX::getPixelDirection(uint16_t i, uint8 *directionFlags)
   return (directionFlags[index] & andMask) != 0;
 }
 
-void WS2812FX::setPixelDirection(uint16_t i, bool dir, uint8 *directionFlags)
+void cLedEffects::setPixelDirection(uint16_t i, bool dir, uint8 *directionFlags)
 {
   uint16_t index = i / 8;
   uint8_t bitNum = i & 0x07;
@@ -2944,7 +3299,7 @@ void WS2812FX::setPixelDirection(uint16_t i, bool dir, uint8 *directionFlags)
   directionFlags[index] = value;
 }
 
-void WS2812FX::brightenOrDarkenEachPixel(fract8 fadeUpAmount, fract8 fadeDownAmount, uint8_t *directionFlags)
+void cLedEffects::brightenOrDarkenEachPixel(fract8 fadeUpAmount, fract8 fadeDownAmount, uint8_t *directionFlags)
 {
   enum
   {
@@ -2972,7 +3327,7 @@ void WS2812FX::brightenOrDarkenEachPixel(fract8 fadeUpAmount, fract8 fadeDownAmo
   }
 }
 
-uint16_t WS2812FX::mode_softtwinkles(void)
+uint16_t cLedEffects::mode_softtwinkles(void)
 {
   // Compact implementation of
   // the directionFlags array, using just one BIT of RAM
@@ -3015,7 +3370,7 @@ uint16_t WS2812FX::mode_softtwinkles(void)
  * Shooting Star...
  * 
  */
-uint16_t WS2812FX::mode_shooting_star()
+uint16_t cLedEffects::mode_shooting_star()
 {
 
   uint16_t pos;
@@ -3083,7 +3438,7 @@ uint16_t WS2812FX::mode_shooting_star()
   return STRIP_MIN_DELAY;
 }
 
-uint16_t WS2812FX::mode_beatsin_glow(void)
+uint16_t cLedEffects::mode_beatsin_glow(void)
 {
   #define SRMVGB SEG_RT_MV.beatsin
   const uint16_t lim = (SEG.beat88 * 10) / 50;
@@ -3149,7 +3504,7 @@ uint16_t WS2812FX::mode_beatsin_glow(void)
   return STRIP_MIN_DELAY;
 }
 
-uint16_t WS2812FX::mode_pixel_stack(void)
+uint16_t cLedEffects::mode_pixel_stack(void)
 {
   #define SRMVPS SEG_RT_MV.pixel_stack
   // the beat88 translated to a effect speed (in relation to the number of segments)
@@ -3238,24 +3593,24 @@ uint16_t WS2812FX::mode_pixel_stack(void)
   #undef SRMVPS
 }
 
-uint16_t WS2812FX::mode_move_bar_sin(void)
+uint16_t cLedEffects::mode_move_bar_sin(void)
 {
   return mode_move_bar(0);
 }
-uint16_t WS2812FX::mode_move_bar_quad(void)
+uint16_t cLedEffects::mode_move_bar_quad(void)
 {
   return mode_move_bar(1);
 }
-uint16_t WS2812FX::mode_move_bar_cubic(void)
+uint16_t cLedEffects::mode_move_bar_cubic(void)
 {
   return mode_move_bar(2);
 }
-uint16_t WS2812FX::mode_move_bar_sawtooth(void)
+uint16_t cLedEffects::mode_move_bar_sawtooth(void)
 {
   return mode_move_bar(3);
 }
 
-uint16_t WS2812FX::mode_move_bar(uint8_t mode)
+uint16_t cLedEffects::mode_move_bar(uint8_t mode)
 {
   if (SEG_RT.modeinit)
   {
@@ -3295,7 +3650,7 @@ uint16_t WS2812FX::mode_move_bar(uint8_t mode)
   return STRIP_MIN_DELAY;
 }
 
-uint16_t WS2812FX::mode_popcorn(void)
+uint16_t cLedEffects::mode_popcorn(void)
 {
   #define POPCMV SEG_RT_MV.pops
   #define LEDS_PER_METER 60
@@ -3362,7 +3717,7 @@ uint16_t WS2812FX::mode_popcorn(void)
   #undef POPCMV
 }
 
-uint16_t WS2812FX::mode_firework2(void)
+uint16_t cLedEffects::mode_firework2(void)
 {
   #define FW2MV SEG_RT_MV.pops
   
@@ -3527,7 +3882,7 @@ uint16_t WS2812FX::mode_firework2(void)
   #undef FW2MV
 }
 
-uint16_t WS2812FX::mode_void(void)
+uint16_t cLedEffects::mode_void(void)
 {
   if (SEG_RT.modeinit)
   {
@@ -3538,7 +3893,7 @@ uint16_t WS2812FX::mode_void(void)
   return STRIP_MIN_DELAY;
 }
 
-void WS2812FX::draw_sunrise_step(uint16_t sunriseStep)
+void cLedEffects::draw_sunrise_step(uint16_t sunriseStep)
 {
   #define SRMVSR SEG_RT_MV.sunrise_step
   
@@ -3571,7 +3926,7 @@ void WS2812FX::draw_sunrise_step(uint16_t sunriseStep)
   #undef SRMVSR
 }
 
-uint16_t WS2812FX::getSunriseTimeToFinish(void)
+uint16_t cLedEffects::getSunriseTimeToFinish(void)
 {
   float time = (float)((SEG.sunrisetime * 60.0) / DEFAULT_SUNRISE_STEPS);
   if(getMode() == FX_MODE_SUNRISE)
@@ -3588,7 +3943,7 @@ uint16_t WS2812FX::getSunriseTimeToFinish(void)
   }
 }
 
-CRGB WS2812FX::calcSunriseColorValue(uint16_t step)
+CRGB cLedEffects::calcSunriseColorValue(uint16_t step)
 {
   double uv = 0.0;
   double red = 0.0;
@@ -3639,7 +3994,7 @@ CRGB WS2812FX::calcSunriseColorValue(uint16_t step)
   return CRGB((uint8_t)red, (uint8_t)green, (uint8_t)blue);
 }
 
-void WS2812FX::m_sunrise_sunset(bool isSunrise)
+void cLedEffects::m_sunrise_sunset(bool isSunrise)
 {
   #define SRMVSR SEG_RT_MV.sunrise_step
   const uint16_t sunriseSteps = DEFAULT_SUNRISE_STEPS;
@@ -3711,18 +4066,18 @@ void WS2812FX::m_sunrise_sunset(bool isSunrise)
   #undef SRMVSR
 }
 
-uint16_t WS2812FX::mode_sunrise(void)
+uint16_t cLedEffects::mode_sunrise(void)
 {
   m_sunrise_sunset(true);
   return 0; // should look better if we call this more often.... STRIP_MIN_DELAY;
 }
-uint16_t WS2812FX::mode_sunset(void)
+uint16_t cLedEffects::mode_sunset(void)
 {
   m_sunrise_sunset(false);
   return 0; // should look better if we call this more often.... STRIP_MIN_DELAY;
 }
 
-uint16_t WS2812FX::mode_ring_ring(void)
+uint16_t cLedEffects::mode_ring_ring(void)
 {
   const uint16_t onTime  = 50; //(BEAT88_MAX + 10) - SEG.beat88;
   const uint16_t offTime = 100; //2*((BEAT88_MAX + 10) - SEG.beat88);
@@ -3784,7 +4139,7 @@ uint16_t WS2812FX::mode_ring_ring(void)
  * https://github.com/kitesurfer1404/WS2812FX/blob/master/src/custom/Heartbeat.h
  * https://github.com/kitesurfer1404/WS2812FX/commit/abece9a2a5a23027243851767c55cb8d2e19ff05 
  */
-uint16_t WS2812FX::mode_heartbeat(void) {
+uint16_t cLedEffects::mode_heartbeat(void) {
   #define M_HEARTBEAT_RT SEG_RT_MV.heartBeat
   
   if(SEG_RT.modeinit)
@@ -3823,9 +4178,9 @@ uint16_t WS2812FX::mode_heartbeat(void) {
   #undef M_HEARTBEAT_RT
 }
 
-uint16_t WS2812FX::mode_rain(void)
+uint16_t cLedEffects::mode_rain(void)
 {
-  #define M_RAIN_RT SEG_RT_MV.rain
+  auto& M_RAIN_RT = SEG_RT_MV.rain;
   if(SEG_RT.modeinit)
   {
     SEG_RT.modeinit = false;
@@ -3875,7 +4230,6 @@ uint16_t WS2812FX::mode_rain(void)
     }
   }
   return STRIP_MIN_DELAY;
-  #undef M_RAIN_RT
 }
 
 /*
@@ -3884,7 +4238,7 @@ uint16_t WS2812FX::mode_rain(void)
  *
  */ 
 
-uint16_t WS2812FX::mode_ease_bar()
+uint16_t cLedEffects::mode_ease_bar()
 {
   const uint8_t minLeds = max(SEG_RT.length/4,10);
   uint8_t b1 = map(SEG.beat88, (uint16_t)BEAT88_MIN, (uint16_t)(BEAT88_MAX/2), (uint16_t)2, (uint16_t)(63));
@@ -3925,7 +4279,7 @@ uint16_t WS2812FX::mode_ease_bar()
 }
 // #32 pacifica implementation
 // disco stobe removed as it looks bad...
-uint16_t WS2812FX::mode_pacifica()
+uint16_t cLedEffects::mode_pacifica()
 {
   #define M_PACIFIC_RT SEG_RT_MV.pacifica
   
@@ -3975,7 +4329,7 @@ uint16_t WS2812FX::mode_pacifica()
   #undef M_PACIFIC_RT
 }
 
-uint16_t WS2812FX::mode_color_waves()
+uint16_t cLedEffects::mode_color_waves()
 {
   #define M_COLORWAVES_RT SEG_RT_MV.colorwaves
   
@@ -4033,7 +4387,7 @@ uint16_t WS2812FX::mode_color_waves()
   #undef M_COLORWAVES_RT
 }
 
-uint16_t WS2812FX::mode_twinkle_map()
+uint16_t cLedEffects::mode_twinkle_map()
 {
   #define M_TWINKLEMAP_RT SEG_RT_MV.twinklemap
   
@@ -4043,15 +4397,16 @@ uint16_t WS2812FX::mode_twinkle_map()
     memset8(M_TWINKLEMAP_RT.pixelstates, sizeof(M_TWINKLEMAP_RT.pixelstates), 0);
     for(uint16_t i=0; i<SEG_RT.length; i++)
     {
-      uint8_t index = map(i, (uint16_t)0, (uint16_t)SEG_RT.length, (uint16_t)0, (uint16_t)255);
+      uint8_t index = static_cast<uint8_t>(map(i, (uint16_t)0, (uint16_t)SEG_RT.length, (uint16_t)0, (uint16_t)255));
       leds[i] = (ColorFromPalette(_currentPalette, index + SEG_RT.baseHue, 255, SEG.blendType)).nscale8_video(32);
     }
   }
+  uint8_t speedu = static_cast<uint8_t>(map((uint16_t)SEG.beat88, (uint16_t)BEAT88_MIN, (uint16_t)BEAT88_MAX , (uint16_t)4, (uint16_t)64));
+  uint8_t speedd = (speedu/2);
   for(uint16_t i=0; i<SEG_RT.length; i++)
   {
-    uint8_t index  = (uint8_t)map(i, (uint16_t)0, (uint16_t)SEG_RT.length, (uint16_t)0, (uint16_t)255);
-    uint8_t speedu = ((uint8_t)map((uint16_t)SEG.beat88, (uint16_t)BEAT88_MIN, (uint16_t)BEAT88_MAX , (uint16_t)4, (uint16_t)64));
-    uint8_t speedd = (speedu/2);
+    uint8_t index  = static_cast<uint8_t>(map(i, (uint16_t)0, (uint16_t)SEG_RT.length, (uint16_t)0, (uint16_t)255));
+    
     CRGB baseColor = ColorFromPalette(_currentPalette, index + SEG_RT.baseHue, 255, SEG.blendType).nscale8_video(32);
     CRGB peakColor = ColorFromPalette(_currentPalette, index + SEG_RT.baseHue, 255, SEG.blendType).addToRGB(4);
     if(M_TWINKLEMAP_RT.pixelstates[i] == 0)
