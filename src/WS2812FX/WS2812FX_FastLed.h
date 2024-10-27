@@ -248,6 +248,7 @@ public:
     uint8_t dithering;
     uint8_t sunrisetime;
     uint8_t targetBrightness;
+    uint8_t brightness;
     uint8_t targetPaletteNum;
     uint8_t currentPaletteNum;
     uint8_t backgroundHue;
@@ -666,7 +667,7 @@ public:
     _new_mode = 255;
     _volts = 5;
 
-    FastLED.setBrightness(DEFAULT_BRIGHTNESS);
+    FastLED.setBrightness(255);  // DEFAULT_BRIGHTNESS);
 
     resetDefaults();
   }

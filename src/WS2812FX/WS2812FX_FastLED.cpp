@@ -311,7 +311,7 @@ void WS2812FX::resetDefaults(void)
   #ifdef HAS_KNOB_CONTROL
   setWiFiDisabled           (DEFAULT_WIFI_DISABLED);
   #endif
-  FastLED.setBrightness     (DEFAULT_BRIGHTNESS);
+  FastLED.setBrightness(255); //(DEFAULT_BRIGHTNESS);
   RESET_RUNTIME;
   setTransition();
 }
@@ -478,14 +478,14 @@ if (_transition)
 // Smooth brightness change?
 EVERY_N_MILLISECONDS(5)
 {
-  uint8_t b = FastLED.getBrightness();
+  uint8_t b = SEG.brightness; //FastLED.getBrightness();
   if (SEG.targetBrightness > b)
   {
-    FastLED.setBrightness(b + 1);
+    SEG.brightness = b + 1; //FastLED.setBrightness(b + 1);
   }
   else if (SEG.targetBrightness < b)
   {
-    FastLED.setBrightness(b - 1);
+    SEG.brightness = b - 1; //FastLED.setBrightness(b - 1);
   }
 }
 
@@ -625,7 +625,11 @@ EVERY_N_MILLISECONDS(20)
   }
 
   // Write the data
-  if(LEDupdate) FastLED.show();
+  if(LEDupdate) 
+  {
+    nscale8(_bleds, LED_COUNT,SEG.brightness);
+    FastLED.show();
+  }
 
   // every "hueTime" we set either the deltaHue (fixed offset)
   // or we increase the offset...
@@ -724,6 +728,7 @@ void WS2812FX::trigger()
 void WS2812FX::show()
 {
   nblend(_bleds, leds, LED_COUNT, SEG.blur);
+  nscale8(_bleds, LED_COUNT,SEG.targetBrightness);
   FastLED.show();
 }
 

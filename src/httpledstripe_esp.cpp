@@ -960,74 +960,78 @@ void showInitColor(CRGB Color)
 
 }
 
+/// @brief setup WiFi connection with Wifi Manager...
+/// @param timeout in seconds how long the WiFi captive portal should be active (default 240)
 void setupWiFi(uint16_t timeout = 240)
 {
-  // setup the Wifi connection with Wifi Manager...
+// setup the Wifi connection with Wifi Manager...
 
-  // when wifi is disabled via parameter, then there is nothing to do
-  // only works with "knob control"
-  #ifdef HAS_KNOB_CONTROL
-  if(strip->getWiFiDisabled()) return;
-  #endif
+// when wifi is disabled via parameter, then there is nothing to do
+// only works with "knob control"
+#ifdef HAS_KNOB_CONTROL
+  if (strip->getWiFiDisabled())
+    return;
+#endif
+
   showInitColor(CRGB::Blue);
+
   delay(INITDELAY);
-
+  // set the hostname of the ESP8266
   WiFi.hostname(LED_NAME);
-
+  // set the mode to station
   WiFi.mode(WIFI_STA);
-
+  // set the sleep mode to none
   WiFi.setSleepMode(WIFI_NONE_SLEEP);
 
+  // set the persistent mode to true to not loose the last configuration
   WiFi.persistent(true);
   DNSServer dns;
   AsyncWiFiManager wifiManager(&server, &dns);
 
-
-// ToDo: Do not see the difference in handling.... 
+// ToDo: Do not see the difference in handling....
 // should simplyfy those Knob-Control #ifdefs
 #ifndef HAS_KNOB_CONTROL
   // 4 Minutes should be sufficient.
   // Especially in case of WiFi loss...
   wifiManager.setConfigPortalTimeout(timeout);
- 
+
   // we reset after configuration to not have AP and STA in parallel...
   wifiManager.setBreakAfterConfig(true);
 
-//tries to connect to last known settings
-//if it does not connect it starts an access point with the specified name
-//and goes into a blocking loop awaiting configuration
+  // tries to connect to last known settings
+  // if it does not connect it starts an access point with the specified name
+  // and goes into a blocking loop awaiting configuration
 
   if (!wifiManager.autoConnect(AP_SSID))
   {
     showInitColor(CRGB::Yellow);
-    delay(6*INITDELAY);
+    delay(6 * INITDELAY);
     showInitColor(CRGB::Red);
     writeLastResetReason(F("WifiManager Timeout"));
     ESP.restart();
   }
   // reset the disconnect Counter
   wifi_disconnect_counter = 0;
-  if(WiFi.getMode() != WIFI_STA)
+  if (WiFi.getMode() != WIFI_STA)
   {
     WiFi.mode(WIFI_STA);
   }
 
   WiFi.setAutoReconnect(true);
-  //if we get here we have connected to the WiFi
-
+  // if we get here we have connected to the WiFi
 
 #else // We have a control knob / button
 
   // If we are in button control mode
   // we only need WiFi for "convenience"
   wifiManager.setConfigPortalTimeout(timeout);
- 
+
   // we reset after configuration to not have AP and STA in parallel...
   wifiManager.setBreakAfterConfig(true);
 
-//tries to connect to last known settings
-//if it does not connect it starts an access point with the specified name
-//and goes into a blocking loop awaiting configuration
+  // tries to connect to last known settings
+  // if it does not connect it starts an access point with the specified name
+  // and goes into a blocking loop awaiting configuration
   if (!wifiManager.autoConnect(AP_SSID))
   {
     WiFiConnected = false;
@@ -1036,13 +1040,13 @@ void setupWiFi(uint16_t timeout = 240)
   {
     WiFiConnected = true;
     wifi_disconnect_counter = 0; // number of times we (re-)connected // = 0; // reset only in case we actually reconnected via setup routine
-    if(WiFi.getMode() != WIFI_STA)
+    if (WiFi.getMode() != WIFI_STA)
     {
       WiFi.mode(WIFI_STA);
     }
 
     WiFi.setAutoReconnect(true);
-    //if we get here we have connected to the WiFi
+    // if we get here we have connected to the WiFi
   }
   wifi_err_counter = 0; // need to reset this regardless the connected state. Otherwise we try to reconntect every loop....
 
@@ -2568,6 +2572,7 @@ void setup()
   delay(10);
   
   FastLED.addLeds<WS2812, LED_PIN, GRB>(pLeds, LED_COUNT_TOT);
+  FastLED.setBrightness(255);
  
   stripe_setup(pLeds, eLeds);
 
