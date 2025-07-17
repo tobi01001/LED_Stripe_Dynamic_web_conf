@@ -35,7 +35,7 @@
 // TODO: Probably make _segments more private?
 // TODO: May something like https://gist.github.com/kriegsman/626dca2f9d2189bd82ca ??
 
-#include "WS2812FX_FastLED.h"
+#include "WS2812FX_FastLed.h"
 
 /*
  * ColorPalettes

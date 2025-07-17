@@ -3,7 +3,7 @@
  *************************************************************/
 
 #include "ConfigManager.h"
-#include "../defaults.h"
+#include "../../include/defaults.h"
 #include "../LED_strip/led_strip.h"
 #include "../WS2812FX/WS2812FX_FastLed.h"
 
