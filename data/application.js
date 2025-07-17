@@ -32,6 +32,33 @@ var ignoreColorChange = false;
 
 var ws_connected = false;
 
+// Page filtering configuration
+var currentPageFilter = 'all';
+var pageFieldMapping = {
+  'main': ['power', 'brightness', 'segments', 'mirrored', 'running'],
+  'effects': ['effect', 'mode', 'palette', 'speed', 'color', 'secondary', 'tertiary', 'autoplay', 'autopal', 'hue'],
+  'advanced': ['temperature', 'correction', 'reverse', 'current', 'fps', 'blend', 'blur', 'limit', 'max'],
+  'system': ['status', 'network', 'reset', 'version', 'uptime', 'memory', 'ip', 'wifi', 'signal']
+};
+
+function setPageFilter(filterName) {
+  currentPageFilter = filterName;
+  if (DEBUGME) console.log("Setting page filter to: " + filterName);
+}
+
+function shouldShowField(fieldName, fieldType) {
+  if (currentPageFilter === 'all') return true;
+  
+  var mappedFields = pageFieldMapping[currentPageFilter];
+  if (!mappedFields) return true;
+  
+  // Check if field name contains any of the mapped field keywords
+  var fieldNameLower = fieldName.toLowerCase();
+  return mappedFields.some(function(keyword) {
+    return fieldNameLower.indexOf(keyword.toLowerCase()) !== -1;
+  });
+}
+
 if(DEBUGME) console.log("Trying to connect to " + "ws://" + address + "/ws");
 var ws = new ReconnectingWebSocket('ws://' + address + '/ws', ['arduino']);
 ws.debug = true;
@@ -124,6 +151,12 @@ $(document).ready(function() {
 		updateStatus("Loading, please wait...", true);
 
 		$.each(data, function(index, field) {
+			// Check if field should be shown on current page
+			if (!shouldShowField(field.name, field.type)) {
+				if (DEBUGME) console.log("Skipping field " + field.name + " for page " + currentPageFilter);
+				return; // Skip this field
+			}
+
 			if (field.type == fieldtype.NumberFieldType) {
 				addNumberField(field);
 			} else if (field.type == fieldtype.TitleFieldType) {

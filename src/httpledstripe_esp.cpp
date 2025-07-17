@@ -1619,6 +1619,20 @@ void setupWebServer(void)
   server.on("/getpals", handleGetPals);
   server.on("/status", handleStatus);
   server.on("/reset", handleResetRequest);
+  
+  // Handle page-specific routes
+  server.on("/effects", HTTP_GET, [](AsyncWebServerRequest *request) {
+    request->send(LittleFS, F("/effects.htm"), F("text/html"));
+  });
+  
+  server.on("/advanced", HTTP_GET, [](AsyncWebServerRequest *request) {
+    request->send(LittleFS, F("/advanced.htm"), F("text/html"));
+  });
+  
+  server.on("/system", HTTP_GET, [](AsyncWebServerRequest *request) {
+    request->send(LittleFS, F("/system.htm"), F("text/html"));
+  });
+  
   //server.onNotFound(handleNotFound);
   server.onNotFound([](AsyncWebServerRequest *request) {
     request->redirect("/");
