@@ -296,6 +296,7 @@ void WS2812FX::resetDefaults(void)
   setDithering              (DEFAULT_DITHER);
   setTargetPaletteNumber    (DEFAULT_PALETTE);
   setCurrentPaletteNumber   (DEFAULT_PALETTE);
+  setPaletteDistribution    (100);  // Default: 100% = normal distribution
   setSunriseTime            (DEFAULT_SUNRISETIME);
   setTargetBrightness       (DEFAULT_BRIGHTNESS);
   setBlendType              (DEFAULT_BLEND);
@@ -1788,7 +1789,7 @@ uint16_t WS2812FX::mode_static(void)
     SEG_RT.modeinit = false;
 
   }
-  fill_palette(&leds[SEG_RT.start], SEG_RT.length, SEG_RT.baseHue, (SEG_RT.length > 255 ? 1 : (256 / SEG_RT.length)), _currentPalette, 255, SEG.blendType);
+  fill_palette(&leds[SEG_RT.start], SEG_RT.length, SEG_RT.baseHue, max(1, (256 * 100 / (SEG_RT.length * SEG.paletteDistribution))), _currentPalette, 255, SEG.blendType);
   return STRIP_MIN_DELAY;
 }
 
@@ -2013,7 +2014,7 @@ uint16_t WS2812FX::mode_fill_wave(void)
                (SEG_RT.length),
                SEG_RT.baseHue + (uint8_t)beatsin88(SEG.beat88 * 2, 0, 255, SEG_RT_MV.fill_wave.timebase),
                // SEG_RT.baseHue + triwave8( (uint8_t)map( beat88( max(  SEG.beat88/4, 2), SEG_RT.timebase), 0,  65535,  0,  255)),
-               max(255 / SEG_RT.length + 1, 1),
+               max(255 * 100 / (SEG_RT.length * SEG.paletteDistribution) + 1, 1),
                _currentPalette,
                (uint8_t)beatsin88(max(SEG.beat88 * 1, 1),
                                   _brightness / 10, 255,
@@ -2314,7 +2315,7 @@ uint16_t WS2812FX::mode_fill_bright(void)
     SEG_RT_MV.fill_bright.timebase = millis();
   }
   fill_palette(&leds[SEG_RT.start], (SEG_RT.length), beat88(max((SEG.beat88 / 128), 2), SEG_RT_MV.fill_bright.timebase),
-               max(255 / SEG_RT.length + 1, 1), _currentPalette, beatsin88(max(SEG.beat88 / 32, 1), 10, 255, SEG_RT_MV.fill_bright.timebase), SEG.blendType);
+               max(255 * 100 / (SEG_RT.length * SEG.paletteDistribution) + 1, 1), _currentPalette, beatsin88(max(SEG.beat88 / 32, 1), 10, 255, SEG_RT_MV.fill_bright.timebase), SEG.blendType);
   return STRIP_MIN_DELAY;
 }
 
@@ -2470,7 +2471,7 @@ uint16_t WS2812FX::mode_rainbow_cycle(void)
                map(beat88(SEG.beat88,
                            SEG_RT_MV.rainbow_cycle.timebase),
                    (uint16_t)0, (uint16_t)65535, (uint16_t)0, (uint16_t)255),
-               (SEG_RT.length > 255 ? 1 : (256 / SEG_RT.length)),
+               max(1, (256 * 100 / (SEG_RT.length * SEG.paletteDistribution))),
                _currentPalette,
                255, SEG.blendType);
 
@@ -3756,7 +3757,7 @@ uint16_t WS2812FX::mode_ring_ring(void)
   {
     if(SEG_RT_MV.ring_ring.isOn)
     {
-      fill_palette(leds, SEG_RT.length, SEG_RT.baseHue, (SEG_RT.length > 255 ? 1 : (256 / SEG_RT.length)), _currentPalette, 255, SEG.blendType);
+      fill_palette(leds, SEG_RT.length, SEG_RT.baseHue, max(1, (256 * 100 / (SEG_RT.length * SEG.paletteDistribution))), _currentPalette, 255, SEG.blendType);
       if(SEG_RT_MV.ring_ring.now > (SEG_RT_MV.ring_ring.nextmillis + onTime))
       {
         SEG_RT_MV.ring_ring.nextmillis = SEG_RT_MV.ring_ring.now;
@@ -3917,7 +3918,7 @@ uint16_t WS2812FX::mode_ease_bar()
   uint16_t numLeds  = beatsin16(b2/2, minLeds, SEG_RT.length - startLed, 0, d2);
 
   numLeds = min(numLeds, (uint16_t)(SEG_RT.length-startLed));
-  uint8_t incI = SEG_RT.length > 255 ? 1 : (256 / SEG_RT.length);
+  uint8_t incI = max(1, (256 * 100 / (SEG_RT.length * SEG.paletteDistribution)));
   uint8_t sInd = map(startLed, SEG_RT.start, SEG_RT.stop, (uint16_t)0, (uint16_t)255) + SEG_RT.baseHue; //beatsin8(SEG.beat88/128+1);
   fadeToBlackBy(&leds[SEG_RT.start], SEG_RT.length, 128);
   fill_palette(&leds[startLed], numLeds, sInd, incI, _currentPalette, 255, SEG.blendType);
