@@ -658,11 +658,12 @@ void readRuntimeDataEEPROM(void)
     (*strip->getSegment()) = seg;
     
     // Ensure effectSpeeds are initialized for backward compatibility
-    // Check if effectSpeeds array seems uninitialized (all zeros)
-    bool needsInit = true;
-    for (uint8_t i = 0; i < MODE_COUNT && needsInit; i++) {
-      if (seg.effectSpeeds[i] != 0) {
-        needsInit = false;
+    // Check if any effectSpeeds are outside valid boundaries
+    bool needsInit = false;
+    for (uint8_t i = 0; i < MODE_COUNT; i++) {
+      if (seg.effectSpeeds[i] < BEAT88_MIN || seg.effectSpeeds[i] > BEAT88_MAX) {
+        needsInit = true;
+        break;
       }
     }
     
