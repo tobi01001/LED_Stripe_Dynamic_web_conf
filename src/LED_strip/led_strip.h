@@ -47,7 +47,7 @@
 #define led_strip_h
 
 // we gonna need our own adoption from the library. 
-#include "../WS2812FX/WS2812FX_FastLED.h"
+#include "../WS2812FX/WS2812FX_FastLed.h"
 #include <ArduinoJson.h>
 
 // These define modes besides the fx library
