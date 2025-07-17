@@ -48,6 +48,10 @@
 
 // we gonna need our own adoption from the library. 
 #include "../WS2812FX/WS2812FX_FastLed.h"
+// Workaround for ESP8266 Arduino core str macro that conflicts with ArduinoJson v6
+#ifdef str
+#undef str
+#endif
 #include <ArduinoJson.h>
 
 // These define modes besides the fx library
@@ -85,7 +89,7 @@ void stripe_setup(  CRGB * pleds, CRGB* eleds);
 
 typedef void (*FieldSetter)(uint32_t);
 typedef uint32_t (*FieldGetter)();
-typedef void (*FieldGetterOpts)(JsonArray & arr);
+typedef void (*FieldGetterOpts)(JsonArray arr);
 
 enum fieldtypes {
     NumberFieldType,
@@ -153,7 +157,7 @@ uint8_t getFieldCount(void);
 //       "value": 200
 //    },
 // returns true if at least on object was written
-bool getAllValuesJSONArray(JsonArray &arr);
+bool getAllValuesJSONArray(JsonArray arr);
 
 // writes all fields to the JSON obj as array.
 // {
@@ -171,12 +175,12 @@ bool getAllValuesJSONArray(JsonArray &arr);
 // "Static",
 // "Ease",
 // returns true if at least on object was written
-void getAllJSON(JsonArray &arr);
+void getAllJSON(JsonArray arr);
 // writes all Name / value pairs to the provided JSON
 // "power": "off",
 // "effect": "Static",
 // "brightness": "200"...
-bool getAllValuesJSON(JsonObject & obj);
+bool getAllValuesJSON(JsonObject obj);
 
 // /End Fields.h
 
