@@ -108,9 +108,12 @@ def before_build(source, target, env):
     print('\t\tLED_NAME:      '+led_name_url)
     print('\t\tBUILD_VERSION: '+build_version)
 
-    d_version = str(subprocess.check_output(["git", "describe"]).strip())
-    d_version = d_version.replace("b'", "")
-    d_version = d_version.replace("'", "")
+    try:
+        d_version = str(subprocess.check_output(["git", "describe"]).strip())
+        d_version = d_version.replace("b'", "")
+        d_version = d_version.replace("'", "")
+    except subprocess.CalledProcessError:
+        d_version = build_version
     if(build_version != d_version):
         res = subprocess.run("git tag -a -f \""+build_version+"\" -m \"version "+build_version+"\"", text=True, capture_output=True)
         print("\n\t"+res.stdout)
