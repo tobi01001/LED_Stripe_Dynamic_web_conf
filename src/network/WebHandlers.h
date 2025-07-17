@@ -10,6 +10,7 @@
 
 #include <ESPAsyncWebServer.h>
 #include <ArduinoJson.h>
+#include <AsyncJson.h>
 #include <LittleFS.h>
 
 // Forward declarations

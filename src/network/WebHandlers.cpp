@@ -64,11 +64,11 @@ void WebHandlers::setupHandlers(AsyncWebServer* server) {
 
 void WebHandlers::handleStatus(AsyncWebServerRequest* request) {
     AsyncJsonResponse* response = new AsyncJsonResponse();
-    JsonObject& root = response->getRoot();
+    JsonVariant& root = response->getRoot();
     
-    JsonObject& currentState = root.createNestedObject(F("currentState"));
-    JsonObject& sunriseState = root.createNestedObject(F("sunRiseState"));
-    JsonObject& stats = root.createNestedObject(F("Stats"));
+    JsonObject currentState = root.createNestedObject(F("currentState"));
+    JsonObject sunriseState = root.createNestedObject(F("sunRiseState"));
+    JsonObject stats = root.createNestedObject(F("Stats"));
 
     if (!strip) {
         sendJsonError(request, F("LED strip not initialized"));
@@ -166,8 +166,8 @@ void WebHandlers::handleSet(AsyncWebServerRequest* request) {
     }
 
     AsyncJsonResponse* response = new AsyncJsonResponse();
-    JsonObject& root = response->getRoot();
-    JsonObject& currentState = root.createNestedObject(F("currentState"));
+    JsonVariant& root = response->getRoot();
+    JsonObject currentState = root.createNestedObject(F("currentState"));
 
     bool parametersSet = false;
     uint32_t color = ColorConstants::COLOR_BLACK;
@@ -271,11 +271,11 @@ void WebHandlers::handleGetModes(AsyncWebServerRequest* request) {
     }
 
     AsyncJsonResponse* response = new AsyncJsonResponse();
-    JsonObject& root = response->getRoot();
-    JsonObject& modeInfo = root.createNestedObject(F("modeinfo"));
+    JsonVariant& root = response->getRoot();
+    JsonObject modeInfo = root.createNestedObject(F("modeinfo"));
     
     modeInfo[F("count")] = strip->getModeCount();
-    JsonObject& modes = modeInfo.createNestedObject(F("modes"));
+    JsonObject modes = modeInfo.createNestedObject(F("modes"));
     
     for (uint8_t i = 0; i < strip->getModeCount(); i++) {
         modes[strip->getModeName(i)] = i;
@@ -292,11 +292,11 @@ void WebHandlers::handleGetPalettes(AsyncWebServerRequest* request) {
     }
 
     AsyncJsonResponse* response = new AsyncJsonResponse();
-    JsonObject& root = response->getRoot();
-    JsonObject& palInfo = root.createNestedObject(F("palinfo"));
+    JsonVariant& root = response->getRoot();
+    JsonObject palInfo = root.createNestedObject(F("palinfo"));
     
     palInfo[F("count")] = strip->getPalCount();
-    JsonObject& palettes = palInfo.createNestedObject(F("pals"));
+    JsonObject palettes = palInfo.createNestedObject(F("pals"));
     
     for (uint8_t i = 0; i < strip->getPalCount(); i++) {
         palettes[strip->getPalName(i)] = i;
@@ -341,11 +341,11 @@ void WebHandlers::handleReset(AsyncWebServerRequest* request) {
 
 void WebHandlers::handleAllValues(AsyncWebServerRequest* request) {
     AsyncJsonResponse* response = new AsyncJsonResponse();
-    JsonObject& root = response->getRoot();
-    JsonArray& values = root.createNestedArray(F("values"));
+    JsonVariant& root = response->getRoot();
+    JsonArray values = root.createNestedArray(F("values"));
     
     if (!getAllValuesJSONArray(values)) {
-        JsonObject& errorObj = values.createNestedObject();
+        JsonObject errorObj = values.createNestedObject();
         errorObj[F("ValueError")] = F("Did not read any values!");
     }
     
@@ -375,7 +375,7 @@ void WebHandlers::handleNotFound(AsyncWebServerRequest* request) {
 
 void WebHandlers::sendJsonError(AsyncWebServerRequest* request, const String& error) {
     AsyncJsonResponse* response = new AsyncJsonResponse();
-    JsonObject& root = response->getRoot();
+    JsonVariant& root = response->getRoot();
     root[F("error")] = error;
     response->setLength();
     request->send(response);

@@ -55,6 +55,9 @@
 #define FASTLED_INTERNAL
 #include "FastLED.h"
 FASTLED_USING_NAMESPACE
+#ifdef str
+#undef str  // Fix conflict with ArduinoJson v6
+#endif
 
 /* </FastLED implementation> */
 
