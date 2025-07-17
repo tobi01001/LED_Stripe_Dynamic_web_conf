@@ -24,6 +24,7 @@
 #include "network/NetworkManager.h"
 #include "config/ConfigManager.h"
 #include "display/DisplayManager.h"
+#include "utils/PerformanceMonitor.h"
 
 extern "C" {
   #include "user_interface.h"
@@ -132,29 +133,42 @@ void setup() {
  * Arduino main loop
  */
 void loop() {
+    PERF_BEGIN_LOOP();
+    
     uint32_t now = millis();
 
     // Handle manager loops
     if (networkManager && !networkManager->isOTARunning()) {
+        PERF_START_TIMING("Network");
         networkManager->handleLoop();
+        PERF_END_TIMING("Network");
     }
 
     if (displayManager) {
+        PERF_START_TIMING("Display");
         displayManager->handleLoop();
+        PERF_END_TIMING("Display");
     }
 
     // Handle LED strip updates
     if (strip) {
+        PERF_START_TIMING("LEDStrip");
         strip->service();
+        PERF_END_TIMING("LEDStrip");
     }
 
     // Periodic system tasks
     static uint32_t lastSystemCheck = 0;
     if (now - lastSystemCheck >= SystemConstants::SYSTEM_CHECK_INTERVAL_MS) {
+        PERF_START_TIMING("SystemTasks");
+        
         if (configManager) {
             configManager->periodicSave();
         }
         handleResetRequests();
+        PERF_UPDATE_MEMORY();
+        
+        PERF_END_TIMING("SystemTasks");
         lastSystemCheck = now;
     }
 
@@ -164,6 +178,8 @@ void loop() {
         updateRuntime();
         lastRuntimeUpdate = now;
     }
+    
+    PERF_END_LOOP();
 }
 
 /**
