@@ -239,6 +239,9 @@ void initializeSystem() {
                 delay(3000);
                 ESP.restart();
                 #endif
+            } else {
+                // Initialize web handlers now that config manager is ready
+                networkManager->initializeWebHandlers(configManager);
             }
         }
     }

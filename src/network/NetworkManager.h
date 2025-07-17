@@ -24,6 +24,7 @@
 
 // Forward declarations
 class LEDController;
+class WebHandlers;
 
 /**
  * Manages all network-related functionality for the LED controller
@@ -58,6 +59,7 @@ public:
 
     // Web server management
     bool setupWebServer();
+    void setupWebHandlers();
     void broadcastToClients(const String& message);
     void broadcastInt(const __FlashStringHelper* name, uint16_t value);
     void broadcastColor(const __FlashStringHelper* name, uint32_t color);
@@ -74,11 +76,15 @@ public:
     // Configuration
     void setWiFiDisabled(bool disabled) { wifiDisabled = disabled; }
     bool isWiFiDisabled() const { return wifiDisabled; }
+    
+    // Late initialization for web handlers (after config manager is ready)
+    void initializeWebHandlers(class ConfigManager* configManager);
 
 private:
     // Internal state
     AsyncWebServer* server;
     AsyncWebSocket* webSocketServer;
+    WebHandlers* webHandlers;
     WiFiStats wifiStats;
     PingPong pingPongs[10]; // DEFAULT_MAX_WS_CLIENTS
     
@@ -89,6 +95,7 @@ private:
 
     // Internal methods
     void setupRequestHandlers();
+    void setupWebHandlers();
     void handleWebSocketEvent(AsyncWebSocket* server, AsyncWebSocketClient* client, 
                              AwsEventType type, void* arg, uint8_t* data, size_t len);
     void checkWiFiConnection();

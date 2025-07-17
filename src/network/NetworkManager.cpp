@@ -5,6 +5,8 @@
  *************************************************************/
 
 #include "NetworkManager.h"
+#include "WebHandlers.h"
+#include "../config/ConfigManager.h"
 #include "../defaults.h"
 #include <LittleFS.h>
 
@@ -14,6 +16,7 @@ static NetworkManager* g_networkManagerInstance = nullptr;
 NetworkManager::NetworkManager() 
     : server(nullptr)
     , webSocketServer(nullptr)
+    , webHandlers(nullptr)
     , deviceName(nullptr)
     , otaIsRunning(false)
     , wifiDisabled(false)
@@ -38,6 +41,7 @@ bool NetworkManager::initialize(const char* name, uint16_t timeout) {
     bool success = true;
     success &= setupWiFi(timeout);
     success &= setupWebServer();
+    setupWebHandlers();
     initOTA();
     
     return success;
@@ -131,7 +135,7 @@ bool NetworkManager::setupWebServer() {
 }
 
 void NetworkManager::setupRequestHandlers() {
-    // Basic endpoints - these will need to be connected to the main application
+    // Basic endpoints only - main handlers are in WebHandlers
     server->on("/ping", HTTP_GET, [](AsyncWebServerRequest *request) {
         request->send(200, F("text/plain"), F("Pong"));
     });
@@ -139,16 +143,22 @@ void NetworkManager::setupRequestHandlers() {
     server->onNotFound([](AsyncWebServerRequest *request) {
         request->redirect("/");
     });
+}
 
-    // TODO: Add other request handlers (these need access to LED controller)
-    // - /set
-    // - /status  
-    // - /getmodes
-    // - /getpals
-    // - /reset
-    // - /all
-    // - /allvalues
-    // - /fieldValue
+void NetworkManager::setupWebHandlers() {
+    // This should be called after ConfigManager is available
+    // For now, we'll set it up later when needed
+}
+
+void NetworkManager::initializeWebHandlers(ConfigManager* configManager) {
+    if (webHandlers) {
+        delete webHandlers;
+    }
+    
+    webHandlers = new WebHandlers(this, configManager);
+    if (webHandlers && server) {
+        webHandlers->setupHandlers(server);
+    }
 }
 
 void NetworkManager::initOTA() {
@@ -396,6 +406,11 @@ void NetworkManager::handleWebSocketEvent(AsyncWebSocket* server, AsyncWebSocket
 }
 
 void NetworkManager::shutdown() {
+    if (webHandlers) {
+        delete webHandlers;
+        webHandlers = nullptr;
+    }
+
     if (webSocketServer) {
         webSocketServer->enable(false);
         delete webSocketServer;
