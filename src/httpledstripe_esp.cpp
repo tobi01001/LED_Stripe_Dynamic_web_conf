@@ -1377,7 +1377,7 @@ void handleStatus(AsyncWebServerRequest *request)
   statsAnswer[F("wifi_BSSID")]              = WiFi.BSSIDstr();
   statsAnswer[F("wifi_BSSIDCRC")]           = strip->calc_CRC16((unsigned int)0x5555, (unsigned char*)WiFi.BSSID(), 6);
   statsAnswer[F("statsCounter")]            = sin8(status_counter++);
-  statsAnswer[F("fps")]                     = FastLED.getFPS();
+  statsAnswer[F("fps_FastLED")]             = FastLED.getFPS();
   statsAnswer[F("esp_Runtime_Days")]        = mESPrunTime.days;
   statsAnswer[F("esp_Runtime_Hours")]       = mESPrunTime.hours;
   statsAnswer[F("esp_Runtime_Minutes")]     = mESPrunTime.minutes;

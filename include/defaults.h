@@ -90,7 +90,9 @@
 
 #define LED_PIN 3 // Needs to be 3 (raw value) for ESP8266 because of DMA
 #define LED_MAX_CURRENT 37 // the current one (RGB) LED is drawing at full brightness incl. controller
-#define DEFAULT_PS_MAX_CURRENT  4000 // the maximum rated current of the power supply inc. cabling to the leds
+#ifndef DEFAULT_PS_MAX_CURRENT
+  #define DEFAULT_PS_MAX_CURRENT  4000 // the maximum rated current of the power supply inc. cabling to the leds
+#endif 
 #define DEFAULT_CURRENT_MAX ((LED_COUNT * LED_MAX_CURRENT) < DEFAULT_PS_MAX_CURRENT ? (LED_COUNT * LED_MAX_CURRENT) : DEFAULT_PS_MAX_CURRENT)
 #define DEFAULT_CURRENT ((LED_COUNT * LED_MAX_CURRENT) < 2800 ? (LED_COUNT * LED_MAX_CURRENT) : 2800)
 // the value of 300 microseconds is the average between two service routine calls.... 400 seems to be a good interval.
@@ -117,8 +119,7 @@
   #define DEFAULT_MODE 0
 #endif
 #define DEFAULT_BRIGHTNESS 200        // 0 to 255
-#define DEFAULT_EFFECT 0              // 0 to modecount
-#define DEFAULT_PALETTE 0             // 0 is rainbow colors
+
 #define DEFAULT_SPEED 1000            // fair value
 #define DEFAULT_BLEND ((TBlendType)1) // equals LinearBlend - would need Fastled.h included to have access to the enum
 #define DEFAULT_BLENDING 255          // no blend
@@ -165,7 +166,9 @@
 #define DEFAULT_SUNRISETIME_MIN 1
 #define DEFAULT_SUNRISETIME_MAX 120
 #define DEFAULT_DITHER 0
-#define DEFAULT_PALETTE 0
+#ifndef DEFAULT_PALETTE     // can be set via compile flag
+  #define DEFAULT_PALETTE 0
+#endif
 #define DEFAULT_COLOR_TEMP 19
 #define DEFAULT_GLITTER_ADD 0
 #define DEFAULT_GLITTER_WHITE 1
