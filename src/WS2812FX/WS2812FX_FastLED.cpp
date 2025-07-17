@@ -311,6 +311,12 @@ void WS2812FX::resetDefaults(void)
   #ifdef HAS_KNOB_CONTROL
   setWiFiDisabled           (DEFAULT_WIFI_DISABLED);
   #endif
+  
+  // Initialize per-effect speeds with default speed
+  for (uint8_t i = 0; i < MODE_COUNT; i++) {
+    SEG.effectSpeeds[i] = DEFAULT_SPEED;
+  }
+  
   FastLED.setBrightness(255); //(DEFAULT_BRIGHTNESS);
   RESET_RUNTIME;
   setTransition();
@@ -1530,7 +1536,19 @@ void WS2812FX::setMode(uint8_t m)
     // we also clear only if we are outside the "void" mode where we do not touch the LED array.
     fill_solid(leds, SEG_RT.length, CRGB::Black);
   }
+  
+  // Store current speed for the current effect before switching
+  if (SEG.mode < MODE_COUNT) {
+    SEG.effectSpeeds[SEG.mode] = SEG.beat88;
+  }
+  
   SEG.mode = m;
+  
+  // Restore speed for the new effect
+  if (m < MODE_COUNT && SEG.effectSpeeds[m] > 0) {
+    SEG.beat88 = SEG.effectSpeeds[m];
+  }
+  
   // start the transition phase
   setTransition();
   setBlur(_pblur);
