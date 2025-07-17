@@ -108,14 +108,17 @@ def before_build(source, target, env):
     print('\t\tLED_NAME:      '+led_name_url)
     print('\t\tBUILD_VERSION: '+build_version)
 
-    d_version = str(subprocess.check_output(["git", "describe"]).strip())
-    d_version = d_version.replace("b'", "")
-    d_version = d_version.replace("'", "")
-    if(build_version != d_version):
-        res = subprocess.run("git tag -a -f \""+build_version+"\" -m \"version "+build_version+"\"", text=True, capture_output=True)
-        print("\n\t"+res.stdout)
-    else:
-        print("\n\tNot a new version: "+d_version)
+    try:
+        d_version = str(subprocess.check_output(["git", "describe"]).strip())
+        d_version = d_version.replace("b'", "")
+        d_version = d_version.replace("'", "")
+        if(build_version != d_version):
+            res = subprocess.run("git tag -a -f \""+build_version+"\" -m \"version "+build_version+"\"", text=True, capture_output=True)
+            print("\n\t"+res.stdout)
+        else:
+            print("\n\tNot a new version: "+d_version)
+    except subprocess.CalledProcessError:
+        print("\n\tGit describe failed - likely no git tags available")
 
     projenv.Append(CPPDEFINES=[("LED_NAME", "\\\""+led_name_url+"\\\"")])
     projenv.Append(CPPDEFINES=[("BUILD_VERSION", "\\\""+build_version+"\\\"")])

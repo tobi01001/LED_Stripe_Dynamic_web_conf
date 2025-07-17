@@ -656,6 +656,25 @@ void readRuntimeDataEEPROM(void)
   if (seg.CRC == mCRC)
   {
     (*strip->getSegment()) = seg;
+    
+    // Ensure effectSpeeds are initialized for backward compatibility
+    // Check if effectSpeeds array seems uninitialized (all zeros)
+    bool needsInit = true;
+    for (uint8_t i = 0; i < MODE_COUNT && needsInit; i++) {
+      if (seg.effectSpeeds[i] != 0) {
+        needsInit = false;
+      }
+    }
+    
+    if (needsInit) {
+      // Initialize per-effect speeds with current speed or default
+      uint16_t currentSpeed = seg.beat88 > 0 ? seg.beat88 : DEFAULT_SPEED;
+      for (uint8_t i = 0; i < MODE_COUNT; i++) {
+        seg.effectSpeeds[i] = currentSpeed;
+      }
+      strip->getSegment()->effectSpeeds[seg.mode] = currentSpeed;
+    }
+    
     strip->init();
   }
   else // load defaults
