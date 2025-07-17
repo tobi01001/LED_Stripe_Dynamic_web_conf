@@ -284,15 +284,15 @@ void NetworkManager::broadcastInt(const __FlashStringHelper* name, uint16_t valu
         return;
     }
 
-    DynamicJsonBuffer jsonBuffer;
-    JsonObject& obj = jsonBuffer.createObject();
+    DynamicJsonDocument doc(256);
+    JsonObject obj = doc.to<JsonObject>();
     obj[F("name")] = name;
     obj[F("value")] = value;
 
-    size_t len = obj.measureLength();
+    size_t len = measureJson(doc);
     AsyncWebSocketMessageBuffer* buffer = webSocketServer->makeBuffer(len);
     if (buffer) {
-        obj.printTo((char*)buffer->get(), len + 1);
+        serializeJson(doc, (char*)buffer->get(), len + 1);
         webSocketServer->textAll(buffer);
     }
 }
@@ -302,15 +302,15 @@ void NetworkManager::broadcastColor(const __FlashStringHelper* name, uint32_t co
         return;
     }
 
-    DynamicJsonBuffer jsonBuffer;
-    JsonObject& obj = jsonBuffer.createObject();
+    DynamicJsonDocument doc(256);
+    JsonObject obj = doc.to<JsonObject>();
     obj[F("name")] = name;
     obj[F("value")] = color & 0xffffff;
 
-    size_t len = obj.measureLength();
+    size_t len = measureJson(doc);
     AsyncWebSocketMessageBuffer* buffer = webSocketServer->makeBuffer(len);
     if (buffer) {
-        obj.printTo((char*)buffer->get(), len + 1);
+        serializeJson(doc, (char*)buffer->get(), len + 1);
         webSocketServer->textAll(buffer);
     }
 }

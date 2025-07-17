@@ -3,7 +3,7 @@
  *************************************************************/
 
 #include "ConfigManager.h"
-#include "../defaults.h"
+#include "../../include/defaults.h"
 #include "../LED_strip/led_strip.h"
 
 ConfigManager::ConfigManager() 
@@ -107,8 +107,8 @@ bool ConfigManager::deleteConfigFile() {
 }
 
 bool ConfigManager::updateConfigFile() {
-    DynamicJsonBuffer buffer;
-    JsonArray& root = buffer.createArray();
+    DynamicJsonDocument doc(1024);
+    JsonArray root = doc.to<JsonArray>();
     
     // This would need access to field definitions
     // getAllJSON(root);
@@ -118,7 +118,7 @@ bool ConfigManager::updateConfigFile() {
         return false;
     }
 
-    root.printTo(configFile);
+    serializeJson(doc, configFile);
     configFile.close();
     return true;
 }
