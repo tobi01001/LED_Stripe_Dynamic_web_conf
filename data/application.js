@@ -54,6 +54,23 @@ function shouldShowField(fieldName, fieldType) {
   
   // Check if field name contains any of the mapped field keywords
   var fieldNameLower = fieldName.toLowerCase();
+  var isFieldMapped = false;
+  
+  // Check if this field is mapped to any page
+  for (var page in pageFieldMapping) {
+    var pageFields = pageFieldMapping[page];
+    if (pageFields.some(function(keyword) {
+      return fieldNameLower.indexOf(keyword.toLowerCase()) !== -1;
+    })) {
+      isFieldMapped = true;
+      break;
+    }
+  }
+  
+  // If field is not mapped to any page, show it on all pages
+  if (!isFieldMapped) return true;
+  
+  // Otherwise, only show if it matches current page mapping
   return mappedFields.some(function(keyword) {
     return fieldNameLower.indexOf(keyword.toLowerCase()) !== -1;
   });
