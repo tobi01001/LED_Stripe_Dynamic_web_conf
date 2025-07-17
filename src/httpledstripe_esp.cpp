@@ -175,7 +175,7 @@ struct pingPong {
 CRGB pLeds[LED_COUNT_TOT+1]; // 2024-01-24 Try to prevent from sudden restarts but I have no idea of the source...
 CRGB eLeds[LED_COUNT];
 
-#include "../lib/FileEditor/FileEditor.h"
+#include "../lib/FileEditor/FileEditorLittleFS.h"
 
 // helpers
 // counts the errors on the wifi connection
@@ -1650,7 +1650,7 @@ void setupWebServer(void)
   });
   */
 
-  server.addHandler(new FileEditor(LittleFS, String(), String()));
+  server.addHandler(new FileEditorLittleFS(LittleFS, String(), String()));
 
   server.serveStatic("/", LittleFS, "/").setCacheControl("max-age=60");
   delay(INITDELAY);
