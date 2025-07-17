@@ -227,6 +227,7 @@ public:
   {
     uint16_t CRC;
     uint16_t beat88;
+    uint16_t effectSpeeds[MODE_COUNT];  // Per-effect speed storage
     CRGB solidColor;
     ColorTemperature colorTemp;
 
@@ -726,7 +727,13 @@ public:
   #endif
   inline void setAutoplay             (AUTOPLAYMODES m) { SEG.autoplay = m; }
   inline void setAutopal              (AUTOPLAYMODES p) { SEG.autoPal = p; }
-  inline void setBeat88               (uint16_t b)      { SEG.beat88 = constrain(b, BEAT88_MIN, BEAT88_MAX); }
+  inline void setBeat88               (uint16_t b)      { 
+    SEG.beat88 = constrain(b, BEAT88_MIN, BEAT88_MAX); 
+    // Store speed for current effect
+    if (SEG.mode < MODE_COUNT) {
+      SEG.effectSpeeds[SEG.mode] = SEG.beat88;
+    }
+  }
   inline void setSpeed                (uint16_t s)      { setBeat88(s); }
   inline void setHuetime              (uint16_t t)      { SEG.hueTime = t; SEG_RT.nextHue = 0; }
   inline void setMilliamps            (uint16_t m)      { SEG.milliamps = constrain(m, 100, DEFAULT_CURRENT_MAX); FastLED.setMaxPowerInVoltsAndMilliamps(_volts, SEG.milliamps); }
