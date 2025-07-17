@@ -120,7 +120,7 @@ void WebHandlers::handleStatus(AsyncWebServerRequest* request) {
     bool sunriseActive = ledsOn && (mode == FX_MODE_SUNRISE || mode == FX_MODE_SUNSET);
     sunriseState[F("sunRiseActive")] = sunriseActive ? F("on") : F("off");
     sunriseState[F("sunRiseCurrStep")] = strip->getCurrentSunriseStep();
-    sunriseState[F("sunRiseTotalSteps")] = EffectConstants::DEFAULT_SUNRISE_STEPS;
+    sunriseState[F("sunRiseTotalSteps")] = DEFAULT_SUNRISE_STEPS;
     sunriseState[F("sunRiseTimeToFinish")] = strip->getSunriseTimeToFinish();
     sunriseState[F("sunRiseTime")] = strip->getSunriseTime();
 
@@ -325,7 +325,7 @@ void WebHandlers::handleReset(AsyncWebServerRequest* request) {
         }
         else if (resetType == F("Defaults")) {
             request->redirect("/");
-            instance->configManager->requestReset(ConfigManager::RESET_DEFAULTS);
+            instance->configManager->requestReset(ConfigManager::RESET_TO_DEFAULTS);
         }
         else {
             request->send(400, F("text/plain"), F("Invalid reset type"));

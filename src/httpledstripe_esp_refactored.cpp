@@ -274,7 +274,7 @@ void initializeLEDs() {
     showInitStatus(ColorConstants::COLOR_BLUE);
     
     // Initialize FastLED
-    FastLED.addLeds<WS2812, LEDConstants::LED_PIN, GRB>(pLeds, LED_COUNT_TOT);
+    FastLED.addLeds<WS2812, LED_PIN, GRB>(pLeds, LED_COUNT_TOT);
     FastLED.setBrightness(255);
 
     // Initialize LED strip controller
@@ -316,7 +316,7 @@ void handleResetRequests() {
             ESP.restart();
             break;
 
-        case ConfigManager::RESET_DEFAULTS:
+        case ConfigManager::RESET_TO_DEFAULTS:
             if (strip) {
                 strip->resetDefaults();
             }

@@ -9,6 +9,7 @@
 #define WEB_HANDLERS_H
 
 #include <ESPAsyncWebServer.h>
+#include <AsyncJson.h>
 #include <ArduinoJson.h>
 #include <LittleFS.h>
 

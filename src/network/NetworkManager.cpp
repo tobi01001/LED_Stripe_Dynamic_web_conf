@@ -7,7 +7,7 @@
 #include "NetworkManager.h"
 #include "WebHandlers.h"
 #include "../config/ConfigManager.h"
-#include "../defaults.h"
+#include "../include/defaults.h"
 #include <LittleFS.h>
 
 // Static instance for callback handling

@@ -42,16 +42,13 @@ namespace DisplayConstants {
 
 // LED Configuration
 namespace LEDConstants {
-    static const uint8_t LED_PIN = 3; // Must be 3 for ESP8266 DMA
     static const uint8_t LED_MAX_CURRENT_MA = 37; // Per LED at full brightness
     static const uint16_t DEFAULT_PS_MAX_CURRENT_MA = 4000;
     static const uint16_t DEFAULT_CURRENT_LIMIT_MA = 2800;
     
     // Timing constants
     static const uint32_t FRAME_CALC_WAIT_MICROSEC = 400;
-    static const uint32_t MIN_LED_WRITE_CYCLE_MICROSEC = (10 * LED_COUNT + 50 + FRAME_CALC_WAIT_MICROSEC);
-    static const uint8_t STRIP_MIN_FPS = 10;
-    static const uint8_t STRIP_MAX_FPS = 120;
+    // Note: LED_PIN, STRIP_MIN_FPS, STRIP_MAX_FPS defined in defaults.h
     
     // Information LEDs (for status display)
     static const uint8_t NUM_INFO_LEDS = (LED_COUNT > 10 ? 10 : LED_COUNT);
@@ -59,7 +56,7 @@ namespace LEDConstants {
 
 // EEPROM and Storage
 namespace StorageConstants {
-    static const uint32_t EEPROM_SAVE_INTERVAL_MS = 5000;
+    // Note: EEPROM_SAVE_INTERVAL_MS defined in defaults.h
     static const uint16_t CRC_SEED = 0x5a5a;
     static const char CONFIG_FILE_PATH[] = "/config_all.json";
     static const char RESET_REASON_FILE[] = "/lastReset.txt";
@@ -88,13 +85,7 @@ namespace EffectConstants {
     static const float SUNRISE_END_G = 255.0f;
     static const float SUNRISE_END_B = 255.0f;
     
-    static const uint16_t DEFAULT_SUNRISE_STEPS = 1024;
-    
-    // Speed and brightness limits
-    static const uint16_t BEAT88_MIN = 1;
-    static const uint16_t BEAT88_MAX = 10000;
-    static const uint8_t BRIGHTNESS_MIN = 0;
-    static const uint8_t BRIGHTNESS_MAX = 255;
+    // Note: DEFAULT_SUNRISE_STEPS, BEAT88_MIN, BEAT88_MAX, BRIGHTNESS_MIN, BRIGHTNESS_MAX defined in defaults.h
 }
 
 // System Constants

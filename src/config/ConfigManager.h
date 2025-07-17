@@ -56,7 +56,7 @@ public:
     enum ResetType {
         NO_RESET,
         SAVE_AND_RESTART,
-        RESET_DEFAULTS,
+        RESET_TO_DEFAULTS,
         FACTORY_RESET
     };
     
