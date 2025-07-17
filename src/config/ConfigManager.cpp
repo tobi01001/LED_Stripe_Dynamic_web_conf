@@ -5,6 +5,7 @@
 #include "ConfigManager.h"
 #include "../defaults.h"
 #include "../LED_strip/led_strip.h"
+#include "../WS2812FX/WS2812FX_FastLed.h"
 
 ConfigManager::ConfigManager() 
     : shouldSave(false)
@@ -39,6 +40,24 @@ bool ConfigManager::loadConfiguration() {
     if (seg.CRC == calculatedCRC) {
         // Valid configuration found, apply it
         *(strip->getSegment()) = seg;
+        
+        // Migration: Initialize per-effect speeds if they seem uninitialized
+        bool needsMigration = true;
+        for (uint8_t i = 0; i < 10; i++) { // Check first 10 effects
+            if (seg.effectSpeeds[i] >= 1 && seg.effectSpeeds[i] <= 10000) {
+                needsMigration = false;
+                break;
+            }
+        }
+        
+        if (needsMigration) {
+            // Initialize all effect speeds with the global speed value
+            for (uint8_t i = 0; i < MODE_COUNT; i++) {
+                strip->getSegment()->effectSpeeds[i] = seg.beat88;
+            }
+            markForSave(); // Save the migrated configuration
+        }
+        
         strip->init();
         return true;
     } else {

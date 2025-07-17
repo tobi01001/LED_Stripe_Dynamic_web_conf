@@ -278,6 +278,12 @@ void WS2812FX::resetDefaults(void)
   setAutoplay               (DEFAULT_AUTOMODE );
   setAutopal                (DEFAULT_AUTOCOLOR );
   setBeat88                 (DEFAULT_SPEED );
+  
+  // Initialize per-effect speeds with the default speed
+  for (uint8_t i = 0; i < MODE_COUNT; i++) {
+    SEG.effectSpeeds[i] = DEFAULT_SPEED;
+  }
+  
   setHuetime                (DEFAULT_HUE_INT );
   setMilliamps              (DEFAULT_CURRENT );
   setAutoplayDuration       (DEFAULT_T_AUTOMODE);
@@ -1531,6 +1537,10 @@ void WS2812FX::setMode(uint8_t m)
     fill_solid(leds, SEG_RT.length, CRGB::Black);
   }
   SEG.mode = m;
+  
+  // Apply the speed for the new effect
+  setBeat88(SEG.effectSpeeds[m]);
+  
   // start the transition phase
   setTransition();
   setBlur(_pblur);

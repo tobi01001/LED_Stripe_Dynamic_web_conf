@@ -227,6 +227,7 @@ public:
   {
     uint16_t CRC;
     uint16_t beat88;
+    uint16_t effectSpeeds[MODE_COUNT]; // Per-effect speed storage
     CRGB solidColor;
     ColorTemperature colorTemp;
 

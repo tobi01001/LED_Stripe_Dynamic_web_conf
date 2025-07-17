@@ -71,7 +71,9 @@ inline uint32_t getPalette() {
   return (uint32_t)(strip->getTargetPaletteNumber());
 }
 inline uint32_t getSpeed() {
-  return (uint32_t)(strip->getBeat88());
+  // Return speed for current effect
+  uint8_t currentMode = strip->getMode();
+  return (uint32_t)(strip->getSegment()->effectSpeeds[currentMode]);
 }
 inline uint32_t getBlendType() {
   return (uint32_t)(strip->getBlendType());
@@ -248,6 +250,9 @@ void setPalette(uint32_t val) {
   strip->setTargetPalette(val);
 }
 void setSpeed(uint32_t val) {
+  // Set speed for current effect and apply it immediately
+  uint8_t currentMode = strip->getMode();
+  strip->getSegment()->effectSpeeds[currentMode] = val;
   strip->setBeat88(val);
 }
 void setBlendType(uint32_t val) {
