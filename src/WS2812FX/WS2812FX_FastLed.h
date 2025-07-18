@@ -56,6 +56,8 @@
 #include "FastLED.h"
 FASTLED_USING_NAMESPACE
 
+#include "Effect.h"
+
 /* </FastLED implementation> */
 
 #ifdef SPEED_MAX
@@ -533,8 +535,9 @@ public:
     _bleds = &physicalLeds[LED_OFFSET];
     leds = eleds; 
 
-    _mode[FX_MODE_STATIC]                 = &WS2812FX::mode_static;
-    _mode[FX_MODE_EASE]                   = &WS2812FX::mode_ease;
+    // Effects implemented as classes - these entries are fallback only
+    _mode[FX_MODE_STATIC]                 = &WS2812FX::mode_class_based_fallback; // Now implemented as StaticEffect class
+    _mode[FX_MODE_EASE]                   = &WS2812FX::mode_class_based_fallback; // Now implemented as EaseEffect class
     _mode[FX_MODE_MULTI_DYNAMIC]          = &WS2812FX::mode_multi_dynamic;
     _mode[FX_MODE_RAINBOW]                = &WS2812FX::mode_rainbow;
     _mode[FX_MODE_RAINBOW_CYCLE]          = &WS2812FX::mode_rainbow_cycle;
@@ -588,8 +591,9 @@ public:
     _mode[FX_MODE_SUNRISE]                = &WS2812FX::mode_sunrise;
     _mode[FX_MODE_SUNSET]                 = &WS2812FX::mode_sunset;
 
-    _name[FX_MODE_STATIC]                 = F("Static");
-    _name[FX_MODE_EASE]                   = F("Ease");
+    // Names for class-based effects are retrieved dynamically via getName()
+    // _name[FX_MODE_STATIC] - provided by StaticEffect class
+    // _name[FX_MODE_EASE] - provided by EaseEffect class
     _name[FX_MODE_BREATH]                 = F("Breath");
     _name[FX_MODE_NOISEMOVER]             = F("iNoise8");
     _name[FX_MODE_PLASMA]                 = F("Plasma");
@@ -669,6 +673,10 @@ public:
     _new_mode = 255;
     _volts = 5;
 
+    // Initialize effect system
+    _currentEffect = nullptr;
+    _useClassBasedEffects = false;
+
     FastLED.setBrightness(255);  // DEFAULT_BRIGHTNESS);
 
     resetDefaults();
@@ -676,7 +684,12 @@ public:
 
   ~WS2812FX()
   {
-
+    // Clean up current effect
+    if (_currentEffect) {
+      _currentEffect->cleanup();
+      delete _currentEffect;
+      _currentEffect = nullptr;
+    }
   }
 
   CRGB *leds;
@@ -818,6 +831,9 @@ public:
   // return a pointer to the complete segment structure
   inline WS2812FX::segment *getSegment(void) { return &_segment; }
   inline size_t getSegmentSize(void) { return sizeof(_segment); }
+  
+  // return a pointer to the segment runtime structure for effects
+  inline WS2812FX::segment_runtime *getSegmentRuntime(void) { return &_segment_runtime; }
 
   inline uint16_t getCurrentSunriseStep(void) { if(SEG.mode == FX_MODE_SUNRISE || SEG.mode == FX_MODE_SUNSET) return _segment_runtime.modevars.sunrise_step.sunRiseStep; else return 0; }
   inline uint16_t getFPS(void) { if(_service_Interval_microseconds > 0) { return ((1000000 / _service_Interval_microseconds) + 1) ; } else { return 65535; } }
@@ -867,13 +883,24 @@ public:
 
   template <typename T> T map(T x, T x1, T x2, T y1, T y2);
 
+  // New effect system methods
+  void enableClassBasedEffects(bool enable = true);
+  bool isUsingClassBasedEffects() const { return _useClassBasedEffects; }
+  Effect* getCurrentEffect() const { return _currentEffect; }
+
+  // Make internal methods accessible to effects
+  void fade_out(uint8_t fadeB);
+  void drawFractionalBar(int pos16, int width, const CRGBPalette16 &pal, uint8_t cindex, uint8_t max_bright, bool mixColor, uint8_t incindex);
+  void addSparks(const uint8_t probability, const bool onBlackOnly, const bool white, const bool synchronous);
+
+  // Expose minimum delay for effects  
+  uint32_t getStripMinDelay() const { return STRIP_MIN_DELAY; }
+
 
 private:
   // internal functions
   void
       strip_off(void),
-      fade_out(uint8_t fadeB),
-      drawFractionalBar(int pos16, int width, const CRGBPalette16 &pal, uint8_t cindex, uint8_t max_bright, bool mixColor, uint8_t incindex),
       coolLikeIncandescent(CRGB &c, uint8_t phase),
       setPixelDirection(uint16_t i, bool dir, uint8 *directionFlags),
       brightenOrDarkenEachPixel(fract8 fadeUpAmount, fract8 fadeDownAmount, uint8_t *directionFlags),
@@ -881,8 +908,11 @@ private:
       m_sunrise_sunset(bool isSunrise),
       pacifica_layer(const CRGBPalette16& p, uint16_t cistart, uint16_t wavescale, uint8_t bri, uint16_t ioff),
       pacifica_deepen_colors(void),
-      pacifica_add_whitecaps(void),
-      addSparks(const uint8_t probability, const bool onBlackOnly, const bool white, const bool synchronous);
+      pacifica_add_whitecaps(void);
+
+public:
+  // These functions need to be accessible to effects
+private:
 
   uint8_t attackDecayWave8(uint8_t i);
 
@@ -890,7 +920,7 @@ private:
   CRGB colorCorrectionValues[3] = {TypicalLEDStrip, TypicalPixelString, UncorrectedColor };
 
   uint16_t
-      mode_ease(void),
+      // mode_ease(void), // Removed - now implemented as EaseEffect class
       mode_twinkle_ease(void),
       mode_plasma(void),
       mode_fill_wave(void),
@@ -910,7 +940,7 @@ private:
       mode_inoise8_mover(void),
       mode_firework(void),
       mode_bubble_sort(void),
-      mode_static(void),
+      // mode_static(void), // Removed - now implemented as StaticEffect class
       color_wipe(uint32_t, uint32_t, bool),
       mode_multi_dynamic(void),
       mode_breath(void),
@@ -958,7 +988,8 @@ private:
       mode_rain(void),
       mode_pacifica(void),
       mode_twinkle_map(void),
-      mode_color_waves(void);
+      mode_color_waves(void),
+      mode_class_based_fallback(void); // Fallback for class-based effects
 //      quadbeat(uint16_t in);
 
   CRGB
@@ -1034,6 +1065,10 @@ private:
 
   mode_ptr
       _mode[MODE_COUNT]; // SRAM footprint: 4 bytes per element
+
+  // New effect system
+  Effect* _currentEffect;
+  bool _useClassBasedEffects;
 
   segment _segment;
 
