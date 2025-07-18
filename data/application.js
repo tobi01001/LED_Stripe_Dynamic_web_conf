@@ -34,6 +34,7 @@ var ws_connected = false;
 var currentSectionFilter = 'all';
 var availableSections = [];
 var sectionFieldMapping = {};
+var dynamicTitle = 'LED Control'; // Default title, will be updated from TitleFieldType field
 
 function setCurrentSection(sectionName) {
   currentSectionFilter = sectionName;
@@ -61,20 +62,13 @@ function getSectionDisplayName(sectionKey) {
 }
 
 function getSectionDescription(sectionKey) {
-  // Map section keys to descriptions
-  var descriptions = {
-    's_powerSection': 'Power and effect controls',
-    's_stripeStruture': 'LED strip structure settings',
-    's_Autoplay': 'Automatic mode changes',
-    's_BackGroundColor': 'Background color settings',
-    's_advancedControl': 'Advanced configuration',
-    's_solidColor': 'Solid color configuration',
-    's_glitter': 'Glitter effect settings',
-    's_basicHue': 'Hue change settings',
-    's_effectSettings': 'Effect-specific parameters',
-    's_otherSettings': 'System and power settings'
-  };
-  return descriptions[sectionKey] || 'Section settings';
+  // Get the section label directly from the field - no hardcoded descriptions
+  for (var i = 0; i < availableSections.length; i++) {
+    if (availableSections[i].key === sectionKey) {
+      return availableSections[i].name + ' settings';
+    }
+  }
+  return 'Section settings';
 }
 
 function shouldShowField(fieldName, fieldType) {
@@ -111,11 +105,18 @@ function buildDynamicNavigation(fields) {
   sectionFieldMapping = {};
   var currentSection = null;
   
-  // Parse fields to extract sections and build mapping
+  // Parse fields to extract sections, title, and build mapping
   for (var i = 0; i < fields.length; i++) {
     var field = fields[i];
     
-    if (field.type === fieldtype.SectionFieldType) {
+    if (field.type === fieldtype.TitleFieldType) {
+      // Update dynamic title from backend
+      dynamicTitle = field.label;
+      // Update page title and navbar brand
+      document.title = dynamicTitle;
+      $('#nameLink').text(dynamicTitle);
+      // Update the page header title with first section (will be updated when section is selected)
+    } else if (field.type === fieldtype.SectionFieldType) {
       currentSection = {
         key: field.name,
         name: field.label
