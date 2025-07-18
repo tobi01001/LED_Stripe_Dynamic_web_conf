@@ -428,12 +428,12 @@ void WS2812FX::service()
             
             _currentEffect = EffectFactory::createEffect(SEG.mode);
             if (_currentEffect) {
-              _currentEffect->init(this, &_segment, &_segment_runtime);
+              _currentEffect->init(this);
             }
           }
           
           if (_currentEffect) {
-            delay = _currentEffect->update(this, &_segment, &_segment_runtime);
+            delay = _currentEffect->update(this);
           } else {
             // Fallback to function-based system if effect not found
             delay = (this->*_mode[SEG.mode])();

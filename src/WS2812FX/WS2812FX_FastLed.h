@@ -56,10 +56,9 @@
 #include "FastLED.h"
 FASTLED_USING_NAMESPACE
 
-/* </FastLED implementation> */
+#include "Effect.h"
 
-// Forward declaration for new effect system
-class Effect;
+/* </FastLED implementation> */
 
 #ifdef SPEED_MAX
 #error "SPEED_MAX define is no longer used!"
@@ -830,6 +829,9 @@ public:
   // return a pointer to the complete segment structure
   inline WS2812FX::segment *getSegment(void) { return &_segment; }
   inline size_t getSegmentSize(void) { return sizeof(_segment); }
+  
+  // return a pointer to the segment runtime structure for effects
+  inline WS2812FX::segment_runtime *getSegmentRuntime(void) { return &_segment_runtime; }
 
   inline uint16_t getCurrentSunriseStep(void) { if(SEG.mode == FX_MODE_SUNRISE || SEG.mode == FX_MODE_SUNSET) return _segment_runtime.modevars.sunrise_step.sunRiseStep; else return 0; }
   inline uint16_t getFPS(void) { if(_service_Interval_microseconds > 0) { return ((1000000 / _service_Interval_microseconds) + 1) ; } else { return 65535; } }
@@ -908,10 +910,6 @@ private:
 
 public:
   // These functions need to be accessible to effects
-  void fade_out(uint8_t fadeB);
-  void drawFractionalBar(int pos16, int width, const CRGBPalette16 &pal, uint8_t cindex, uint8_t max_bright, bool mixColor, uint8_t incindex);
-  void addSparks(const uint8_t probability, const bool onBlackOnly, const bool white, const bool synchronous);
-
 private:
 
   uint8_t attackDecayWave8(uint8_t i);
