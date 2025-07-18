@@ -591,8 +591,9 @@ public:
     _mode[FX_MODE_SUNRISE]                = &WS2812FX::mode_sunrise;
     _mode[FX_MODE_SUNSET]                 = &WS2812FX::mode_sunset;
 
-    _name[FX_MODE_STATIC]                 = F("Static");
-    _name[FX_MODE_EASE]                   = F("Ease");
+    // Names for class-based effects are retrieved dynamically via getName()
+    // _name[FX_MODE_STATIC] - provided by StaticEffect class
+    // _name[FX_MODE_EASE] - provided by EaseEffect class
     _name[FX_MODE_BREATH]                 = F("Breath");
     _name[FX_MODE_NOISEMOVER]             = F("iNoise8");
     _name[FX_MODE_PLASMA]                 = F("Plasma");

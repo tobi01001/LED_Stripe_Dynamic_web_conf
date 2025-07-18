@@ -1812,6 +1812,15 @@ const __FlashStringHelper *WS2812FX::getModeName(uint8_t m)
 {
   if (m < MODE_COUNT)
   {
+    // For class-based effects, get the name from the effect class
+    Effect* effect = EffectFactory::createEffect(m);
+    if (effect) {
+      const __FlashStringHelper* name = effect->getName();
+      delete effect; // Clean up temporary instance
+      return name;
+    }
+    
+    // Fall back to hardcoded names for function-based effects
     return _name[m];
   }
   else
