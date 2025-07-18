@@ -48,6 +48,10 @@
 #endif
 #include <LittleFS.h>
 #include <Arduino.h>
+// Workaround for ESP8266 Arduino core str macro that conflicts with ArduinoJson v6
+#ifdef str
+#undef str
+#endif
 #include <ArduinoJson.h>
 #include <ESP8266WiFi.h>
 #include <ESPAsyncTCP.h>
@@ -175,7 +179,7 @@ struct pingPong {
 CRGB pLeds[LED_COUNT_TOT+1]; // 2024-01-24 Try to prevent from sudden restarts but I have no idea of the source...
 CRGB eLeds[LED_COUNT];
 
-#include "../lib/FileEditor/FileEditor.h"
+#include "../lib/FileEditor/FileEditorLittleFS.h"
 
 // helpers
 // counts the errors on the wifi connection
@@ -338,17 +342,16 @@ void broadcastInt(const __FlashStringHelper* name, uint16_t value)
     // nothing to be done -> return
     return;
   }
-  // store the name / value pair in a json buffer 
-  DynamicJsonBuffer jsonBuffer;
-  JsonObject& answerObj = jsonBuffer.createObject();
-  answerObj[F("name")] = name;
-  answerObj[F("value")] = value;
+  // store the name / value pair in a json document 
+  DynamicJsonDocument jsonDoc(256);
+  jsonDoc[F("name")] = name;
+  jsonDoc[F("value")] = value;
 
-  size_t len = answerObj.measureLength();
+  size_t len = measureJson(jsonDoc);
   // create a message buffer, write to it and send it to the WS clients
   AsyncWebSocketMessageBuffer * buffer = webSocketsServer->makeBuffer(len); //  creates a buffer (len + 1) for you.
   if (buffer) {
-      answerObj.printTo((char *)buffer->get(), len + 1);
+      serializeJson(jsonDoc, (char *)buffer->get(), len + 1);
       webSocketsServer->textAll(buffer);
   }
 }
@@ -366,17 +369,16 @@ void broadcastColor(const __FlashStringHelper* name, CRGB Col)
     // nothing to be done -> return
     return;
   }
-  // store the name / value pair in a json buffer 
-  DynamicJsonBuffer jsonBuffer;
-  JsonObject& answerObj = jsonBuffer.createObject();
-  answerObj[F("name")] = name;
-  answerObj[F("value")] = (((Col.r << 16) | (Col.g << 8) | (Col.b << 0)) & 0xffffff);;
+  // store the name / value pair in a json document 
+  DynamicJsonDocument jsonDoc(256);
+  jsonDoc[F("name")] = name;
+  jsonDoc[F("value")] = (((Col.r << 16) | (Col.g << 8) | (Col.b << 0)) & 0xffffff);;
 
-  size_t len = answerObj.measureLength();
+  size_t len = measureJson(jsonDoc);
   // create a message buffer, write to it and send it to the WS clients
   AsyncWebSocketMessageBuffer * buffer = webSocketsServer->makeBuffer(len); //  creates a buffer (len + 1) for you.
   if (buffer) {
-      answerObj.printTo((char *)buffer->get(), len + 1);
+      serializeJson(jsonDoc, (char *)buffer->get(), len + 1);
       webSocketsServer->textAll(buffer);
   }
 }
@@ -1121,8 +1123,8 @@ void handleSet(AsyncWebServerRequest *request)
   AsyncJsonResponse * response = new AsyncJsonResponse();
   
   // create the answer object
-  JsonObject& answerObj = response->getRoot();
-  JsonObject& answer = answerObj.createNestedObject(F("currentState"));
+  JsonObject answerObj = response->getRoot();
+  JsonObject answer = answerObj.createNestedObject(F("currentState"));
   uint32_t color = CRGB::Black;
   for(uint8_t i=0; i<request->params(); i++)
   {
@@ -1147,14 +1149,14 @@ void handleSet(AsyncWebServerRequest *request)
         }    
         strip->setSolidColor(color);
         strip->setColor(color);
-        answer.set(f.name, color);
+        answer[f.name] = color;
         newSolidColor = true;
       }
       else
       {
         // normal parameter...
         setFieldValue(request->getParam(i)->name().c_str(),(uint16_t)(request->getParam(i)->value().toInt()));
-        answer.set(request->getParam(i)->name(), getFieldValue(request->getParam(i)->name().c_str()));
+        answer[request->getParam(i)->name()] = getFieldValue(request->getParam(i)->name().c_str());
       }
       
     }
@@ -1184,12 +1186,12 @@ void handleSet(AsyncWebServerRequest *request)
     strip->setPower(true);
     pLeds[pixel] = CRGB(color);
     // a range of pixels from start rnS to end rnE
-    answer.set(F("pixel"), pixel);
+    answer[F("pixel")] = pixel;
     char col[10];
     sprintf(col, "%06X", color);    
-    answer.set(F("color"), col);
-    answer.set(F("effect"), strip->getModeName(FX_MODE_VOID));
-    answer.set(F("power"), strip->getPower() ? F("on") : F("off"));
+    answer[F("color")] = col;
+    answer[F("effect")] = strip->getModeName(FX_MODE_VOID);
+    answer[F("power")] = strip->getPower() ? F("on") : F("off");
   }
   //FIXME: Does not yet work. Lets simplyfy all of this!
   else if (request->hasParam(F("rnS")) && request->hasParam(F("rnE")))
@@ -1205,13 +1207,13 @@ void handleSet(AsyncWebServerRequest *request)
     {
       pLeds[i] = CRGB(color);
     }
-    answer.set(F("rnS"), start);
-    answer.set(F("rnE"), end);
+    answer[F("rnS")] = start;
+    answer[F("rnE")] = end;
     char col[10];
     sprintf(col, "%06X", color);    
-    answer.set(F("color"), col);
-    answer.set(F("effect"), strip->getModeName(FX_MODE_VOID));
-    answer.set(F("power"), strip->getPower() ? F("on") : F("off"));
+    answer[F("color")] = col;
+    answer[F("effect")] = strip->getModeName(FX_MODE_VOID);
+    answer[F("power")] = strip->getPower() ? F("on") : F("off");
     // one color for the complete strip
   }
   else if (request->hasParam(F("rgb")))
@@ -1222,9 +1224,9 @@ void handleSet(AsyncWebServerRequest *request)
     // finally set a new color
     char col[10];
     sprintf(col, "%06X", color);    
-    answer.set(F("color"), col);
-    answer.set(F("effect"), strip->getModeName(FX_MODE_STATIC));
-    answer.set(F("power"), strip->getPower() ? F("on") : F("off"));
+    answer[F("color")] = col;
+    answer[F("effect")] = strip->getModeName(FX_MODE_STATIC);
+    answer[F("power")] = strip->getPower() ? F("on") : F("off");
   }
   // if we work with offset (i.e. dead pixel at the beginning), we can use this for setting pixels without affecting the effects at all
   // this is the first try for that.
@@ -1235,11 +1237,11 @@ void handleSet(AsyncWebServerRequest *request)
     uint16_t pixel = constrain((uint16_t)strtoul(request->getParam(F("fpi"))->value().c_str(), NULL, 10), 0, LED_OFFSET - 1);
     pLeds[pixel] = CRGB(fColor);
     // a single pixel at fpi
-    answer.set(F("fpi"), pixel);
+    answer[F("fpi")] = pixel;
     char col[10];
     sprintf(col, "%06X", fColor);    
-    answer.set(F("fColor"), col);
-    answer.set(F("power"), strip->getPower() ? F("on") : F("off"));
+    answer[F("fColor")] = col;
+    answer[F("power")] = strip->getPower() ? F("on") : F("off");
   }
   else if (request->hasParam(F("fS")) && request->hasParam(F("fE")))
   {
@@ -1249,12 +1251,12 @@ void handleSet(AsyncWebServerRequest *request)
     {
       pLeds[i] = CRGB(fColor);
     }
-    answer.set(F("fS"), start);
-    answer.set(F("fE"), end);
+    answer[F("fS")] = start;
+    answer[F("fE")] = end;
     char col[10];
     sprintf(col, "%06X", fColor);    
-    answer.set(F("color"), col);
-    answer.set(F("power"), strip->getPower() ? F("on") : F("off"));
+    answer[F("color")] = col;
+    answer[F("power")] = strip->getPower() ? F("on") : F("off");
     // one color for the complete strip
   }
   #endif
@@ -1276,12 +1278,12 @@ void handleGetModes(AsyncWebServerRequest *request)
 
   AsyncJsonResponse * response = new AsyncJsonResponse();
 
-  JsonObject &root = response->getRoot();
+  JsonObject root = response->getRoot();
 
-  JsonObject &modeinfo = root.createNestedObject(F("modeinfo"));
+  JsonObject modeinfo = root.createNestedObject(F("modeinfo"));
   modeinfo[F("count")] = strip->getModeCount();
 
-  JsonObject &modeinfo_modes = modeinfo.createNestedObject(F("modes"));
+  JsonObject modeinfo_modes = modeinfo.createNestedObject(F("modes"));
   for (uint8_t i = 0; i < strip->getModeCount(); i++)
   {
     modeinfo_modes[strip->getModeName(i)] = i;
@@ -1296,12 +1298,12 @@ void handleGetPals(AsyncWebServerRequest *request)
 
   AsyncJsonResponse * response = new AsyncJsonResponse();
 
-  JsonObject &root = response->getRoot();
+  JsonObject root = response->getRoot();
 
-  JsonObject &modeinfo = root.createNestedObject(F("palinfo"));
+  JsonObject modeinfo = root.createNestedObject(F("palinfo"));
   modeinfo[F("count")] = strip->getPalCount();
 
-  JsonObject &modeinfo_modes = modeinfo.createNestedObject(F("pals"));
+  JsonObject modeinfo_modes = modeinfo.createNestedObject(F("pals"));
   for (uint8_t i = 0; i < strip->getPalCount(); i++)
   {
     modeinfo_modes[strip->getPalName(i)] = i;
@@ -1316,10 +1318,10 @@ void handleStatus(AsyncWebServerRequest *request)
 
   AsyncJsonResponse * response = new AsyncJsonResponse();
 
-  JsonObject& answerObj = response->getRoot();
-  JsonObject& currentStateAnswer = answerObj.createNestedObject(F("currentState"));
-  JsonObject& sunriseAnswer = answerObj.createNestedObject(F("sunRiseState"));
-  JsonObject& statsAnswer = answerObj.createNestedObject(F("Stats"));
+  JsonObject answerObj = response->getRoot();
+  JsonObject currentStateAnswer = answerObj.createNestedObject(F("currentState"));
+  JsonObject sunriseAnswer = answerObj.createNestedObject(F("sunRiseState"));
+  JsonObject statsAnswer = answerObj.createNestedObject(F("Stats"));
 
   uint16_t num_leds_on = strip->getLedsOn();
 
@@ -1581,14 +1583,14 @@ void deleteConfigFile(void)
 
 void updateConfigFile(void)
 {
-  DynamicJsonBuffer buffer;
-  JsonArray& root = buffer.createArray();
+  DynamicJsonDocument doc(8192);
+  JsonArray root = doc.to<JsonArray>();
   
   getAllJSON(root);
 
   File config_Json = LittleFS.open(F("/config_all.json"), "w");
 
-  root.printTo(config_Json);
+  serializeJson(root, config_Json);
 
   config_Json.close();
 }
@@ -1611,11 +1613,11 @@ void setupWebServer(void)
   server.on("/allvalues", HTTP_GET, [](AsyncWebServerRequest *request) {
     AsyncJsonResponse * response = new AsyncJsonResponse();
 
-    JsonObject &root = response->getRoot();
-    JsonArray &arr = root.createNestedArray(F("values"));
+    JsonObject root = response->getRoot();
+    JsonArray arr = root.createNestedArray(F("values"));
     if(!getAllValuesJSONArray(arr))
     {
-      JsonObject &obj = arr.createNestedObject();
+      JsonObject obj = arr.createNestedObject();
       obj[F("ValueError")] = F("Did not read any values!");
     }
     response->setLength();
@@ -1664,7 +1666,7 @@ void setupWebServer(void)
   });
   */
 
-  server.addHandler(new FileEditor(LittleFS, String(), String()));
+  server.addHandler(new FileEditorLittleFS(LittleFS, String(), String()));
 
   server.serveStatic("/", LittleFS, "/").setCacheControl("max-age=60");
   delay(INITDELAY);
@@ -2137,9 +2139,9 @@ void showDisplay(uint8_t curr_field)
       case Display_ShowSelectMenue:
       {
         display.drawStringMaxWidth(0, 0, 128, fields[curr_field].label);
-        StaticJsonBuffer<1600> myJsonBuffer;
+        StaticJsonDocument<1600> myJsonBuffer;
         
-        JsonArray& myValues = myJsonBuffer.createArray();
+        JsonArray myValues = myJsonBuffer.to<JsonArray>();
         fields[curr_field].getOptions(myValues);
         
         //display.drawString(128, 20, myValues[val]);
@@ -2772,7 +2774,6 @@ void loop()
     {
       if(webSocketsServer)
       {
-        DynamicJsonBuffer jB;
         for(const auto& c: webSocketsServer->getClients())
         {
           uint8_t i = getClient(c->id());     
@@ -2858,7 +2859,6 @@ void loop()
     {
       if(webSocketsServer)
       {
-        DynamicJsonBuffer jB;
         for(const auto& c: webSocketsServer->getClients())
         {
           uint8_t i = getClient(c->id());     

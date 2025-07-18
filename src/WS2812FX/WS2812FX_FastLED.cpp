@@ -296,6 +296,7 @@ void WS2812FX::resetDefaults(void)
   setDithering              (DEFAULT_DITHER);
   setTargetPaletteNumber    (DEFAULT_PALETTE);
   setCurrentPaletteNumber   (DEFAULT_PALETTE);
+  setPaletteDistribution    (100);  // Default: 100% = normal distribution
   setSunriseTime            (DEFAULT_SUNRISETIME);
   setTargetBrightness       (DEFAULT_BRIGHTNESS);
   setBlendType              (DEFAULT_BLEND);
@@ -1097,26 +1098,26 @@ void WS2812FX::drawFractionalBar(int pos16, int width, const CRGBPalette16 &pal,
     {
       // first pixel in the bar
       bright = firstpixelbrightness;
-      newColor = ColorFromPalette(pal, cindex + (uint8_t)(n * incIndex), bright, SEG.blendType);
+      newColor = WS2812FX::ColorFromPaletteWithDistribution(pal, cindex + (uint8_t)(n * incIndex), bright, SEG.blendType);
     }
     else if (n == width)
     {
       // last pixel in the bar
       bright = lastpixelbrightness;
-      newColor = ColorFromPalette(pal, cindex + (uint8_t)(n * incIndex), bright, SEG.blendType);
+      newColor = WS2812FX::ColorFromPaletteWithDistribution(pal, cindex + (uint8_t)(n * incIndex), bright, SEG.blendType);
     }
     else
     {
       // middle pixels
       bright = max_bright;
       mix = false;
-      newColor = ColorFromPalette(pal, cindex + (uint8_t)(n * incIndex), bright, SEG.blendType);
+      newColor = WS2812FX::ColorFromPaletteWithDistribution(pal, cindex + (uint8_t)(n * incIndex), bright, SEG.blendType);
       if(incIndex)
       { 
         if(SEG.blendType == LINEARBLEND)
         {
-          CRGB prev_col = ColorFromPalette(pal, cindex + (uint8_t)((n-1) * incIndex), bright, SEG.blendType);
-          CRGB next_col = ColorFromPalette(pal, cindex + (uint8_t)((n+1) * incIndex), bright, SEG.blendType);
+          CRGB prev_col = WS2812FX::ColorFromPaletteWithDistribution(pal, cindex + (uint8_t)((n-1) * incIndex), bright, SEG.blendType);
+          CRGB next_col = WS2812FX::ColorFromPaletteWithDistribution(pal, cindex + (uint8_t)((n+1) * incIndex), bright, SEG.blendType);
           newColor = nblend(newColor, nblend(prev_col, next_col, firstpixelbrightness), 128);
         }
       }
@@ -1242,7 +1243,7 @@ void WS2812FX::addSparks(const uint8_t prob = 5, const bool onBlackOnly = true, 
         }
         else
         {
-          sparks[i] = ColorFromPalette(_currentPalette, random8(), br, SEG.blendType);
+          sparks[i] = ColorFromPaletteWithDistribution(_currentPalette, random8(), br, SEG.blendType);
         }
         return;
       }
@@ -1256,9 +1257,18 @@ void WS2812FX::map_pixels_palette(uint8_t *hues, uint8_t bright = 255, TBlendTyp
 {
   for (uint16_t i = 0; i < SEG_RT.length; i++)
   {
-    leds[i + SEG_RT.start] = ColorFromPalette(_currentPalette, hues[i], bright, blend);
+    leds[i + SEG_RT.start] = ColorFromPaletteWithDistribution(_currentPalette, hues[i], bright, blend);
   }
   return;
+}
+
+// Helper function for palette distribution-aware color selection
+CRGB WS2812FX::ColorFromPaletteWithDistribution(const CRGBPalette16 &pal, uint8_t index, uint8_t brightness, TBlendType blendType)
+{
+  // Apply palette distribution transformation to the index
+  // paletteDistribution: 100% = full palette, 200% = palette repeats twice, 50% = half palette
+  uint8_t adjustedIndex = (uint16_t(index) * SEG.paletteDistribution) / 100;
+  return ColorFromPalette(pal, adjustedIndex, brightness, blendType);
 }
 
 /*
@@ -1300,7 +1310,7 @@ CRGB WS2812FX::computeOneTwinkle(uint32_t *ms, uint8_t *salt)
   CRGB c;
   if (bright > 0)
   {
-    c = ColorFromPalette(_currentPalette, hue, bright, SEG.blendType);
+    c = ColorFromPaletteWithDistribution(_currentPalette, hue, bright, SEG.blendType);
     if (COOL_LIKE_INCANDESCENT == 1)
     {
       coolLikeIncandescent(c, fastcycle8);
@@ -1393,7 +1403,7 @@ uint16_t WS2812FX::pride()
     uint8_t bri8 = (uint32_t)(((uint32_t)bri16) * brightdepth) / 65536;
     bri8 += (255 - brightdepth);
 
-    CRGB newcolor = ColorFromPalette(_currentPalette, hue8, bri8, SEG.blendType); //CHSV( hue8, sat8, bri8);
+    CRGB newcolor = ColorFromPaletteWithDistribution(_currentPalette, hue8, bri8, SEG.blendType); //CHSV( hue8, sat8, bri8);
 
     uint16_t pixelnumber = (SEG_RT.stop) - i;
 
@@ -1756,7 +1766,7 @@ uint8_t WS2812FX::getPalCount(void)
 
 uint32_t WS2812FX::getColor(uint8_t p_index = 0)
 {
-  return ColorFromPalette(_currentPalette, p_index);
+  return ColorFromPaletteWithDistribution(_currentPalette, p_index, 255, SEG.blendType);
 }
 
 const __FlashStringHelper *WS2812FX::getModeName(uint8_t m)
@@ -1806,7 +1816,7 @@ uint16_t WS2812FX::mode_static(void)
     SEG_RT.modeinit = false;
 
   }
-  fill_palette(&leds[SEG_RT.start], SEG_RT.length, SEG_RT.baseHue, (SEG_RT.length > 255 ? 1 : (256 / SEG_RT.length)), _currentPalette, 255, SEG.blendType);
+  fill_palette(&leds[SEG_RT.start], SEG_RT.length, SEG_RT.baseHue, max(1, (256 * 100 / (SEG_RT.length * SEG.paletteDistribution))), _currentPalette, 255, SEG.blendType);
   return STRIP_MIN_DELAY;
 }
 
@@ -1945,7 +1955,7 @@ uint16_t WS2812FX::mode_plasma(void)
 
     uint8_t colorIndex = cubicwave8((k * 15) + thisPhase) / 2 + cos8((k * 8) + thatPhase) / 2 + SEG_RT.baseHue; // Create a wave and add a phase change and add another wave with its own phase change.. Hey, you can even change the frequencies if you wish.
     uint8_t thisBright = qsuba(colorIndex, beatsin88((SEG.beat88 * 12) / 10, 0, 128));                               // qsub gives it a bit of 'black' dead space by setting sets a minimum value. If colorIndex < current value of beatsin8(), then bright = 0. Otherwise, bright = colorIndex..
-    CRGB newColor = ColorFromPalette(_currentPalette, colorIndex, thisBright, SEG.blendType);                        // Let's now add the foreground colour.
+    CRGB newColor = ColorFromPaletteWithDistribution(_currentPalette, colorIndex, thisBright, SEG.blendType);                        // Let's now add the foreground colour.
     leds[k] = nblend(leds[k], newColor, 64);
   }
   return STRIP_MIN_DELAY;
@@ -2010,7 +2020,7 @@ uint16_t WS2812FX::mode_fill_beat(void)
     index = (uint8_t)((uint8_t)triwave8(beat8(SEG.beat88 >> 8) +
                                         (uint8_t)beatsin8(SEG.beat88 >> 8, 0, 20) +
                                         (uint8_t)map((uint16_t)k, (uint16_t)SEG_RT.start, (uint16_t)SEG_RT.stop, (uint16_t)0, (uint16_t)255)));
-    newColor = ColorFromPalette(_currentPalette, index, br, SEG.blendType);
+    newColor = ColorFromPaletteWithDistribution(_currentPalette, index, br, SEG.blendType);
 
     leds[k] = nblend(leds[k], newColor, qadd8(SEG.beat88 >> 8, 24));
   }
@@ -2031,7 +2041,7 @@ uint16_t WS2812FX::mode_fill_wave(void)
                (SEG_RT.length),
                SEG_RT.baseHue + (uint8_t)beatsin88(SEG.beat88 * 2, 0, 255, SEG_RT_MV.fill_wave.timebase),
                // SEG_RT.baseHue + triwave8( (uint8_t)map( beat88( max(  SEG.beat88/4, 2), SEG_RT.timebase), 0,  65535,  0,  255)),
-               max(255 / SEG_RT.length + 1, 1),
+               max(255 * 100 / (SEG_RT.length * SEG.paletteDistribution) + 1, 1),
                _currentPalette,
                (uint8_t)beatsin88(max(SEG.beat88 * 1, 1),
                                   _brightness / 10, 255,
@@ -2219,8 +2229,8 @@ uint16_t WS2812FX::mode_col_wipe_func(uint8_t mode)
     SEG_RT_MV.col_wipe.newcolor = false;
   }
 
-  CRGB Col1 = ColorFromPalette(_currentPalette, SEG_RT_MV.col_wipe.npos  + SEG_RT.baseHue, _brightness, SEG.blendType);
-  CRGB Col2 = ColorFromPalette(_currentPalette, SEG_RT_MV.col_wipe.pnpos + SEG_RT.baseHue, _brightness, SEG.blendType);
+  CRGB Col1 = ColorFromPaletteWithDistribution(_currentPalette, SEG_RT_MV.col_wipe.npos  + SEG_RT.baseHue, _brightness, SEG.blendType);
+  CRGB Col2 = ColorFromPaletteWithDistribution(_currentPalette, SEG_RT_MV.col_wipe.pnpos + SEG_RT.baseHue, _brightness, SEG.blendType);
 
 
   if(SEG_RT_MV.col_wipe.up)
@@ -2313,7 +2323,7 @@ uint16_t WS2812FX::mode_multi_dynamic(void)
     {
 
       SEG_RT_MV.multi_dyn.last_index = get_random_wheel_index(SEG_RT_MV.multi_dyn.last_index, 32);
-      leds[i] = ColorFromPalette(_currentPalette, SEG_RT_MV.multi_dyn.last_index, _brightness, SEG.blendType);
+      leds[i] = ColorFromPaletteWithDistribution(_currentPalette, SEG_RT_MV.multi_dyn.last_index, _brightness, SEG.blendType);
     }
     SEG_RT_MV.multi_dyn.last = millis() + ((BEAT88_MAX - SEG.beat88) >> 6);
   }
@@ -2332,7 +2342,7 @@ uint16_t WS2812FX::mode_fill_bright(void)
     SEG_RT_MV.fill_bright.timebase = millis();
   }
   fill_palette(&leds[SEG_RT.start], (SEG_RT.length), beat88(max((SEG.beat88 / 128), 2), SEG_RT_MV.fill_bright.timebase),
-               max(255 / SEG_RT.length + 1, 1), _currentPalette, beatsin88(max(SEG.beat88 / 32, 1), 10, 255, SEG_RT_MV.fill_bright.timebase), SEG.blendType);
+               max(255 * 100 / (SEG_RT.length * SEG.paletteDistribution) + 1, 1), _currentPalette, beatsin88(max(SEG.beat88 / 32, 1), 10, 255, SEG_RT_MV.fill_bright.timebase), SEG.blendType);
   return STRIP_MIN_DELAY;
 }
 
@@ -2358,7 +2368,7 @@ uint16_t WS2812FX::mode_firework(void)
     if (FW1MV.isBurning[i])
     {
       FW1MV.isBurning[i]--;
-      nblend(leds[FW1MV.fireworks[i]], ColorFromPalette(_currentPalette, FW1MV.colIndex[i], 255, SEG.blendType), 196);
+      nblend(leds[FW1MV.fireworks[i]], ColorFromPaletteWithDistribution(_currentPalette, FW1MV.colIndex[i], 255, SEG.blendType), 196);
       //leds[i] = ColorFromPalette(_currentPalette, colors[i]  , 255, SEG.blendType);
     }
   }
@@ -2389,7 +2399,7 @@ uint16_t WS2812FX::mode_firework(void)
       FW1MV.colIndex [barPos] = get_random_wheel_index(FW1MV.colIndex[barPos], 64);
       FW1MV.fireworks[barPos] = lind;
       FW1MV.isBurning[barPos] = random8(10, 30);
-      leds[lind] = ColorFromPalette(_currentPalette, FW1MV.colIndex [barPos], random8(192, 255), SEG.blendType);
+      leds[lind] = ColorFromPaletteWithDistribution(_currentPalette, FW1MV.colIndex [barPos], random8(192, 255), SEG.blendType);
     }
   }
 
@@ -2467,7 +2477,7 @@ uint16_t WS2812FX::mode_rainbow(void)
     SEG_RT_MV.rainbow.timebase = millis();
   }
 
-  fill_solid(&leds[SEG_RT.start], SEG_RT.length, ColorFromPalette(_currentPalette, map(beat88(SEG.beat88, SEG_RT_MV.rainbow.timebase), (uint16_t)0, (uint16_t)65535, (uint16_t)0, (uint16_t)255), _brightness, SEG.blendType)); /*CHSV(beat8(max(SEG.beat/2,1), SEG_RT.timebase)*/ //_brightness));
+  fill_solid(&leds[SEG_RT.start], SEG_RT.length, ColorFromPaletteWithDistribution(_currentPalette, map(beat88(SEG.beat88, SEG_RT_MV.rainbow.timebase), (uint16_t)0, (uint16_t)65535, (uint16_t)0, (uint16_t)255), _brightness, SEG.blendType)); /*CHSV(beat8(max(SEG.beat/2,1), SEG_RT.timebase)*/ //_brightness));
   //SEG_RT.counter_mode_step = (SEG_RT.counter_mode_step + 2) & 0xFF;
   return STRIP_MIN_DELAY;
 }
@@ -2488,7 +2498,7 @@ uint16_t WS2812FX::mode_rainbow_cycle(void)
                map(beat88(SEG.beat88,
                            SEG_RT_MV.rainbow_cycle.timebase),
                    (uint16_t)0, (uint16_t)65535, (uint16_t)0, (uint16_t)255),
-               (SEG_RT.length > 255 ? 1 : (256 / SEG_RT.length)),
+               max(1, (256 * 100 / (SEG_RT.length * SEG.paletteDistribution))),
                _currentPalette,
                255, SEG.blendType);
 
@@ -2541,12 +2551,12 @@ uint16_t WS2812FX::theater_chase(bool dual)
     uint8_t pal_index = map(i, (uint16_t)0, (uint16_t)(SEG_RT.length - 1), (uint16_t)0, (uint16_t)255) + SEG_RT.baseHue;
     if ((i % 3) == off)
     {
-      leds[SEG_RT.start + i] = ColorFromPalette(_currentPalette, pal_index, 255, SEG.blendType);
+      leds[SEG_RT.start + i] = ColorFromPaletteWithDistribution(_currentPalette, pal_index, 255, SEG.blendType);
     }
     else
     {
       if(dual)
-        leds[SEG_RT.start + i] = ColorFromPalette(_currentPalette, 128 + pal_index, 32, SEG.blendType);
+        leds[SEG_RT.start + i] = ColorFromPaletteWithDistribution(_currentPalette, 128 + pal_index, 32, SEG.blendType);
       else
         leds[SEG_RT.start + i] = CRGB::Black;
     }
@@ -2576,7 +2586,7 @@ uint16_t WS2812FX::mode_theater_chase_dual_pal(void)
 uint16_t WS2812FX::mode_theater_chase_rainbow(void)
 {
   SEG_RT_MV.theater_chase.counter_mode_step = (SEG_RT_MV.theater_chase.counter_mode_step + 1) & 0xFF;
-  return theater_chase(ColorFromPalette(_currentPalette, SEG_RT_MV.theater_chase.counter_mode_step, 255, SEG.blendType));
+  return theater_chase(ColorFromPaletteWithDistribution(_currentPalette, SEG_RT_MV.theater_chase.counter_mode_step, 255, SEG.blendType));
 }
 
 /*
@@ -2597,7 +2607,7 @@ uint16_t WS2812FX::mode_running_lights(void)
 
     CRGB newColor = CRGB::Black;
 
-    newColor = ColorFromPalette(_currentPalette, map(offset, (uint16_t)0, (uint16_t)(SEG_RT.length - 1), (uint16_t)0, (uint16_t)255) + SEG_RT.baseHue, lum, SEG.blendType);
+    newColor = ColorFromPaletteWithDistribution(_currentPalette, map(offset, (uint16_t)0, (uint16_t)(SEG_RT.length - 1), (uint16_t)0, (uint16_t)255) + SEG_RT.baseHue, lum, SEG.blendType);
     nblend(leds[SEG_RT.start + offset], newColor, qadd8(SEG.beat88 >> 8, 16));
   }
   return STRIP_MIN_DELAY;
@@ -2633,7 +2643,7 @@ uint16_t WS2812FX::mode_twinkle_fade(void)
     uint16_t i = random16(SEG_RT.length);
     if(!leds[i]) 
     {
-      leds[i] = ColorFromPalette(_currentPalette, random8(), random8(128,255), SEG.blendType);
+      leds[i] = ColorFromPaletteWithDistribution(_currentPalette, random8(), random8(128,255), SEG.blendType);
     }
     else
     {
@@ -2712,7 +2722,7 @@ uint16_t WS2812FX::fire_flicker(int rev_intensity)
 
   for (uint16_t i = SEG_RT.start; i <= SEG_RT.stop; i++)
   {
-    leds[i] = ColorFromPalette(_currentPalette, map(i, SEG_RT.start, SEG_RT.stop, (uint16_t)0, (uint16_t)255) + SEG_RT.baseHue, _brightness, SEG.blendType);
+    leds[i] = ColorFromPaletteWithDistribution(_currentPalette, map(i, SEG_RT.start, SEG_RT.stop, (uint16_t)0, (uint16_t)255) + SEG_RT.baseHue, _brightness, SEG.blendType);
     if (random8(3))
     {
       int flicker = random8(0, lum);
@@ -2796,14 +2806,14 @@ uint16_t WS2812FX::mode_bubble_sort(void)
       return STRIP_MIN_DELAY;
     }
     map_pixels_palette(SEG_RT_MV.bubble_sort.hues, 32, SEG.blendType);
-    leds[SEG_RT_MV.bubble_sort.ci + SEG_RT.start] = ColorFromPalette(_currentPalette, SEG_RT_MV.bubble_sort.hues[SEG_RT_MV.bubble_sort.ci], _brightness, SEG.blendType); //CRGB::Green;
-    leds[SEG_RT_MV.bubble_sort.co + SEG_RT.start] = ColorFromPalette(_currentPalette, SEG_RT_MV.bubble_sort.hues[SEG_RT_MV.bubble_sort.ci], _brightness, SEG.blendType); // CRGB::Red;
+    leds[SEG_RT_MV.bubble_sort.ci + SEG_RT.start] = ColorFromPaletteWithDistribution(_currentPalette, SEG_RT_MV.bubble_sort.hues[SEG_RT_MV.bubble_sort.ci], _brightness, SEG.blendType); //CRGB::Green;
+    leds[SEG_RT_MV.bubble_sort.co + SEG_RT.start] = ColorFromPaletteWithDistribution(_currentPalette, SEG_RT_MV.bubble_sort.hues[SEG_RT_MV.bubble_sort.ci], _brightness, SEG.blendType); // CRGB::Red;
   }
   else
   {
     map_pixels_palette(SEG_RT_MV.bubble_sort.hues, 32, SEG.blendType);
-    leds[SEG_RT_MV.bubble_sort.co + SEG_RT.start] = ColorFromPalette(_currentPalette, SEG_RT_MV.bubble_sort.hues[SEG_RT_MV.bubble_sort.ci], _brightness, SEG.blendType); // CRGB::Red;
-    leds[SEG_RT_MV.bubble_sort.cd + SEG_RT.start] = ColorFromPalette(_currentPalette, SEG_RT_MV.bubble_sort.hues[SEG_RT_MV.bubble_sort.cd], _brightness, SEG.blendType); // +=CRGB::Green;
+    leds[SEG_RT_MV.bubble_sort.co + SEG_RT.start] = ColorFromPaletteWithDistribution(_currentPalette, SEG_RT_MV.bubble_sort.hues[SEG_RT_MV.bubble_sort.ci], _brightness, SEG.blendType); // CRGB::Red;
+    leds[SEG_RT_MV.bubble_sort.cd + SEG_RT.start] = ColorFromPaletteWithDistribution(_currentPalette, SEG_RT_MV.bubble_sort.hues[SEG_RT_MV.bubble_sort.cd], _brightness, SEG.blendType); // +=CRGB::Green;
     if (SEG_RT_MV.bubble_sort.cd == SEG_RT_MV.bubble_sort.co)
     {
       SEG_RT_MV.bubble_sort.movedown = false;
@@ -3026,7 +3036,7 @@ uint16_t WS2812FX::mode_softtwinkles(void)
       int pos = random16(SEG_RT.length);
       if (!leds[pos])
       {
-        leds[pos] = ColorFromPalette(_currentPalette, random8(), SEG.sparking / 2, SEG.blendType);
+        leds[pos] = ColorFromPaletteWithDistribution(_currentPalette, random8(), SEG.sparking / 2, SEG.blendType);
         setPixelDirection(pos, 1, SEG_RT_MV.soft_twinkle.directionFlags);
       }
     }
@@ -3081,7 +3091,7 @@ uint16_t WS2812FX::mode_shooting_star()
     if (pos / 16 > (SEG_RT.stop - 4)) // 6
     {
       uint8_t tmp = 0;
-      CRGB led = ColorFromPalette(_currentPalette, SRMVSS.cind[i], _brightness, SEG.blendType); //leds[pos/16];
+      CRGB led = ColorFromPaletteWithDistribution(_currentPalette, SRMVSS.cind[i], _brightness, SEG.blendType); //leds[pos/16];
       if (led)
       {
         tmp = led.r | led.g | led.b;
@@ -3200,12 +3210,12 @@ uint16_t WS2812FX::mode_pixel_stack(void)
     if(i<nLeds-SRMVPS.leds_moved)
     {
       // lower half (half the strip minus the number already moved)
-      leds[i] = ColorFromPalette(_currentPalette, sI + map(i, (uint16_t)0, (uint16_t)(nLeds-1), (uint16_t)0, (uint16_t)255));
+      leds[i] = ColorFromPaletteWithDistribution(_currentPalette, sI + map(i, (uint16_t)0, (uint16_t)(nLeds-1), (uint16_t)0, (uint16_t)255), _brightness, SEG.blendType);
     }
     if(i < SRMVPS.leds_moved)
     {
       // upper half - the number of leds moved from the end
-      leds[SEG_RT.length-1-i] = ColorFromPalette(_currentPalette, sI + map((uint16_t)(nLeds - i), (uint16_t)0, (uint16_t)(nLeds-1), (uint16_t)0, (uint16_t)255));
+      leds[SEG_RT.length-1-i] = ColorFromPaletteWithDistribution(_currentPalette, sI + map((uint16_t)(nLeds - i), (uint16_t)0, (uint16_t)(nLeds-1), (uint16_t)0, (uint16_t)255), _brightness, SEG.blendType);
     }
   }
   // a value within the 0..65535 range (sawtooth) depending on the speed sp
@@ -3774,7 +3784,7 @@ uint16_t WS2812FX::mode_ring_ring(void)
   {
     if(SEG_RT_MV.ring_ring.isOn)
     {
-      fill_palette(leds, SEG_RT.length, SEG_RT.baseHue, (SEG_RT.length > 255 ? 1 : (256 / SEG_RT.length)), _currentPalette, 255, SEG.blendType);
+      fill_palette(leds, SEG_RT.length, SEG_RT.baseHue, max(1, (256 * 100 / (SEG_RT.length * SEG.paletteDistribution))), _currentPalette, 255, SEG.blendType);
       if(SEG_RT_MV.ring_ring.now > (SEG_RT_MV.ring_ring.nextmillis + onTime))
       {
         SEG_RT_MV.ring_ring.nextmillis = SEG_RT_MV.ring_ring.now;
@@ -3833,12 +3843,12 @@ uint16_t WS2812FX::mode_heartbeat(void) {
   M_HEARTBEAT_RT.beatTimer = millis() - M_HEARTBEAT_RT.lastBeat;
   if((M_HEARTBEAT_RT.beatTimer > M_HEARTBEAT_RT.secondBeat) && !M_HEARTBEAT_RT.secondBeatActive) { // time for the second beat?
     // create the second beat
-    fill_solid(&leds[SEG_RT.start + (SEG_RT.length / 2) - M_HEARTBEAT_RT.size], (M_HEARTBEAT_RT.size)*2, ColorFromPalette(_currentPalette, SEG_RT.baseHue));
+    fill_solid(&leds[SEG_RT.start + (SEG_RT.length / 2) - M_HEARTBEAT_RT.size], (M_HEARTBEAT_RT.size)*2, ColorFromPaletteWithDistribution(_currentPalette, SEG_RT.baseHue, _brightness, SEG.blendType));
     M_HEARTBEAT_RT.secondBeatActive = true;
   }
   if(M_HEARTBEAT_RT.beatTimer > M_HEARTBEAT_RT.msPerBeat) { // time to reset the beat timer?
     // create the first beat
-    fill_solid(&leds[SEG_RT.start + (SEG_RT.length / 2) - M_HEARTBEAT_RT.size], (M_HEARTBEAT_RT.size)*2, ColorFromPalette(_currentPalette, SEG_RT.baseHue));
+    fill_solid(&leds[SEG_RT.start + (SEG_RT.length / 2) - M_HEARTBEAT_RT.size], (M_HEARTBEAT_RT.size)*2, ColorFromPaletteWithDistribution(_currentPalette, SEG_RT.baseHue, _brightness, SEG.blendType));
     M_HEARTBEAT_RT.secondBeatActive = false;
     M_HEARTBEAT_RT.lastBeat = millis();
   }
@@ -3935,7 +3945,7 @@ uint16_t WS2812FX::mode_ease_bar()
   uint16_t numLeds  = beatsin16(b2/2, minLeds, SEG_RT.length - startLed, 0, d2);
 
   numLeds = min(numLeds, (uint16_t)(SEG_RT.length-startLed));
-  uint8_t incI = SEG_RT.length > 255 ? 1 : (256 / SEG_RT.length);
+  uint8_t incI = max(1, (256 * 100 / (SEG_RT.length * SEG.paletteDistribution)));
   uint8_t sInd = map(startLed, SEG_RT.start, SEG_RT.stop, (uint16_t)0, (uint16_t)255) + SEG_RT.baseHue; //beatsin8(SEG.beat88/128+1);
   fadeToBlackBy(&leds[SEG_RT.start], SEG_RT.length, 128);
   fill_palette(&leds[startLed], numLeds, sInd, incI, _currentPalette, 255, SEG.blendType);
@@ -4045,7 +4055,7 @@ uint16_t WS2812FX::mode_color_waves()
     uint8_t index = hue8;
     index = scale8( index, 240);
 
-    CRGB newcolor = ColorFromPalette( _currentPalette, index, bri8);
+    CRGB newcolor = ColorFromPaletteWithDistribution( _currentPalette, index, bri8, SEG.blendType);
 
     uint16_t pixelnumber = i;
     pixelnumber = (SEG_RT.length-1) - pixelnumber;
@@ -4067,7 +4077,7 @@ uint16_t WS2812FX::mode_twinkle_map()
     for(uint16_t i=0; i<SEG_RT.length; i++)
     {
       uint8_t index = map(i, (uint16_t)0, (uint16_t)SEG_RT.length, (uint16_t)0, (uint16_t)255);
-      leds[i] = (ColorFromPalette(_currentPalette, index + SEG_RT.baseHue, 255, SEG.blendType)).nscale8_video(32);
+      leds[i] = (ColorFromPaletteWithDistribution(_currentPalette, index + SEG_RT.baseHue, 255, SEG.blendType)).nscale8_video(32);
     }
   }
   for(uint16_t i=0; i<SEG_RT.length; i++)
@@ -4075,8 +4085,8 @@ uint16_t WS2812FX::mode_twinkle_map()
     uint8_t index  = (uint8_t)map(i, (uint16_t)0, (uint16_t)SEG_RT.length, (uint16_t)0, (uint16_t)255);
     uint8_t speedu = ((uint8_t)map((uint16_t)SEG.beat88, (uint16_t)BEAT88_MIN, (uint16_t)BEAT88_MAX , (uint16_t)4, (uint16_t)64));
     uint8_t speedd = (speedu/2);
-    CRGB baseColor = ColorFromPalette(_currentPalette, index + SEG_RT.baseHue, 255, SEG.blendType).nscale8_video(32);
-    CRGB peakColor = ColorFromPalette(_currentPalette, index + SEG_RT.baseHue, 255, SEG.blendType).addToRGB(4);
+    CRGB baseColor = ColorFromPaletteWithDistribution(_currentPalette, index + SEG_RT.baseHue, 255, SEG.blendType).nscale8_video(32);
+    CRGB peakColor = ColorFromPaletteWithDistribution(_currentPalette, index + SEG_RT.baseHue, 255, SEG.blendType).addToRGB(4);
     if(M_TWINKLEMAP_RT.pixelstates[i] == 0)
     {
       if( random8() < (SEG.twinkleDensity<3?1:SEG.twinkleDensity-2)) {

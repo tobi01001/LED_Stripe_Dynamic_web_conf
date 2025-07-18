@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AsyncEditor Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 10px; border: 1px solid #ccc; }
+        .result { margin: 10px 0; padding: 10px; background: #f5f5f5; min-height: 100px; }
+        pre { white-space: pre-wrap; }
+        button { padding: 10px; margin: 5px; }
+    </style>
+</head>
+<body>
+    <h1>AsyncEditor Test Page</h1>
+    
+    <div class="test-section">
+        <h2>Directory Listing Test</h2>
+        <button onclick="testDirectoryListing('/')">List Root Directory (/)</button>
+        <button onclick="testDirectoryListing('/css')">List CSS Directory (/css)</button>
+        <button onclick="testDirectoryListing('/js')">List JS Directory (/js)</button>
+        <div id="dirResult" class="result">Click a button to test directory listing...</div>
+    </div>
+    
+    <div class="test-section">
+        <h2>File Operations Test</h2>
+        <button onclick="testFileEdit('edit.htm')">Edit edit.htm</button>
+        <button onclick="testFileDownload('edit.htm')">Download edit.htm</button>
+        <div id="fileResult" class="result">Click a button to test file operations...</div>
+    </div>
+
+    <script>
+        function testDirectoryListing(path) {
+            const resultDiv = document.getElementById('dirResult');
+            resultDiv.innerHTML = 'Loading...';
+            
+            fetch('/edit?list=' + encodeURIComponent(path))
+                .then(response => response.json())
+                .then(data => {
+                    resultDiv.innerHTML = '<h3>Directory listing for: ' + path + '</h3>' +
+                        '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+                })
+                .catch(error => {
+                    resultDiv.innerHTML = '<h3>Error:</h3><pre>' + error + '</pre>';
+                });
+        }
+        
+        function testFileEdit(filename) {
+            const resultDiv = document.getElementById('fileResult');
+            resultDiv.innerHTML = 'Loading...';
+            
+            fetch('/edit?edit=' + encodeURIComponent(filename))
+                .then(response => response.text())
+                .then(data => {
+                    resultDiv.innerHTML = '<h3>File content (first 500 chars):</h3>' +
+                        '<pre>' + data.substring(0, 500) + '...</pre>';
+                })
+                .catch(error => {
+                    resultDiv.innerHTML = '<h3>Error:</h3><pre>' + error + '</pre>';
+                });
+        }
+        
+        function testFileDownload(filename) {
+            const resultDiv = document.getElementById('fileResult');
+            resultDiv.innerHTML = 'Starting download...';
+            
+            // Create download link
+            const link = document.createElement('a');
+            link.href = '/edit?download=' + encodeURIComponent(filename);
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            resultDiv.innerHTML = '<h3>Download started for: ' + filename + '</h3>';
+        }
+    </script>
+</body>
+</html>

@@ -70,6 +70,9 @@ inline uint32_t getPattern() {
 inline uint32_t getPalette() {
   return (uint32_t)(strip->getTargetPaletteNumber());
 }
+inline uint32_t getPaletteDistribution() {
+  return (uint32_t)(strip->getPaletteDistribution());
+}
 inline uint32_t getSpeed() {
   return (uint32_t)(strip->getBeat88());
 }
@@ -183,14 +186,14 @@ inline uint32_t getWiFiDisabled(void) {
 * Options
 * 
 */
-void getPatterns(JsonArray &jArr) {
+void getPatterns(JsonArray jArr) {
   const uint8_t count = strip->getModeCount();
   for (uint8_t i = 0; i < count; i++)
   {
     jArr.add(strip->getModeName(i));
   }
 }
-void getPalettes(JsonArray &jArr) {
+void getPalettes(JsonArray jArr) {
   const uint8_t count = strip->getPalCount();
   for (uint8_t i = 0; i < count; i++)
   {
@@ -200,18 +203,18 @@ void getPalettes(JsonArray &jArr) {
   jArr.add(F("Custom"));
 }
 
-void getAutoplayModes(JsonArray &jArr) {
+void getAutoplayModes(JsonArray jArr) {
   jArr.add(F("Off"));
   jArr.add(F("Up"));
   jArr.add(F("Down"));
   jArr.add(F("Random"));
 }
-void getBlendTypes(JsonArray &jArr)
+void getBlendTypes(JsonArray jArr)
 {
   jArr.add(F("NoBlend"));
   jArr.add(F("LinearBlend"));
 }
-void getColorTemps(JsonArray &jArr)
+void getColorTemps(JsonArray jArr)
 {
   const uint8_t count = 10;
   for (uint8_t i = 0; i < count; i++)
@@ -219,7 +222,7 @@ void getColorTemps(JsonArray &jArr)
     jArr.add(strip->getColorTempName(i));
   }
 }
-void getColCorValues(JsonArray &jArr) {
+void getColCorValues(JsonArray jArr) {
   jArr.add(F("TypicalLEDStrip"));
   jArr.add(F("TypicalPixelString"));
   jArr.add(F("UncorrectedColor"));
@@ -246,6 +249,9 @@ void setPattern(uint32_t val) {
 }
 void setPalette(uint32_t val) {
   strip->setTargetPalette(val);
+}
+void setPaletteDistribution(uint32_t val) {
+  strip->setPaletteDistribution(val);
 }
 void setSpeed(uint32_t val) {
   strip->setBeat88(val);
@@ -383,6 +389,7 @@ const Field fields [] = {
   {"brightness",        "Brightness",                   NumberFieldType,    (uint16_t)BRIGHTNESS_MIN,               (uint16_t)BRIGHTNESS_MAX,                         getBrightness,      nullptr,           setBrightness },
   {"speed",             "Speed",                        NumberFieldType,    (uint16_t)BEAT88_MIN,                   (uint16_t)BEAT88_MAX,                             getSpeed,           nullptr,           setSpeed      },
   {"colorPalette",      "Color palette",                SelectFieldType,    (uint16_t)0,                            (uint16_t)(strip->getPalCount() + 1),             getPalette,         getPalettes,    setPalette    },
+  {"paletteDistribution", "Palette distribution (%)",    NumberFieldType,    (uint16_t)25,                           (uint16_t)400,                                    getPaletteDistribution, nullptr,       setPaletteDistribution },
   {"running",           "Pause",                        BooleanFieldType,   (uint16_t)0,                            (uint16_t)1,                                      getIsRunning,       nullptr,           setIsRunning  },
   {"s_stripeStruture",  "Structure",                    SectionFieldType,   0,                                   0,                                             nullptr,               nullptr,           nullptr          },
   {"segments",          "Segments",                     NumberFieldType,    (uint16_t)1,                            (uint16_t)max(MAX_NUM_SEGMENTS, 1),               getSegments,        nullptr,           setSegments   },
@@ -444,14 +451,14 @@ const Field fields [] = {
 
 uint8_t fieldCount = ARRAY_SIZE(fields);
 
-bool getAllValuesJSONArray(JsonArray &arr)
+bool getAllValuesJSONArray(JsonArray arr)
 {
   bool ret = false;
   for(uint8_t i=0; i<getFieldCount(); i++)
   {
     if(fields[i].type < TitleFieldType)
     {
-      JsonObject &obj = arr.createNestedObject();
+      JsonObject obj = arr.createNestedObject();
       obj[F("name")] =  fields[i].name;
       obj[F("value")] = fields[i].getValue();          
       ret = true;
@@ -461,12 +468,12 @@ bool getAllValuesJSONArray(JsonArray &arr)
 }
 
 
-void getAllJSON(JsonArray &arr)
+void getAllJSON(JsonArray arr)
 {
   for (uint8_t i = 0; i < getFieldCount(); i++)
   {
     Field field = fields[i];
-    JsonObject& obj = arr.createNestedObject();
+    JsonObject obj = arr.createNestedObject();
     obj[F("name")]  = field.name;
     obj[F("label")] = field.label;
     obj[F("type")]  = (int)field.type;
@@ -479,14 +486,14 @@ void getAllJSON(JsonArray &arr)
 
     if (field.getOptions)
     {
-      JsonArray &ar = obj.createNestedArray(F("options"));
+      JsonArray ar = obj.createNestedArray(F("options"));
       field.getOptions(ar);
     }
   }
 }
 
 
-bool getAllValuesJSON(JsonObject & obj)
+bool getAllValuesJSON(JsonObject obj)
 {
   bool ret = false;
   for(uint8_t i=0; i<getFieldCount(); i++)
@@ -530,8 +537,8 @@ String getFieldValue(const char * name)
   Field field = getField(name);
   if (field.getValue)
   {
-    DynamicJsonBuffer buffer;
-    JsonArray& a = buffer.createArray();
+    DynamicJsonDocument doc(1024);
+    JsonArray a = doc.to<JsonArray>();
     switch (field.type)
     {
     case NumberFieldType:
