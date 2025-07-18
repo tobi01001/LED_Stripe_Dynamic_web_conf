@@ -44,12 +44,8 @@ function setCurrentSection(sectionName) {
   $('#dynamicNavigation li[data-section="' + sectionName + '"]').addClass('active');
   
   // Update page title and subtitle
-  if (sectionName === 'all') {
-    $('#pageTitle').html('LED Control <small>All Settings</small>');
-  } else {
-    var sectionTitle = getSectionDisplayName(sectionName);
-    $('#pageTitle').html(sectionTitle + ' <small>Section Settings</small>');
-  }
+  var sectionTitle = getSectionDisplayName(sectionName);
+  $('#pageTitle').html(sectionTitle + ' <small>' + getSectionDescription(sectionName) + '</small>');
   
   // Show/hide fields based on current section
   filterFieldsBySection();
@@ -64,9 +60,24 @@ function getSectionDisplayName(sectionKey) {
   return sectionKey;
 }
 
+function getSectionDescription(sectionKey) {
+  // Map section keys to descriptions
+  var descriptions = {
+    's_powerSection': 'Power and effect controls',
+    's_stripeStruture': 'LED strip structure settings',
+    's_Autoplay': 'Automatic mode changes',
+    's_BackGroundColor': 'Background color settings',
+    's_advancedControl': 'Advanced configuration',
+    's_solidColor': 'Solid color configuration',
+    's_glitter': 'Glitter effect settings',
+    's_basicHue': 'Hue change settings',
+    's_effectSettings': 'Effect-specific parameters',
+    's_otherSettings': 'System and power settings'
+  };
+  return descriptions[sectionKey] || 'Section settings';
+}
+
 function shouldShowField(fieldName, fieldType) {
-  if (currentSectionFilter === 'all') return true;
-  
   // Always show section headers and title
   if (fieldType === fieldtype.SectionFieldType || fieldType === fieldtype.TitleFieldType) {
     return true;
@@ -74,7 +85,7 @@ function shouldShowField(fieldName, fieldType) {
   
   // Show fields that belong to the current section
   var sectionFields = sectionFieldMapping[currentSectionFilter];
-  if (!sectionFields) return true;
+  if (!sectionFields) return false; // Hide if section not found
   
   return sectionFields.indexOf(fieldName) !== -1;
 }
@@ -117,6 +128,11 @@ function buildDynamicNavigation(fields) {
     }
   }
   
+  // Filter out sections with no fields
+  availableSections = availableSections.filter(function(section) {
+    return sectionFieldMapping[section.key] && sectionFieldMapping[section.key].length > 0;
+  });
+  
   if (DEBUGME) {
     console.log("Available sections:", availableSections);
     console.log("Section field mapping:", sectionFieldMapping);
@@ -126,13 +142,11 @@ function buildDynamicNavigation(fields) {
   var nav = $('#dynamicNavigation');
   nav.empty();
   
-  // Add "All" option
-  nav.append('<li data-section="all" class="active"><a href="#" onclick="setCurrentSection(\'all\'); return false;">All Settings</a></li>');
-  
-  // Add section-based navigation
+  // Add section-based navigation (no "All" option)
   for (var i = 0; i < availableSections.length; i++) {
     var section = availableSections[i];
-    var navItem = $('<li data-section="' + section.key + '"><a href="#" onclick="setCurrentSection(\'' + section.key + '\'); return false;">' + section.name + '</a></li>');
+    var isFirst = i === 0;
+    var navItem = $('<li data-section="' + section.key + '"' + (isFirst ? ' class="active"' : '') + '><a href="#" onclick="setCurrentSection(\'' + section.key + '\'); return false;">' + section.name + '</a></li>');
     nav.append(navItem);
   }
 }
@@ -231,9 +245,11 @@ $(document).ready(function() {
 		// First pass: Build dynamic navigation from sections
 		buildDynamicNavigation(data);
 		
-		// Set first section as active (instead of 'all')
+		// Set first section as active by default
 		if (availableSections.length > 0) {
 			setCurrentSection(availableSections[0].key);
+		} else {
+			$('#pageTitle').html('LED Control <small>No sections available</small>');
 		}
 
 		// Second pass: Create all form fields

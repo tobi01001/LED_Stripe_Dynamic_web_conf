@@ -75,11 +75,8 @@
         <a id="nameLink" class="navbar-brand" href="/" target="_self">%TITLE%</a>
       </div>
       <div class="collapse navbar-collapse" id="navbar-collapse-1">
-        <ul class="nav navbar-nav">
-          <li class="nav-main active"><a href="/">Main Controls</a></li>
-          <li class="nav-effects"><a href="/effects">Effects & Patterns</a></li>
-          <li class="nav-advanced"><a href="/advanced">Advanced Settings</a></li>
-          <li class="nav-system"><a href="/system">System Info</a></li>
+        <ul class="nav navbar-nav" id="dynamicNavigation">
+          <!-- Navigation items will be built dynamically from SectionFieldType -->
         </ul>
         <ul class="nav navbar-nav navbar-right">
           <li>
@@ -94,7 +91,7 @@
 
   <div id="container" class="container">
     <div class="page-header">
-      <h1>Main Controls <small>Basic LED strip control</small></h1>
+      <h1 id="pageTitle">LED Control <small>Loading...</small></h1>
     </div>
     <form class="form-horizontal" id="form">
     </form>
@@ -274,12 +271,6 @@
   </script>
 
   <script src="application.js?v=%RANDOM%"></script>
-  <script>
-    // Set page filter for main controls
-    $(document).ready(function() {
-      setPageFilter('main');
-    });
-  </script>
 
 </body>
 
