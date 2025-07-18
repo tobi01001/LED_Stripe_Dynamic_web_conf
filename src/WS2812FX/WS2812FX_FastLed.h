@@ -58,6 +58,9 @@ FASTLED_USING_NAMESPACE
 
 /* </FastLED implementation> */
 
+// Forward declaration for new effect system
+class Effect;
+
 #ifdef SPEED_MAX
 #error "SPEED_MAX define is no longer used!"
 #endif
@@ -669,6 +672,10 @@ public:
     _new_mode = 255;
     _volts = 5;
 
+    // Initialize effect system
+    _currentEffect = nullptr;
+    _useClassBasedEffects = false;
+
     FastLED.setBrightness(255);  // DEFAULT_BRIGHTNESS);
 
     resetDefaults();
@@ -676,7 +683,12 @@ public:
 
   ~WS2812FX()
   {
-
+    // Clean up current effect
+    if (_currentEffect) {
+      _currentEffect->cleanup();
+      delete _currentEffect;
+      _currentEffect = nullptr;
+    }
   }
 
   CRGB *leds;
@@ -867,13 +879,24 @@ public:
 
   template <typename T> T map(T x, T x1, T x2, T y1, T y2);
 
+  // New effect system methods
+  void enableClassBasedEffects(bool enable = true);
+  bool isUsingClassBasedEffects() const { return _useClassBasedEffects; }
+  Effect* getCurrentEffect() const { return _currentEffect; }
+
+  // Make internal methods accessible to effects
+  void fade_out(uint8_t fadeB);
+  void drawFractionalBar(int pos16, int width, const CRGBPalette16 &pal, uint8_t cindex, uint8_t max_bright, bool mixColor, uint8_t incindex);
+  void addSparks(const uint8_t probability, const bool onBlackOnly, const bool white, const bool synchronous);
+
+  // Expose minimum delay for effects  
+  uint32_t getStripMinDelay() const { return STRIP_MIN_DELAY; }
+
 
 private:
   // internal functions
   void
       strip_off(void),
-      fade_out(uint8_t fadeB),
-      drawFractionalBar(int pos16, int width, const CRGBPalette16 &pal, uint8_t cindex, uint8_t max_bright, bool mixColor, uint8_t incindex),
       coolLikeIncandescent(CRGB &c, uint8_t phase),
       setPixelDirection(uint16_t i, bool dir, uint8 *directionFlags),
       brightenOrDarkenEachPixel(fract8 fadeUpAmount, fract8 fadeDownAmount, uint8_t *directionFlags),
@@ -881,8 +904,15 @@ private:
       m_sunrise_sunset(bool isSunrise),
       pacifica_layer(const CRGBPalette16& p, uint16_t cistart, uint16_t wavescale, uint8_t bri, uint16_t ioff),
       pacifica_deepen_colors(void),
-      pacifica_add_whitecaps(void),
-      addSparks(const uint8_t probability, const bool onBlackOnly, const bool white, const bool synchronous);
+      pacifica_add_whitecaps(void);
+
+public:
+  // These functions need to be accessible to effects
+  void fade_out(uint8_t fadeB);
+  void drawFractionalBar(int pos16, int width, const CRGBPalette16 &pal, uint8_t cindex, uint8_t max_bright, bool mixColor, uint8_t incindex);
+  void addSparks(const uint8_t probability, const bool onBlackOnly, const bool white, const bool synchronous);
+
+private:
 
   uint8_t attackDecayWave8(uint8_t i);
 
@@ -1034,6 +1064,10 @@ private:
 
   mode_ptr
       _mode[MODE_COUNT]; // SRAM footprint: 4 bytes per element
+
+  // New effect system
+  Effect* _currentEffect;
+  bool _useClassBasedEffects;
 
   segment _segment;
 

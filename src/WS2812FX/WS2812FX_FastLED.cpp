@@ -36,6 +36,9 @@
 // TODO: May something like https://gist.github.com/kriegsman/626dca2f9d2189bd82ca ??
 
 #include "WS2812FX_FastLed.h"
+#include "Effect.h"
+#include "effects/StaticEffect.h"
+#include "effects/EaseEffect.h"
 
 /*
  * ColorPalettes
@@ -412,7 +415,35 @@ void WS2812FX::service()
 
       if (now > SEG_RT.next_time || _triggered)
       {
-        SEG_RT.next_time = now + (uint32_t)(this->*_mode[SEG.mode])();; 
+        uint16_t delay;
+        
+        if (_useClassBasedEffects) {
+          // Use new effect system
+          if (!_currentEffect || _currentEffect->getModeId() != SEG.mode) {
+            // Switch to new effect
+            if (_currentEffect) {
+              _currentEffect->cleanup();
+              delete _currentEffect;
+            }
+            
+            _currentEffect = EffectFactory::createEffect(SEG.mode);
+            if (_currentEffect) {
+              _currentEffect->init(this, &_segment, &_segment_runtime);
+            }
+          }
+          
+          if (_currentEffect) {
+            delay = _currentEffect->update(this, &_segment, &_segment_runtime);
+          } else {
+            // Fallback to function-based system if effect not found
+            delay = (this->*_mode[SEG.mode])();
+          }
+        } else {
+          // Use original function-based system
+          delay = (this->*_mode[SEG.mode])();
+        }
+        
+        SEG_RT.next_time = now + delay; 
       }
       // reset trigger...
       _triggered = false;
@@ -4119,4 +4150,21 @@ uint16_t WS2812FX::mode_twinkle_map()
   //return STRIP_MIN_DELAY; 
   return max(STRIP_MIN_DELAY, (uint32_t)(BEAT88_MAX-SEG.beat88)/1800);
   #undef M_TWINKLEMAP_RT
+}
+
+// Effect system implementation
+void WS2812FX::enableClassBasedEffects(bool enable) {
+    if (_useClassBasedEffects != enable) {
+        // Clean up current effect if switching away from class-based
+        if (!enable && _currentEffect) {
+            _currentEffect->cleanup();
+            delete _currentEffect;
+            _currentEffect = nullptr;
+        }
+        
+        _useClassBasedEffects = enable;
+        
+        // Trigger mode reinitialization to load the appropriate effect
+        _segment_runtime.modeinit = true;
+    }
 }

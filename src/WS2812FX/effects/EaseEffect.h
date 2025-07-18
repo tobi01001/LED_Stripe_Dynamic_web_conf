@@ -1,0 +1,27 @@
+#ifndef EASE_EFFECT_H
+#define EASE_EFFECT_H
+
+#include "../Effect.h"
+
+/**
+ * @brief Ease effect - two moving "comets" with antialiasing
+ * 
+ * Creates smooth moving points of light that ease in and out from the center,
+ * with optional random sparkles.
+ */
+class EaseEffect : public Effect {
+public:
+    EaseEffect() = default;
+    virtual ~EaseEffect() = default;
+
+    bool init(WS2812FX* strip, segment* seg, segment_runtime* runtime) override;
+    uint16_t update(WS2812FX* strip, segment* seg, segment_runtime* runtime) override;
+    const __FlashStringHelper* getName() const override;
+    uint8_t getModeId() const override;
+
+private:
+    // Effect-specific constants
+    static const uint8_t WIDTH = 3; // Number of pixels for antialiased bar
+};
+
+#endif // EASE_EFFECT_H
