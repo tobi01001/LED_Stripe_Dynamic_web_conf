@@ -252,6 +252,7 @@ public:
     uint8_t brightness;
     uint8_t targetPaletteNum;
     uint8_t currentPaletteNum;
+    uint8_t paletteDistribution;
     uint8_t backgroundHue;
     uint8_t backgroundSat;
     uint8_t backgroundBri;
@@ -753,6 +754,7 @@ public:
   inline void setSunriseTime          (uint8_t t)       { SEG.sunrisetime = constrain(t, DEFAULT_SUNRISETIME_MIN, DEFAULT_SUNRISETIME_MAX); }
   inline void setTargetBrightness     (uint8_t b)       { setBrightness(b); }
   inline void setTargetPaletteNumber  (uint8_t p)       { setTargetPalette(p); }
+  inline void setPaletteDistribution  (uint8_t p)       { SEG.paletteDistribution = constrain(p, 25, 400); }
   inline void setCurrentPaletteNumber (uint8_t p)       { setCurrentPalette(p); }
   inline void setColorTemp            (uint8_t c)       { setColorTemperature(c); }
   inline void setBckndSat             (uint8_t s)       { SEG.backgroundSat = s; }
@@ -802,6 +804,7 @@ public:
   inline uint8_t        getBrightness(void)           { return getTargetBrightness(); }
   inline uint8_t        getTargetBrightness(void)     { return SEG.targetBrightness; }
   inline uint8_t        getTargetPaletteNumber(void)  { return SEG.targetPaletteNum; }
+  inline uint8_t        getPaletteDistribution(void)   { return SEG.paletteDistribution; }
   inline uint8_t        getCurrentPaletteNumber(void) { return SEG.currentPaletteNum; }
   inline uint8_t        getBckndSat(void)             { return SEG.backgroundSat; }
   inline uint8_t        getBckndHue(void)             { return SEG.backgroundHue; }
@@ -858,6 +861,9 @@ public:
 
   CRGBPalette16* getCurrentPalette(void) { return &_currentPalette; };
   CRGBPalette16* getTargetPalette (void) { return &_targetPalette; };
+
+  // Helper function for palette distribution-aware color selection
+  CRGB ColorFromPaletteWithDistribution(const CRGBPalette16 &pal, uint8_t index, uint8_t brightness, TBlendType blendType);
 
   template <typename T> T map(T x, T x1, T x2, T y1, T y2);
 

@@ -70,6 +70,9 @@ inline uint32_t getPattern() {
 inline uint32_t getPalette() {
   return (uint32_t)(strip->getTargetPaletteNumber());
 }
+inline uint32_t getPaletteDistribution() {
+  return (uint32_t)(strip->getPaletteDistribution());
+}
 inline uint32_t getSpeed() {
   return (uint32_t)(strip->getBeat88());
 }
@@ -247,6 +250,9 @@ void setPattern(uint32_t val) {
 void setPalette(uint32_t val) {
   strip->setTargetPalette(val);
 }
+void setPaletteDistribution(uint32_t val) {
+  strip->setPaletteDistribution(val);
+}
 void setSpeed(uint32_t val) {
   strip->setBeat88(val);
 }
@@ -383,6 +389,7 @@ const Field fields [] = {
   {"brightness",        "Brightness",                   NumberFieldType,    (uint16_t)BRIGHTNESS_MIN,               (uint16_t)BRIGHTNESS_MAX,                         getBrightness,      nullptr,           setBrightness },
   {"speed",             "Speed",                        NumberFieldType,    (uint16_t)BEAT88_MIN,                   (uint16_t)BEAT88_MAX,                             getSpeed,           nullptr,           setSpeed      },
   {"colorPalette",      "Color palette",                SelectFieldType,    (uint16_t)0,                            (uint16_t)(strip->getPalCount() + 1),             getPalette,         getPalettes,    setPalette    },
+  {"paletteDistribution", "Palette distribution (%)",    NumberFieldType,    (uint16_t)25,                           (uint16_t)400,                                    getPaletteDistribution, nullptr,       setPaletteDistribution },
   {"running",           "Pause",                        BooleanFieldType,   (uint16_t)0,                            (uint16_t)1,                                      getIsRunning,       nullptr,           setIsRunning  },
   {"s_stripeStruture",  "Structure",                    SectionFieldType,   0,                                   0,                                             nullptr,               nullptr,           nullptr          },
   {"segments",          "Segments",                     NumberFieldType,    (uint16_t)1,                            (uint16_t)max(MAX_NUM_SEGMENTS, 1),               getSegments,        nullptr,           setSegments   },
