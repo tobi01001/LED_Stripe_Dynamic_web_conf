@@ -862,6 +862,9 @@ public:
   CRGBPalette16* getCurrentPalette(void) { return &_currentPalette; };
   CRGBPalette16* getTargetPalette (void) { return &_targetPalette; };
 
+  // Helper function for palette distribution-aware color selection
+  CRGB ColorFromPaletteWithDistribution(const CRGBPalette16 &pal, uint8_t index, uint8_t brightness, TBlendType blendType);
+
   template <typename T> T map(T x, T x1, T x2, T y1, T y2);
 
 
