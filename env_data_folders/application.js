@@ -295,20 +295,25 @@ $(document).ready(function() {
 		}
 
 		// Second pass: Create all form fields
+		var currentSection = 'default';
+		var isFirstSection = true;
+		
 		$.each(data, function(index, field) {
-			if (field.type == fieldtype.NumberFieldType) {
-				addNumberField(field);
+			if (field.type == fieldtype.SectionFieldType) {
+				// Update section tracking for field creation
+				currentSection = field.name;
+				isFirstSection = (currentSection === availableSections[0].key);
+			} else if (field.type == fieldtype.NumberFieldType) {
+				addNumberField(field, currentSection, isFirstSection);
 			} else if (field.type == fieldtype.TitleFieldType) {
 				// Skip title fields as they're handled in navigation
 			} else if (field.type == fieldtype.BooleanFieldType) {
-				addBooleanField(field);
+				addBooleanField(field, currentSection, isFirstSection);
 			} else if (field.type == fieldtype.SelectFieldType) {
-				addSelectField(field);
+				addSelectField(field, currentSection, isFirstSection);
 			} else if (field.type == fieldtype.ColorFieldType) {
 				// addColorFieldPalette(field); // removed this to save space on the page. no need currently
-				addColorFieldPicker(field);
-			} else if (field.type == fieldtype.SectionFieldType) {
-				// Skip section fields - they're replaced by navigation menu
+				addColorFieldPicker(field, currentSection, isFirstSection);
 			}
 		});
 		
@@ -346,13 +351,13 @@ $(document).ready(function() {
 	});
 });
 
-function addNumberField(field) {
+function addNumberField(field, currentSection, isFirstSection) {
   var template = $("#numberTemplate").clone();
 
   template.attr("id", "form-group-" + field.name);
   template.attr("data-field-type", field.type);
-  template.addClass(classSection); // foldable sections
-  if(firstSection) template.addClass("in");
+  template.addClass(currentSection || "default"); // foldable sections
+  if(isFirstSection) template.addClass("in");
 
   var label = template.find(".control-label");
   label.attr("for", "input-" + field.name);
@@ -400,13 +405,13 @@ function addNumberField(field) {
   $("#form").append(template);
 }
 
-function addBooleanField(field) {
+function addBooleanField(field, currentSection, isFirstSection) {
   var template = $("#booleanTemplate").clone();
 
   template.attr("id", "form-group-" + field.name);
   template.attr("data-field-type", field.type);
-  template.addClass(classSection); // foldable sections
-  if(firstSection) template.addClass("in");
+  template.addClass(currentSection || "default"); // foldable sections
+  if(isFirstSection) template.addClass("in");
 
   var label = template.find(".control-label");
   label.attr("for", "btn-group-" + field.name);
@@ -437,13 +442,13 @@ function addBooleanField(field) {
   $("#form").append(template);
 }
 
-function addSelectField(field) {
+function addSelectField(field, currentSection, isFirstSection) {
   var template = $("#selectTemplate").clone();
 
   template.attr("id", "form-group-" + field.name);
   template.attr("data-field-type", field.type);
-  template.addClass(classSection); // foldable sections
-  if(firstSection) template.addClass("in");
+  template.addClass(currentSection || "default"); // foldable sections
+  if(isFirstSection) template.addClass("in");
 
   var id = "input-" + field.name;
 
@@ -499,13 +504,13 @@ function addSelectField(field) {
 
 
 
-function addColorFieldPicker(field) {
+function addColorFieldPicker(field, currentSection, isFirstSection) {
   var template = $("#colorTemplate").clone();
 
   template.attr("id", "form-group-" + field.name);
   template.attr("data-field-type", field.type);
-  template.addClass(classSection); // foldable sections
-  if(firstSection) template.addClass("in");
+  template.addClass(currentSection || "default"); // foldable sections
+  if(isFirstSection) template.addClass("in");
 
   var id = "input-" + field.name;
 
@@ -648,11 +653,11 @@ function addColorFieldPicker(field) {
   $("#form").append(template);
 }
 
-function addColorFieldPalette(field) {
+function addColorFieldPalette(field, currentSection, isFirstSection) {
   var template = $("#colorPaletteTemplate").clone();
 
-  template.addClass(classSection); // foldable sections
-  if(firstSection) template.addClass("in");
+  template.addClass(currentSection || "default"); // foldable sections
+  if(isFirstSection) template.addClass("in");
 
   var buttons = template.find(".btn-color");
 
