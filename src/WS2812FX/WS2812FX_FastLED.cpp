@@ -1098,26 +1098,26 @@ void WS2812FX::drawFractionalBar(int pos16, int width, const CRGBPalette16 &pal,
     {
       // first pixel in the bar
       bright = firstpixelbrightness;
-      newColor = ColorFromPalette(pal, cindex + (uint8_t)(n * incIndex), bright, SEG.blendType);
+      newColor = WS2812FX::ColorFromPaletteWithDistribution(pal, cindex + (uint8_t)(n * incIndex), bright, SEG.blendType);
     }
     else if (n == width)
     {
       // last pixel in the bar
       bright = lastpixelbrightness;
-      newColor = ColorFromPalette(pal, cindex + (uint8_t)(n * incIndex), bright, SEG.blendType);
+      newColor = WS2812FX::ColorFromPaletteWithDistribution(pal, cindex + (uint8_t)(n * incIndex), bright, SEG.blendType);
     }
     else
     {
       // middle pixels
       bright = max_bright;
       mix = false;
-      newColor = ColorFromPalette(pal, cindex + (uint8_t)(n * incIndex), bright, SEG.blendType);
+      newColor = WS2812FX::ColorFromPaletteWithDistribution(pal, cindex + (uint8_t)(n * incIndex), bright, SEG.blendType);
       if(incIndex)
       { 
         if(SEG.blendType == LINEARBLEND)
         {
-          CRGB prev_col = ColorFromPalette(pal, cindex + (uint8_t)((n-1) * incIndex), bright, SEG.blendType);
-          CRGB next_col = ColorFromPalette(pal, cindex + (uint8_t)((n+1) * incIndex), bright, SEG.blendType);
+          CRGB prev_col = WS2812FX::ColorFromPaletteWithDistribution(pal, cindex + (uint8_t)((n-1) * incIndex), bright, SEG.blendType);
+          CRGB next_col = WS2812FX::ColorFromPaletteWithDistribution(pal, cindex + (uint8_t)((n+1) * incIndex), bright, SEG.blendType);
           newColor = nblend(newColor, nblend(prev_col, next_col, firstpixelbrightness), 128);
         }
       }
