@@ -417,7 +417,15 @@ void WS2812FX::service()
       {
         uint16_t delay;
         
-        if (_useClassBasedEffects) {
+        // Check if a class-based effect is available for this mode
+        Effect* classEffect = EffectFactory::createEffect(SEG.mode);
+        bool useClassBasedForThisMode = (classEffect != nullptr) || _useClassBasedEffects;
+        
+        if (classEffect) {
+          delete classEffect; // We just needed to check if it exists
+        }
+        
+        if (useClassBasedForThisMode) {
           // Use new effect system
           if (!_currentEffect || _currentEffect->getModeId() != SEG.mode) {
             // Switch to new effect
@@ -1835,111 +1843,9 @@ const __FlashStringHelper *WS2812FX::getPalName(uint8_t p)
 ##################################################### */
 
 
-/*
- * No blinking. Just plain old static light - but mapped on a color palette.
- * Palette ca be "moved" by SEG.baseHue
- * will distribute the palette over the display length
- */
-uint16_t WS2812FX::mode_static(void)
-{
-  if (SEG_RT.modeinit)
-  {
-    SEG_RT.modeinit = false;
+// mode_static() has been removed - now implemented as StaticEffect class
 
-  }
-  fill_palette(&leds[SEG_RT.start], SEG_RT.length, SEG_RT.baseHue, max(1, (256 * 100 / (SEG_RT.length * SEG.paletteDistribution))), _currentPalette, 255, SEG.blendType);
-  return STRIP_MIN_DELAY;
-}
-
-/*
- * Two moving "comets" moving in and out with Antialiasing
- * Random Sparkles can additionally applied.
- */
-uint16_t WS2812FX::mode_ease()
-{
-  // number of pixels for "antialised" (fractional) bar
-  const uint8_t width = 3;
-  // pixel position on the strip we make two out of it...
-  uint16_t lerpVal = 0;
-
-  if (SEG_RT.modeinit)
-  {
-    SEG_RT.modeinit = false;
-    // need to know if we are in the middle (to smoothly update random beat)
-    SEG_RT_MV.ease.trigger = false;
-    // beat being modified during runtime
-    SEG_RT_MV.ease.beat = SEG.beat88;
-    // to check if beat88 recently changed
-    // ToDo (idea) maybe a global runtime flag could help
-    // which is recent by the active effect making use of the "beat"
-    SEG_RT_MV.ease.oldbeat = SEG.beat88;
-    // to check if we have movement.
-    // maybe easier but works good for now.
-    SEG_RT_MV.ease.p_lerp = lerpVal;
-    SEG_RT_MV.ease.timebase = millis();
-  }
-  // instead of moving the color around (palette wise)
-  // we set it to the baseHue. So it can still be changed
-  // and also change over time
-  uint8_t colorMove = SEG_RT.baseHue; //= quadwave8(map(beat88(max(SEG.beat88/2,1),SEG_RT.timebase), 0, 65535, 0, 255)) + SEG_RT.baseHue;
-
-  // this is the fading tail....
-  // we adjust it a bit on the speed (beat)
-  fade_out(SEG.beat88 >> 5);
-
-  // now e calculate a sine curve for the led position
-  // factor 16 is used for the fractional bar
-  lerpVal = beatsin88(SEG_RT_MV.ease.beat, SEG_RT.start * 16, SEG_RT.stop * 16 - (width * 16), SEG_RT_MV.ease.timebase);
-
-  // once we are in the middle
-  // we can modify the speed a bit
-  if (lerpVal == ((SEG_RT.length * 16) / 2))
-  {
-    // the trigger is used because we are more frames in the middle
-    // but only one should trigger
-    if (SEG_RT_MV.ease.trigger)
-    {
-      // if the changed the base speed (external source)
-      // we refesh the values
-      if (SEG_RT_MV.ease.oldbeat != SEG.beat88)
-      {
-        SEG_RT_MV.ease.beat = SEG.beat88;
-        SEG_RT_MV.ease.oldbeat = SEG.beat88;
-        //SEG_RT.timebase = millis();
-      }
-      // reset the trigger
-      SEG_RT_MV.ease.trigger = false;
-      // tiimebase starts fresh in the middle (avoid jumping pixels)
-      SEG_RT_MV.ease.timebase = millis();
-      // we randomly increase or decrease
-      // as we work with unsigned values we do this with an offset...
-      // smallest value should be 255
-      if (SEG_RT_MV.ease.beat < 255)
-      {
-        // avoid roll over to 65535
-        SEG_RT_MV.ease.beat += 2 * random8();
-      }
-      else
-      {
-        // randomly increase or decrease beat
-        SEG_RT_MV.ease.beat += 2 * (128 - random8());
-      }
-    }
-  }
-  else
-  {
-    // activate trigger if we are moving
-    if (lerpVal != SEG_RT_MV.ease.p_lerp)
-      SEG_RT_MV.ease.trigger = true;
-  }
-
-  SEG_RT_MV.ease.p_lerp = lerpVal;
-  // we draw two fractional bars here. for the color mapping we need the overflow and therefore cast to uint8_t
-  drawFractionalBar(lerpVal, width, _currentPalette, (uint8_t)((uint8_t)(lerpVal / 16 - SEG_RT.start) + colorMove), 255, true, 1);
-  drawFractionalBar((SEG_RT.stop * 16) - lerpVal, width, _currentPalette, (uint8_t)((uint8_t)(lerpVal / 16 - SEG_RT.start) + colorMove), 255, true, 1);
-
-  return STRIP_MIN_DELAY;
-}
+// mode_ease() has been removed - now implemented as EaseEffect class
 
 
 uint16_t WS2812FX::mode_inoise8_mover(void)
@@ -4150,6 +4056,13 @@ uint16_t WS2812FX::mode_twinkle_map()
   //return STRIP_MIN_DELAY; 
   return max(STRIP_MIN_DELAY, (uint32_t)(BEAT88_MAX-SEG.beat88)/1800);
   #undef M_TWINKLEMAP_RT
+}
+
+// Fallback function for effects that have been converted to class-based implementation
+uint16_t WS2812FX::mode_class_based_fallback(void) {
+    // This should not be called if the effect selection logic works correctly
+    // Return minimum delay as a safe fallback
+    return STRIP_MIN_DELAY;
 }
 
 // Effect system implementation

@@ -535,8 +535,9 @@ public:
     _bleds = &physicalLeds[LED_OFFSET];
     leds = eleds; 
 
-    _mode[FX_MODE_STATIC]                 = &WS2812FX::mode_static;
-    _mode[FX_MODE_EASE]                   = &WS2812FX::mode_ease;
+    // Effects implemented as classes - these entries are fallback only
+    _mode[FX_MODE_STATIC]                 = &WS2812FX::mode_class_based_fallback; // Now implemented as StaticEffect class
+    _mode[FX_MODE_EASE]                   = &WS2812FX::mode_class_based_fallback; // Now implemented as EaseEffect class
     _mode[FX_MODE_MULTI_DYNAMIC]          = &WS2812FX::mode_multi_dynamic;
     _mode[FX_MODE_RAINBOW]                = &WS2812FX::mode_rainbow;
     _mode[FX_MODE_RAINBOW_CYCLE]          = &WS2812FX::mode_rainbow_cycle;
@@ -918,7 +919,7 @@ private:
   CRGB colorCorrectionValues[3] = {TypicalLEDStrip, TypicalPixelString, UncorrectedColor };
 
   uint16_t
-      mode_ease(void),
+      // mode_ease(void), // Removed - now implemented as EaseEffect class
       mode_twinkle_ease(void),
       mode_plasma(void),
       mode_fill_wave(void),
@@ -938,7 +939,7 @@ private:
       mode_inoise8_mover(void),
       mode_firework(void),
       mode_bubble_sort(void),
-      mode_static(void),
+      // mode_static(void), // Removed - now implemented as StaticEffect class
       color_wipe(uint32_t, uint32_t, bool),
       mode_multi_dynamic(void),
       mode_breath(void),
@@ -986,7 +987,8 @@ private:
       mode_rain(void),
       mode_pacifica(void),
       mode_twinkle_map(void),
-      mode_color_waves(void);
+      mode_color_waves(void),
+      mode_class_based_fallback(void); // Fallback for class-based effects
 //      quadbeat(uint16_t in);
 
   CRGB
