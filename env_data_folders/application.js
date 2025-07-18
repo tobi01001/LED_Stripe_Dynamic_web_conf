@@ -44,9 +44,15 @@ function setCurrentSection(sectionName) {
   $('#dynamicNavigation li').removeClass('active');
   $('#dynamicNavigation li[data-section="' + sectionName + '"]').addClass('active');
   
-  // Update page title and subtitle  
+  // Update page title - first section gets just the dynamic title, others get section name
   var sectionTitle = getSectionDisplayName(sectionName);
-  $('#pageTitle').html(sectionTitle + ' <small>' + getSectionDescription(sectionName) + '</small>');
+  if (availableSections.length > 0 && sectionName === availableSections[0].key) {
+    // First section: just show the dynamic title
+    $('#pageTitle').html(dynamicTitle);
+  } else {
+    // Other sections: show dynamic title
+    $('#pageTitle').html(dynamicTitle);
+  }
   
   // Show/hide fields based on current section
   filterFieldsBySection();
@@ -102,6 +108,25 @@ function shouldShowField(fieldName, fieldType) {
 }
 
 function filterFieldsBySection() {
+  // Remove any existing section divider
+  $('#currentSectionDivider').remove();
+  
+  // Add section divider if not on first section
+  if (availableSections.length > 0 && currentSectionFilter !== availableSections[0].key) {
+    var sectionName = getSectionDisplayName(currentSectionFilter);
+    var divider = $('<div id="currentSectionDivider" class="form-group"><div class="col-sm-12"><hr><small>' + sectionName + '</small><hr></div></div>');
+    
+    // Find the last field from the first section and insert the divider after it
+    var firstSectionFields = sectionFieldMapping[availableSections[0].key];
+    if (firstSectionFields && firstSectionFields.length > 0) {
+      var lastFirstSectionField = firstSectionFields[firstSectionFields.length - 1];
+      var lastElement = $('#form-group-' + lastFirstSectionField);
+      if (lastElement.length > 0) {
+        lastElement.after(divider);
+      }
+    }
+  }
+  
   $('#form .form-group').each(function() {
     var fieldName = $(this).attr('id');
     if (fieldName && fieldName.startsWith('form-group-')) {
