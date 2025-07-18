@@ -12,7 +12,6 @@ var WSActiveTimer = {};
 var WSInactiveTimer = {};
 var statusActiveTimer = {};
 
-
 var classSection = "default"; // for foldable sections
 var firstSection = true;
 
@@ -29,51 +28,113 @@ const fieldtype = Object.freeze({
 var DEBUGME = false; //for console logging. 
 
 var ignoreColorChange = false;
-
 var ws_connected = false;
 
-// Page filtering configuration
-var currentPageFilter = 'all';
-var pageFieldMapping = {
-  'main': ['power', 'brightness', 'segments', 'mirrored', 'running'],
-  'effects': ['effect', 'mode', 'palette', 'speed', 'color', 'secondary', 'tertiary', 'autoplay', 'autopal', 'hue'],
-  'advanced': ['temperature', 'correction', 'reverse', 'current', 'fps', 'blend', 'blur', 'limit', 'max'],
-  'system': ['status', 'network', 'reset', 'version', 'uptime', 'memory', 'ip', 'wifi', 'signal']
-};
+// Dynamic section-based filtering
+var currentSectionFilter = 'all';
+var availableSections = [];
+var sectionFieldMapping = {};
 
-function setPageFilter(filterName) {
-  currentPageFilter = filterName;
-  if (DEBUGME) console.log("Setting page filter to: " + filterName);
+function setCurrentSection(sectionName) {
+  currentSectionFilter = sectionName;
+  if (DEBUGME) console.log("Setting current section to: " + sectionName);
+  
+  // Update navigation highlighting
+  $('#dynamicNavigation li').removeClass('active');
+  $('#dynamicNavigation li[data-section="' + sectionName + '"]').addClass('active');
+  
+  // Update page title and subtitle
+  if (sectionName === 'all') {
+    $('#pageTitle').html('LED Control <small>All Settings</small>');
+  } else {
+    var sectionTitle = getSectionDisplayName(sectionName);
+    $('#pageTitle').html(sectionTitle + ' <small>Section Settings</small>');
+  }
+  
+  // Show/hide fields based on current section
+  filterFieldsBySection();
+}
+
+function getSectionDisplayName(sectionKey) {
+  for (var i = 0; i < availableSections.length; i++) {
+    if (availableSections[i].key === sectionKey) {
+      return availableSections[i].name;
+    }
+  }
+  return sectionKey;
 }
 
 function shouldShowField(fieldName, fieldType) {
-  if (currentPageFilter === 'all') return true;
+  if (currentSectionFilter === 'all') return true;
   
-  var mappedFields = pageFieldMapping[currentPageFilter];
-  if (!mappedFields) return true;
+  // Always show section headers and title
+  if (fieldType === fieldtype.SectionFieldType || fieldType === fieldtype.TitleFieldType) {
+    return true;
+  }
   
-  // Check if field name contains any of the mapped field keywords
-  var fieldNameLower = fieldName.toLowerCase();
-  var isFieldMapped = false;
+  // Show fields that belong to the current section
+  var sectionFields = sectionFieldMapping[currentSectionFilter];
+  if (!sectionFields) return true;
   
-  // Check if this field is mapped to any page
-  for (var page in pageFieldMapping) {
-    var pageFields = pageFieldMapping[page];
-    if (pageFields.some(function(keyword) {
-      return fieldNameLower.indexOf(keyword.toLowerCase()) !== -1;
-    })) {
-      isFieldMapped = true;
-      break;
+  return sectionFields.indexOf(fieldName) !== -1;
+}
+
+function filterFieldsBySection() {
+  $('#form .form-group').each(function() {
+    var fieldName = $(this).attr('id');
+    if (fieldName && fieldName.startsWith('form-group-')) {
+      var actualFieldName = fieldName.replace('form-group-', '');
+      var fieldType = parseInt($(this).attr('data-field-type'));
+      
+      if (shouldShowField(actualFieldName, fieldType)) {
+        $(this).show();
+      } else {
+        $(this).hide();
+      }
+    }
+  });
+}
+
+function buildDynamicNavigation(fields) {
+  availableSections = [];
+  sectionFieldMapping = {};
+  var currentSection = null;
+  
+  // Parse fields to extract sections and build mapping
+  for (var i = 0; i < fields.length; i++) {
+    var field = fields[i];
+    
+    if (field.type === fieldtype.SectionFieldType) {
+      currentSection = {
+        key: field.name,
+        name: field.label
+      };
+      availableSections.push(currentSection);
+      sectionFieldMapping[field.name] = [];
+    } else if (currentSection && field.type !== fieldtype.TitleFieldType) {
+      // Add non-title fields to current section
+      sectionFieldMapping[currentSection.key].push(field.name);
     }
   }
   
-  // If field is not mapped to any page, show it on all pages
-  if (!isFieldMapped) return true;
+  if (DEBUGME) {
+    console.log("Available sections:", availableSections);
+    console.log("Section field mapping:", sectionFieldMapping);
+  }
   
-  // Otherwise, only show if it matches current page mapping
-  return mappedFields.some(function(keyword) {
-    return fieldNameLower.indexOf(keyword.toLowerCase()) !== -1;
-  });
+  // Build navigation menu
+  var nav = $('#dynamicNavigation');
+  nav.empty();
+  
+  // Add "All" option
+  nav.append('<li data-section="all" class="active"><a href="#" onclick="setCurrentSection(\'all\'); return false;">All Settings</a></li>');
+  
+  // Add section-based navigation
+  for (var i = 0; i < availableSections.length; i++) {
+    var section = availableSections[i];
+    var navItem = $('<li data-section="' + section.key + '"><a href="#" onclick="setCurrentSection(\'' + section.key + '\'); return false;">' + section.name + '</a></li>');
+    nav.append(navItem);
+  }
 }
 
 if(DEBUGME) console.log("Trying to connect to " + "ws://" + address + "/ws");
@@ -166,18 +227,21 @@ $(document).ready(function() {
   updateStatus("Connecting, please wait...", true);
 	$.get(urlBase + "/all", function(data) {
 		updateStatus("Loading, please wait...", true);
+		
+		// First pass: Build dynamic navigation from sections
+		buildDynamicNavigation(data);
+		
+		// Set first section as active (instead of 'all')
+		if (availableSections.length > 0) {
+			setCurrentSection(availableSections[0].key);
+		}
 
+		// Second pass: Create all form fields
 		$.each(data, function(index, field) {
-			// Check if field should be shown on current page
-			if (!shouldShowField(field.name, field.type)) {
-				if (DEBUGME) console.log("Skipping field " + field.name + " for page " + currentPageFilter);
-				return; // Skip this field
-			}
-
 			if (field.type == fieldtype.NumberFieldType) {
 				addNumberField(field);
 			} else if (field.type == fieldtype.TitleFieldType) {
-
+				// Skip title fields as they're handled in navigation
 			} else if (field.type == fieldtype.BooleanFieldType) {
 				addBooleanField(field);
 			} else if (field.type == fieldtype.SelectFieldType) {
@@ -189,6 +253,8 @@ $(document).ready(function() {
 				addSectionField(field);
 			}
 		});
+		
+		// Initialize minicolors after all fields are created
 		$(".minicolors").minicolors({
 			theme: "bootstrap",
 			changeDelay: 200,
@@ -197,6 +263,9 @@ $(document).ready(function() {
 			inline: true,
 			swatches: ["FF0000", "FF8000", "FFFF00", "00FF00", "00FFFF", "0000FF", "FF00FF", "FFFFFF"] // some colors from the previous list
 		});
+		
+		// Apply initial section filtering after all fields are created
+		filterFieldsBySection();
     })
     .fail(function(errorThrown) {
 		console.log("error: " + errorThrown);
