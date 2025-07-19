@@ -1276,8 +1276,6 @@ void handleNotFound(AsyncWebServerRequest * request)
 void handleGetModes(AsyncWebServerRequest *request)
 {
   // will return all available effects in JSON as name, number 
-
-  // Buffer size: ~70 modes max + overhead = 2048 bytes
   AsyncJsonResponse * response = new AsyncJsonResponse(false, 2048);
 
   JsonObject root = response->getRoot();
@@ -1318,10 +1316,8 @@ void handleGetPals(AsyncWebServerRequest *request)
 void handleStatus(AsyncWebServerRequest *request)
 {
   // collects the current status and returns that
+  AsyncJsonResponse * response = new AsyncJsonResponse(false, 2048);
 
-  // Buffer size: currentState (~40 fields) + sunriseState (6 fields) + Stats (15 fields) 
-  // = ~61 fields * 50 chars average = ~3050 bytes + overhead = 3584 bytes
-  AsyncJsonResponse * response = new AsyncJsonResponse(false, 3584);
 
   JsonObject answerObj = response->getRoot();
   JsonObject currentStateAnswer = answerObj.createNestedObject(F("currentState"));
@@ -1648,6 +1644,12 @@ void setupWebServer(void)
   server.on("/getpals", handleGetPals);
   server.on("/status", handleStatus);
   server.on("/reset", handleResetRequest);
+  
+  // Serve index.htm as the main page
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
+    request->send(LittleFS, F("/index.htm"), F("text/html"));
+  });
+  
   //server.onNotFound(handleNotFound);
   server.onNotFound([](AsyncWebServerRequest *request) {
     request->redirect("/");
