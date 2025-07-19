@@ -524,9 +524,9 @@ public:
     // Effects implemented as classes - these entries are fallback only
     _mode[FX_MODE_STATIC]                 = &WS2812FX::mode_class_based_fallback; // Now implemented as StaticEffect class
     _mode[FX_MODE_EASE]                   = &WS2812FX::mode_class_based_fallback; // Now implemented as EaseEffect class
-    _mode[FX_MODE_MULTI_DYNAMIC]          = &WS2812FX::mode_multi_dynamic;
-    _mode[FX_MODE_RAINBOW]                = &WS2812FX::mode_rainbow;
-    _mode[FX_MODE_RAINBOW_CYCLE]          = &WS2812FX::mode_rainbow_cycle;
+    _mode[FX_MODE_MULTI_DYNAMIC]          = &WS2812FX::mode_class_based_fallback; // Now implemented as MultiDynamicEffect class
+    _mode[FX_MODE_RAINBOW]                = &WS2812FX::mode_class_based_fallback; // Now implemented as RainbowEffect class
+    _mode[FX_MODE_RAINBOW_CYCLE]          = &WS2812FX::mode_class_based_fallback; // Now implemented as RainbowCycleEffect class
     _mode[FX_MODE_PRIDE]                  = &WS2812FX::mode_class_based_fallback; // Now implemented as PrideEffect class
     _mode[FX_MODE_SCAN]                   = &WS2812FX::mode_class_based_fallback; // Now implemented as ScanEffect class
     _mode[FX_MODE_DUAL_SCAN]              = &WS2812FX::mode_class_based_fallback; // Now implemented as DualScanEffect class
@@ -580,6 +580,9 @@ public:
     // Names for class-based effects are retrieved dynamically via getName()
     // _name[FX_MODE_STATIC] - provided by StaticEffect class
     // _name[FX_MODE_EASE] - provided by EaseEffect class
+    // _name[FX_MODE_MULTI_DYNAMIC] - provided by MultiDynamicEffect class
+    // _name[FX_MODE_RAINBOW] - provided by RainbowEffect class
+    // _name[FX_MODE_RAINBOW_CYCLE] - provided by RainbowCycleEffect class
     _name[FX_MODE_BREATH]                 = F("Breath");
     _name[FX_MODE_NOISEMOVER]             = F("iNoise8");
     _name[FX_MODE_PLASMA]                 = F("Plasma");
@@ -591,9 +594,6 @@ public:
     _name[FX_MODE_COLOR_WIPE_SINE]        = F("Wipe Sine");
     _name[FX_MODE_COLOR_WIPE_QUAD]        = F("Wipe Quad");
     _name[FX_MODE_COLOR_WIPE_TRIWAVE]     = F("Wipe Triwave");
-    _name[FX_MODE_MULTI_DYNAMIC]          = F("Dynamic");
-    _name[FX_MODE_RAINBOW]                = F("Rainbow");
-    _name[FX_MODE_RAINBOW_CYCLE]          = F("Rainbow Cycle");
     _name[FX_MODE_PRIDE]                  = F("Pride");
     _name[FX_MODE_SCAN]                   = F("Scan");
     _name[FX_MODE_DUAL_SCAN]              = F("Dual Scan");
@@ -882,6 +882,9 @@ public:
   // Expose minimum delay for effects  
   uint32_t getStripMinDelay() const { return STRIP_MIN_DELAY; }
 
+  // Expose random wheel index function for effects
+  uint8_t get_random_wheel_index(uint8_t, uint8_t);
+
 
 private:
   // internal functions
@@ -928,7 +931,7 @@ private:
       mode_bubble_sort(void),
       // mode_static(void), // Removed - now implemented as StaticEffect class
       color_wipe(uint32_t, uint32_t, bool),
-      mode_multi_dynamic(void),
+      // mode_multi_dynamic(void), // Removed - now implemented as MultiDynamicEffect class
       mode_breath(void),
       mode_fade(void),
       theater_chase(CRGB color1),
@@ -936,8 +939,8 @@ private:
       mode_theater_chase(void),
       mode_theater_chase_dual_pal(void),
       mode_theater_chase_rainbow(void),
-      mode_rainbow(void),
-      mode_rainbow_cycle(void),
+      // mode_rainbow(void), // Removed - now implemented as RainbowEffect class
+      // mode_rainbow_cycle(void), // Removed - now implemented as RainbowCycleEffect class
       pride(void),
       mode_running_lights(void),
       mode_twinkle_fade(void),
@@ -1030,7 +1033,6 @@ private:
       _triggered;
 
   uint8_t
-      get_random_wheel_index(uint8_t, uint8_t),
       _new_mode,
       _volts,
       _blend,
