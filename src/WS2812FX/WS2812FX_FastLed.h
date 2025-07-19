@@ -530,9 +530,9 @@ public:
     _mode[FX_MODE_PRIDE]                  = &WS2812FX::mode_class_based_fallback; // Now implemented as PrideEffect class
     _mode[FX_MODE_SCAN]                   = &WS2812FX::mode_class_based_fallback; // Now implemented as ScanEffect class
     _mode[FX_MODE_DUAL_SCAN]              = &WS2812FX::mode_class_based_fallback; // Now implemented as DualScanEffect class
-    _mode[FX_MODE_FADE]                   = &WS2812FX::mode_fade;
-    _mode[FX_MODE_THEATER_CHASE]          = &WS2812FX::mode_theater_chase;
-    _mode[FX_MODE_THEATER_CHASE_DUAL_P]   = &WS2812FX::mode_theater_chase_dual_pal;
+    _mode[FX_MODE_FADE]                   = &WS2812FX::mode_class_based_fallback; // Now implemented as FadeEffect class
+    _mode[FX_MODE_THEATER_CHASE]          = &WS2812FX::mode_class_based_fallback; // Now implemented as TheaterChaseEffect class
+    _mode[FX_MODE_THEATER_CHASE_DUAL_P]   = &WS2812FX::mode_class_based_fallback; // Now implemented as TheaterChaseDualPaletteEffect class
     _mode[FX_MODE_THEATER_CHASE_RAINBOW]  = &WS2812FX::mode_theater_chase_rainbow;
     _mode[FX_MODE_TWINKLE_FADE]           = &WS2812FX::mode_twinkle_fade;
     _mode[FX_MODE_TWINKLE_FOX]            = &WS2812FX::mode_twinkle_fox;
@@ -583,6 +583,9 @@ public:
     // _name[FX_MODE_MULTI_DYNAMIC] - provided by MultiDynamicEffect class
     // _name[FX_MODE_RAINBOW] - provided by RainbowEffect class
     // _name[FX_MODE_RAINBOW_CYCLE] - provided by RainbowCycleEffect class
+    // _name[FX_MODE_FADE] - provided by FadeEffect class
+    // _name[FX_MODE_THEATER_CHASE] - provided by TheaterChaseEffect class
+    // _name[FX_MODE_THEATER_CHASE_DUAL_P] - provided by TheaterChaseDualPaletteEffect class
     _name[FX_MODE_BREATH]                 = F("Breath");
     _name[FX_MODE_NOISEMOVER]             = F("iNoise8");
     _name[FX_MODE_PLASMA]                 = F("Plasma");
@@ -594,15 +597,12 @@ public:
     _name[FX_MODE_COLOR_WIPE_SINE]        = F("Wipe Sine");
     _name[FX_MODE_COLOR_WIPE_QUAD]        = F("Wipe Quad");
     _name[FX_MODE_COLOR_WIPE_TRIWAVE]     = F("Wipe Triwave");
-    _name[FX_MODE_MULTI_DYNAMIC]          = F("Dynamic");
-    _name[FX_MODE_RAINBOW]                = F("Rainbow");
-    _name[FX_MODE_RAINBOW_CYCLE]          = F("Rainbow Cycle");
     // _name[FX_MODE_PRIDE] - provided by PrideEffect class
     // _name[FX_MODE_SCAN] - provided by ScanEffect class
     // _name[FX_MODE_DUAL_SCAN] - provided by DualScanEffect class
-    _name[FX_MODE_FADE]                   = F("Fade");
-    _name[FX_MODE_THEATER_CHASE]          = F("Theater Chase");
-    _name[FX_MODE_THEATER_CHASE_DUAL_P]   = F("Theater Chase Dual palette");
+    // _name[FX_MODE_FADE] - provided by FadeEffect class
+    // _name[FX_MODE_THEATER_CHASE] - provided by TheaterChaseEffect class
+    // _name[FX_MODE_THEATER_CHASE_DUAL_P] - provided by TheaterChaseDualPaletteEffect class
     _name[FX_MODE_THEATER_CHASE_RAINBOW]  = F("Theater Chase Rainbow");
     _name[FX_MODE_RUNNING_LIGHTS]         = F("Running Lights");
     _name[FX_MODE_TO_INNER]               = F("Centering");
@@ -936,11 +936,16 @@ private:
       color_wipe(uint32_t, uint32_t, bool),
       // mode_multi_dynamic(void), // Removed - now implemented as MultiDynamicEffect class
       mode_breath(void),
+
       mode_fade(void),
+      // mode_fade(void), // Removed - now implemented as FadeEffect class
+      // mode_scan(void),
+      // mode_dual_scan(void),
+
       theater_chase(CRGB color1),
-      theater_chase(bool dual),
-      mode_theater_chase(void),
-      mode_theater_chase_dual_pal(void),
+      // theater_chase(bool dual), // Removed - now implemented in TheaterChaseDualPaletteEffect class
+      // mode_theater_chase(void), // Removed - now implemented as TheaterChaseEffect class
+      // mode_theater_chase_dual_pal(void), // Removed - now implemented as TheaterChaseDualPaletteEffect class
       mode_theater_chase_rainbow(void),
       // mode_rainbow(void), // Removed - now implemented as RainbowEffect class
       // mode_rainbow_cycle(void), // Removed - now implemented as RainbowCycleEffect class
