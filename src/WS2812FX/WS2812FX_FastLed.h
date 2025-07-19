@@ -547,9 +547,9 @@ public:
     _mode[FX_MODE_FADE]                   = &WS2812FX::mode_fade;
     _mode[FX_MODE_THEATER_CHASE]          = &WS2812FX::mode_theater_chase;
     _mode[FX_MODE_THEATER_CHASE_DUAL_P]   = &WS2812FX::mode_theater_chase_dual_pal;
-    _mode[FX_MODE_THEATER_CHASE_RAINBOW]  = &WS2812FX::mode_theater_chase_rainbow;
-    _mode[FX_MODE_TWINKLE_FADE]           = &WS2812FX::mode_twinkle_fade;
-    _mode[FX_MODE_TWINKLE_FOX]            = &WS2812FX::mode_twinkle_fox;
+    _mode[FX_MODE_THEATER_CHASE_RAINBOW]  = &WS2812FX::mode_class_based_fallback; // Now implemented as TheaterChaseRainbowEffect class
+    _mode[FX_MODE_TWINKLE_FADE]           = &WS2812FX::mode_class_based_fallback; // Now implemented as TwinkleFadeEffect class
+    _mode[FX_MODE_TWINKLE_FOX]            = &WS2812FX::mode_class_based_fallback; // Now implemented as TwinkleFoxEffect class
     _mode[FX_MODE_LARSON_SCANNER]         = &WS2812FX::mode_larson_scanner;
     _mode[FX_MODE_COMET]                  = &WS2812FX::mode_comet;
     _mode[FX_MODE_FIRE_FLICKER_INTENSE]   = &WS2812FX::mode_fire_flicker_intense;
@@ -951,13 +951,13 @@ private:
       theater_chase(bool dual),
       mode_theater_chase(void),
       mode_theater_chase_dual_pal(void),
-      mode_theater_chase_rainbow(void),
+      // mode_theater_chase_rainbow(void), // Converted to TheaterChaseRainbowEffect class
       mode_rainbow(void),
       mode_rainbow_cycle(void),
       pride(void),
       mode_pride(void),
       mode_running_lights(void),
-      mode_twinkle_fade(void),
+      // mode_twinkle_fade(void), // Converted to TwinkleFadeEffect class
       mode_sparkle(void),
       mode_larson_scanner(void),
       mode_comet(void),
@@ -967,7 +967,7 @@ private:
       mode_fire_flicker_intense(void),
       fire_flicker(int),
       mode_fire2012WithPalette(void),
-      mode_twinkle_fox(void),
+      // mode_twinkle_fox(void), // Converted to TwinkleFoxEffect class
       mode_softtwinkles(void),
       mode_shooting_star(void),
       mode_beatsin_glow(void),
