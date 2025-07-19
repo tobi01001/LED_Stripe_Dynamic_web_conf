@@ -39,6 +39,9 @@
 #include "Effect.h"
 #include "effects/StaticEffect.h"
 #include "effects/EaseEffect.h"
+#include "effects/MultiDynamicEffect.h"
+#include "effects/RainbowEffect.h"
+#include "effects/RainbowCycleEffect.h"
 
 /*
  * ColorPalettes
@@ -2252,32 +2255,6 @@ uint16_t WS2812FX::mode_breath(void)
 }
 
 /*
- * Lights every LED in a random color. Changes all LED at the same time
- * to new random colors.
- */
-uint16_t WS2812FX::mode_multi_dynamic(void)
-{
-  if (SEG_RT.modeinit)
-  {
-    SEG_RT.modeinit = false;
-    SEG_RT_MV.multi_dyn.last = 0;
-  }
-  if (millis() > SEG_RT_MV.multi_dyn.last)
-  {
-
-    for (uint16_t i = SEG_RT.start; i <= SEG_RT.stop; i++)
-    {
-
-      SEG_RT_MV.multi_dyn.last_index = get_random_wheel_index(SEG_RT_MV.multi_dyn.last_index, 32);
-      leds[i] = ColorFromPaletteWithDistribution(_currentPalette, SEG_RT_MV.multi_dyn.last_index, _brightness, SEG.blendType);
-    }
-    SEG_RT_MV.multi_dyn.last = millis() + ((BEAT88_MAX - SEG.beat88) >> 6);
-  }
-
-  return STRIP_MIN_DELAY;
-}
-
-/*
  * Waving brightness over the complete strip.
  */
 uint16_t WS2812FX::mode_fill_bright(void)
@@ -2408,45 +2385,6 @@ uint16_t WS2812FX::mode_dual_scan(void)
 
   drawFractionalBar(SEG_RT.stop * 16 - led_offset, width, _currentPalette, 255 - led_offset / 16 + SEG_RT.baseHue, 255, true, 1);
   drawFractionalBar(SEG_RT.start * 16 + led_offset, width, _currentPalette, led_offset / 16 + SEG_RT.baseHue, 255, true, 1);
-
-  return STRIP_MIN_DELAY;
-}
-
-/*
- * Cycles all LEDs at once through a rainbow.
- */
-uint16_t WS2812FX::mode_rainbow(void)
-{
-  if (SEG_RT.modeinit)
-  {
-    SEG_RT.modeinit = false;
-    SEG_RT_MV.rainbow.timebase = millis();
-  }
-
-  fill_solid(&leds[SEG_RT.start], SEG_RT.length, ColorFromPaletteWithDistribution(_currentPalette, map(beat88(SEG.beat88, SEG_RT_MV.rainbow.timebase), (uint16_t)0, (uint16_t)65535, (uint16_t)0, (uint16_t)255), _brightness, SEG.blendType)); /*CHSV(beat8(max(SEG.beat/2,1), SEG_RT.timebase)*/ //_brightness));
-  //SEG_RT.counter_mode_step = (SEG_RT.counter_mode_step + 2) & 0xFF;
-  return STRIP_MIN_DELAY;
-}
-
-/*
- * Cycles a rainbow over the entire string of LEDs.
- */
-uint16_t WS2812FX::mode_rainbow_cycle(void)
-{
-  if (SEG_RT.modeinit)
-  {
-    SEG_RT.modeinit = false;
-    SEG_RT_MV.rainbow_cycle.timebase = millis();
-  }
-
-  fill_palette(&leds[SEG_RT.start],
-               SEG_RT.length,
-               map(beat88(SEG.beat88,
-                           SEG_RT_MV.rainbow_cycle.timebase),
-                   (uint16_t)0, (uint16_t)65535, (uint16_t)0, (uint16_t)255),
-               max(1, (256 * 100 / (SEG_RT.length * SEG.paletteDistribution))),
-               _currentPalette,
-               255, SEG.blendType);
 
   return STRIP_MIN_DELAY;
 }
