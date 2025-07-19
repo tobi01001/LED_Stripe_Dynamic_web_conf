@@ -12,7 +12,6 @@ var WSActiveTimer = {};
 var WSInactiveTimer = {};
 var statusActiveTimer = {};
 
-
 var classSection = "default"; // for foldable sections
 var firstSection = true;
 
@@ -29,8 +28,170 @@ const fieldtype = Object.freeze({
 var DEBUGME = false; //for console logging. 
 
 var ignoreColorChange = false;
-
 var ws_connected = false;
+
+// Dynamic section-based filtering
+var currentSectionFilter = 'all';
+var availableSections = [];
+var sectionFieldMapping = {};
+var dynamicTitle = 'LED Control'; // Default title, will be updated from TitleFieldType field
+
+function setCurrentSection(sectionName) {
+  currentSectionFilter = sectionName;
+  if (DEBUGME) console.log("Setting current section to: " + sectionName);
+  
+  // Update navigation highlighting
+  $('#dynamicNavigation li').removeClass('active');
+  $('#dynamicNavigation li[data-section="' + sectionName + '"]').addClass('active');
+  
+  // Update page title - first section gets just the dynamic title, others get section name
+  var sectionTitle = getSectionDisplayName(sectionName);
+  if (availableSections.length > 0 && sectionName === availableSections[0].key) {
+    // First section: just show the dynamic title
+    $('#pageTitle').html(dynamicTitle);
+  } else {
+    // Other sections: show dynamic title
+    $('#pageTitle').html(dynamicTitle);
+  }
+  
+  // Show/hide fields based on current section
+  filterFieldsBySection();
+}
+
+function getSectionDisplayName(sectionKey) {
+  for (var i = 0; i < availableSections.length; i++) {
+    if (availableSections[i].key === sectionKey) {
+      return availableSections[i].name;
+    }
+  }
+  return sectionKey;
+}
+
+function getSectionDescription(sectionKey) {
+  // Get the section label directly from the field - no hardcoded descriptions
+  for (var i = 0; i < availableSections.length; i++) {
+    if (availableSections[i].key === sectionKey) {
+      return availableSections[i].name;
+    }
+  }
+  return 'Section';
+}
+
+function shouldShowField(fieldName, fieldType) {
+  // Never show section headers - they're replaced by navigation
+  if (fieldType === fieldtype.SectionFieldType) {
+    return false;
+  }
+  
+  // Always show title
+  if (fieldType === fieldtype.TitleFieldType) {
+    return true;
+  }
+  
+  // Always show fields from the first section
+  if (availableSections.length > 0) {
+    var firstSectionFields = sectionFieldMapping[availableSections[0].key];
+    if (firstSectionFields && firstSectionFields.indexOf(fieldName) !== -1) {
+      return true;
+    }
+  }
+  
+  // Show fields that belong to the current section (only if not first section)
+  if (currentSectionFilter !== availableSections[0].key) {
+    var sectionFields = sectionFieldMapping[currentSectionFilter];
+    if (sectionFields && sectionFields.indexOf(fieldName) !== -1) {
+      return true;
+    }
+  }
+  
+  return false;
+}
+
+function filterFieldsBySection() {
+  // Remove any existing section divider
+  $('#currentSectionDivider').remove();
+  
+  // Add section divider if not on first section
+  if (availableSections.length > 0 && currentSectionFilter !== availableSections[0].key) {
+    var sectionName = getSectionDisplayName(currentSectionFilter);
+    var divider = $('<div id="currentSectionDivider" class="form-group"><div class="col-sm-12"><hr><small>' + sectionName + '</small><hr></div></div>');
+    
+    // Find the last field from the first section and insert the divider after it
+    var firstSectionFields = sectionFieldMapping[availableSections[0].key];
+    if (firstSectionFields && firstSectionFields.length > 0) {
+      var lastFirstSectionField = firstSectionFields[firstSectionFields.length - 1];
+      var lastElement = $('#form-group-' + lastFirstSectionField);
+      if (lastElement.length > 0) {
+        lastElement.after(divider);
+      }
+    }
+  }
+  
+  $('#form .form-group').each(function() {
+    var fieldName = $(this).attr('id');
+    if (fieldName && fieldName.startsWith('form-group-')) {
+      var actualFieldName = fieldName.replace('form-group-', '');
+      var fieldType = parseInt($(this).attr('data-field-type'));
+      
+      if (shouldShowField(actualFieldName, fieldType)) {
+        $(this).show();
+      } else {
+        $(this).hide();
+      }
+    }
+  });
+}
+
+function buildDynamicNavigation(fields) {
+  availableSections = [];
+  sectionFieldMapping = {};
+  var currentSection = null;
+  
+  // Parse fields to extract sections, title, and build mapping
+  for (var i = 0; i < fields.length; i++) {
+    var field = fields[i];
+    
+    if (field.type === fieldtype.TitleFieldType) {
+      // Update dynamic title from backend
+      dynamicTitle = field.label;
+      // Update page title and navbar brand
+      document.title = dynamicTitle;
+      $('#nameLink').text(dynamicTitle);
+      // Update the page header title with first section (will be updated when section is selected)
+    } else if (field.type === fieldtype.SectionFieldType) {
+      currentSection = {
+        key: field.name,
+        name: field.label
+      };
+      availableSections.push(currentSection);
+      sectionFieldMapping[field.name] = [];
+    } else if (currentSection && field.type !== fieldtype.TitleFieldType) {
+      // Add non-title fields to current section
+      sectionFieldMapping[currentSection.key].push(field.name);
+    }
+  }
+  
+  // Filter out sections with no fields
+  availableSections = availableSections.filter(function(section) {
+    return sectionFieldMapping[section.key] && sectionFieldMapping[section.key].length > 0;
+  });
+  
+  if (DEBUGME) {
+    console.log("Available sections:", availableSections);
+    console.log("Section field mapping:", sectionFieldMapping);
+  }
+  
+  // Build navigation menu - exclude first section (it's always visible)
+  var nav = $('#dynamicNavigation');
+  nav.empty();
+  
+  // Add section-based navigation starting from second section
+  for (var i = 1; i < availableSections.length; i++) {
+    var section = availableSections[i];
+    var navItem = $('<li data-section="' + section.key + '"><a href="#" onclick="setCurrentSection(\'' + section.key + '\'); return false;">' + section.name + '</a></li>');
+    nav.append(navItem);
+  }
+}
 
 if(DEBUGME) console.log("Trying to connect to " + "ws://" + address + "/ws");
 var ws = new ReconnectingWebSocket('ws://' + address + '/ws', ['arduino']);
@@ -122,23 +283,41 @@ $(document).ready(function() {
   updateStatus("Connecting, please wait...", true);
 	$.get(urlBase + "/all", function(data) {
 		updateStatus("Loading, please wait...", true);
+		
+		// First pass: Build dynamic navigation from sections
+		buildDynamicNavigation(data);
+		
+		// Set first section as active by default
+		if (availableSections.length > 0) {
+			setCurrentSection(availableSections[0].key);
+		} else {
+			$('#pageTitle').html('LED Control <small>No sections available</small>');
+		}
 
+		// Second pass: Create all form fields
+		var currentSection = 'default';
+		var isFirstSection = true;
+		
 		$.each(data, function(index, field) {
-			if (field.type == fieldtype.NumberFieldType) {
-				addNumberField(field);
+			if (field.type == fieldtype.SectionFieldType) {
+				// Update section tracking for field creation
+				currentSection = field.name;
+				isFirstSection = (currentSection === availableSections[0].key);
+			} else if (field.type == fieldtype.NumberFieldType) {
+				addNumberField(field, currentSection, isFirstSection);
 			} else if (field.type == fieldtype.TitleFieldType) {
-
+				// Skip title fields as they're handled in navigation
 			} else if (field.type == fieldtype.BooleanFieldType) {
-				addBooleanField(field);
+				addBooleanField(field, currentSection, isFirstSection);
 			} else if (field.type == fieldtype.SelectFieldType) {
-				addSelectField(field);
+				addSelectField(field, currentSection, isFirstSection);
 			} else if (field.type == fieldtype.ColorFieldType) {
 				// addColorFieldPalette(field); // removed this to save space on the page. no need currently
-				addColorFieldPicker(field);
-			} else if (field.type == fieldtype.SectionFieldType) {
-				addSectionField(field);
+				addColorFieldPicker(field, currentSection, isFirstSection);
 			}
 		});
+		
+		// Initialize minicolors after all fields are created
 		$(".minicolors").minicolors({
 			theme: "bootstrap",
 			changeDelay: 200,
@@ -147,6 +326,9 @@ $(document).ready(function() {
 			inline: true,
 			swatches: ["FF0000", "FF8000", "FFFF00", "00FF00", "00FFFF", "0000FF", "FF00FF", "FFFFFF"] // some colors from the previous list
 		});
+		
+		// Apply initial section filtering after all fields are created
+		filterFieldsBySection();
     })
     .fail(function(errorThrown) {
 		console.log("error: " + errorThrown);
@@ -167,15 +349,23 @@ $(document).ready(function() {
 			updateStatus("Ready", true);
 		});
 	});
+  // Automatically close the Bootstrap navbar on click (for mobile)
+  $('#dynamicNavigation').on('click', 'a', function() {
+    var navbarToggle = $('.navbar-toggle:visible');
+    var navbarCollapse = $('.navbar-collapse.in');
+    if (navbarToggle.length && navbarCollapse.length) {
+      navbarToggle.click(); // Triggers the collapse
+    }
+  });
 });
 
-function addNumberField(field) {
+function addNumberField(field, currentSection, isFirstSection) {
   var template = $("#numberTemplate").clone();
 
   template.attr("id", "form-group-" + field.name);
   template.attr("data-field-type", field.type);
-  template.addClass(classSection); // foldable sections
-  if(firstSection) template.addClass("in");
+  template.addClass(currentSection || "default"); // foldable sections
+  if(isFirstSection) template.addClass("in");
 
   var label = template.find(".control-label");
   label.attr("for", "input-" + field.name);
@@ -223,13 +413,13 @@ function addNumberField(field) {
   $("#form").append(template);
 }
 
-function addBooleanField(field) {
+function addBooleanField(field, currentSection, isFirstSection) {
   var template = $("#booleanTemplate").clone();
 
   template.attr("id", "form-group-" + field.name);
   template.attr("data-field-type", field.type);
-  template.addClass(classSection); // foldable sections
-  if(firstSection) template.addClass("in");
+  template.addClass(currentSection || "default"); // foldable sections
+  if(isFirstSection) template.addClass("in");
 
   var label = template.find(".control-label");
   label.attr("for", "btn-group-" + field.name);
@@ -260,13 +450,13 @@ function addBooleanField(field) {
   $("#form").append(template);
 }
 
-function addSelectField(field) {
+function addSelectField(field, currentSection, isFirstSection) {
   var template = $("#selectTemplate").clone();
 
   template.attr("id", "form-group-" + field.name);
   template.attr("data-field-type", field.type);
-  template.addClass(classSection); // foldable sections
-  if(firstSection) template.addClass("in");
+  template.addClass(currentSection || "default"); // foldable sections
+  if(isFirstSection) template.addClass("in");
 
   var id = "input-" + field.name;
 
@@ -322,13 +512,13 @@ function addSelectField(field) {
 
 
 
-function addColorFieldPicker(field) {
+function addColorFieldPicker(field, currentSection, isFirstSection) {
   var template = $("#colorTemplate").clone();
 
   template.attr("id", "form-group-" + field.name);
   template.attr("data-field-type", field.type);
-  template.addClass(classSection); // foldable sections
-  if(firstSection) template.addClass("in");
+  template.addClass(currentSection || "default"); // foldable sections
+  if(isFirstSection) template.addClass("in");
 
   var id = "input-" + field.name;
 
@@ -471,11 +661,11 @@ function addColorFieldPicker(field) {
   $("#form").append(template);
 }
 
-function addColorFieldPalette(field) {
+function addColorFieldPalette(field, currentSection, isFirstSection) {
   var template = $("#colorPaletteTemplate").clone();
 
-  template.addClass(classSection); // foldable sections
-  if(firstSection) template.addClass("in");
+  template.addClass(currentSection || "default"); // foldable sections
+  if(isFirstSection) template.addClass("in");
 
   var buttons = template.find(".btn-color");
 

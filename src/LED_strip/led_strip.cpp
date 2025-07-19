@@ -453,7 +453,7 @@ uint8_t fieldCount = ARRAY_SIZE(fields);
 
 bool getAllValuesJSONArray(JsonArray arr)
 {
-  bool ret = false;
+  bool ret = false; 
   for(uint8_t i=0; i<getFieldCount(); i++)
   {
     if(fields[i].type < TitleFieldType)
