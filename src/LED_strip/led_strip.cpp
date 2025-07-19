@@ -537,7 +537,9 @@ String getFieldValue(const char * name)
   Field field = getField(name);
   if (field.getValue)
   {
-    DynamicJsonDocument doc(1024);
+    // Buffer size: Mode names (164 modes * 20 chars = ~3280 bytes) or palette names (48 * 20 = ~960 bytes)
+    // Use larger size to handle worst case: 3584 bytes
+    DynamicJsonDocument doc(3584);
     JsonArray a = doc.to<JsonArray>();
     switch (field.type)
     {

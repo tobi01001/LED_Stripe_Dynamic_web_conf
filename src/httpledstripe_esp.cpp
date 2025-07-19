@@ -1120,7 +1120,8 @@ void handleSet(AsyncWebServerRequest *request)
   // every change (could be more than one) will be 
   // send back in the answer in JSON format
   // first create the response object
-  AsyncJsonResponse * response = new AsyncJsonResponse();
+  // Buffer size: Support up to 10 parameters being set (10 * 100 chars average = ~1000 bytes)
+  AsyncJsonResponse * response = new AsyncJsonResponse(false, 1024);
   
   // create the answer object
   JsonObject answerObj = response->getRoot();
@@ -1276,7 +1277,8 @@ void handleGetModes(AsyncWebServerRequest *request)
 {
   // will return all available effects in JSON as name, number 
 
-  AsyncJsonResponse * response = new AsyncJsonResponse();
+  // Buffer size: ~164 modes * 25 chars average (name + JSON structure) = ~4100 bytes + overhead = 5120 bytes
+  AsyncJsonResponse * response = new AsyncJsonResponse(false, 5120);
 
   JsonObject root = response->getRoot();
 
@@ -1296,7 +1298,8 @@ void handleGetPals(AsyncWebServerRequest *request)
 {
   // will return all available Color palettes in JSON as name, number 
 
-  AsyncJsonResponse * response = new AsyncJsonResponse();
+  // Buffer size: ~48 palettes * 25 chars average (name + JSON structure) = ~1200 bytes + overhead = 1536 bytes
+  AsyncJsonResponse * response = new AsyncJsonResponse(false, 1536);
 
   JsonObject root = response->getRoot();
 
@@ -1316,7 +1319,9 @@ void handleStatus(AsyncWebServerRequest *request)
 {
   // collects the current status and returns that
 
-  AsyncJsonResponse * response = new AsyncJsonResponse();
+  // Buffer size: currentState (~40 fields) + sunriseState (6 fields) + Stats (15 fields) 
+  // = ~61 fields * 50 chars average = ~3050 bytes + overhead = 3584 bytes
+  AsyncJsonResponse * response = new AsyncJsonResponse(false, 3584);
 
   JsonObject answerObj = response->getRoot();
   JsonObject currentStateAnswer = answerObj.createNestedObject(F("currentState"));
@@ -1583,7 +1588,8 @@ void deleteConfigFile(void)
 
 void updateConfigFile(void)
 {
-  DynamicJsonDocument doc(8192);
+  // Buffer size: ~45 fields * 200 chars average (full metadata including options) = ~9000 bytes + overhead = 9216 bytes
+  DynamicJsonDocument doc(9216);
   JsonArray root = doc.to<JsonArray>();
   
   getAllJSON(root);
@@ -1611,7 +1617,8 @@ void setupWebServer(void)
 
 
   server.on("/allvalues", HTTP_GET, [](AsyncWebServerRequest *request) {
-    AsyncJsonResponse * response = new AsyncJsonResponse();
+    // Buffer size: ~40 parameter values in array format = ~40 * 35 chars = ~1400 bytes + overhead = 1536 bytes
+    AsyncJsonResponse * response = new AsyncJsonResponse(false, 1536);
 
     JsonObject root = response->getRoot();
     JsonArray arr = root.createNestedArray(F("values"));
@@ -2125,7 +2132,9 @@ void showDisplay(uint8_t curr_field)
       case Display_ShowSelectMenue:
       {
         display.drawStringMaxWidth(0, 0, 128, fields[curr_field].label);
-        StaticJsonDocument<1600> myJsonBuffer;
+        // Buffer size: Mode names (164 modes * 20 chars = ~3280 bytes) or palette names (48 * 20 = ~960 bytes)
+        // Use larger size to handle worst case: 3584 bytes
+        StaticJsonDocument<3584> myJsonBuffer;
         
         JsonArray myValues = myJsonBuffer.to<JsonArray>();
         fields[curr_field].getOptions(myValues);
