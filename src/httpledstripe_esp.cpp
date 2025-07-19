@@ -1277,8 +1277,8 @@ void handleGetModes(AsyncWebServerRequest *request)
 {
   // will return all available effects in JSON as name, number 
 
-  // Buffer size: ~164 modes * 25 chars average (name + JSON structure) = ~4100 bytes + overhead = 5120 bytes
-  AsyncJsonResponse * response = new AsyncJsonResponse(false, 5120);
+  // Buffer size: ~70 modes max + overhead = 2048 bytes
+  AsyncJsonResponse * response = new AsyncJsonResponse(false, 2048);
 
   JsonObject root = response->getRoot();
 
@@ -1298,8 +1298,8 @@ void handleGetPals(AsyncWebServerRequest *request)
 {
   // will return all available Color palettes in JSON as name, number 
 
-  // Buffer size: ~48 palettes * 25 chars average (name + JSON structure) = ~1200 bytes + overhead = 1536 bytes
-  AsyncJsonResponse * response = new AsyncJsonResponse(false, 1536);
+  // Buffer size: 2048 bytes
+  AsyncJsonResponse * response = new AsyncJsonResponse(false, 2048);
 
   JsonObject root = response->getRoot();
 
@@ -1588,8 +1588,8 @@ void deleteConfigFile(void)
 
 void updateConfigFile(void)
 {
-  // Buffer size: ~45 fields * 200 chars average (full metadata including options) = ~9000 bytes + overhead = 9216 bytes
-  DynamicJsonDocument doc(9216);
+  // Buffer size: 8192 bytes to not stress dynamic memory too much
+  DynamicJsonDocument doc(8192);
   JsonArray root = doc.to<JsonArray>();
   
   getAllJSON(root);
@@ -1617,8 +1617,8 @@ void setupWebServer(void)
 
 
   server.on("/allvalues", HTTP_GET, [](AsyncWebServerRequest *request) {
-    // Buffer size: ~40 parameter values in array format = ~40 * 35 chars = ~1400 bytes + overhead = 1536 bytes
-    AsyncJsonResponse * response = new AsyncJsonResponse(false, 1536);
+    // Buffer size: 2048 bytes works great
+    AsyncJsonResponse * response = new AsyncJsonResponse(false, 2048);
 
     JsonObject root = response->getRoot();
     JsonArray arr = root.createNestedArray(F("values"));
@@ -2132,9 +2132,8 @@ void showDisplay(uint8_t curr_field)
       case Display_ShowSelectMenue:
       {
         display.drawStringMaxWidth(0, 0, 128, fields[curr_field].label);
-        // Buffer size: Mode names (164 modes * 20 chars = ~3280 bytes) or palette names (48 * 20 = ~960 bytes)
-        // Use larger size to handle worst case: 3584 bytes
-        StaticJsonDocument<3584> myJsonBuffer;
+        // Buffer size: 2048 bytes 
+        StaticJsonDocument<2048> myJsonBuffer;
         
         JsonArray myValues = myJsonBuffer.to<JsonArray>();
         fields[curr_field].getOptions(myValues);
