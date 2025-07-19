@@ -1276,7 +1276,7 @@ void handleGetModes(AsyncWebServerRequest *request)
 {
   // will return all available effects in JSON as name, number 
 
-  AsyncJsonResponse * response = new AsyncJsonResponse();
+  AsyncJsonResponse * response = new AsyncJsonResponse(false, 2048);
 
   JsonObject root = response->getRoot();
 
@@ -1316,7 +1316,7 @@ void handleStatus(AsyncWebServerRequest *request)
 {
   // collects the current status and returns that
 
-  AsyncJsonResponse * response = new AsyncJsonResponse();
+  AsyncJsonResponse * response = new AsyncJsonResponse(false, 2048);
 
   JsonObject answerObj = response->getRoot();
   JsonObject currentStateAnswer = answerObj.createNestedObject(F("currentState"));
@@ -1611,7 +1611,7 @@ void setupWebServer(void)
 
 
   server.on("/allvalues", HTTP_GET, [](AsyncWebServerRequest *request) {
-    AsyncJsonResponse * response = new AsyncJsonResponse();
+    AsyncJsonResponse * response = new AsyncJsonResponse(false, 2048);
 
     JsonObject root = response->getRoot();
     JsonArray arr = root.createNestedArray(F("values"));

@@ -349,6 +349,14 @@ $(document).ready(function() {
 			updateStatus("Ready", true);
 		});
 	});
+  // Automatically close the Bootstrap navbar on click (for mobile)
+  $('#dynamicNavigation').on('click', 'a', function() {
+    var navbarToggle = $('.navbar-toggle:visible');
+    var navbarCollapse = $('.navbar-collapse.in');
+    if (navbarToggle.length && navbarCollapse.length) {
+      navbarToggle.click(); // Triggers the collapse
+    }
+  });
 });
 
 function addNumberField(field, currentSection, isFirstSection) {
