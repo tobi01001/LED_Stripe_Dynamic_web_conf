@@ -537,7 +537,8 @@ String getFieldValue(const char * name)
   Field field = getField(name);
   if (field.getValue)
   {
-    DynamicJsonDocument doc(1024);
+    // Buffer size: Single field value as uint32_t + JSON overhead = 64 bytes
+    DynamicJsonDocument doc(128);
     JsonArray a = doc.to<JsonArray>();
     switch (field.type)
     {
