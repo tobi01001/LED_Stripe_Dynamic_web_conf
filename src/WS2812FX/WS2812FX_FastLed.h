@@ -544,9 +544,9 @@ public:
     _mode[FX_MODE_PRIDE]                  = &WS2812FX::mode_pride;
     _mode[FX_MODE_SCAN]                   = &WS2812FX::mode_scan;
     _mode[FX_MODE_DUAL_SCAN]              = &WS2812FX::mode_dual_scan;
-    _mode[FX_MODE_FADE]                   = &WS2812FX::mode_fade;
-    _mode[FX_MODE_THEATER_CHASE]          = &WS2812FX::mode_theater_chase;
-    _mode[FX_MODE_THEATER_CHASE_DUAL_P]   = &WS2812FX::mode_theater_chase_dual_pal;
+    _mode[FX_MODE_FADE]                   = &WS2812FX::mode_class_based_fallback; // Now implemented as FadeEffect class
+    _mode[FX_MODE_THEATER_CHASE]          = &WS2812FX::mode_class_based_fallback; // Now implemented as TheaterChaseEffect class
+    _mode[FX_MODE_THEATER_CHASE_DUAL_P]   = &WS2812FX::mode_class_based_fallback; // Now implemented as TheaterChaseDualPaletteEffect class
     _mode[FX_MODE_THEATER_CHASE_RAINBOW]  = &WS2812FX::mode_theater_chase_rainbow;
     _mode[FX_MODE_TWINKLE_FADE]           = &WS2812FX::mode_twinkle_fade;
     _mode[FX_MODE_TWINKLE_FOX]            = &WS2812FX::mode_twinkle_fox;
@@ -594,6 +594,9 @@ public:
     // Names for class-based effects are retrieved dynamically via getName()
     // _name[FX_MODE_STATIC] - provided by StaticEffect class
     // _name[FX_MODE_EASE] - provided by EaseEffect class
+    // _name[FX_MODE_FADE] - provided by FadeEffect class
+    // _name[FX_MODE_THEATER_CHASE] - provided by TheaterChaseEffect class
+    // _name[FX_MODE_THEATER_CHASE_DUAL_P] - provided by TheaterChaseDualPaletteEffect class
     _name[FX_MODE_BREATH]                 = F("Breath");
     _name[FX_MODE_NOISEMOVER]             = F("iNoise8");
     _name[FX_MODE_PLASMA]                 = F("Plasma");
@@ -611,9 +614,9 @@ public:
     _name[FX_MODE_PRIDE]                  = F("Pride");
     _name[FX_MODE_SCAN]                   = F("Scan");
     _name[FX_MODE_DUAL_SCAN]              = F("Dual Scan");
-    _name[FX_MODE_FADE]                   = F("Fade");
-    _name[FX_MODE_THEATER_CHASE]          = F("Theater Chase");
-    _name[FX_MODE_THEATER_CHASE_DUAL_P]   = F("Theater Chase Dual palette");
+    // _name[FX_MODE_FADE] - provided by FadeEffect class
+    // _name[FX_MODE_THEATER_CHASE] - provided by TheaterChaseEffect class
+    // _name[FX_MODE_THEATER_CHASE_DUAL_P] - provided by TheaterChaseDualPaletteEffect class
     _name[FX_MODE_THEATER_CHASE_RAINBOW]  = F("Theater Chase Rainbow");
     _name[FX_MODE_RUNNING_LIGHTS]         = F("Running Lights");
     _name[FX_MODE_TO_INNER]               = F("Centering");
@@ -944,13 +947,13 @@ private:
       color_wipe(uint32_t, uint32_t, bool),
       mode_multi_dynamic(void),
       mode_breath(void),
-      mode_fade(void),
+      // mode_fade(void), // Removed - now implemented as FadeEffect class
       mode_scan(void),
       mode_dual_scan(void),
       theater_chase(CRGB color1),
-      theater_chase(bool dual),
-      mode_theater_chase(void),
-      mode_theater_chase_dual_pal(void),
+      // theater_chase(bool dual), // Removed - now implemented in TheaterChaseDualPaletteEffect class
+      // mode_theater_chase(void), // Removed - now implemented as TheaterChaseEffect class
+      // mode_theater_chase_dual_pal(void), // Removed - now implemented as TheaterChaseDualPaletteEffect class
       mode_theater_chase_rainbow(void),
       mode_rainbow(void),
       mode_rainbow_cycle(void),
