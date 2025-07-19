@@ -39,6 +39,9 @@
 #include "Effect.h"
 #include "effects/StaticEffect.h"
 #include "effects/EaseEffect.h"
+#include "effects/PrideEffect.h"
+#include "effects/ScanEffect.h"
+#include "effects/DualScanEffect.h"
 
 /*
  * ColorPalettes
@@ -1405,52 +1408,6 @@ void WS2812FX::coolLikeIncandescent(CRGB &c, uint8_t phase)
 /*
  * pride based on https://gist.github.com/kriegsman/964de772d64c502760e5
  */
-uint16_t WS2812FX::pride()
-{
-  if (SEG_RT.modeinit)
-  {
-    SEG_RT.modeinit = false;
-    SEG_RT_MV.pride.sPseudotime = 0;
-    
-    SEG_RT_MV.pride.sLastMillis = 0;
-    SEG_RT_MV.pride.sHue16 = 0;
-  }
-
-  uint8_t brightdepth = beatsin88(SEG.beat88 / 3 + 1, 96, 224);
-  uint16_t brightnessthetainc16 = beatsin88(SEG.beat88 / 5 + 1, (25 * 256), (40 * 256));
-  uint8_t msmultiplier = beatsin88(SEG.beat88 / 7 + 1, 23, 60);
-
-  uint16_t hue16 = SEG_RT_MV.pride.sHue16;
-  uint16_t hueinc16 = beatsin88(SEG.beat88 / 9 + 1, 1, 3000);
-
-  uint16_t ms = millis();
-  uint16_t deltams = ms - SEG_RT_MV.pride.sLastMillis;
-  SEG_RT_MV.pride.sLastMillis = ms;
-  SEG_RT_MV.pride.sPseudotime += deltams * msmultiplier;
-  SEG_RT_MV.pride.sHue16 += deltams * beatsin88((SEG.beat88 / 5) * 2 + 1, 5, 9);
-  uint16_t brightnesstheta16 = SEG_RT_MV.pride.sPseudotime;
-
-  for (uint16_t i = SEG_RT.start; i < SEG_RT.length; i++)
-  {
-    hue16 += hueinc16;
-    uint8_t hue8 = hue16 / 256;
-
-    brightnesstheta16 += brightnessthetainc16;
-    uint16_t b16 = sin16(brightnesstheta16) + 32768;
-
-    uint16_t bri16 = (uint32_t)((uint32_t)b16 * (uint32_t)b16) / 65536;
-    uint8_t bri8 = (uint32_t)(((uint32_t)bri16) * brightdepth) / 65536;
-    bri8 += (255 - brightdepth);
-
-    CRGB newcolor = ColorFromPaletteWithDistribution(_currentPalette, hue8, bri8, SEG.blendType); //CHSV( hue8, sat8, bri8);
-
-    uint16_t pixelnumber = (SEG_RT.stop) - i;
-
-    nblend(leds[pixelnumber], newcolor, 64);
-  }
-  return STRIP_MIN_DELAY;
-}
-
 /*
  * fade out function
  * fades out the current segment by dividing each pixel's intensity by 2
@@ -2369,50 +2326,6 @@ uint16_t WS2812FX::mode_fade(void)
 }
 
 /*
- * Runs a single pixel back and forth.
- */
-uint16_t WS2812FX::mode_scan(void)
-{
-  if (SEG_RT.modeinit)
-  {
-    SEG_RT.modeinit = false;
-     SEG_RT_MV.scan.timebase = millis();
-  }
-  //uint16_t led_offset = map(triwave8(map(beat88(SEG.beat88, SEG_RT.timebase), 0, 65535, 0, 255)), 0, 255, SEG_RT.start*16, SEG_RT.stop*16);
-  const uint16_t width = 2; // max(2, SEG_RT.length/50)
-  uint16_t led_offset = map(triwave16(beat88(SEG.beat88,  SEG_RT_MV.scan.timebase)), (uint16_t)0, (uint16_t)65535, (uint16_t)(SEG_RT.start * 16), (uint16_t)(SEG_RT.stop * 16 - width * 16));
-
-  // maybe we change this to fade?
-  fill_solid(&(leds[SEG_RT.start]), SEG_RT.length, CRGB(0, 0, 0));
-
-  drawFractionalBar(SEG_RT.start * 16 + led_offset, width, _currentPalette, led_offset / 16 + SEG_RT.baseHue, 255, true, 1);
-
-  return STRIP_MIN_DELAY;
-}
-
-/*
- * Runs two pixel back and forth in opposite directions.
- */
-uint16_t WS2812FX::mode_dual_scan(void)
-{
-  if (SEG_RT.modeinit)
-  {
-    SEG_RT.modeinit = false;
-     SEG_RT_MV.dual_scan.timebase = millis();
-  }
-  //uint16_t led_offset = map(triwave8(map(beat88(SEG.beat88, SEG_RT.timebase), 0, 65535, 0, 255)), 0, 255, SEG_RT.start*16, SEG_RT.stop*16);
-  const uint16_t width = 2; // max(2, SEG_RT.length/50)
-  uint16_t led_offset = map(triwave16(beat88(SEG.beat88,  SEG_RT_MV.dual_scan.timebase)), (uint16_t)0, (uint16_t)65535, (uint16_t)(SEG_RT.start * 16), (uint16_t)(SEG_RT.stop * 16 - width * 16));
-
-  fill_solid(&(leds[SEG_RT.start]), SEG_RT.length, CRGB(0, 0, 0));
-
-  drawFractionalBar(SEG_RT.stop * 16 - led_offset, width, _currentPalette, 255 - led_offset / 16 + SEG_RT.baseHue, 255, true, 1);
-  drawFractionalBar(SEG_RT.start * 16 + led_offset, width, _currentPalette, led_offset / 16 + SEG_RT.baseHue, 255, true, 1);
-
-  return STRIP_MIN_DELAY;
-}
-
-/*
  * Cycles all LEDs at once through a rainbow.
  */
 uint16_t WS2812FX::mode_rainbow(void)
@@ -2449,11 +2362,6 @@ uint16_t WS2812FX::mode_rainbow_cycle(void)
                255, SEG.blendType);
 
   return STRIP_MIN_DELAY;
-}
-
-uint16_t WS2812FX::mode_pride(void)
-{
-  return pride();
 }
 
 /*

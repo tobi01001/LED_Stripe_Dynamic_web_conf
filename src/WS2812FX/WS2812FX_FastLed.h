@@ -293,12 +293,6 @@ public:
 
   typedef union 
   {
-    struct pride
-    {
-      uint16_t sPseudotime;
-      uint16_t sLastMillis;
-      uint16_t sHue16;
-    } pride;
     struct ease
     {
       uint32_t timebase;
@@ -324,14 +318,6 @@ public:
     {
       uint32_t timebase;
     } fade;
-    struct scan
-    {
-      uint32_t timebase;
-    } scan;
-    struct dual_scan
-    {
-      uint32_t timebase;
-    } dual_scan;
     struct rainbow
     {
       uint32_t timebase;
@@ -541,9 +527,9 @@ public:
     _mode[FX_MODE_MULTI_DYNAMIC]          = &WS2812FX::mode_multi_dynamic;
     _mode[FX_MODE_RAINBOW]                = &WS2812FX::mode_rainbow;
     _mode[FX_MODE_RAINBOW_CYCLE]          = &WS2812FX::mode_rainbow_cycle;
-    _mode[FX_MODE_PRIDE]                  = &WS2812FX::mode_pride;
-    _mode[FX_MODE_SCAN]                   = &WS2812FX::mode_scan;
-    _mode[FX_MODE_DUAL_SCAN]              = &WS2812FX::mode_dual_scan;
+    _mode[FX_MODE_PRIDE]                  = &WS2812FX::mode_class_based_fallback; // Now implemented as PrideEffect class
+    _mode[FX_MODE_SCAN]                   = &WS2812FX::mode_class_based_fallback; // Now implemented as ScanEffect class
+    _mode[FX_MODE_DUAL_SCAN]              = &WS2812FX::mode_class_based_fallback; // Now implemented as DualScanEffect class
     _mode[FX_MODE_FADE]                   = &WS2812FX::mode_fade;
     _mode[FX_MODE_THEATER_CHASE]          = &WS2812FX::mode_theater_chase;
     _mode[FX_MODE_THEATER_CHASE_DUAL_P]   = &WS2812FX::mode_theater_chase_dual_pal;
@@ -945,8 +931,6 @@ private:
       mode_multi_dynamic(void),
       mode_breath(void),
       mode_fade(void),
-      mode_scan(void),
-      mode_dual_scan(void),
       theater_chase(CRGB color1),
       theater_chase(bool dual),
       mode_theater_chase(void),
@@ -955,7 +939,6 @@ private:
       mode_rainbow(void),
       mode_rainbow_cycle(void),
       pride(void),
-      mode_pride(void),
       mode_running_lights(void),
       mode_twinkle_fade(void),
       mode_sparkle(void),
