@@ -48,8 +48,6 @@ private:
     // Constants for fractional positioning
     static const uint16_t FRACTIONAL_POSITION_UNIT = 16;  ///< Scaling factor for sub-pixel positioning
     static const uint16_t PIXEL_SCALING_FACTOR = 16;      ///< Scaling factor for pixel position calculations  
-    static const uint16_t FRACTIONAL_BAR_WIDTH = 2;       ///< Width of the fractional bar
-
     /**
      * @brief Initialize effect state variables to starting conditions
      * Sets up the initial direction, position counters, and movement tracking
