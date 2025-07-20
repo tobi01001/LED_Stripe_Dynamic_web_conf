@@ -2291,19 +2291,6 @@ uint16_t WS2812FX::mode_firework(void)
 /*
  * Fades the LEDs on and (almost) off again.
  */
-uint16_t WS2812FX::mode_fade(void)
-{
-  if (SEG_RT.modeinit)
-  {
-    SEG_RT.modeinit = false;
-    SEG_RT_MV.fade.timebase = millis();
-  }
-
-  fill_palette(&(leds[SEG_RT.start]), SEG_RT.length, 0 + SEG_RT.baseHue, 5, _currentPalette, map8(triwave8(map(beat88(SEG.beat88 * 10,  SEG_RT_MV.fade.timebase), (uint16_t)0, (uint16_t)65535, (uint16_t)0, (uint16_t)255)), 24, 255), SEG.blendType);
-
-  return STRIP_MIN_DELAY;
-}
-
 /*
  * theater chase function
  */
@@ -2331,47 +2318,11 @@ uint16_t WS2812FX::theater_chase(CRGB color)
   return STRIP_MIN_DELAY;
 }
 
-uint16_t WS2812FX::theater_chase(bool dual)
-{
-  if (SEG_RT.modeinit)
-  {
-    SEG_RT.modeinit = false;
-    SEG_RT_MV.theater_chase.timebase = millis();
-  }
-  uint16_t off = map(beat88(SEG.beat88 / 2,  SEG_RT_MV.theater_chase.timebase), (uint16_t)0, (uint16_t)65535, (uint16_t)0, (uint16_t)255) % 3;
+// theater_chase(bool dual) implementation removed - functionality now in TheaterChaseDualPaletteEffect class
 
-  for (uint16_t i = 0; i < SEG_RT.length; i++)
-  {
-    uint8_t pal_index = map(i, (uint16_t)0, (uint16_t)(SEG_RT.length - 1), (uint16_t)0, (uint16_t)255) + SEG_RT.baseHue;
-    if ((i % 3) == off)
-    {
-      leds[SEG_RT.start + i] = ColorFromPaletteWithDistribution(_currentPalette, pal_index, 255, SEG.blendType);
-    }
-    else
-    {
-      if(dual)
-        leds[SEG_RT.start + i] = ColorFromPaletteWithDistribution(_currentPalette, 128 + pal_index, 32, SEG.blendType);
-      else
-        leds[SEG_RT.start + i] = CRGB::Black;
-    }
-  }
-  return STRIP_MIN_DELAY;
-} 
+// mode_theater_chase implementation removed - now implemented as TheaterChaseEffect class
 
-
-/*
- * Theatre-style crawling lights.
- * Inspired by the Adafruit examples.
- */
-uint16_t WS2812FX::mode_theater_chase(void)
-{
-  return theater_chase(false);
-}
-
-uint16_t WS2812FX::mode_theater_chase_dual_pal(void)
-{
-  return theater_chase(true);
-}
+// mode_theater_chase_dual_pal implementation removed - now implemented as TheaterChaseDualPaletteEffect class
 
 /*
  * Theatre-style crawling lights with rainbow effect.
