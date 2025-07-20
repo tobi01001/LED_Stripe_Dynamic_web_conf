@@ -2301,71 +2301,12 @@ uint16_t WS2812FX::mode_running_lights(void)
  * - FireFlickerIntenseEffect
  */
 
-uint16_t WS2812FX::mode_bubble_sort(void)
-{
-  const uint16_t framedelay = map(SEG.beat88, (uint16_t)10000, (uint16_t)0, (uint16_t)0, (uint16_t)50) + map(SEG_RT.length, (uint16_t)300, (uint16_t)0, (uint16_t)0, (uint16_t)25);
-
-  if (SEG_RT.modeinit)
-  {
-    SEG_RT.modeinit = false;
-    SEG_RT_MV.bubble_sort.movedown = false;
-    SEG_RT_MV.bubble_sort.ci = SEG_RT_MV.bubble_sort.co = SEG_RT_MV.bubble_sort.cd = 0;
-     SEG_RT_MV.bubble_sort.hues[0] = random8();
-    for (uint16_t i = 1; i < SEG_RT.length; i++)
-    {
-      SEG_RT_MV.bubble_sort.hues[i] = get_random_wheel_index(SEG_RT_MV.bubble_sort.hues[i - 1], 48);
-    }
-    map_pixels_palette(SEG_RT_MV.bubble_sort.hues, 32, SEG.blendType);
-    SEG_RT_MV.bubble_sort.co = 0;
-    SEG_RT_MV.bubble_sort.ci = 0;
-    return STRIP_MIN_DELAY;
-  }
-  if (!SEG_RT_MV.bubble_sort.movedown)
-  {
-    if (SEG_RT_MV.bubble_sort.co <= SEG_RT.length)
-    {
-      if (SEG_RT_MV.bubble_sort.ci <= SEG_RT.length)
-      {
-        if (SEG_RT_MV.bubble_sort.hues[SEG_RT_MV.bubble_sort.ci] > SEG_RT_MV.bubble_sort.hues[SEG_RT_MV.bubble_sort.co])
-        {
-          uint8_t tmp = SEG_RT_MV.bubble_sort.hues[SEG_RT_MV.bubble_sort.ci];
-          SEG_RT_MV.bubble_sort.hues[SEG_RT_MV.bubble_sort.ci] = SEG_RT_MV.bubble_sort.hues[SEG_RT_MV.bubble_sort.co];
-          SEG_RT_MV.bubble_sort.hues[SEG_RT_MV.bubble_sort.co] = tmp;
-          SEG_RT_MV.bubble_sort.cd = SEG_RT_MV.bubble_sort.ci;
-          SEG_RT_MV.bubble_sort.movedown = true;
-        }
-        SEG_RT_MV.bubble_sort.ci++;
-      }
-      else
-      {
-        SEG_RT_MV.bubble_sort.co++;
-        SEG_RT_MV.bubble_sort.ci = SEG_RT_MV.bubble_sort.co;
-      }
-    }
-    else
-    {
-      if (_transition)
-        SEG_RT.modeinit = true;
-      return STRIP_MIN_DELAY;
-    }
-    map_pixels_palette(SEG_RT_MV.bubble_sort.hues, 32, SEG.blendType);
-    leds[SEG_RT_MV.bubble_sort.ci + SEG_RT.start] = ColorFromPaletteWithDistribution(_currentPalette, SEG_RT_MV.bubble_sort.hues[SEG_RT_MV.bubble_sort.ci], _brightness, SEG.blendType); //CRGB::Green;
-    leds[SEG_RT_MV.bubble_sort.co + SEG_RT.start] = ColorFromPaletteWithDistribution(_currentPalette, SEG_RT_MV.bubble_sort.hues[SEG_RT_MV.bubble_sort.ci], _brightness, SEG.blendType); // CRGB::Red;
-  }
-  else
-  {
-    map_pixels_palette(SEG_RT_MV.bubble_sort.hues, 32, SEG.blendType);
-    leds[SEG_RT_MV.bubble_sort.co + SEG_RT.start] = ColorFromPaletteWithDistribution(_currentPalette, SEG_RT_MV.bubble_sort.hues[SEG_RT_MV.bubble_sort.ci], _brightness, SEG.blendType); // CRGB::Red;
-    leds[SEG_RT_MV.bubble_sort.cd + SEG_RT.start] = ColorFromPaletteWithDistribution(_currentPalette, SEG_RT_MV.bubble_sort.hues[SEG_RT_MV.bubble_sort.cd], _brightness, SEG.blendType); // +=CRGB::Green;
-    if (SEG_RT_MV.bubble_sort.cd == SEG_RT_MV.bubble_sort.co)
-    {
-      SEG_RT_MV.bubble_sort.movedown = false;
-    }
-    SEG_RT_MV.bubble_sort.cd--;
-    return framedelay; // 0; //STRIP_MIN_DELAY;
-  }
-  return framedelay; //0; //STRIP_MIN_DELAY;
-}
+/*
+ * Bubble Sort Effect Implementation
+ * 
+ * NOTE: This effect has been converted to class-based implementation.
+ * See BubbleSortEffect.h/.cpp for the new implementation.
+ */
 
 /*
  * TwinleFox Implementation
@@ -2484,142 +2425,18 @@ uint16_t WS2812FX::mode_softtwinkles(void)
 }
 
 /*
- * Shooting Star...
+ * Shooting Star Effect Implementation
  * 
+ * NOTE: This effect has been converted to class-based implementation.
+ * See ShootingStarEffect.h/.cpp for the new implementation.
  */
-uint16_t WS2812FX::mode_shooting_star()
-{
 
-  uint16_t pos;
-
-  #define SRMVSS SEG_RT_MV.shooting
-  
-  if (SEG_RT.modeinit || SRMVSS.basebeat != SEG.beat88)
-  {
-    SEG_RT.modeinit = false;
-    SRMVSS.basebeat = SEG.beat88;
-    for (uint8_t i = 0; i < SEG.numBars; i++)
-    {
-      SRMVSS.delta_b[i] = (65535 / SEG.numBars) * i;
-      if (i > 0)
-      {
-        SRMVSS.cind[i] = get_random_wheel_index(SRMVSS.cind[i - 1], 32);
-      }
-      else
-      {
-        SRMVSS.cind[i] = get_random_wheel_index(SRMVSS.cind[SEG.numBars - 1], 32);
-      }
-      SRMVSS.new_cind[i] = false;
-    }
-  }
-
-  fadeToBlackBy(leds, SEG_RT.length > 8 ? SEG_RT.length - 8 : SEG_RT.length, (SEG.beat88 >> 8) | 0x60);
-  if (SEG_RT.length > 8)
-    blur1d(&leds[SEG_RT.stop - 7], 8, 120);
-
-  for (uint8_t i = 0; i < SEG.numBars; i++)
-  {
-    uint16_t beat = beat88(SEG.beat88) + SRMVSS.delta_b[i];
-
-    double_t q_beat = (beat / 100) * (beat / 100);
-    pos = map(static_cast<uint32_t>(q_beat + 0.5), (uint32_t)0, (uint32_t)429484, (uint32_t)(SEG_RT.start * 16), (uint32_t)(SEG_RT.stop * 16));
-
-    //we use the fractional bar and 16 brghtness values per pixel
-    drawFractionalBar(pos, 2, _currentPalette, SRMVSS.cind[i], 255, true, 1);
-
-    if (pos / 16 > (SEG_RT.stop - 4)) // 6
-    {
-      uint8_t tmp = 0;
-      CRGB led = ColorFromPaletteWithDistribution(_currentPalette, SRMVSS.cind[i], _brightness, SEG.blendType); //leds[pos/16];
-      if (led)
-      {
-        tmp = led.r | led.g | led.b;
-        leds[pos / 16].addToRGB(tmp % 128);
-      }
-
-      SRMVSS.new_cind[i] = true;
-    }
-    else
-    {
-      if (SRMVSS.new_cind[i])
-      {
-        if (i > 0)
-          SRMVSS.cind[i] = get_random_wheel_index(SRMVSS.cind[i - 1], 32);
-        else
-          SRMVSS.cind[i] = get_random_wheel_index(SRMVSS.cind[SEG.numBars - 1], 32);
-      }
-      SRMVSS.new_cind[i] = false;
-    }
-  }
-  #undef SRMVSS
-  return STRIP_MIN_DELAY;
-}
-
-uint16_t WS2812FX::mode_beatsin_glow(void)
-{
-  #define SRMVGB SEG_RT_MV.beatsin
-  const uint16_t lim = (SEG.beat88 * 10) / 50;
-
-  if (SEG_RT.modeinit)
-  {
-    SEG_RT.modeinit = false;
-    //_transition = true;
-    //_blend = 0;
-    
-    for (uint8_t i = 0; i < SEG.numBars; i++)
-    {
-      SRMVGB.beats[i] = SEG.beat88 + lim / 2 - random16(lim);
-      SRMVGB.theta[i] = (65535 / SEG.numBars) * i + (65535 / (4 * SEG.numBars)) - random16(65535 / (2 * SEG.numBars));
-      uint8_t temp = random8(255 / (2 * SEG.numBars));
-      if (temp & 0x01)
-      {
-        SRMVGB.cinds[i] = (255 / SEG.numBars) * i - temp;
-      }
-      else
-      {
-        SRMVGB.cinds[i] = (255 / SEG.numBars) * i + temp;
-      }
-      SRMVGB.times[i] = millis() + random8();
-      SRMVGB.prev[i] = 0;
-      SRMVGB.newval[i] = false;
-    }
-  }
-
-  fadeToBlackBy(leds, SEG_RT.length, (SEG.beat88 >> 8) | 32);
-
-  uint16_t pos = 0;
-
-  for (uint8_t i = 0; i < SEG.numBars; i++)
-  {
-    uint16_t beatval = beat88(SRMVGB.beats[i], SRMVGB.times[i] + SRMVGB.theta[i]);
-    int16_t si = sin16(beatval); // + theta[i]);
-
-    if (si > -2 && si < 2 && SRMVGB.prev[i] < si) //si >= 32640 || si <= -32640)
-    {
-      const uint8_t rand_delta = 64;
-      SRMVGB.beats[i] = SRMVGB.beats[i] + (SEG.beat88 * 10) / 50 - random16((SEG.beat88 * 10) / 25); //+= (random8(128)%2)?1:-1; // = beats[i] + (SEG.beat88*10)/200 - random16((SEG.beat88*10)/100); //
-      if (SRMVGB.beats[i] < (SEG.beat88 / 2))
-        SRMVGB.beats[i] = SEG.beat88 / 2;
-      if (SRMVGB.beats[i] > (SEG.beat88 + SEG.beat88 / 2))
-        SRMVGB.beats[i] = SEG.beat88 + SEG.beat88 / 2;
-      SRMVGB.theta[i] = SRMVGB.theta[i] + (rand_delta / 2) - random8(rand_delta); //+= (random8(128)%2)?1:-1; // = theta[i] + 8-random8(16);  //
-      SRMVGB.cinds[i] = SRMVGB.cinds[i] + (rand_delta / 2) - random8(rand_delta); //+= (random8(128)%2)?1:-1;
-      SRMVGB.times[i] = millis() - SRMVGB.theta[i];
-
-      SRMVGB.newval[i] = false;
-    }
-    else
-    {
-      SRMVGB.newval[i] = true;
-    }
-
-    SRMVGB.prev[i] = si;
-    pos = map((65535 >> 1) + si, 0, 65535, SEG_RT.start * 16, SEG_RT.stop * 16);
-    drawFractionalBar(pos, 2, _currentPalette, SRMVGB.cinds[i] + i * (255 / SEG.numBars), _brightness, true, 1);
-  }
-  #undef SRMVGB
-  return STRIP_MIN_DELAY;
-}
+/*
+ * Beatsin Glow Effect Implementation
+ * 
+ * NOTE: This effect has been converted to class-based implementation.
+ * See BeatsinGlowEffect.h/.cpp for the new implementation.
+ */
 
 uint16_t WS2812FX::mode_pixel_stack(void)
 {

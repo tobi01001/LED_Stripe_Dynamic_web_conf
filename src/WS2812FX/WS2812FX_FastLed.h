@@ -378,35 +378,14 @@ public:
       uint32_t counter_mode_step;
       uint32_t timebase;
     } theater_chase;
-    struct bubble_sort
-    {
-      uint8_t hues[LED_COUNT];
-      bool movedown;
-      uint16_t ci;
-      uint16_t co;
-      uint16_t cd;
-    } bubble_sort;
+    // struct bubble_sort - removed, now implemented as BubbleSortEffect class
     // struct fire2012 - removed, now implemented as Fire2012Effect class
     struct soft_twinkle
     {
       uint8_t directionFlags [(LED_COUNT + 7)/8];
     } soft_twinkle;
-    struct shooting
-    {
-      uint16_t basebeat;
-      uint16_t delta_b[MAX_NUM_BARS];
-      uint8_t  cind[MAX_NUM_BARS];
-      bool     new_cind[MAX_NUM_BARS];
-    } shooting;
-    struct beatsin
-    {
-      uint16_t beats[MAX_NUM_BARS];
-      uint16_t theta[MAX_NUM_BARS];
-      int16_t  prev[MAX_NUM_BARS];
-      uint32_t times[MAX_NUM_BARS];
-      uint8_t  cinds[MAX_NUM_BARS];
-      bool     newval[MAX_NUM_BARS];
-    } beatsin;
+    // struct shooting - removed, now implemented as ShootingStarEffect class
+    // struct beatsin - removed, now implemented as BeatsinGlowEffect class
     struct pixel_stack
     {
       bool up;
@@ -537,9 +516,9 @@ public:
     _mode[FX_MODE_FIREWORK]               = &WS2812FX::mode_class_based_fallback; // Now implemented as FireworkEffect class
     _mode[FX_MODE_FIRE2012]               = &WS2812FX::mode_class_based_fallback; // Now implemented as Fire2012Effect class
     _mode[FX_MODE_FILL_WAVE]              = &WS2812FX::mode_class_based_fallback; // Now implemented as FillWaveEffect class
-    _mode[FX_MODE_BUBBLE_SORT]            = &WS2812FX::mode_bubble_sort;
-    _mode[FX_MODE_SHOOTING_STAR]          = &WS2812FX::mode_shooting_star;
-    _mode[FX_MODE_BEATSIN_GLOW]           = &WS2812FX::mode_beatsin_glow;
+    _mode[FX_MODE_BUBBLE_SORT]            = &WS2812FX::mode_class_based_fallback; // Now implemented as BubbleSortEffect class
+    _mode[FX_MODE_SHOOTING_STAR]          = &WS2812FX::mode_class_based_fallback; // Now implemented as ShootingStarEffect class
+    _mode[FX_MODE_BEATSIN_GLOW]           = &WS2812FX::mode_class_based_fallback; // Now implemented as BeatsinGlowEffect class
     _mode[FX_MODE_PIXEL_STACK]            = &WS2812FX::mode_pixel_stack;
     _mode[FX_MODE_MOVE_BAR_SIN]           = &WS2812FX::mode_move_bar_sin;
     _mode[FX_MODE_MOVE_BAR_QUAD]          = &WS2812FX::mode_move_bar_quad;
@@ -596,9 +575,9 @@ public:
     // _name[FX_MODE_LARSON_SCANNER] - provided by LarsonScannerEffect class
     // _name[FX_MODE_COMET] - provided by CometEffect class
     // _name[FX_MODE_FIRE_FLICKER_INTENSE] - provided by FireFlickerIntenseEffect class
-    _name[FX_MODE_BUBBLE_SORT]            = F("Bubble Sort");
-    _name[FX_MODE_SHOOTING_STAR]          = F("Shooting Star");
-    _name[FX_MODE_BEATSIN_GLOW]           = F("Sine glows");
+    // _name[FX_MODE_BUBBLE_SORT] - provided by BubbleSortEffect class
+    // _name[FX_MODE_SHOOTING_STAR] - provided by ShootingStarEffect class
+    // _name[FX_MODE_BEATSIN_GLOW] - provided by BeatsinGlowEffect class
     _name[FX_MODE_PIXEL_STACK]            = F("Pixel Stack");
     _name[FX_MODE_MOVE_BAR_SIN]           = F("1/2 Bar Sine");
     _name[FX_MODE_MOVE_BAR_QUAD]          = F("1/2 Bar2");
@@ -912,7 +891,7 @@ private:
       mode_juggle_pal(void),
       mode_inoise8_mover(void),
       // mode_firework(void), // Removed - now implemented as FireworkEffect class
-      mode_bubble_sort(void),
+      // mode_bubble_sort(void), // Removed - now implemented as BubbleSortEffect class
       // mode_static(void), // Removed - now implemented as StaticEffect class
       color_wipe(uint32_t, uint32_t, bool),
       // mode_multi_dynamic(void), // Removed - now implemented as MultiDynamicEffect class
@@ -938,8 +917,8 @@ private:
       // mode_fire2012WithPalette(void), // Removed - now implemented as Fire2012Effect class
       // mode_twinkle_fox(void), // Converted to TwinkleFoxEffect class
       mode_softtwinkles(void),
-      mode_shooting_star(void),
-      mode_beatsin_glow(void),
+      // mode_shooting_star(void), // Removed - now implemented as ShootingStarEffect class
+      // mode_beatsin_glow(void), // Removed - now implemented as BeatsinGlowEffect class
       mode_pixel_stack(void),
       mode_move_bar_sin(void),
       mode_move_bar_cubic(void),
