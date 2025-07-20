@@ -51,6 +51,9 @@
 #include "effects/FillWaveEffect.h"
 #include "effects/FireworkEffect.h"
 #include "effects/Fire2012Effect.h"
+#include "effects/PhoneRingEffect.h"
+#include "effects/HeartBeatEffect.h"
+#include "effects/MeteorShowerEffect.h"
 
 
 /*
@@ -2651,161 +2654,13 @@ uint16_t WS2812FX::mode_sunset(void)
   return 0; // should look better if we call this more often.... STRIP_MIN_DELAY;
 }
 
-uint16_t WS2812FX::mode_ring_ring(void)
-{
-  const uint16_t onTime  = 50; //(BEAT88_MAX + 10) - SEG.beat88;
-  const uint16_t offTime = 100; //2*((BEAT88_MAX + 10) - SEG.beat88);
-  const uint16_t runTime = 1500;
-  const uint16_t pauseTime = 2000;
-  SEG_RT_MV.ring_ring.now = millis();
-  if(SEG_RT.modeinit)
-  {
-    SEG_RT.modeinit = false;
-    SEG_RT_MV.ring_ring.isOn = true;
-    SEG_RT_MV.ring_ring.nextmillis = 0; 
-    SEG_RT_MV.ring_ring.pausemillis = SEG_RT_MV.ring_ring.now + 10;
-    SEG_RT_MV.ring_ring.isPause = 0;
-  }
-  if(SEG_RT_MV.ring_ring.isPause)
-  {
-    fadeToBlackBy(leds, SEG_RT.length, 32);
-    //fill_solid(leds, SEG_RT.length, CRGB::Black);
-    if(SEG_RT_MV.ring_ring.now > (SEG_RT_MV.ring_ring.pausemillis + pauseTime))
-    {
-      SEG_RT_MV.ring_ring.pausemillis = SEG_RT_MV.ring_ring.now;
-      SEG_RT_MV.ring_ring.isPause = false;
-    }
-  }
-  else
-  {
-    if(SEG_RT_MV.ring_ring.isOn)
-    {
-      fill_palette(leds, SEG_RT.length, SEG_RT.baseHue, max(1, (256 * 100 / (SEG_RT.length * SEG.paletteDistribution))), _currentPalette, 255, SEG.blendType);
-      if(SEG_RT_MV.ring_ring.now > (SEG_RT_MV.ring_ring.nextmillis + onTime))
-      {
-        SEG_RT_MV.ring_ring.nextmillis = SEG_RT_MV.ring_ring.now;
-        SEG_RT_MV.ring_ring.isOn = false;
-      }
-    }
-    else
-    {
-      fill_solid(leds, SEG_RT.length, CRGB::Black);
-      if(SEG_RT_MV.ring_ring.now > (SEG_RT_MV.ring_ring.nextmillis + offTime))
-      {
-        SEG_RT_MV.ring_ring.nextmillis = SEG_RT_MV.ring_ring.now;
-        SEG_RT_MV.ring_ring.isOn = true;
-      }
-    }
-    if(SEG_RT_MV.ring_ring.now > (SEG_RT_MV.ring_ring.pausemillis + runTime))
-    {
-      SEG_RT_MV.ring_ring.pausemillis = SEG_RT_MV.ring_ring.now;
-      SEG_RT_MV.ring_ring.isPause = true;
-    }
-  }
-  
-  return STRIP_MIN_DELAY;
-}
+// mode_ring_ring function removed - now implemented as PhoneRingEffect class
 
 
-/*
- *
- * Heartbeat Effect based on
- * https://github.com/kitesurfer1404/WS2812FX/blob/master/src/custom/Heartbeat.h
- * https://github.com/kitesurfer1404/WS2812FX/commit/abece9a2a5a23027243851767c55cb8d2e19ff05 
- */
-uint16_t WS2812FX::mode_heartbeat(void) {
-  #define M_HEARTBEAT_RT SEG_RT_MV.heartBeat
-  
-  if(SEG_RT.modeinit)
-  {
-    SEG_RT.modeinit = false;
-    M_HEARTBEAT_RT.lastBeat = 0;
-    M_HEARTBEAT_RT.secondBeatActive = false; 
-    M_HEARTBEAT_RT.msPerBeat = (60000 / (SEG.beat88>20?SEG.beat88 / 20 : 1));
-    M_HEARTBEAT_RT.secondBeat = (M_HEARTBEAT_RT.msPerBeat / 3);
-    M_HEARTBEAT_RT.size = map(SEG_RT.length, (uint16_t)25, (uint16_t)300, (uint16_t)1, (uint16_t)6);
-    M_HEARTBEAT_RT.centerOffset = (SEG_RT.length / 2);
-    M_HEARTBEAT_RT.pCount = M_HEARTBEAT_RT.centerOffset - M_HEARTBEAT_RT.size;
-  }
+// mode_heartbeat function removed - now implemented as HeartBeatEffect class
+// Based on: https://github.com/kitesurfer1404/WS2812FX/blob/master/src/custom/Heartbeat.h
 
-  for(uint16_t i = 0; i < M_HEARTBEAT_RT.pCount; i++)
-  {
-    leds[i] = leds[i + M_HEARTBEAT_RT.size];
-    leds[i + M_HEARTBEAT_RT.centerOffset + M_HEARTBEAT_RT.size] = leds[i+M_HEARTBEAT_RT.centerOffset];
-  }
-
-  fadeToBlackBy(leds, SEG_RT.length, (SEG.beat88 >> 8) | 32);
-
-  M_HEARTBEAT_RT.beatTimer = millis() - M_HEARTBEAT_RT.lastBeat;
-  if((M_HEARTBEAT_RT.beatTimer > M_HEARTBEAT_RT.secondBeat) && !M_HEARTBEAT_RT.secondBeatActive) { // time for the second beat?
-    // create the second beat
-    fill_solid(&leds[SEG_RT.start + (SEG_RT.length / 2) - M_HEARTBEAT_RT.size], (M_HEARTBEAT_RT.size)*2, ColorFromPaletteWithDistribution(_currentPalette, SEG_RT.baseHue, _brightness, SEG.blendType));
-    M_HEARTBEAT_RT.secondBeatActive = true;
-  }
-  if(M_HEARTBEAT_RT.beatTimer > M_HEARTBEAT_RT.msPerBeat) { // time to reset the beat timer?
-    // create the first beat
-    fill_solid(&leds[SEG_RT.start + (SEG_RT.length / 2) - M_HEARTBEAT_RT.size], (M_HEARTBEAT_RT.size)*2, ColorFromPaletteWithDistribution(_currentPalette, SEG_RT.baseHue, _brightness, SEG.blendType));
-    M_HEARTBEAT_RT.secondBeatActive = false;
-    M_HEARTBEAT_RT.lastBeat = millis();
-  }
-  return STRIP_MIN_DELAY;
-  #undef M_HEARTBEAT_RT
-}
-
-uint16_t WS2812FX::mode_rain(void)
-{
-  #define M_RAIN_RT SEG_RT_MV.rain
-  if(SEG_RT.modeinit)
-  {
-    SEG_RT.modeinit = false;
-    memset(&(M_RAIN_RT.timebase), SEG.numBars, sizeof(M_RAIN_RT.timebase[0]) * SEG.numBars);
-    memset(&(M_RAIN_RT.actives),  SEG.numBars, sizeof(M_RAIN_RT.actives[0])  * SEG.numBars);
-    memset(&(M_RAIN_RT.cind),     SEG.numBars, sizeof(M_RAIN_RT.cind[0])     * SEG.numBars);
-    M_RAIN_RT.timebase[0] = millis();
-    M_RAIN_RT.actives[0] = true;
-    M_RAIN_RT.cind[0] = random8();
-  }
-  EVERY_N_MILLIS(20)
-  {
-    fadeToBlackBy(leds, SEG_RT.length, map(SEG.beat88, (uint16_t)100, (uint16_t)7968, (uint16_t)3, (uint16_t) 255));
-  }
-  uint16_t pos16 = 0; 
-  for(uint16_t i = 0; i<SEG.numBars; i++)
-  {
-    if(M_RAIN_RT.actives[i])
-    {
-      pos16 = map((uint16_t)(beat88(SEG.beat88*3, M_RAIN_RT.timebase[i])), (uint16_t)0, (uint16_t)65535, (uint16_t)(SEG_RT.stop*16), (uint16_t)(SEG_RT.start*16));
-      drawFractionalBar(pos16, 4, _currentPalette, SEG_RT.baseHue + M_RAIN_RT.cind[i], 255, true, 0);
-      if(!(pos16/16)) M_RAIN_RT.actives[i] = false;
-    }
-  }
-  EVERY_N_MILLIS(100)
-  { 
-    const uint16_t minDistance = max(SEG_RT.length/12, 1);
-    bool distBlack = true;
-    for(uint16_t i = 0; i<minDistance; i++)
-    {
-      if(leds[SEG_RT.stop-i] != CRGB(0x000000))
-      {
-        distBlack = false;
-      }
-    }
-    for(uint16_t i = 0; i<SEG.numBars; i++)
-    {
-      if(!M_RAIN_RT.actives[i] && !random8(4) && distBlack) //leds[SEG_RT.stop-10] == CRGB(0x000000)) 
-      {
-        M_RAIN_RT.actives[i]  = true;
-        M_RAIN_RT.timebase[i] = millis();
-        M_RAIN_RT.cind[i] = get_random_wheel_index(M_RAIN_RT.cind[i]);
-
-        pos16 = map((uint16_t)(beat88(SEG.beat88*3, M_RAIN_RT.timebase[i])), (uint16_t)0, (uint16_t)65535, (uint16_t)(SEG_RT.stop*16), (uint16_t)(SEG_RT.start*16));
-        drawFractionalBar(pos16, 4, _currentPalette, SEG_RT.baseHue + M_RAIN_RT.cind[i], 255, true, 0);
-      }
-    }
-  }
-  return STRIP_MIN_DELAY;
-  #undef M_RAIN_RT
-}
+// mode_rain function removed - now implemented as MeteorShowerEffect class
 
 /*
  * A bar changing size, speed and position
