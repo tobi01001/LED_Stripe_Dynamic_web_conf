@@ -40,7 +40,7 @@ private:
      * Values range from 0 (cool/black) to 255 (hot/bright).
      * Array size matches LED_COUNT for maximum compatibility.
      */
-    byte* heatArray;
+    byte* heatArray = nullptr;
     
     /**
      * @brief Current allocated size of heat array
