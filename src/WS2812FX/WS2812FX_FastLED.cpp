@@ -48,6 +48,9 @@
 #include "effects/MultiDynamicEffect.h"
 #include "effects/RainbowEffect.h"
 #include "effects/RainbowCycleEffect.h"
+#include "effects/FillWaveEffect.h"
+#include "effects/FireworkEffect.h"
+#include "effects/Fire2012Effect.h"
 
 
 /*
@@ -1942,26 +1945,6 @@ uint16_t WS2812FX::mode_fill_beat(void)
 /*
  * Wave Effect over the complete strip.
  */
-uint16_t WS2812FX::mode_fill_wave(void)
-{
-  if (SEG_RT.modeinit)
-  {
-    SEG_RT.modeinit = false;
-    SEG_RT_MV.fill_wave.timebase = millis();
-  }
-  fill_palette(&leds[SEG_RT.start],
-               (SEG_RT.length),
-               SEG_RT.baseHue + (uint8_t)beatsin88(SEG.beat88 * 2, 0, 255, SEG_RT_MV.fill_wave.timebase),
-               // SEG_RT.baseHue + triwave8( (uint8_t)map( beat88( max(  SEG.beat88/4, 2), SEG_RT.timebase), 0,  65535,  0,  255)),
-               max(255 * 100 / (SEG_RT.length * SEG.paletteDistribution) + 1, 1),
-               _currentPalette,
-               (uint8_t)beatsin88(max(SEG.beat88 * 1, 1),
-                                  _brightness / 10, 255,
-                                  SEG_RT_MV.fill_wave.timebase),
-               SEG.blendType);
-  return STRIP_MIN_DELAY;
-}
-
 /*
  * 3 "dots / small bars" moving with different 
  * wave functions and different speed.
@@ -2232,66 +2215,6 @@ uint16_t WS2812FX::mode_fill_bright(void)
   return STRIP_MIN_DELAY;
 }
 
-uint16_t WS2812FX::mode_firework(void)
-{
-  #define FW1MV SEG_RT_MV.firework
-  const uint8_t dist = max(SEG_RT.length / 20, 2);
-  if (SEG_RT.modeinit)
-  {
-    SEG_RT.modeinit = false;
-    fill_solid(leds, LED_COUNT, CRGB::Black);
-    memset(FW1MV.fireworks, 0x0, MAX_NUM_BARS * sizeof(uint16_t));
-    memset(FW1MV.colIndex,  0x0, MAX_NUM_BARS * sizeof( uint8_t));
-    memset(FW1MV.isBurning, 0x0, MAX_NUM_BARS * sizeof( uint8_t));
-    //memset(FW1MV.colors, 0x0, SEG_RT.length * sizeof(uint8_t));
-    //memset(FW1MV.keeps, 0x0, SEG_RT.length * sizeof(uint8_t));
-  }
-
-  blur1d(&leds[SEG_RT.start], SEG_RT.length, qadd8(255-(SEG.beat88 >> 8), 32)%172); // 172); //qadd8(255-(SEG.beat88 >> 8), 32)%172); //was 2 instead of 16 before!
-
-  for (uint16_t i = 0; i<MAX_NUM_BARS; i++)
-  {
-    if (FW1MV.isBurning[i])
-    {
-      FW1MV.isBurning[i]--;
-      nblend(leds[FW1MV.fireworks[i]], ColorFromPaletteWithDistribution(_currentPalette, FW1MV.colIndex[i], 255, SEG.blendType), 196);
-      //leds[i] = ColorFromPalette(_currentPalette, colors[i]  , 255, SEG.blendType);
-    }
-  }
-
-  if (random8(max(6, SEG_RT.length / 7)) <= max(3, SEG_RT.length / 14))
-  {
-    uint16_t lind = random16(dist + SEG_RT.start, SEG_RT.stop - dist);
-    for (int8_t i = 0 - dist; i <= dist; i++)
-    {
-      if (lind + i >= SEG_RT.start && lind + i < SEG_RT.stop)
-      {
-        if (!(leds[lind + i] == CRGB(0x0)))
-          return STRIP_MIN_DELAY;
-      }
-    }
-    uint8_t barPos = 0xff;
-    for(uint8_t i=0; i<MAX_NUM_BARS; i++)
-    {
-      if(!leds[FW1MV.fireworks[i]])
-      {
-        FW1MV.fireworks[i] = lind;
-        barPos = i;
-        break;
-      }
-    }
-    if(barPos != 0xff)
-    {
-      FW1MV.colIndex [barPos] = get_random_wheel_index(FW1MV.colIndex[barPos], 64);
-      FW1MV.fireworks[barPos] = lind;
-      FW1MV.isBurning[barPos] = random8(10, 30);
-      leds[lind] = ColorFromPaletteWithDistribution(_currentPalette, FW1MV.colIndex [barPos], random8(192, 255), SEG.blendType);
-    }
-  }
-
-  return STRIP_MIN_DELAY; // (BEAT88_MAX - SEG.beat88) / 256; // STRIP_MIN_DELAY;
-}
-
 /*
  * Fades the LEDs on and (almost) off again.
  */
@@ -2531,53 +2454,6 @@ uint16_t WS2812FX::mode_bubble_sort(void)
     return framedelay; // 0; //STRIP_MIN_DELAY;
   }
   return framedelay; //0; //STRIP_MIN_DELAY;
-}
-
-/* 
- * Fire with Palette
- */
-uint16_t WS2812FX::mode_fire2012WithPalette(void)
-{
-  // Array of temperature readings at each simulation cell
-  if (SEG_RT.modeinit)
-  {
-    SEG_RT.modeinit = false;
-    memset(SEG_RT_MV.fire2012.heat, 0x0, SEG_RT.length * sizeof(byte));
-  }
-
-  // Step 1.  Cool down every cell a little
-  for (int i = 0; i < SEG_RT.length; i++)
-  {
-    SEG_RT_MV.fire2012.heat[i] = qsub8(SEG_RT_MV.fire2012.heat[i], random8(0, ((SEG.cooling * 10) / SEG_RT.length) + 2));
-  }
-
-  // Step 2.  Heat from each cell drifts 'up' and diffuses a little
-  for (int k = SEG_RT.length - 1; k >= 2; k--)
-  {
-    SEG_RT_MV.fire2012.heat[k] = 
-      (SEG_RT_MV.fire2012.heat[k - 1] + 
-       SEG_RT_MV.fire2012.heat[k - 2] + 
-       SEG_RT_MV.fire2012.heat[k - 2]) / 3;
-  }
-
-  // Step 3.  Randomly ignite new 'sparks' of heat near the bottom
-  if (random8() < SEG.sparking)
-  {
-    int y = random8(7);
-    SEG_RT_MV.fire2012.heat[y] = qadd8(SEG_RT_MV.fire2012.heat[y], random8(160, 255));
-  }
-
-  // Step 4.  Map from heat cells to LED colors
-  for (int j = 0; j < SEG_RT.length; j++)
-  {
-    // Scale the heat value from 0-255 down to 0-240
-    // for best results with color palettes.
-    byte colorindex = scale8(SEG_RT_MV.fire2012.heat[j], 240);
-    CRGB color = ColorFromPalette(*_palettes[HEAT_PAL], colorindex);
-
-    leds[j + SEG_RT.start] = color;
-  }
-  return STRIP_MIN_DELAY;
 }
 
 /*

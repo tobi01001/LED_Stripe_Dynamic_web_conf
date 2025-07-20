@@ -326,10 +326,7 @@ public:
     {
       uint32_t timebase;
     } rainbow_cycle;
-    struct fill_wave
-    {
-      uint32_t timebase;
-    } fill_wave;
+    // struct fill_wave - removed, now implemented as FillWaveEffect class
     struct juggle
     {
       uint32_t timebase;
@@ -381,14 +378,7 @@ public:
       uint8_t last_index;
       uint32_t last;
     } multi_dyn;
-    struct firework
-    {
-      uint16_t  fireworks[MAX_NUM_BARS];
-      uint8_t   colIndex[MAX_NUM_BARS];
-      uint8_t   isBurning[MAX_NUM_BARS];
-      //uint8_t colors[LED_COUNT];
-      //uint8_t keeps [LED_COUNT];
-    } firework;
+    // struct firework - removed, now implemented as FireworkEffect class
     struct theater_chase
     {
       uint32_t counter_mode_step;
@@ -402,10 +392,7 @@ public:
       uint16_t co;
       uint16_t cd;
     } bubble_sort;
-    struct fire2012
-    {
-      byte heat[LED_COUNT];
-    } fire2012;
+    // struct fire2012 - removed, now implemented as Fire2012Effect class
     struct soft_twinkle
     {
       uint8_t directionFlags [(LED_COUNT + 7)/8];
@@ -553,9 +540,9 @@ public:
     _mode[FX_MODE_COLOR_WIPE_TRIWAVE]     = &WS2812FX::mode_col_wipe_triwave;
     _mode[FX_MODE_TO_INNER]               = &WS2812FX::mode_to_inner;
     _mode[FX_MODE_FILL_BRIGHT]            = &WS2812FX::mode_fill_bright;
-    _mode[FX_MODE_FIREWORK]               = &WS2812FX::mode_firework;
-    _mode[FX_MODE_FIRE2012]               = &WS2812FX::mode_fire2012WithPalette;
-    _mode[FX_MODE_FILL_WAVE]              = &WS2812FX::mode_fill_wave;
+    _mode[FX_MODE_FIREWORK]               = &WS2812FX::mode_class_based_fallback; // Now implemented as FireworkEffect class
+    _mode[FX_MODE_FIRE2012]               = &WS2812FX::mode_class_based_fallback; // Now implemented as Fire2012Effect class
+    _mode[FX_MODE_FILL_WAVE]              = &WS2812FX::mode_class_based_fallback; // Now implemented as FillWaveEffect class
     _mode[FX_MODE_BUBBLE_SORT]            = &WS2812FX::mode_bubble_sort;
     _mode[FX_MODE_SHOOTING_STAR]          = &WS2812FX::mode_shooting_star;
     _mode[FX_MODE_BEATSIN_GLOW]           = &WS2812FX::mode_beatsin_glow;
@@ -609,9 +596,9 @@ public:
     _name[FX_MODE_FILL_BRIGHT]            = F("Wave Bright");
     _name[FX_MODE_TWINKLE_FADE]           = F("Twinkle Fade");
     _name[FX_MODE_TWINKLE_FOX]            = F("Twinkle Fox");
-    _name[FX_MODE_FIREWORK]               = F("Firework");
-    _name[FX_MODE_FIRE2012]               = F("Fire 2012 - Specific Colors");
-    _name[FX_MODE_FILL_WAVE]              = F("FILL Wave");
+    // _name[FX_MODE_FIREWORK] - provided by FireworkEffect class
+    // _name[FX_MODE_FIRE2012] - provided by Fire2012Effect class  
+    // _name[FX_MODE_FILL_WAVE] - provided by FillWaveEffect class
     _name[FX_MODE_LARSON_SCANNER]         = F("Larson Scanner");
     _name[FX_MODE_COMET]                  = F("Comet");
     _name[FX_MODE_FIRE_FLICKER_INTENSE]   = F("Fire Flicker");
@@ -915,7 +902,7 @@ private:
       // mode_ease(void), // Removed - now implemented as EaseEffect class
       mode_twinkle_ease(void),
       mode_plasma(void),
-      mode_fill_wave(void),
+      // mode_fill_wave(void), // Removed - now implemented as FillWaveEffect class
       mode_fill_bright(void),
       mode_to_inner(void),
       mode_dot_beat(void),
@@ -930,7 +917,7 @@ private:
       mode_confetti(void),
       mode_juggle_pal(void),
       mode_inoise8_mover(void),
-      mode_firework(void),
+      // mode_firework(void), // Removed - now implemented as FireworkEffect class
       mode_bubble_sort(void),
       // mode_static(void), // Removed - now implemented as StaticEffect class
       color_wipe(uint32_t, uint32_t, bool),
@@ -954,7 +941,7 @@ private:
       mode_fire_flicker_soft(void),
       mode_fire_flicker_intense(void),
       fire_flicker(int),
-      mode_fire2012WithPalette(void),
+      // mode_fire2012WithPalette(void), // Removed - now implemented as Fire2012Effect class
       // mode_twinkle_fox(void), // Converted to TwinkleFoxEffect class
       mode_softtwinkles(void),
       mode_shooting_star(void),
