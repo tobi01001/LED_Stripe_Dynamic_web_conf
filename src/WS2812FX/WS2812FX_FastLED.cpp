@@ -2291,8 +2291,6 @@ uint16_t WS2812FX::mode_firework(void)
 /*
  * Fades the LEDs on and (almost) off again.
  */
-// mode_fade implementation removed - now implemented as FadeEffect class
-
 /*
  * theater chase function
  */
