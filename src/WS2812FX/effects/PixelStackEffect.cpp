@@ -125,15 +125,15 @@ void PixelStackEffect::handleUpwardMovement(WS2812FX* strip, uint16_t nLeds, uin
         leds_moved++;
     } else {
         // Draw the currently moving LED using fractional positioning
-        if (pos16 > 16) {
-            pos16 -= 16; // Start within an active LED to avoid flicker
+        if (pos16 > FRACTIONAL_POSITION_UNIT) {
+            pos16 -= FRACTIONAL_POSITION_UNIT; // Start within an active LED to avoid flicker
         }
         
         // Calculate color for the moving LED
         uint8_t colorIndex = baseHue + map(nLeds - leds_moved, 0, nLeds - 1, 0, 255);
         
         // Draw the moving LED with fractional positioning
-        strip->drawFractionalBar(runtime->start * 16 + pos16, 2, 
+        strip->drawFractionalBar(runtime->start * FRACTIONAL_POSITION_UNIT + pos16, 2, 
                                 *strip->getCurrentPalette(), 
                                 colorIndex, 255, true, 1);
         
