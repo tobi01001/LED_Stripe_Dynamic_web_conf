@@ -500,9 +500,9 @@ public:
     _mode[FX_MODE_RING_RING]              = &WS2812FX::mode_class_based_fallback; // Now implemented as PhoneRingEffect class
     _mode[FX_MODE_HEARTBEAT]              = &WS2812FX::mode_class_based_fallback; // Now implemented as HeartBeatEffect class
     _mode[FX_MODE_RAIN]                   = &WS2812FX::mode_class_based_fallback; // Now implemented as MeteorShowerEffect class
-    _mode[FX_MODE_EASE_BAR]               = &WS2812FX::mode_ease_bar;
-    _mode[FX_MODE_PACIFICA]               = &WS2812FX::mode_pacifica;
-    _mode[FX_MODE_COLOR_WAVES]            = &WS2812FX::mode_color_waves;
+    _mode[FX_MODE_EASE_BAR]               = &WS2812FX::mode_class_based_fallback; // Now implemented as EaseBarEffect class
+    _mode[FX_MODE_PACIFICA]               = &WS2812FX::mode_class_based_fallback; // Now implemented as PacificaEffect class
+    _mode[FX_MODE_COLOR_WAVES]            = &WS2812FX::mode_class_based_fallback; // Now implemented as ColorWavesEffect class
     _mode[FX_MODE_TWINKLE_MAP]            = &WS2812FX::mode_twinkle_map;
     _mode[FX_MODE_VOID]                   = &WS2812FX::mode_void;
     _mode[FX_MODE_SUNRISE]                = &WS2812FX::mode_sunrise;
@@ -559,9 +559,9 @@ public:
     // _name[FX_MODE_RING_RING] - provided by PhoneRingEffect class
     // _name[FX_MODE_HEARTBEAT] - provided by HeartBeatEffect class
     // _name[FX_MODE_RAIN] - provided by MeteorShowerEffect class
-    _name[FX_MODE_EASE_BAR]               = F("Ease Bar");
-    _name[FX_MODE_PACIFICA]               = F("Pacifica - Specific Colors");
-    _name[FX_MODE_COLOR_WAVES]            = F("Color Waves");
+    // _name[FX_MODE_EASE_BAR] - provided by EaseBarEffect class
+    // _name[FX_MODE_PACIFICA] - provided by PacificaEffect class
+    // _name[FX_MODE_COLOR_WAVES] - provided by ColorWavesEffect class
     _name[FX_MODE_TWINKLE_MAP]            = F("Twinkle Base Color");
     _name[FX_MODE_VOID]                   = F("Void DOES NOTHING");
     _name[FX_MODE_SUNRISE]                = F("Sunrise");
@@ -903,11 +903,11 @@ private:
       mode_sunset(void),
       // mode_ring_ring(void), // Removed - now implemented as PhoneRingEffect class
       // mode_heartbeat(void), // Removed - now implemented as HeartBeatEffect class
-      mode_ease_bar(void),
+      // mode_ease_bar(void), // Removed - now implemented as EaseBarEffect class
       // mode_rain(void), // Removed - now implemented as MeteorShowerEffect class
-      mode_pacifica(void),
+      // mode_pacifica(void), // Removed - now implemented as PacificaEffect class
       mode_twinkle_map(void),
-      mode_color_waves(void),
+      // mode_color_waves(void), // Removed - now implemented as ColorWavesEffect class
       mode_class_based_fallback(void); // Fallback for class-based effects
 //      quadbeat(uint16_t in);
 
