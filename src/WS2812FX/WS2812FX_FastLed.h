@@ -387,13 +387,7 @@ public:
     // struct shooting - removed, now implemented as ShootingStarEffect class
     // struct beatsin - removed, now implemented as BeatsinGlowEffect class
     // struct pixel_stack - removed, now implemented as PixelStackEffect class
-    struct ring_ring {
-      uint32_t nextmillis;
-      uint32_t pausemillis;
-      uint32_t now;
-      bool     isOn;
-      bool     isPause;
-    } ring_ring;
+    // struct ring_ring - removed, now implemented as PhoneRingEffect class
     struct sunrise
     {
       uint32_t next;
@@ -402,20 +396,7 @@ public:
 
       uint8_t nc[LED_COUNT];
     } sunrise_step;
-    struct heartBeat
-    {
-      uint32_t beatTimer;
-      uint32_t lastBeat;
-      
-      uint16_t centerOffset;
-      uint16_t pCount;
-      uint16_t msPerBeat;
-      uint16_t secondBeat;
-      
-      uint8_t  size;
-
-      bool     secondBeatActive;
-    } heartBeat;
+    // struct heartBeat - removed, now implemented as HeartBeatEffect class
     struct twinkle_fade
     {
       uint16_t numsparks;
@@ -424,12 +405,7 @@ public:
     {
       pKernel pops[MAX_NUM_BARS];
     } pops;
-    struct rain
-    {
-      uint32_t timebase[MAX_NUM_BARS];
-      uint8_t  actives[MAX_NUM_BARS];
-      uint8_t  cind[MAX_NUM_BARS];
-    } rain;
+    // struct rain - removed, now implemented as MeteorShowerEffect class
     struct pacifica
     {
       uint32_t sLastms;
@@ -521,9 +497,9 @@ public:
     _mode[FX_MODE_MOVE_BAR_SAWTOOTH]      = &WS2812FX::mode_class_based_fallback; // Now implemented as MoveBarSawtoothEffect class
     _mode[FX_MODE_POPCORN]                = &WS2812FX::mode_class_based_fallback; // Now implemented as PopcornEffect class
     _mode[FX_MODE_FIREWORKROCKETS]        = &WS2812FX::mode_class_based_fallback; // Now implemented as FireworkRocketEffect class
-    _mode[FX_MODE_RING_RING]              = &WS2812FX::mode_ring_ring;
-    _mode[FX_MODE_HEARTBEAT]              = &WS2812FX::mode_heartbeat;
-    _mode[FX_MODE_RAIN]                   = &WS2812FX::mode_rain;
+    _mode[FX_MODE_RING_RING]              = &WS2812FX::mode_class_based_fallback; // Now implemented as PhoneRingEffect class
+    _mode[FX_MODE_HEARTBEAT]              = &WS2812FX::mode_class_based_fallback; // Now implemented as HeartBeatEffect class
+    _mode[FX_MODE_RAIN]                   = &WS2812FX::mode_class_based_fallback; // Now implemented as MeteorShowerEffect class
     _mode[FX_MODE_EASE_BAR]               = &WS2812FX::mode_ease_bar;
     _mode[FX_MODE_PACIFICA]               = &WS2812FX::mode_pacifica;
     _mode[FX_MODE_COLOR_WAVES]            = &WS2812FX::mode_color_waves;
@@ -580,9 +556,9 @@ public:
     // _name[FX_MODE_MOVE_BAR_SAWTOOTH] - provided by MoveBarSawtoothEffect class
     // _name[FX_MODE_POPCORN] - provided by PopcornEffect class
     // _name[FX_MODE_FIREWORKROCKETS] - provided by FireworkRocketEffect class
-    _name[FX_MODE_RING_RING]              = F("Phone Ring");
-    _name[FX_MODE_HEARTBEAT]              = F("Heart Beat");
-    _name[FX_MODE_RAIN]                   = F("Meteor Shower");
+    // _name[FX_MODE_RING_RING] - provided by PhoneRingEffect class
+    // _name[FX_MODE_HEARTBEAT] - provided by HeartBeatEffect class
+    // _name[FX_MODE_RAIN] - provided by MeteorShowerEffect class
     _name[FX_MODE_EASE_BAR]               = F("Ease Bar");
     _name[FX_MODE_PACIFICA]               = F("Pacifica - Specific Colors");
     _name[FX_MODE_COLOR_WAVES]            = F("Color Waves");
@@ -925,10 +901,10 @@ private:
       mode_void(void),
       mode_sunrise(void),
       mode_sunset(void),
-      mode_ring_ring(void),
-      mode_heartbeat(void),
+      // mode_ring_ring(void), // Removed - now implemented as PhoneRingEffect class
+      // mode_heartbeat(void), // Removed - now implemented as HeartBeatEffect class
       mode_ease_bar(void),
-      mode_rain(void),
+      // mode_rain(void), // Removed - now implemented as MeteorShowerEffect class
       mode_pacifica(void),
       mode_twinkle_map(void),
       mode_color_waves(void),
