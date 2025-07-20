@@ -365,14 +365,8 @@ public:
     {
       uint32_t timebase;
     } running_lights;
-    struct larson_scanner
-    {
-      uint32_t timebase;
-    } larson_scanner;
-    struct comet
-    {
-      uint32_t timebase;
-    } comet;
+    // larson_scanner struct removed - now using LarsonScannerEffect class
+    // comet struct removed - now using CometEffect class
     struct multi_dyn
     {
       uint8_t last_index;
@@ -523,9 +517,9 @@ public:
     _mode[FX_MODE_FADE]                   = &WS2812FX::mode_class_based_fallback; // Now implemented as FadeEffect class
     _mode[FX_MODE_THEATER_CHASE]          = &WS2812FX::mode_class_based_fallback; // Now implemented as TheaterChaseEffect class
     _mode[FX_MODE_THEATER_CHASE_DUAL_P]   = &WS2812FX::mode_class_based_fallback; // Now implemented as TheaterChaseDualPaletteEffect class
-    _mode[FX_MODE_LARSON_SCANNER]         = &WS2812FX::mode_larson_scanner;
-    _mode[FX_MODE_COMET]                  = &WS2812FX::mode_comet;
-    _mode[FX_MODE_FIRE_FLICKER_INTENSE]   = &WS2812FX::mode_fire_flicker_intense;
+    _mode[FX_MODE_LARSON_SCANNER]         = &WS2812FX::mode_class_based_fallback; // Now implemented as LarsonScannerEffect class
+    _mode[FX_MODE_COMET]                  = &WS2812FX::mode_class_based_fallback; // Now implemented as CometEffect class
+    _mode[FX_MODE_FIRE_FLICKER_INTENSE]   = &WS2812FX::mode_class_based_fallback; // Now implemented as FireFlickerIntenseEffect class
     _mode[FX_MODE_BREATH]                 = &WS2812FX::mode_breath;
     _mode[FX_MODE_RUNNING_LIGHTS]         = &WS2812FX::mode_running_lights;
     _mode[FX_MODE_NOISEMOVER]             = &WS2812FX::mode_inoise8_mover;
@@ -599,9 +593,9 @@ public:
     // _name[FX_MODE_FIREWORK] - provided by FireworkEffect class
     // _name[FX_MODE_FIRE2012] - provided by Fire2012Effect class  
     // _name[FX_MODE_FILL_WAVE] - provided by FillWaveEffect class
-    _name[FX_MODE_LARSON_SCANNER]         = F("Larson Scanner");
-    _name[FX_MODE_COMET]                  = F("Comet");
-    _name[FX_MODE_FIRE_FLICKER_INTENSE]   = F("Fire Flicker");
+    // _name[FX_MODE_LARSON_SCANNER] - provided by LarsonScannerEffect class
+    // _name[FX_MODE_COMET] - provided by CometEffect class
+    // _name[FX_MODE_FIRE_FLICKER_INTENSE] - provided by FireFlickerIntenseEffect class
     _name[FX_MODE_BUBBLE_SORT]            = F("Bubble Sort");
     _name[FX_MODE_SHOOTING_STAR]          = F("Shooting Star");
     _name[FX_MODE_BEATSIN_GLOW]           = F("Sine glows");
@@ -934,12 +928,12 @@ private:
       mode_running_lights(void),
       // mode_twinkle_fade(void), // Converted to TwinkleFadeEffect class
       mode_sparkle(void),
-      mode_larson_scanner(void),
-      mode_comet(void),
+      // mode_larson_scanner(void), // Removed - now implemented as LarsonScannerEffect class
+      // mode_comet(void), // Removed - now implemented as CometEffect class
       fireworks(uint32_t),
       mode_fire_flicker(void),
       mode_fire_flicker_soft(void),
-      mode_fire_flicker_intense(void),
+      // mode_fire_flicker_intense(void), // Removed - now implemented as FireFlickerIntenseEffect class
       fire_flicker(int),
       // mode_fire2012WithPalette(void), // Removed - now implemented as Fire2012Effect class
       // mode_twinkle_fox(void), // Converted to TwinkleFoxEffect class
