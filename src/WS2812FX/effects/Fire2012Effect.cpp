@@ -66,6 +66,11 @@ void Fire2012Effect::cleanup() {
 bool Fire2012Effect::allocateHeatArray(WS2812FX* strip) {
     auto runtime = strip->getSegmentRuntime();
     
+    // Check if runtime is null
+    if (runtime == nullptr) {
+        return false; // Cannot allocate heat array without valid runtime
+    }
+    
     // Free existing array if it exists and is wrong size
     if (heatArray != nullptr && heatArraySize != runtime->length) {
         freeHeatArray();
