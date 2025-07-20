@@ -7,7 +7,7 @@ bool MultiDynamicEffect::init(WS2812FX* strip) {
     }
     
     // Initialize private state variables
-    lastUpdate = 0;         // Reset timer to trigger immediate update
+    nextUpdate = 0;         // Reset timer to trigger immediate update
     lastColorIndex = 0;     // Start with first palette index
     
     // Get segment runtime data through the strip
@@ -31,7 +31,7 @@ uint16_t MultiDynamicEffect::update(WS2812FX* strip) {
     // Check if it's time to update colors based on speed setting
     // The interval calculation uses BEAT88_MAX to invert speed (higher speed = shorter interval)
     // Right shift by 6 provides reasonable timing range (similar to original implementation)
-    if (currentTime > lastUpdate) {
+    if (currentTime > nextUpdate) {
         
         // Update all LEDs in the segment with new random colors
         for (uint16_t i = runtime->start; i <= runtime->stop; i++) {
@@ -56,11 +56,11 @@ uint16_t MultiDynamicEffect::update(WS2812FX* strip) {
         // Higher beat88 values = faster changes (shorter intervals)
         // The bit shift provides a reasonable timing range for visual effect
         uint32_t interval = (BEAT88_MAX - seg->beat88) >> 6;
-        lastUpdate = currentTime + interval;
+        nextUpdate = currentTime + interval;
     }
     
     // Return minimum delay for smooth operation
-    // The actual timing is controlled by the internal lastUpdate mechanism
+    // The actual timing is controlled by the internal nextUpdate mechanism
     return strip->getStripMinDelay();
 }
 
@@ -75,7 +75,7 @@ uint8_t MultiDynamicEffect::getModeId() const {
 void MultiDynamicEffect::cleanup() {
     // Reset state for clean transition to next effect
     initialized = false;
-    lastUpdate = 0;
+    nextUpdate = 0;
     lastColorIndex = 0;
 }
 
