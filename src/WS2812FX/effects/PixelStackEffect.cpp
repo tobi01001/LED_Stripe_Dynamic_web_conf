@@ -73,7 +73,8 @@ void PixelStackEffect::applyBackgroundFade(WS2812FX* strip) {
     
     // Apply speed-dependent fade to create smooth trails
     // Faster speeds get more fading to prevent blur
-    uint8_t fadeAmount = max(2, effectSpeed >> 8);
+    const uint8_t MIN_FADE_AMOUNT = 2;
+    uint8_t fadeAmount = max(MIN_FADE_AMOUNT, effectSpeed >> 8);
     
     fadeToBlackBy(strip->leds + runtime->start, runtime->length, fadeAmount);
 }
