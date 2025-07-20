@@ -386,12 +386,7 @@ public:
     } soft_twinkle;
     // struct shooting - removed, now implemented as ShootingStarEffect class
     // struct beatsin - removed, now implemented as BeatsinGlowEffect class
-    struct pixel_stack
-    {
-      bool up;
-      int16_t leds_moved;
-      uint16_t ppos16;
-    } pixel_stack;
+    // struct pixel_stack - removed, now implemented as PixelStackEffect class
     struct ring_ring {
       uint32_t nextmillis;
       uint32_t pausemillis;
@@ -519,7 +514,7 @@ public:
     _mode[FX_MODE_BUBBLE_SORT]            = &WS2812FX::mode_class_based_fallback; // Now implemented as BubbleSortEffect class
     _mode[FX_MODE_SHOOTING_STAR]          = &WS2812FX::mode_class_based_fallback; // Now implemented as ShootingStarEffect class
     _mode[FX_MODE_BEATSIN_GLOW]           = &WS2812FX::mode_class_based_fallback; // Now implemented as BeatsinGlowEffect class
-    _mode[FX_MODE_PIXEL_STACK]            = &WS2812FX::mode_pixel_stack;
+    _mode[FX_MODE_PIXEL_STACK]            = &WS2812FX::mode_class_based_fallback; // Now implemented as PixelStackEffect class
     _mode[FX_MODE_MOVE_BAR_SIN]           = &WS2812FX::mode_move_bar_sin;
     _mode[FX_MODE_MOVE_BAR_QUAD]          = &WS2812FX::mode_move_bar_quad;
     _mode[FX_MODE_MOVE_BAR_CUBE]          = &WS2812FX::mode_move_bar_cubic;
@@ -578,7 +573,7 @@ public:
     // _name[FX_MODE_BUBBLE_SORT] - provided by BubbleSortEffect class
     // _name[FX_MODE_SHOOTING_STAR] - provided by ShootingStarEffect class
     // _name[FX_MODE_BEATSIN_GLOW] - provided by BeatsinGlowEffect class
-    _name[FX_MODE_PIXEL_STACK]            = F("Pixel Stack");
+    // _name[FX_MODE_PIXEL_STACK] - provided by PixelStackEffect class
     _name[FX_MODE_MOVE_BAR_SIN]           = F("1/2 Bar Sine");
     _name[FX_MODE_MOVE_BAR_QUAD]          = F("1/2 Bar2");
     _name[FX_MODE_MOVE_BAR_CUBE]          = F("1/2 Bar3");
@@ -919,7 +914,7 @@ private:
       mode_softtwinkles(void),
       // mode_shooting_star(void), // Removed - now implemented as ShootingStarEffect class
       // mode_beatsin_glow(void), // Removed - now implemented as BeatsinGlowEffect class
-      mode_pixel_stack(void),
+      // mode_pixel_stack(void), // Removed - now implemented as PixelStackEffect class
       mode_move_bar_sin(void),
       mode_move_bar_cubic(void),
       mode_move_bar_quad(void),
