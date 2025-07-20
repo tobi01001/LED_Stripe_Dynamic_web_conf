@@ -600,9 +600,6 @@ public:
     // _name[FX_MODE_PRIDE] - provided by PrideEffect class
     // _name[FX_MODE_SCAN] - provided by ScanEffect class
     // _name[FX_MODE_DUAL_SCAN] - provided by DualScanEffect class
-    // _name[FX_MODE_PRIDE] - provided by PrideEffect class
-    // _name[FX_MODE_SCAN] - provided by ScanEffect class
-    // _name[FX_MODE_DUAL_SCAN] - provided by DualScanEffect class
     _name[FX_MODE_FADE]                   = F("Fade");
     _name[FX_MODE_THEATER_CHASE]          = F("Theater Chase");
     _name[FX_MODE_THEATER_CHASE_DUAL_P]   = F("Theater Chase Dual palette");
