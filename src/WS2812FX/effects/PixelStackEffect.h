@@ -45,6 +45,10 @@ private:
     int16_t leds_moved;      ///< Number of LEDs that have been moved to their final position
     uint16_t ppos16;         ///< Previous position in 16-bit fixed point format for movement tracking
 
+    // Constants for fractional positioning
+    static const uint16_t FRACTIONAL_POSITION_UNIT = 16;  ///< Scaling factor for sub-pixel positioning
+    static const uint16_t PIXEL_SCALING_FACTOR = 16;      ///< Scaling factor for pixel position calculations  
+    static const uint8_t FRACTIONAL_BAR_WIDTH = 2;        ///< Width of the bar drawn in fractional units
     /**
      * @brief Initialize effect state variables to starting conditions
      * Sets up the initial direction, position counters, and movement tracking

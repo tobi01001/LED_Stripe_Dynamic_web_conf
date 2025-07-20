@@ -2445,62 +2445,12 @@ uint16_t WS2812FX::mode_softtwinkles(void)
  * See PixelStackEffect.h/.cpp for the new implementation.
  */
 
-uint16_t WS2812FX::mode_move_bar_sin(void)
-{
-  return mode_move_bar(0);
-}
-uint16_t WS2812FX::mode_move_bar_quad(void)
-{
-  return mode_move_bar(1);
-}
-uint16_t WS2812FX::mode_move_bar_cubic(void)
-{
-  return mode_move_bar(2);
-}
-uint16_t WS2812FX::mode_move_bar_sawtooth(void)
-{
-  return mode_move_bar(3);
-}
-
-uint16_t WS2812FX::mode_move_bar(uint8_t mode)
-{
-  if (SEG_RT.modeinit)
-  {
-    SEG_RT.modeinit = false;
-  }
-  const uint16_t width = SEG_RT.length/2;
-  const uint16_t sp = map(SEG.beat88>(20000/SEG.segments)?(20000/SEG.segments):SEG.beat88, 0, (20000/SEG.segments), 0, 65535);
-
-
-  //fadeToBlackBy(leds, SEG_RT.length, map(sp, 0, 65535, 0, 255)); 
-  fadeToBlackBy(leds, SEG_RT.length, map(sp, (uint16_t)0, (uint16_t)65535, (uint16_t)64, (uint16_t)255)); 
-
-
-  uint16_t pos16 = 0;
-  switch (mode)
-  {
-  case 0:
-    pos16 = beatsin16(sp/2, 0, (width*16));//beatsin16(sp/2, 0, (width)); //
-    break;
-  case 1:
-    pos16 = map(ease16InOutQuad(triwave16(beat88(sp/2))), (uint16_t)0, (uint16_t)65535, (uint16_t)0, (uint16_t)(width*16)); //0, width); //
-    break;
-  case 2:
-    pos16 = map(ease16InOutCubic(triwave16(beat88(sp/2))), (uint16_t)0, (uint16_t)65535, (uint16_t)0, (uint16_t)(width*16)); //0, width); //
-    break;
-  default:
-    pos16 = map(triwave16(beat88(sp/2)), (uint16_t)0, (uint16_t)65535, (uint16_t)0, (uint16_t)(width*16)); //0, width); //
-    break;
-  }
-  uint8_t inc = max(255/width, 1);
-  drawFractionalBar(pos16, width, _currentPalette, SEG_RT.baseHue, 255, false, inc);
-
-  //fill_palette(&leds[pos16], width, SEG_RT.baseHue, constrain(255/width, 1, 255), _currentPalette, 255, SEG.blendType);
-  //blur1d(leds, LED_COUNT, map(sp, 0, 65535, 172, 32));
-  
-
-  return STRIP_MIN_DELAY;
-}
+// Move bar effects moved to class-based implementations:
+// - MoveBarSinEffect (FX_MODE_MOVE_BAR_SIN)
+// - MoveBarQuadEffect (FX_MODE_MOVE_BAR_QUAD) 
+// - MoveBarCubeEffect (FX_MODE_MOVE_BAR_CUBE)
+// - MoveBarSawtoothEffect (FX_MODE_MOVE_BAR_SAWTOOTH)
+// Old implementations removed to avoid external dependencies
 
 uint16_t WS2812FX::mode_popcorn(void)
 {
