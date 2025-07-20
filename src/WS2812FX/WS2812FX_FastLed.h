@@ -293,12 +293,6 @@ public:
 
   typedef union 
   {
-    struct pride
-    {
-      uint16_t sPseudotime;
-      uint16_t sLastMillis;
-      uint16_t sHue16;
-    } pride;
     struct ease
     {
       uint32_t timebase;
@@ -324,14 +318,6 @@ public:
     {
       uint32_t timebase;
     } fade;
-    struct scan
-    {
-      uint32_t timebase;
-    } scan;
-    struct dual_scan
-    {
-      uint32_t timebase;
-    } dual_scan;
     struct rainbow
     {
       uint32_t timebase;
@@ -538,18 +524,18 @@ public:
     // Effects implemented as classes - these entries are fallback only
     _mode[FX_MODE_STATIC]                 = &WS2812FX::mode_class_based_fallback; // Now implemented as StaticEffect class
     _mode[FX_MODE_EASE]                   = &WS2812FX::mode_class_based_fallback; // Now implemented as EaseEffect class
-    _mode[FX_MODE_MULTI_DYNAMIC]          = &WS2812FX::mode_multi_dynamic;
-    _mode[FX_MODE_RAINBOW]                = &WS2812FX::mode_rainbow;
-    _mode[FX_MODE_RAINBOW_CYCLE]          = &WS2812FX::mode_rainbow_cycle;
-    _mode[FX_MODE_PRIDE]                  = &WS2812FX::mode_pride;
-    _mode[FX_MODE_SCAN]                   = &WS2812FX::mode_scan;
-    _mode[FX_MODE_DUAL_SCAN]              = &WS2812FX::mode_dual_scan;
-    _mode[FX_MODE_FADE]                   = &WS2812FX::mode_fade;
-    _mode[FX_MODE_THEATER_CHASE]          = &WS2812FX::mode_theater_chase;
-    _mode[FX_MODE_THEATER_CHASE_DUAL_P]   = &WS2812FX::mode_theater_chase_dual_pal;
     _mode[FX_MODE_THEATER_CHASE_RAINBOW]  = &WS2812FX::mode_class_based_fallback; // Now implemented as TheaterChaseRainbowEffect class
     _mode[FX_MODE_TWINKLE_FADE]           = &WS2812FX::mode_class_based_fallback; // Now implemented as TwinkleFadeEffect class
     _mode[FX_MODE_TWINKLE_FOX]            = &WS2812FX::mode_class_based_fallback; // Now implemented as TwinkleFoxEffect class
+    _mode[FX_MODE_MULTI_DYNAMIC]          = &WS2812FX::mode_class_based_fallback; // Now implemented as MultiDynamicEffect class
+    _mode[FX_MODE_RAINBOW]                = &WS2812FX::mode_class_based_fallback; // Now implemented as RainbowEffect class
+    _mode[FX_MODE_RAINBOW_CYCLE]          = &WS2812FX::mode_class_based_fallback; // Now implemented as RainbowCycleEffect class
+    _mode[FX_MODE_PRIDE]                  = &WS2812FX::mode_class_based_fallback; // Now implemented as PrideEffect class
+    _mode[FX_MODE_SCAN]                   = &WS2812FX::mode_class_based_fallback; // Now implemented as ScanEffect class
+    _mode[FX_MODE_DUAL_SCAN]              = &WS2812FX::mode_class_based_fallback; // Now implemented as DualScanEffect class
+    _mode[FX_MODE_FADE]                   = &WS2812FX::mode_class_based_fallback; // Now implemented as FadeEffect class
+    _mode[FX_MODE_THEATER_CHASE]          = &WS2812FX::mode_class_based_fallback; // Now implemented as TheaterChaseEffect class
+    _mode[FX_MODE_THEATER_CHASE_DUAL_P]   = &WS2812FX::mode_class_based_fallback; // Now implemented as TheaterChaseDualPaletteEffect class
     _mode[FX_MODE_LARSON_SCANNER]         = &WS2812FX::mode_larson_scanner;
     _mode[FX_MODE_COMET]                  = &WS2812FX::mode_comet;
     _mode[FX_MODE_FIRE_FLICKER_INTENSE]   = &WS2812FX::mode_fire_flicker_intense;
@@ -594,6 +580,12 @@ public:
     // Names for class-based effects are retrieved dynamically via getName()
     // _name[FX_MODE_STATIC] - provided by StaticEffect class
     // _name[FX_MODE_EASE] - provided by EaseEffect class
+    // _name[FX_MODE_MULTI_DYNAMIC] - provided by MultiDynamicEffect class
+    // _name[FX_MODE_RAINBOW] - provided by RainbowEffect class
+    // _name[FX_MODE_RAINBOW_CYCLE] - provided by RainbowCycleEffect class
+    // _name[FX_MODE_FADE] - provided by FadeEffect class
+    // _name[FX_MODE_THEATER_CHASE] - provided by TheaterChaseEffect class
+    // _name[FX_MODE_THEATER_CHASE_DUAL_P] - provided by TheaterChaseDualPaletteEffect class
     _name[FX_MODE_BREATH]                 = F("Breath");
     _name[FX_MODE_NOISEMOVER]             = F("iNoise8");
     _name[FX_MODE_PLASMA]                 = F("Plasma");
@@ -605,15 +597,12 @@ public:
     _name[FX_MODE_COLOR_WIPE_SINE]        = F("Wipe Sine");
     _name[FX_MODE_COLOR_WIPE_QUAD]        = F("Wipe Quad");
     _name[FX_MODE_COLOR_WIPE_TRIWAVE]     = F("Wipe Triwave");
-    _name[FX_MODE_MULTI_DYNAMIC]          = F("Dynamic");
-    _name[FX_MODE_RAINBOW]                = F("Rainbow");
-    _name[FX_MODE_RAINBOW_CYCLE]          = F("Rainbow Cycle");
-    _name[FX_MODE_PRIDE]                  = F("Pride");
-    _name[FX_MODE_SCAN]                   = F("Scan");
-    _name[FX_MODE_DUAL_SCAN]              = F("Dual Scan");
-    _name[FX_MODE_FADE]                   = F("Fade");
-    _name[FX_MODE_THEATER_CHASE]          = F("Theater Chase");
-    _name[FX_MODE_THEATER_CHASE_DUAL_P]   = F("Theater Chase Dual palette");
+    // _name[FX_MODE_PRIDE] - provided by PrideEffect class
+    // _name[FX_MODE_SCAN] - provided by ScanEffect class
+    // _name[FX_MODE_DUAL_SCAN] - provided by DualScanEffect class
+    // _name[FX_MODE_FADE] - provided by FadeEffect class
+    // _name[FX_MODE_THEATER_CHASE] - provided by TheaterChaseEffect class
+    // _name[FX_MODE_THEATER_CHASE_DUAL_P] - provided by TheaterChaseDualPaletteEffect class
     _name[FX_MODE_THEATER_CHASE_RAINBOW]  = F("Theater Chase Rainbow");
     _name[FX_MODE_RUNNING_LIGHTS]         = F("Running Lights");
     _name[FX_MODE_TO_INNER]               = F("Centering");
@@ -896,6 +885,9 @@ public:
   // Expose minimum delay for effects  
   uint32_t getStripMinDelay() const { return STRIP_MIN_DELAY; }
 
+  // Expose the random wheel index function for effects
+  uint8_t get_random_wheel_index(uint8_t, uint8_t);
+
 
 private:
   // internal functions
@@ -942,20 +934,16 @@ private:
       mode_bubble_sort(void),
       // mode_static(void), // Removed - now implemented as StaticEffect class
       color_wipe(uint32_t, uint32_t, bool),
-      mode_multi_dynamic(void),
+      // mode_multi_dynamic(void), // Removed - now implemented as MultiDynamicEffect class
       mode_breath(void),
+
       mode_fade(void),
-      mode_scan(void),
-      mode_dual_scan(void),
+      // mode_fade(void), // Removed - now implemented as FadeEffect class
+      // mode_scan(void),
+      // mode_dual_scan(void),
+
       theater_chase(CRGB color1),
-      theater_chase(bool dual),
-      mode_theater_chase(void),
-      mode_theater_chase_dual_pal(void),
-      // mode_theater_chase_rainbow(void), // Converted to TheaterChaseRainbowEffect class
-      mode_rainbow(void),
-      mode_rainbow_cycle(void),
       pride(void),
-      mode_pride(void),
       mode_running_lights(void),
       // mode_twinkle_fade(void), // Converted to TwinkleFadeEffect class
       mode_sparkle(void),
@@ -1047,7 +1035,6 @@ private:
       _triggered;
 
   uint8_t
-      get_random_wheel_index(uint8_t, uint8_t),
       _new_mode,
       _volts,
       _blend,

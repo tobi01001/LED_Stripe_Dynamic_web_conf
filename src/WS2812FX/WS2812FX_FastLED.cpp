@@ -42,6 +42,13 @@
 #include "effects/TheaterChaseRainbowEffect.h"
 #include "effects/TwinkleFadeEffect.h"
 #include "effects/TwinkleFoxEffect.h"
+#include "effects/PrideEffect.h"
+#include "effects/ScanEffect.h"
+#include "effects/DualScanEffect.h"
+#include "effects/MultiDynamicEffect.h"
+#include "effects/RainbowEffect.h"
+#include "effects/RainbowCycleEffect.h"
+
 
 /*
  * ColorPalettes
@@ -409,6 +416,8 @@ void WS2812FX::service()
   {
     fill_solid(leds, LED_COUNT, CRGB::Black);
     setTransition();
+    // reset the modeinit flag
+    SEG_RT.modeinit = false;
   }
   
   if (SEG.power)
@@ -1408,52 +1417,6 @@ void WS2812FX::coolLikeIncandescent(CRGB &c, uint8_t phase)
 /*
  * pride based on https://gist.github.com/kriegsman/964de772d64c502760e5
  */
-uint16_t WS2812FX::pride()
-{
-  if (SEG_RT.modeinit)
-  {
-    SEG_RT.modeinit = false;
-    SEG_RT_MV.pride.sPseudotime = 0;
-    
-    SEG_RT_MV.pride.sLastMillis = 0;
-    SEG_RT_MV.pride.sHue16 = 0;
-  }
-
-  uint8_t brightdepth = beatsin88(SEG.beat88 / 3 + 1, 96, 224);
-  uint16_t brightnessthetainc16 = beatsin88(SEG.beat88 / 5 + 1, (25 * 256), (40 * 256));
-  uint8_t msmultiplier = beatsin88(SEG.beat88 / 7 + 1, 23, 60);
-
-  uint16_t hue16 = SEG_RT_MV.pride.sHue16;
-  uint16_t hueinc16 = beatsin88(SEG.beat88 / 9 + 1, 1, 3000);
-
-  uint16_t ms = millis();
-  uint16_t deltams = ms - SEG_RT_MV.pride.sLastMillis;
-  SEG_RT_MV.pride.sLastMillis = ms;
-  SEG_RT_MV.pride.sPseudotime += deltams * msmultiplier;
-  SEG_RT_MV.pride.sHue16 += deltams * beatsin88((SEG.beat88 / 5) * 2 + 1, 5, 9);
-  uint16_t brightnesstheta16 = SEG_RT_MV.pride.sPseudotime;
-
-  for (uint16_t i = SEG_RT.start; i < SEG_RT.length; i++)
-  {
-    hue16 += hueinc16;
-    uint8_t hue8 = hue16 / 256;
-
-    brightnesstheta16 += brightnessthetainc16;
-    uint16_t b16 = sin16(brightnesstheta16) + 32768;
-
-    uint16_t bri16 = (uint32_t)((uint32_t)b16 * (uint32_t)b16) / 65536;
-    uint8_t bri8 = (uint32_t)(((uint32_t)bri16) * brightdepth) / 65536;
-    bri8 += (255 - brightdepth);
-
-    CRGB newcolor = ColorFromPaletteWithDistribution(_currentPalette, hue8, bri8, SEG.blendType); //CHSV( hue8, sat8, bri8);
-
-    uint16_t pixelnumber = (SEG_RT.stop) - i;
-
-    nblend(leds[pixelnumber], newcolor, 64);
-  }
-  return STRIP_MIN_DELAY;
-}
-
 /*
  * fade out function
  * fades out the current segment by dividing each pixel's intensity by 2
@@ -2255,32 +2218,6 @@ uint16_t WS2812FX::mode_breath(void)
 }
 
 /*
- * Lights every LED in a random color. Changes all LED at the same time
- * to new random colors.
- */
-uint16_t WS2812FX::mode_multi_dynamic(void)
-{
-  if (SEG_RT.modeinit)
-  {
-    SEG_RT.modeinit = false;
-    SEG_RT_MV.multi_dyn.last = 0;
-  }
-  if (millis() > SEG_RT_MV.multi_dyn.last)
-  {
-
-    for (uint16_t i = SEG_RT.start; i <= SEG_RT.stop; i++)
-    {
-
-      SEG_RT_MV.multi_dyn.last_index = get_random_wheel_index(SEG_RT_MV.multi_dyn.last_index, 32);
-      leds[i] = ColorFromPaletteWithDistribution(_currentPalette, SEG_RT_MV.multi_dyn.last_index, _brightness, SEG.blendType);
-    }
-    SEG_RT_MV.multi_dyn.last = millis() + ((BEAT88_MAX - SEG.beat88) >> 6);
-  }
-
-  return STRIP_MIN_DELAY;
-}
-
-/*
  * Waving brightness over the complete strip.
  */
 uint16_t WS2812FX::mode_fill_bright(void)
@@ -2358,107 +2295,6 @@ uint16_t WS2812FX::mode_firework(void)
 /*
  * Fades the LEDs on and (almost) off again.
  */
-uint16_t WS2812FX::mode_fade(void)
-{
-  if (SEG_RT.modeinit)
-  {
-    SEG_RT.modeinit = false;
-    SEG_RT_MV.fade.timebase = millis();
-  }
-
-  fill_palette(&(leds[SEG_RT.start]), SEG_RT.length, 0 + SEG_RT.baseHue, 5, _currentPalette, map8(triwave8(map(beat88(SEG.beat88 * 10,  SEG_RT_MV.fade.timebase), (uint16_t)0, (uint16_t)65535, (uint16_t)0, (uint16_t)255)), 24, 255), SEG.blendType);
-
-  return STRIP_MIN_DELAY;
-}
-
-/*
- * Runs a single pixel back and forth.
- */
-uint16_t WS2812FX::mode_scan(void)
-{
-  if (SEG_RT.modeinit)
-  {
-    SEG_RT.modeinit = false;
-     SEG_RT_MV.scan.timebase = millis();
-  }
-  //uint16_t led_offset = map(triwave8(map(beat88(SEG.beat88, SEG_RT.timebase), 0, 65535, 0, 255)), 0, 255, SEG_RT.start*16, SEG_RT.stop*16);
-  const uint16_t width = 2; // max(2, SEG_RT.length/50)
-  uint16_t led_offset = map(triwave16(beat88(SEG.beat88,  SEG_RT_MV.scan.timebase)), (uint16_t)0, (uint16_t)65535, (uint16_t)(SEG_RT.start * 16), (uint16_t)(SEG_RT.stop * 16 - width * 16));
-
-  // maybe we change this to fade?
-  fill_solid(&(leds[SEG_RT.start]), SEG_RT.length, CRGB(0, 0, 0));
-
-  drawFractionalBar(SEG_RT.start * 16 + led_offset, width, _currentPalette, led_offset / 16 + SEG_RT.baseHue, 255, true, 1);
-
-  return STRIP_MIN_DELAY;
-}
-
-/*
- * Runs two pixel back and forth in opposite directions.
- */
-uint16_t WS2812FX::mode_dual_scan(void)
-{
-  if (SEG_RT.modeinit)
-  {
-    SEG_RT.modeinit = false;
-     SEG_RT_MV.dual_scan.timebase = millis();
-  }
-  //uint16_t led_offset = map(triwave8(map(beat88(SEG.beat88, SEG_RT.timebase), 0, 65535, 0, 255)), 0, 255, SEG_RT.start*16, SEG_RT.stop*16);
-  const uint16_t width = 2; // max(2, SEG_RT.length/50)
-  uint16_t led_offset = map(triwave16(beat88(SEG.beat88,  SEG_RT_MV.dual_scan.timebase)), (uint16_t)0, (uint16_t)65535, (uint16_t)(SEG_RT.start * 16), (uint16_t)(SEG_RT.stop * 16 - width * 16));
-
-  fill_solid(&(leds[SEG_RT.start]), SEG_RT.length, CRGB(0, 0, 0));
-
-  drawFractionalBar(SEG_RT.stop * 16 - led_offset, width, _currentPalette, 255 - led_offset / 16 + SEG_RT.baseHue, 255, true, 1);
-  drawFractionalBar(SEG_RT.start * 16 + led_offset, width, _currentPalette, led_offset / 16 + SEG_RT.baseHue, 255, true, 1);
-
-  return STRIP_MIN_DELAY;
-}
-
-/*
- * Cycles all LEDs at once through a rainbow.
- */
-uint16_t WS2812FX::mode_rainbow(void)
-{
-  if (SEG_RT.modeinit)
-  {
-    SEG_RT.modeinit = false;
-    SEG_RT_MV.rainbow.timebase = millis();
-  }
-
-  fill_solid(&leds[SEG_RT.start], SEG_RT.length, ColorFromPaletteWithDistribution(_currentPalette, map(beat88(SEG.beat88, SEG_RT_MV.rainbow.timebase), (uint16_t)0, (uint16_t)65535, (uint16_t)0, (uint16_t)255), _brightness, SEG.blendType)); /*CHSV(beat8(max(SEG.beat/2,1), SEG_RT.timebase)*/ //_brightness));
-  //SEG_RT.counter_mode_step = (SEG_RT.counter_mode_step + 2) & 0xFF;
-  return STRIP_MIN_DELAY;
-}
-
-/*
- * Cycles a rainbow over the entire string of LEDs.
- */
-uint16_t WS2812FX::mode_rainbow_cycle(void)
-{
-  if (SEG_RT.modeinit)
-  {
-    SEG_RT.modeinit = false;
-    SEG_RT_MV.rainbow_cycle.timebase = millis();
-  }
-
-  fill_palette(&leds[SEG_RT.start],
-               SEG_RT.length,
-               map(beat88(SEG.beat88,
-                           SEG_RT_MV.rainbow_cycle.timebase),
-                   (uint16_t)0, (uint16_t)65535, (uint16_t)0, (uint16_t)255),
-               max(1, (256 * 100 / (SEG_RT.length * SEG.paletteDistribution))),
-               _currentPalette,
-               255, SEG.blendType);
-
-  return STRIP_MIN_DELAY;
-}
-
-uint16_t WS2812FX::mode_pride(void)
-{
-  return pride();
-}
-
 /*
  * theater chase function
  */
@@ -2486,47 +2322,11 @@ uint16_t WS2812FX::theater_chase(CRGB color)
   return STRIP_MIN_DELAY;
 }
 
-uint16_t WS2812FX::theater_chase(bool dual)
-{
-  if (SEG_RT.modeinit)
-  {
-    SEG_RT.modeinit = false;
-    SEG_RT_MV.theater_chase.timebase = millis();
-  }
-  uint16_t off = map(beat88(SEG.beat88 / 2,  SEG_RT_MV.theater_chase.timebase), (uint16_t)0, (uint16_t)65535, (uint16_t)0, (uint16_t)255) % 3;
+// theater_chase(bool dual) implementation removed - functionality now in TheaterChaseDualPaletteEffect class
 
-  for (uint16_t i = 0; i < SEG_RT.length; i++)
-  {
-    uint8_t pal_index = map(i, (uint16_t)0, (uint16_t)(SEG_RT.length - 1), (uint16_t)0, (uint16_t)255) + SEG_RT.baseHue;
-    if ((i % 3) == off)
-    {
-      leds[SEG_RT.start + i] = ColorFromPaletteWithDistribution(_currentPalette, pal_index, 255, SEG.blendType);
-    }
-    else
-    {
-      if(dual)
-        leds[SEG_RT.start + i] = ColorFromPaletteWithDistribution(_currentPalette, 128 + pal_index, 32, SEG.blendType);
-      else
-        leds[SEG_RT.start + i] = CRGB::Black;
-    }
-  }
-  return STRIP_MIN_DELAY;
-} 
+// mode_theater_chase implementation removed - now implemented as TheaterChaseEffect class
 
-
-/*
- * Theatre-style crawling lights.
- * Inspired by the Adafruit examples.
- */
-uint16_t WS2812FX::mode_theater_chase(void)
-{
-  return theater_chase(false);
-}
-
-uint16_t WS2812FX::mode_theater_chase_dual_pal(void)
-{
-  return theater_chase(true);
-}
+// mode_theater_chase_dual_pal implementation removed - now implemented as TheaterChaseDualPaletteEffect class
 
 /*
  * Theatre-style crawling lights with rainbow effect.
