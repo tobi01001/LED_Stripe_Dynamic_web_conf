@@ -33,7 +33,7 @@ private:
      * @brief Private state variables to avoid shared resources
      * These replace the union-based variables in the original implementation
      */
-    uint32_t lastUpdate = 0;        ///< Timestamp of last color change (replaces multi_dyn.last)
+    uint32_t nextUpdate = 0;        ///< Timestamp when next color change should occur (replaces multi_dyn.last)
     uint8_t lastColorIndex = 0;     ///< Last palette index used for random generation (replaces multi_dyn.last_index)
     bool initialized = false;       ///< Flag to track initialization state
 };
