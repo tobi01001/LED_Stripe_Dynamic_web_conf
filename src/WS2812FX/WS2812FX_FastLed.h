@@ -166,6 +166,8 @@ extern const TProgmemRGBPalette16
     Shades_Of_Red_p,
     Shades_Of_Green_p,
     Shades_Of_Blue_p,
+    pacifica_palette_p1,
+    pacifica_palette_p2,
     pacifica_palette_p3,
     Random_p;
 
@@ -828,13 +830,15 @@ private:
       setPixelDirection(uint16_t i, bool dir, uint8 *directionFlags),
       brightenOrDarkenEachPixel(fract8 fadeUpAmount, fract8 fadeDownAmount, uint8_t *directionFlags),
       draw_sunrise_step(uint16_t step),
-      m_sunrise_sunset(bool isSunrise),
-      pacifica_layer(const CRGBPalette16& p, uint16_t cistart, uint16_t wavescale, uint8_t bri, uint16_t ioff),
-      pacifica_deepen_colors(void),
-      pacifica_add_whitecaps(void);
+      m_sunrise_sunset(bool isSunrise);
 
 public:
   // These functions need to be accessible to effects
+  // Pacifica helper methods - made public for PacificaEffect class access
+  void pacifica_layer(const CRGBPalette16& p, uint16_t cistart, uint16_t wavescale, uint8_t bri, uint16_t ioff);
+  void pacifica_deepen_colors(void);
+  void pacifica_add_whitecaps(void);
+
 private:
 
   uint8_t attackDecayWave8(uint8_t i);
