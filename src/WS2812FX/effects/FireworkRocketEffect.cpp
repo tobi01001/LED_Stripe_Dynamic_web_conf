@@ -208,7 +208,17 @@ void FireworkRocketEffect::renderExplosionPhase(const RocketData& rocket, WS2812
         strip->drawFractionalBar(pos, 3, CRGBPalette16(centerColor), 0, 255, true, 0);
         
         // Apply blur for explosion spread
-        blur1d(&strip->leds[pos / 16 + 1], blendWidth, 172);
+        uint16_t ledArraySize = strip->getSegment()->stop + 1; // Assuming 'stop' is the last valid index
+        uint16_t startIndex = pos / 16 + 1;
+        if (startIndex + blendWidth <= ledArraySize) {
+            blur1d(&strip->leds[startIndex], blendWidth, 172);
+        } else {
+            // Adjust blendWidth to fit within bounds or skip blur
+            uint16_t adjustedBlendWidth = ledArraySize - startIndex;
+            if (adjustedBlendWidth > 0) {
+                blur1d(&strip->leds[startIndex], adjustedBlendWidth, 172);
+            }
+        }
         
     } else if (rocket.explodeTime > 0) {
         // Fade phase - dimming explosion
