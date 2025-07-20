@@ -61,7 +61,7 @@ uint16_t PopcornEffect::update(WS2812FX* strip) {
         }
         
         // Convert position from millimeters to LED index
-        uint16_t positionLeds = (uint16_t)(position / 16.0); // 16mm per LED approximation
+        uint16_t positionLeds = (uint16_t)(position / MM_PER_LED); // Millimeters per LED spacing approximation
         
         // Render kernel with motion blur effect
         renderKernel(position, kernels[i].prev_pos, kernels[i], strip);
