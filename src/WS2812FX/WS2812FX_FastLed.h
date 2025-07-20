@@ -594,9 +594,9 @@ public:
     _name[FX_MODE_MULTI_DYNAMIC]          = F("Dynamic");
     _name[FX_MODE_RAINBOW]                = F("Rainbow");
     _name[FX_MODE_RAINBOW_CYCLE]          = F("Rainbow Cycle");
-    _name[FX_MODE_PRIDE]                  = F("Pride");
-    _name[FX_MODE_SCAN]                   = F("Scan");
-    _name[FX_MODE_DUAL_SCAN]              = F("Dual Scan");
+    // _name[FX_MODE_PRIDE] - provided by PrideEffect class
+    // _name[FX_MODE_SCAN] - provided by ScanEffect class
+    // _name[FX_MODE_DUAL_SCAN] - provided by DualScanEffect class
     _name[FX_MODE_FADE]                   = F("Fade");
     _name[FX_MODE_THEATER_CHASE]          = F("Theater Chase");
     _name[FX_MODE_THEATER_CHASE_DUAL_P]   = F("Theater Chase Dual palette");
