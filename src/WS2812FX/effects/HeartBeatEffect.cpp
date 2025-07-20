@@ -34,10 +34,14 @@ uint16_t HeartBeatEffect::update(WS2812FX* strip) {
     // Create the shifting/spreading effect by moving pixels outward from center
     // This creates the visual effect of the pulse spreading from the heart center
     for (uint16_t i = 0; i < state.pCount; i++) {
-        // Shift pixels outward on both sides of center
-        strip->leds[runtime->start + i] = strip->leds[runtime->start + i + state.size];
-        strip->leds[runtime->start + i + state.centerOffset + state.size] = 
-            strip->leds[runtime->start + i + state.centerOffset];
+        // Ensure indices are within bounds before accessing the array
+        if ((runtime->start + i + state.size < runtime->length) &&
+            (runtime->start + i + state.centerOffset + state.size < runtime->length)) {
+            // Shift pixels outward on both sides of center
+            strip->leds[runtime->start + i] = strip->leds[runtime->start + i + state.size];
+            strip->leds[runtime->start + i + state.centerOffset + state.size] = 
+                strip->leds[runtime->start + i + state.centerOffset];
+        }
     }
     
     // Apply continuous fade to create smooth pulse decay
