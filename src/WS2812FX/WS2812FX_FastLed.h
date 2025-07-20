@@ -515,10 +515,10 @@ public:
     _mode[FX_MODE_SHOOTING_STAR]          = &WS2812FX::mode_class_based_fallback; // Now implemented as ShootingStarEffect class
     _mode[FX_MODE_BEATSIN_GLOW]           = &WS2812FX::mode_class_based_fallback; // Now implemented as BeatsinGlowEffect class
     _mode[FX_MODE_PIXEL_STACK]            = &WS2812FX::mode_class_based_fallback; // Now implemented as PixelStackEffect class
-    _mode[FX_MODE_MOVE_BAR_SIN]           = &WS2812FX::mode_move_bar_sin;
-    _mode[FX_MODE_MOVE_BAR_QUAD]          = &WS2812FX::mode_move_bar_quad;
-    _mode[FX_MODE_MOVE_BAR_CUBE]          = &WS2812FX::mode_move_bar_cubic;
-    _mode[FX_MODE_MOVE_BAR_SAWTOOTH]      = &WS2812FX::mode_move_bar_sawtooth;
+    _mode[FX_MODE_MOVE_BAR_SIN]           = &WS2812FX::mode_class_based_fallback; // Now implemented as MoveBarSinEffect class
+    _mode[FX_MODE_MOVE_BAR_QUAD]          = &WS2812FX::mode_class_based_fallback; // Now implemented as MoveBarQuadEffect class
+    _mode[FX_MODE_MOVE_BAR_CUBE]          = &WS2812FX::mode_class_based_fallback; // Now implemented as MoveBarCubeEffect class
+    _mode[FX_MODE_MOVE_BAR_SAWTOOTH]      = &WS2812FX::mode_class_based_fallback; // Now implemented as MoveBarSawtoothEffect class
     _mode[FX_MODE_POPCORN]                = &WS2812FX::mode_popcorn;
     _mode[FX_MODE_FIREWORKROCKETS]        = &WS2812FX::mode_firework2;
     _mode[FX_MODE_RING_RING]              = &WS2812FX::mode_ring_ring;
@@ -574,10 +574,10 @@ public:
     // _name[FX_MODE_SHOOTING_STAR] - provided by ShootingStarEffect class
     // _name[FX_MODE_BEATSIN_GLOW] - provided by BeatsinGlowEffect class
     // _name[FX_MODE_PIXEL_STACK] - provided by PixelStackEffect class
-    _name[FX_MODE_MOVE_BAR_SIN]           = F("1/2 Bar Sine");
-    _name[FX_MODE_MOVE_BAR_QUAD]          = F("1/2 Bar2");
-    _name[FX_MODE_MOVE_BAR_CUBE]          = F("1/2 Bar3");
-    _name[FX_MODE_MOVE_BAR_SAWTOOTH]      = F("1/2 Bar");
+    // _name[FX_MODE_MOVE_BAR_SIN] - provided by MoveBarSinEffect class
+    // _name[FX_MODE_MOVE_BAR_QUAD] - provided by MoveBarQuadEffect class
+    // _name[FX_MODE_MOVE_BAR_CUBE] - provided by MoveBarCubeEffect class
+    // _name[FX_MODE_MOVE_BAR_SAWTOOTH] - provided by MoveBarSawtoothEffect class
     _name[FX_MODE_POPCORN]                = F("Popcorn");
     _name[FX_MODE_FIREWORKROCKETS]        = F("Firework Rocket");
     _name[FX_MODE_RING_RING]              = F("Phone Ring");
@@ -915,11 +915,11 @@ private:
       // mode_shooting_star(void), // Removed - now implemented as ShootingStarEffect class
       // mode_beatsin_glow(void), // Removed - now implemented as BeatsinGlowEffect class
       // mode_pixel_stack(void), // Removed - now implemented as PixelStackEffect class
-      mode_move_bar_sin(void),
-      mode_move_bar_cubic(void),
-      mode_move_bar_quad(void),
-      mode_move_bar_sawtooth(void),
-      mode_move_bar(uint8_t mode),
+      // mode_move_bar_sin(void), // Removed - now implemented as MoveBarSinEffect class
+      // mode_move_bar_cubic(void), // Removed - now implemented as MoveBarCubeEffect class
+      // mode_move_bar_quad(void), // Removed - now implemented as MoveBarQuadEffect class
+      // mode_move_bar_sawtooth(void), // Removed - now implemented as MoveBarSawtoothEffect class
+      // mode_move_bar(uint8_t mode), // Removed - functionality moved to individual effect classes
       mode_popcorn(void),
       mode_firework2(void),
       mode_void(void),
