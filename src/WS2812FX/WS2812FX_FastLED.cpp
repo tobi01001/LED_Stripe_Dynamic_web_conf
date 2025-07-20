@@ -39,12 +39,16 @@
 #include "Effect.h"
 #include "effects/StaticEffect.h"
 #include "effects/EaseEffect.h"
+#include "effects/TheaterChaseRainbowEffect.h"
+#include "effects/TwinkleFadeEffect.h"
+#include "effects/TwinkleFoxEffect.h"
 #include "effects/PrideEffect.h"
 #include "effects/ScanEffect.h"
 #include "effects/DualScanEffect.h"
 #include "effects/MultiDynamicEffect.h"
 #include "effects/RainbowEffect.h"
 #include "effects/RainbowCycleEffect.h"
+
 
 /*
  * ColorPalettes
@@ -2327,12 +2331,10 @@ uint16_t WS2812FX::theater_chase(CRGB color)
 /*
  * Theatre-style crawling lights with rainbow effect.
  * Inspired by the Adafruit examples.
+ * 
+ * NOTE: This effect has been converted to class-based implementation.
+ * See TheaterChaseRainbowEffect.h/.cpp for the new implementation.
  */
-uint16_t WS2812FX::mode_theater_chase_rainbow(void)
-{
-  SEG_RT_MV.theater_chase.counter_mode_step = (SEG_RT_MV.theater_chase.counter_mode_step + 1) & 0xFF;
-  return theater_chase(ColorFromPaletteWithDistribution(_currentPalette, SEG_RT_MV.theater_chase.counter_mode_step, 255, SEG.blendType));
-}
 
 /*
  * Running lights effect with smooth sine transition.
@@ -2360,48 +2362,10 @@ uint16_t WS2812FX::mode_running_lights(void)
 
 /*
  * Blink several LEDs on, fading out.
+ * 
+ * NOTE: This effect has been converted to class-based implementation.
+ * See TwinkleFadeEffect.h/.cpp for the new implementation.
  */
-uint16_t WS2812FX::mode_twinkle_fade(void)
-{
-  if (SEG_RT.modeinit)
-  {
-    SEG_RT.modeinit = false;
-  }
-
-  EVERY_N_MILLISECONDS(STRIP_MIN_DELAY)
-  {
-    fade_out(qadd8(SEG.beat88 >> 8, 12));
-  }
-  
-  uint16_t numsparks = 0;
-  for(uint16_t i=0; i<SEG_RT.length; i++)
-  {
-    if(leds[i])
-    {
-      numsparks++;
-    }
-  }
-  uint16_t maxsparks = map((uint16_t)SEG.twinkleDensity, (uint16_t)0, (uint16_t)8, (uint16_t)0, (uint16_t)SEG_RT.length);
-  
-  if(numsparks < maxsparks)
-  {
-    uint16_t i = random16(SEG_RT.length);
-    if(!leds[i]) 
-    {
-      leds[i] = ColorFromPaletteWithDistribution(_currentPalette, random8(), random8(128,255), SEG.blendType);
-    }
-    else
-    {
-      leds[i].fadeToBlackBy(16);
-    }
-  }
-  else
-  {
-    
-  }
-  
-  return 0;// STRIP_MIN_DELAY;
-}
 
 /*
  * K.I.T.T.
@@ -2618,67 +2582,10 @@ uint16_t WS2812FX::mode_fire2012WithPalette(void)
 
 /*
  * TwinleFox Implementation
+ * 
+ * NOTE: This effect has been converted to class-based implementation.
+ * See TwinkleFoxEffect.h/.cpp for the new implementation.
  */
-uint16_t WS2812FX::mode_twinkle_fox(void)
-{
-  if (SEG_RT.modeinit)
-  {
-    SEG_RT.modeinit = false;
-  }
-  // "PRNG16" is the pseudorandom number generator
-  // It MUST be reset to the same starting value each time
-  // this function is called, so that the sequence of 'random'
-  // numbers that it generates is (paradoxically) stable.
-  uint16_t PRNG16 = 11337;
-
-  uint32_t clock32 = millis();
-
-  // Set up the background color, "bg".
-  // if AUTO_SELECT_BACKGROUND_COLOR == 1, and the first two colors of
-  // the current palette are identical, then a deeply faded version of
-  // that color is used for the background color
-  CRGB bg = CRGB::Black;
-
-  uint8_t backgroundBrightness = bg.getAverageLight();
-
-  for (uint16_t i = 0; i < SEG_RT.length; i++)
-  {
-    PRNG16 = (uint16_t)(PRNG16 * 2053) + 1384; // next 'random' number
-    uint16_t myclockoffset16 = PRNG16;         // use that number as clock offset
-    PRNG16 = (uint16_t)(PRNG16 * 2053) + 1384; // next 'random' number
-    // use that number as clock speed adjustment factor (in 8ths, from 8/8ths to 23/8ths)
-    uint8_t myspeedmultiplierQ5_3 = ((((PRNG16 & 0xFF) >> 4) + (PRNG16 & 0x0F)) & 0x0F) + 0x08;
-    uint32_t myclock30 = (uint32_t)((clock32 * myspeedmultiplierQ5_3) >> 3) + myclockoffset16;
-    uint8_t myunique8 = PRNG16 >> 8; // get 'salt' value for this pixel
-
-    // We now have the adjusted 'clock' for this pixel, now we call
-    // the function that computes what color the pixel should be based
-    // on the "brightness = f( time )" idea.
-    CRGB c = computeOneTwinkle(&myclock30, &myunique8);
-
-    uint8_t cbright = c.getAverageLight();
-    int16_t deltabright = cbright - backgroundBrightness;
-    if (deltabright >= 32 || (!bg))
-    {
-      // If the new pixel is significantly brighter than the background color,
-      // use the new color.
-      leds[i + SEG_RT.start] = c;
-    }
-    else if (deltabright > 0)
-    {
-      // If the new pixel is just slightly brighter than the background color,
-      // mix a blend of the new color and the background color
-      leds[+SEG_RT.start] = blend(bg, c, deltabright * 8);
-    }
-    else
-    {
-      // if the new pixel is not at all brighter than the background color,
-      // just use the background color.
-      leds[i + SEG_RT.start] = bg;
-    }
-  }
-  return STRIP_MIN_DELAY;
-}
 
 /*
  * SoftTwinkles

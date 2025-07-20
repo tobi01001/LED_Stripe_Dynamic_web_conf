@@ -524,6 +524,9 @@ public:
     // Effects implemented as classes - these entries are fallback only
     _mode[FX_MODE_STATIC]                 = &WS2812FX::mode_class_based_fallback; // Now implemented as StaticEffect class
     _mode[FX_MODE_EASE]                   = &WS2812FX::mode_class_based_fallback; // Now implemented as EaseEffect class
+    _mode[FX_MODE_THEATER_CHASE_RAINBOW]  = &WS2812FX::mode_class_based_fallback; // Now implemented as TheaterChaseRainbowEffect class
+    _mode[FX_MODE_TWINKLE_FADE]           = &WS2812FX::mode_class_based_fallback; // Now implemented as TwinkleFadeEffect class
+    _mode[FX_MODE_TWINKLE_FOX]            = &WS2812FX::mode_class_based_fallback; // Now implemented as TwinkleFoxEffect class
     _mode[FX_MODE_MULTI_DYNAMIC]          = &WS2812FX::mode_class_based_fallback; // Now implemented as MultiDynamicEffect class
     _mode[FX_MODE_RAINBOW]                = &WS2812FX::mode_class_based_fallback; // Now implemented as RainbowEffect class
     _mode[FX_MODE_RAINBOW_CYCLE]          = &WS2812FX::mode_class_based_fallback; // Now implemented as RainbowCycleEffect class
@@ -533,9 +536,6 @@ public:
     _mode[FX_MODE_FADE]                   = &WS2812FX::mode_class_based_fallback; // Now implemented as FadeEffect class
     _mode[FX_MODE_THEATER_CHASE]          = &WS2812FX::mode_class_based_fallback; // Now implemented as TheaterChaseEffect class
     _mode[FX_MODE_THEATER_CHASE_DUAL_P]   = &WS2812FX::mode_class_based_fallback; // Now implemented as TheaterChaseDualPaletteEffect class
-    _mode[FX_MODE_THEATER_CHASE_RAINBOW]  = &WS2812FX::mode_theater_chase_rainbow;
-    _mode[FX_MODE_TWINKLE_FADE]           = &WS2812FX::mode_twinkle_fade;
-    _mode[FX_MODE_TWINKLE_FOX]            = &WS2812FX::mode_twinkle_fox;
     _mode[FX_MODE_LARSON_SCANNER]         = &WS2812FX::mode_larson_scanner;
     _mode[FX_MODE_COMET]                  = &WS2812FX::mode_comet;
     _mode[FX_MODE_FIRE_FLICKER_INTENSE]   = &WS2812FX::mode_fire_flicker_intense;
@@ -943,15 +943,9 @@ private:
       // mode_dual_scan(void),
 
       theater_chase(CRGB color1),
-      // theater_chase(bool dual), // Removed - now implemented in TheaterChaseDualPaletteEffect class
-      // mode_theater_chase(void), // Removed - now implemented as TheaterChaseEffect class
-      // mode_theater_chase_dual_pal(void), // Removed - now implemented as TheaterChaseDualPaletteEffect class
-      mode_theater_chase_rainbow(void),
-      // mode_rainbow(void), // Removed - now implemented as RainbowEffect class
-      // mode_rainbow_cycle(void), // Removed - now implemented as RainbowCycleEffect class
       pride(void),
       mode_running_lights(void),
-      mode_twinkle_fade(void),
+      // mode_twinkle_fade(void), // Converted to TwinkleFadeEffect class
       mode_sparkle(void),
       mode_larson_scanner(void),
       mode_comet(void),
@@ -961,7 +955,7 @@ private:
       mode_fire_flicker_intense(void),
       fire_flicker(int),
       mode_fire2012WithPalette(void),
-      mode_twinkle_fox(void),
+      // mode_twinkle_fox(void), // Converted to TwinkleFoxEffect class
       mode_softtwinkles(void),
       mode_shooting_star(void),
       mode_beatsin_glow(void),
