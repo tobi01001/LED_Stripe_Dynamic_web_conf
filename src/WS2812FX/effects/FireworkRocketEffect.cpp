@@ -94,7 +94,7 @@ double FireworkRocketEffect::getGravity(WS2812FX* strip) const {
     // Map beat88 parameter to gravity range for visual appeal
     // Scale from beat88 range to mm/ms² units
     double beat88 = (double)strip->getSegment()->beat88;
-    return beat88 / -1019367.99184506; // Calibrated scaling factor from original implementation
+    return beat88 / GRAVITY_SCALING_FACTOR; // Use named constant for clarity and maintainability
 }
 
 double FireworkRocketEffect::calculateSegmentLength(WS2812FX* strip) const {
