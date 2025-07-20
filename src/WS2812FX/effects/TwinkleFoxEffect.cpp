@@ -151,7 +151,7 @@ uint16_t TwinkleFoxEffect::update(WS2812FX* strip) {
             strip->leds[ledIndex] = pixelColor;
         } else if (brightnessDelta > 0) {
             // Pixel is slightly brighter - blend with background
-            // Note: Fixed index bug from original (was using +SEG_RT.start instead of i+SEG_RT.start)
+            // Note: Index bug was fixed in the calculation of ledIndex on line 147 (was using +SEG_RT.start instead of runtime->start + i)
             strip->leds[ledIndex] = blend(backgroundColor, pixelColor, brightnessDelta * 8);
         } else {
             // Pixel is not brighter than background - use background color
