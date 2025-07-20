@@ -594,6 +594,12 @@ public:
     _name[FX_MODE_COLOR_WIPE_SINE]        = F("Wipe Sine");
     _name[FX_MODE_COLOR_WIPE_QUAD]        = F("Wipe Quad");
     _name[FX_MODE_COLOR_WIPE_TRIWAVE]     = F("Wipe Triwave");
+    _name[FX_MODE_MULTI_DYNAMIC]          = F("Dynamic");
+    _name[FX_MODE_RAINBOW]                = F("Rainbow");
+    _name[FX_MODE_RAINBOW_CYCLE]          = F("Rainbow Cycle");
+    // _name[FX_MODE_PRIDE] - provided by PrideEffect class
+    // _name[FX_MODE_SCAN] - provided by ScanEffect class
+    // _name[FX_MODE_DUAL_SCAN] - provided by DualScanEffect class
     // _name[FX_MODE_PRIDE] - provided by PrideEffect class
     // _name[FX_MODE_SCAN] - provided by ScanEffect class
     // _name[FX_MODE_DUAL_SCAN] - provided by DualScanEffect class
