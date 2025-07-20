@@ -885,7 +885,7 @@ public:
   // Expose minimum delay for effects  
   uint32_t getStripMinDelay() const { return STRIP_MIN_DELAY; }
 
-  // Expose random wheel index function for effects
+  // Expose the random wheel index function for effects
   uint8_t get_random_wheel_index(uint8_t, uint8_t);
 
 
