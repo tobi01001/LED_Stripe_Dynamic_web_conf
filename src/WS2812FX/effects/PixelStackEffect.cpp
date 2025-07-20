@@ -173,7 +173,7 @@ void PixelStackEffect::handleDownwardMovement(WS2812FX* strip, uint16_t nLeds, u
         uint8_t colorIndex = baseHue + map(nLeds - leds_moved, 0, nLeds - 1, 0, 255);
         
         // Draw the moving LED with fractional positioning
-        strip->drawFractionalBar(runtime->start * 16 + pos16, 2, 
+        strip->drawFractionalBar(runtime->start * PIXEL_SCALING_FACTOR + pos16, FRACTIONAL_BAR_WIDTH, 
                                 *strip->getCurrentPalette(), 
                                 colorIndex, 255, true, 1);
         
