@@ -519,8 +519,8 @@ public:
     _mode[FX_MODE_MOVE_BAR_QUAD]          = &WS2812FX::mode_class_based_fallback; // Now implemented as MoveBarQuadEffect class
     _mode[FX_MODE_MOVE_BAR_CUBE]          = &WS2812FX::mode_class_based_fallback; // Now implemented as MoveBarCubeEffect class
     _mode[FX_MODE_MOVE_BAR_SAWTOOTH]      = &WS2812FX::mode_class_based_fallback; // Now implemented as MoveBarSawtoothEffect class
-    _mode[FX_MODE_POPCORN]                = &WS2812FX::mode_popcorn;
-    _mode[FX_MODE_FIREWORKROCKETS]        = &WS2812FX::mode_firework2;
+    _mode[FX_MODE_POPCORN]                = &WS2812FX::mode_class_based_fallback; // Now implemented as PopcornEffect class
+    _mode[FX_MODE_FIREWORKROCKETS]        = &WS2812FX::mode_class_based_fallback; // Now implemented as FireworkRocketEffect class
     _mode[FX_MODE_RING_RING]              = &WS2812FX::mode_ring_ring;
     _mode[FX_MODE_HEARTBEAT]              = &WS2812FX::mode_heartbeat;
     _mode[FX_MODE_RAIN]                   = &WS2812FX::mode_rain;
@@ -578,8 +578,8 @@ public:
     // _name[FX_MODE_MOVE_BAR_QUAD] - provided by MoveBarQuadEffect class
     // _name[FX_MODE_MOVE_BAR_CUBE] - provided by MoveBarCubeEffect class
     // _name[FX_MODE_MOVE_BAR_SAWTOOTH] - provided by MoveBarSawtoothEffect class
-    _name[FX_MODE_POPCORN]                = F("Popcorn");
-    _name[FX_MODE_FIREWORKROCKETS]        = F("Firework Rocket");
+    // _name[FX_MODE_POPCORN] - provided by PopcornEffect class
+    // _name[FX_MODE_FIREWORKROCKETS] - provided by FireworkRocketEffect class
     _name[FX_MODE_RING_RING]              = F("Phone Ring");
     _name[FX_MODE_HEARTBEAT]              = F("Heart Beat");
     _name[FX_MODE_RAIN]                   = F("Meteor Shower");
@@ -920,8 +920,8 @@ private:
       // mode_move_bar_quad(void), // Removed - now implemented as MoveBarQuadEffect class
       // mode_move_bar_sawtooth(void), // Removed - now implemented as MoveBarSawtoothEffect class
       // mode_move_bar(uint8_t mode), // Removed - functionality moved to individual effect classes
-      mode_popcorn(void),
-      mode_firework2(void),
+      // mode_popcorn(void), // Removed - now implemented as PopcornEffect class
+      // mode_firework2(void), // Removed - now implemented as FireworkRocketEffect class
       mode_void(void),
       mode_sunrise(void),
       mode_sunset(void),
