@@ -505,7 +505,7 @@ public:
     _mode[FX_MODE_EASE_BAR]               = &WS2812FX::mode_class_based_fallback; // Now implemented as EaseBarEffect class
     _mode[FX_MODE_PACIFICA]               = &WS2812FX::mode_class_based_fallback; // Now implemented as PacificaEffect class
     _mode[FX_MODE_COLOR_WAVES]            = &WS2812FX::mode_class_based_fallback; // Now implemented as ColorWavesEffect class
-    _mode[FX_MODE_TWINKLE_MAP]            = &WS2812FX::mode_twinkle_map;
+    _mode[FX_MODE_TWINKLE_MAP]            = &WS2812FX::mode_class_based_fallback; // Now implemented as TwinkleMapEffect class
     _mode[FX_MODE_VOID]                   = &WS2812FX::mode_void;
     _mode[FX_MODE_SUNRISE]                = &WS2812FX::mode_sunrise;
     _mode[FX_MODE_SUNSET]                 = &WS2812FX::mode_sunset;
@@ -564,7 +564,7 @@ public:
     // _name[FX_MODE_EASE_BAR] - provided by EaseBarEffect class
     // _name[FX_MODE_PACIFICA] - provided by PacificaEffect class
     // _name[FX_MODE_COLOR_WAVES] - provided by ColorWavesEffect class
-    _name[FX_MODE_TWINKLE_MAP]            = F("Twinkle Base Color");
+    // _name[FX_MODE_TWINKLE_MAP] - provided by TwinkleMapEffect class
     _name[FX_MODE_VOID]                   = F("Void DOES NOTHING");
     _name[FX_MODE_SUNRISE]                = F("Sunrise");
     _name[FX_MODE_SUNSET]                 = F("Sunset");
@@ -910,7 +910,7 @@ private:
       // mode_ease_bar(void), // Removed - now implemented as EaseBarEffect class
       // mode_rain(void), // Removed - now implemented as MeteorShowerEffect class
       // mode_pacifica(void), // Removed - now implemented as PacificaEffect class
-      mode_twinkle_map(void),
+      // mode_twinkle_map(void), // Removed - now implemented as TwinkleMapEffect class
       // mode_color_waves(void), // Removed - now implemented as ColorWavesEffect class
       mode_class_based_fallback(void); // Fallback for class-based effects
 //      quadbeat(uint16_t in);

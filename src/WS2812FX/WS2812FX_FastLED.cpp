@@ -2667,6 +2667,8 @@ uint16_t WS2812FX::mode_sunset(void)
 
 // mode_color_waves removed - now implemented as ColorWavesEffect class
 
+/*
+// Removed: mode_twinkle_map() - now implemented as TwinkleMapEffect class
 uint16_t WS2812FX::mode_twinkle_map()
 {
   #define M_TWINKLEMAP_RT SEG_RT_MV.twinklemap
@@ -2721,6 +2723,7 @@ uint16_t WS2812FX::mode_twinkle_map()
   return max(STRIP_MIN_DELAY, (uint32_t)(BEAT88_MAX-SEG.beat88)/1800);
   #undef M_TWINKLEMAP_RT
 }
+*/
 
 // Fallback function for effects that have been converted to class-based implementation
 uint16_t WS2812FX::mode_class_based_fallback(void) {
