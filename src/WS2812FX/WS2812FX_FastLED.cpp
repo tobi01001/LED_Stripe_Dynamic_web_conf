@@ -2293,102 +2293,13 @@ uint16_t WS2812FX::mode_running_lights(void)
 /*
  * K.I.T.T.
  */
-uint16_t WS2812FX::mode_larson_scanner(void)
-{
-  if (SEG_RT.modeinit)
-  {
-    SEG_RT.modeinit = false;
-    SEG_RT_MV.larson_scanner.timebase = millis();
-  }
-
-  const uint16_t width = max(1, SEG_RT.length / 15);
-  fade_out(96);
-
-  uint16_t pos = triwave16(beat88(SEG.beat88 * 4, SEG_RT_MV.larson_scanner.timebase));
-
-  pos = map(pos, (uint16_t)0, (uint16_t)65535, (uint16_t)(SEG_RT.start * 16), (uint16_t)(SEG_RT.stop * 16 - width * 16));
-
-  drawFractionalBar(pos,
-                    width,
-                    _currentPalette,
-                    SEG_RT.baseHue + map(pos, (uint16_t)(SEG_RT.start * 16), (uint16_t)(SEG_RT.stop * 16 - width * 16), (uint16_t)0, (uint16_t)255), 255, true, 1);
-
-  return STRIP_MIN_DELAY;
-}
-
 /*
- * Firing comets from one end.
+ * mode_larson_scanner, mode_comet, and mode_fire_flicker_intense
+ * have been converted to class-based implementations:
+ * - LarsonScannerEffect
+ * - CometEffect  
+ * - FireFlickerIntenseEffect
  */
-uint16_t WS2812FX::mode_comet(void)
-{
-  if (SEG_RT.modeinit)
-  {
-    SEG_RT.modeinit = false;
-    SEG_RT_MV.comet.timebase = millis();
-  }
-  const uint16_t width = max(1, SEG_RT.length / 15);
-  fade_out(96);
-
-  uint16_t pos = map(beat88(SEG.beat88 * 4, SEG_RT_MV.comet.timebase), (uint16_t)0, (uint16_t)65535, (uint16_t)0, (uint16_t)(SEG_RT.length * 16));
-
-  drawFractionalBar((SEG_RT.start * 16 + pos),
-                    width,
-                    _currentPalette,
-                    map((uint16_t)(SEG_RT.start * 16 + pos), (uint16_t)(SEG_RT.start * 16), (uint16_t)(SEG_RT.stop * 16), (uint16_t)0, (uint16_t)255) + SEG_RT.baseHue, 255, true, 1);
-
-  return STRIP_MIN_DELAY;
-}
-
-/*
- * Fire flicker function
- * 
- * TODO: Could add parameter for the intensity (instead of 3 different modes?)
- */
-uint16_t WS2812FX::fire_flicker(int rev_intensity)
-{
-  if (SEG_RT.modeinit)
-  {
-    SEG_RT.modeinit = false;
-  }
-  byte lum = 255 / rev_intensity;
-
-  for (uint16_t i = SEG_RT.start; i <= SEG_RT.stop; i++)
-  {
-    leds[i] = ColorFromPaletteWithDistribution(_currentPalette, map(i, SEG_RT.start, SEG_RT.stop, (uint16_t)0, (uint16_t)255) + SEG_RT.baseHue, _brightness, SEG.blendType);
-    if (random8(3))
-    {
-      int flicker = random8(0, lum);
-      CRGB temp = leds[i];
-      temp -= CRGB(random8(flicker), random8(flicker), random8(flicker));
-      nblend(leds[i], temp, 96);
-    }
-  }
-  return STRIP_MIN_DELAY;
-}
-
-/*
- * Random flickering.
- */
-uint16_t WS2812FX::mode_fire_flicker(void)
-{
-  return fire_flicker(2);
-}
-
-/*
- * Random flickering, less intesity.
- */
-uint16_t WS2812FX::mode_fire_flicker_soft(void)
-{
-  return fire_flicker(3);
-}
-
-/*
- * Random flickering, more intesity.
- */
-uint16_t WS2812FX::mode_fire_flicker_intense(void)
-{
-  return fire_flicker(1);
-}
 
 uint16_t WS2812FX::mode_bubble_sort(void)
 {
