@@ -3,6 +3,9 @@
 
 bool StaticEffect::init(WS2812FX* strip) {
     // Static effect needs no special initialization
+    // Access the segment runtime through the public getter
+    auto runtime = strip->getSegmentRuntime();
+    runtime->modeinit = false;
     return true;
 }
 
