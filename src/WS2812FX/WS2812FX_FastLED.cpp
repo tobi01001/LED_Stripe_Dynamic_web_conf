@@ -405,6 +405,9 @@ void WS2812FX::service()
   if (SEG_RT.modeinit)
   {
     fill_solid(leds, LED_COUNT, CRGB::Black);
+    _transition = true;
+    _blend = 0;
+    SEG_RT.modeinit = false;
   }
   
   if (SEG.power)
