@@ -118,8 +118,8 @@ bool MeteorShowerEffect::isSpawnAreaClear(WS2812FX* strip, uint16_t minDistance)
     
     for (uint16_t i = 0; i < minDistance && i < runtime->length; i++) {
         uint16_t checkPos = runtime->stop - i;
-        if (checkPos < runtime->length && 
-            strip->leds[runtime->start + checkPos] != CRGB(0x000000)) {
+        if (checkPos >= runtime->start && checkPos < runtime->start + runtime->length && 
+            strip->leds[checkPos] != CRGB(0x000000)) {
             return false;  // Area not clear
         }
     }
