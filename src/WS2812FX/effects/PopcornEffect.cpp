@@ -17,7 +17,7 @@ bool PopcornEffect::init(WS2812FX* strip) {
         kernels[i].v0 = maxVelocity / (double)(i + 2.0);
         
         // Assign colors distributed across palette
-        kernels[i].color_index = strip->get_random_wheel_index((255 / numKernels) * i, 32);
+        kernels[i].color_index = strip->get_random_wheel_index((uint8_t)((255.0 / numKernels) * i), 32);
         
         // Set initial time base to current time
         kernels[i].timebase = millis();
