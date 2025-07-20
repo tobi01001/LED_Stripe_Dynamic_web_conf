@@ -2438,94 +2438,12 @@ uint16_t WS2812FX::mode_softtwinkles(void)
  * See BeatsinGlowEffect.h/.cpp for the new implementation.
  */
 
-uint16_t WS2812FX::mode_pixel_stack(void)
-{
-  #define SRMVPS SEG_RT_MV.pixel_stack
-  // the beat88 translated to a effect speed (in relation to the number of segments)
-  const uint16_t sp = map((uint16_t)(SEG.beat88>(20000/SEG.segments)?(20000/SEG.segments):SEG.beat88), (uint16_t)0, (uint16_t)(20000/SEG.segments), (uint16_t)0, (uint16_t)65535);
-  // The number of leds for the effect (half of the strip)
-  const uint16_t nLeds = SEG_RT.length / 2;
-  // the base hue (the hue can move during the effect)
-  const uint8_t sI = SEG_RT.baseHue;
-
-  // init the effect
-  if (SEG_RT.modeinit)
-  {
-    SEG_RT.modeinit = false;
-
-    SRMVPS.up = true;
-    SRMVPS.leds_moved = 0;
-    SRMVPS.ppos16 = 0;
-    
-  }
-  // We fade everything to black (a speed dependent amount) - leds will be rewritten later
-  fadeToBlackBy(leds, SEG_RT.length, max(2, sp>>8));
-  // write each active led with the color from the palette (without the one currently moving)
-  for(uint16_t i = 0; i < nLeds; i++)
-  {
-    if(i<nLeds-SRMVPS.leds_moved)
-    {
-      // lower half (half the strip minus the number already moved)
-      leds[i] = ColorFromPaletteWithDistribution(_currentPalette, sI + map(i, (uint16_t)0, (uint16_t)(nLeds-1), (uint16_t)0, (uint16_t)255), _brightness, SEG.blendType);
-    }
-    if(i < SRMVPS.leds_moved)
-    {
-      // upper half - the number of leds moved from the end
-      leds[SEG_RT.length-1-i] = ColorFromPaletteWithDistribution(_currentPalette, sI + map((uint16_t)(nLeds - i), (uint16_t)0, (uint16_t)(nLeds-1), (uint16_t)0, (uint16_t)255), _brightness, SEG.blendType);
-    }
-  }
-  // a value within the 0..65535 range (sawtooth) depending on the speed sp
-  uint16_t p16 = beat88(sp);
-  if(SRMVPS.up)
-  {
-    // mapping the p16 value to a (16 bit position) between the active leds
-    uint16_t pos16 = map(p16, (uint16_t)0, (uint16_t)65535, (uint16_t)(16*(nLeds - SRMVPS.leds_moved)), (uint16_t)(16*(SEG_RT.length - 1 - SRMVPS.leds_moved)-16));
-    // if the p16 starts from the beginning (sawtooth bottom)
-    if(SRMVPS.ppos16 > pos16) 
-    {
-      SRMVPS.ppos16 = 0;
-      // we moved all the leds
-      if(SRMVPS.leds_moved == nLeds)
-      {
-        SRMVPS.leds_moved--;
-        SRMVPS.up = false;
-        SRMVPS.ppos16 = 65535;
-      }
-      SRMVPS.leds_moved++;
-    }
-    else // we are inbetween, we write the way up as fractional bar.
-    { 
-      // we start within an active led to avoid flicker
-      if(pos16 > 16) pos16-=16;
-      
-      drawFractionalBar(pos16, 2, _currentPalette, sI + map(nLeds - SRMVPS.leds_moved, 0, nLeds-1, 0, 255), 255, true, 1);
-      SRMVPS.ppos16 = pos16;
-    }
-  }
-  else
-  {
-    uint16_t pos16 = map(p16, (uint16_t)0, (uint16_t)65535, (uint16_t)(16*(SEG_RT.length - 1 - SRMVPS.leds_moved)-16), (uint16_t)(16*(nLeds - SRMVPS.leds_moved)));
-    if(SRMVPS.ppos16  < pos16) 
-    {
-      SRMVPS.ppos16  = 65535;
-      if(SRMVPS.leds_moved == 0)
-      {
-        SRMVPS.leds_moved++;
-        SRMVPS.up = true;
-        SRMVPS.ppos16  = 0;
-      }
-      SRMVPS.leds_moved--;
-      
-    }
-    else
-    {
-      drawFractionalBar(pos16, 2, _currentPalette, sI + map(nLeds - SRMVPS.leds_moved, 0, nLeds-1, 0, 255), 255, true, 1);
-      SRMVPS.ppos16  = pos16;
-    }
-  }
-  return STRIP_MIN_DELAY;// framedelay;
-  #undef SRMVPS
-}
+/*
+ * Pixel Stack Effect Implementation
+ * 
+ * NOTE: This effect has been converted to class-based implementation.
+ * See PixelStackEffect.h/.cpp for the new implementation.
+ */
 
 uint16_t WS2812FX::mode_move_bar_sin(void)
 {
