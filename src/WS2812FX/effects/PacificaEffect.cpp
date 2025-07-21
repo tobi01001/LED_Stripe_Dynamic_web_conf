@@ -1,14 +1,19 @@
 #include "PacificaEffect.h"
 #include "../WS2812FX_FastLed.h"
+#include "../EffectHelper.h"
 
 bool PacificaEffect::init(WS2812FX* strip) {
+    // Validate strip pointer
+    if (!EffectHelper::validateStripPointer(strip)) {
+        return false;
+    }
+    
     // Initialize internal state for Pacifica ocean wave effect
     auto runtime = strip->getSegmentRuntime();
     auto seg = strip->getSegment();
     runtime->modeinit = false;
     
     // Initialize wave layer color index starting positions with random values
-    // This ensures each activation creates unique wave patterns
     state.colorIndexStart1 = random16();
     state.colorIndexStart2 = random16();
     state.colorIndexStart3 = random16();
@@ -17,7 +22,7 @@ bool PacificaEffect::init(WS2812FX* strip) {
     // Initialize timing tracking
     state.lastMillis = millis() - strip->getStripMinDelay();
     
-    // Calculate effective speed ensuring minimum rate for smooth animation
+    // Calculate effective speed using EffectHelper safe mapping
     state.effectiveSpeed = calculateEffectiveSpeed(seg->beat88);
     
     return true;

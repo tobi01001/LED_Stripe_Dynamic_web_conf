@@ -1,18 +1,14 @@
 #include "SunriseEffect.h"
 #include "../WS2812FX_FastLed.h"
+#include "../EffectHelper.h"
 #include "../../include/defaults.h"
 
-/**
- * @brief Initialize the sunrise effect
- * 
- * Sets up the initial state for the sunrise effect. The effect starts from
- * complete darkness (step 0) and will progress through the full sunrise
- * simulation over the configured time period.
- * 
- * @param strip Pointer to the WS2812FX instance
- * @return true if initialization was successful
- */
 bool SunriseEffect::init(WS2812FX* strip) {
+    // Validate strip pointer
+    if (!EffectHelper::validateStripPointer(strip)) {
+        return false;
+    }
+    
     // Initialize effect state - start from darkness
     state.nextStepTime = millis();
     state.currentStep = 0;
