@@ -211,7 +211,7 @@ void FireworkRocketEffect::renderExplosionPhase(const RocketData& rocket, WS2812
         strip->drawFractionalBar(pos, 3, CRGBPalette16(centerColor), 0, 255, true, 0);
         
         // Apply blur for explosion spread
-        uint16_t ledArraySize = strip->getSegmentRuntime()->length; // Assuming 'stop' is the last valid index
+        uint16_t ledArraySize = strip->getSegmentRuntime()->length; // Use segment length as the LED array size
         uint16_t startIndex = pos / 16 + 1;
         if (startIndex + blendWidth <= ledArraySize) {
             blur1d(&strip->leds[startIndex], blendWidth, 172);
