@@ -2462,49 +2462,17 @@ uint16_t WS2812FX::mode_softtwinkles(void)
 
 // mode_void(void) - Removed - now implemented as VoidEffect class
 
-void WS2812FX::draw_sunrise_step(uint16_t sunriseStep)
-{
-  #define SRMVSR SEG_RT_MV.sunrise_step
-  
-  
-  uint16_t step = sunriseStep;
-
-  // Kind of dithering... lets see
-  if(SRMVSR.toggle)
-  {
-    step +=1;
-  }
-  SRMVSR.toggle = !SRMVSR.toggle;
-  
-  fill_solid(leds, SEG_RT.length, calcSunriseColorValue(step));
-
-  EVERY_N_MILLISECONDS(100)
-  {
-    for(uint16_t i=0; i<SEG_RT.length; i++)
-    {
-      SRMVSR.nc[i] = random8(0, 185);
-    }
-  }
-  for (uint16_t i = 0; i < SEG_RT.length; i++)
-  {
-    CRGB col;
-    col = leds[i];
-    col.nscale8_video(SRMVSR.nc[i]);
-    leds[i] = nblend(leds[i], col, 64);
-  }
-  #undef SRMVSR
-}
+// draw_sunrise_step function removed - now implemented in SunriseEffect and SunsetEffect classes
 
 uint16_t WS2812FX::getSunriseTimeToFinish(void)
 {
-  float time = (float)((SEG.sunrisetime * 60.0) / DEFAULT_SUNRISE_STEPS);
-  if(getMode() == FX_MODE_SUNRISE)
+  // For class-based effects, we can't directly access internal state
+  // Return a simplified estimate based on total duration
+  if(getMode() == FX_MODE_SUNRISE || getMode() == FX_MODE_SUNSET)
   {
-    return (uint16_t)(time * (DEFAULT_SUNRISE_STEPS - SEG_RT_MV.sunrise_step.sunRiseStep));
-  }
-  else if (getMode() == FX_MODE_SUNSET) 
-  {
-    return (uint16_t)(time * SEG_RT_MV.sunrise_step.sunRiseStep);
+    // Return the full configured duration as an estimate
+    // The effect classes manage their own precise timing
+    return (uint16_t)(SEG.sunrisetime * 60); // Convert minutes to seconds
   }
   else
   {
@@ -2512,139 +2480,12 @@ uint16_t WS2812FX::getSunriseTimeToFinish(void)
   }
 }
 
-CRGB WS2812FX::calcSunriseColorValue(uint16_t step)
-{
-  double uv = 0.0;
-  double red = 0.0;
-  double green = 0.0;
-  double blue = 0.0;
-  double step_d = (double)step;
-  if(step_d < SRSS_StartValue)
-  {
-    return CRGB(SRSS_StartR, SRSS_StartG, SRSS_StartB);
-  }
-  if(step_d > SRSS_Endvalue)
-  {
-    return CRGB(SRSS_EndR, SRSS_EndG, SRSS_EndB);
-  }
-  if(step_d <= SRSS_MidValue)
-  {
-    uv = (step_d - SRSS_StartValue) / (SRSS_MidValue - SRSS_StartValue);
-    red =   (100.0 * (
-                       ((1.0 - uv) * (1.0 - uv) * SRSS_StartR) +
-                        (2  * (1.0 - uv) * uv   * SRSS_Mid1R)  + 
-                        (uv * uv                * SRSS_Mid2R))  + 0.5) / 100.0;
-    green = (100.0 * (
-                       ((1.0 - uv) * (1.0 - uv) * SRSS_StartG) +
-                        (2  * (1.0 - uv) * uv   * SRSS_Mid1G)  + 
-                        (uv * uv                * SRSS_Mid2G))  + 0.5) / 100.0;
-    blue =  (100.0 * (
-                       ((1.0 - uv) * (1.0 - uv) * SRSS_StartB) +
-                        (2  * (1.0 - uv) * uv   * SRSS_Mid1B)  + 
-                        (uv * uv                * SRSS_Mid2B))  + 0.5) / 100.0;
-  }
-  else if(step_d <= SRSS_Endvalue)
-  {
-    uv = (step_d - SRSS_MidValue) / (SRSS_Endvalue - SRSS_MidValue);
-    red =   (100.0 * (
-                       ((1.0 - uv) * (1.0 - uv) * SRSS_Mid2R) +
-                        (2  * (1.0 - uv) * uv   * SRSS_Mid3R)  + 
-                        (uv * uv                * SRSS_EndR))  + 0.5) / 100.0;
-    green = (100.0 * (
-                       ((1.0 - uv) * (1.0 - uv) * SRSS_Mid2G) +
-                        (2  * (1.0 - uv) * uv   * SRSS_Mid3G)  + 
-                        (uv * uv                * SRSS_EndG))  + 0.5) / 100.0;
-    blue =  (100.0 * (
-                       ((1.0 - uv) * (1.0 - uv) * SRSS_Mid2B) +
-                        (2  * (1.0 - uv) * uv   * SRSS_Mid3B)  + 
-                        (uv * uv                * SRSS_EndB))  + 0.5) / 100.0;
-  }
-  
-  return CRGB((uint8_t)red, (uint8_t)green, (uint8_t)blue);
-}
+// calcSunriseColorValue function removed - now implemented in SunriseEffect and SunsetEffect classes
 
-void WS2812FX::m_sunrise_sunset(bool isSunrise)
-{
-  #define SRMVSR SEG_RT_MV.sunrise_step
-  const uint16_t sunriseSteps = DEFAULT_SUNRISE_STEPS;
-  uint16_t stepInterval = (uint16_t)(SEG.sunrisetime * ((60 * 1000) / sunriseSteps));
+// m_sunrise_sunset function removed - now implemented as SunriseEffect and SunsetEffect classes
 
-  // We do not need background color during sunrise / sunset.... Lets try to clear these:
-  _c_bck_b = 0;
-
-  if (SEG_RT.modeinit)
-  {
-    SEG_RT.modeinit = false;
-    SEG.autoplay = AUTO_MODE_OFF;
-    SRMVSR.next = millis();
-    if (isSunrise)
-    {
-      SEG.targetBrightness = 255;
-      SRMVSR.sunRiseStep = 0;
-    }
-    else
-    {
-      uint8_t  Luma       = 255;
-      uint32_t LumaSum    = 0;
-      SRMVSR.sunRiseStep  = sunriseSteps;
-      for(uint16_t i=0; i<SEG_RT.length; i++)
-      {
-        LumaSum += leds[i].getLuma();
-      }
-      if(LumaSum)
-      {
-        Luma = (uint8_t)(LumaSum/SEG_RT.length);
-      }
-      if(Luma < 96) Luma = 96;
-      for(uint16_t i=sunriseSteps; i>0; i--)
-      {
-        if(Luma > calcSunriseColorValue(i).getLuma())
-        {
-          SRMVSR.sunRiseStep = i;
-          break;
-        }
-      }
-    }
-  }
-  draw_sunrise_step(SRMVSR.sunRiseStep);
-  if (millis() > SRMVSR.next)
-  {
-    SRMVSR.next = millis() + stepInterval;
-    if (isSunrise)
-    {
-      if(SRMVSR.sunRiseStep < sunriseSteps)
-      {
-        SRMVSR.sunRiseStep++;
-      }
-    }
-    else
-    {
-      if(SRMVSR.sunRiseStep > 0)
-      {
-        SRMVSR.sunRiseStep--;
-      }
-      else
-      {
-        // we switch off - this should fix issue #6
-        setMode(DEFAULT_MODE);
-        //setIsRunning(false);
-        setPower(false);
-      }
-    }
-  }
-  #undef SRMVSR
-}
-
-uint16_t WS2812FX::mode_sunrise(void)
-{
-  m_sunrise_sunset(true);
-  return 0; // should look better if we call this more often.... STRIP_MIN_DELAY;
-}
-uint16_t WS2812FX::mode_sunset(void)
-{
-  m_sunrise_sunset(false);
-  return 0; // should look better if we call this more often.... STRIP_MIN_DELAY;
-}
+// mode_sunrise function removed - now implemented as SunriseEffect class
+// mode_sunset function removed - now implemented as SunsetEffect class
 
 // mode_ring_ring function removed - now implemented as PhoneRingEffect class
 
