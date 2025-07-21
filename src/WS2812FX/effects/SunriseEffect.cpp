@@ -195,9 +195,10 @@ void SunriseEffect::drawSunriseStep(WS2812FX* strip) {
     
     // Apply noise effect to create subtle brightness variations
     // This simulates the natural flickering and variations in real sunlight
+    uint16_t maxNoiseIndex = (uint16_t)(sizeof(state.noiseValues) - 1);
     for (uint16_t i = 0; i < runtime->length; i++) {
         // Get noise value for this LED (ensure we don't exceed array bounds)
-        uint8_t noiseIndex = min(i, (uint16_t)(sizeof(state.noiseValues) - 1));
+        uint8_t noiseIndex = min(i, maxNoiseIndex);
         uint8_t noiseValue = state.noiseValues[noiseIndex];
         
         // Apply noise as brightness scaling (185 max = ~72% min brightness)
