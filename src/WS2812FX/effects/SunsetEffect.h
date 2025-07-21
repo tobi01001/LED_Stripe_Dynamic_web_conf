@@ -36,7 +36,7 @@ private:
         uint32_t nextStepTime;      ///< Timestamp for next progression step
         uint16_t currentStep;       ///< Current step in sunset progression (DEFAULT_SUNRISE_STEPS to 0)
         bool alternateToggle;       ///< Toggle for dithering effect to smooth color transitions
-        uint8_t noiseValues[300];   ///< Random noise values for realistic flickering effect (max LED_COUNT)
+        uint8_t noiseValues[LED_COUNT];   ///< Random noise values for realistic flickering effect (max LED_COUNT)
         uint32_t lastNoiseUpdate;   ///< Last time noise values were updated
         bool initialized;           ///< Flag to track if initial step calculation is complete
     } state;
