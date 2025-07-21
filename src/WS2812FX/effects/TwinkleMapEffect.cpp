@@ -64,15 +64,15 @@ uint16_t TwinkleMapEffect::update(WS2812FX* strip) {
         }
         else if ((pixelState & 0x01) == 0x01) {
             // Odd state: LED is in brightening phase
+            // Blend between base and peak colors based on current state
+            strip->leds[absoluteIndex] = blend(baseColor, peakColor, pixelState);
+            
             if (pixelState == 255) {
                 // Reached maximum brightness - switch to dimming phase
                 pixelState = 2;
             } else {
                 // Continue brightening - increment state with speed control
                 pixelState = 0x01 | strip->qadd8_lim(pixelState, speedUp, 255);
-                
-                // Blend between base and peak colors based on current state
-                strip->leds[absoluteIndex] = blend(baseColor, peakColor, pixelState);
             }
         }
         else if ((pixelState & 0x01) == 0x00) {
