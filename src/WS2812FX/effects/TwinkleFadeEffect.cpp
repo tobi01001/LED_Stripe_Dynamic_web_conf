@@ -1,18 +1,27 @@
 #include "TwinkleFadeEffect.h"
 #include "../WS2812FX_FastLed.h"
+#include "../EffectHelper.h"
 
 bool TwinkleFadeEffect::init(WS2812FX* strip) {
+    // Use standard initialization pattern from helper
+    bool initialized = false;
+    uint32_t timebase = 0;
+    if (!EffectHelper::standardInit(strip, timebase, initialized)) {
+        return false;
+    }
+    
     // Initialize timing variables
     _lastFadeTime = millis();
-    
-    // Access the segment runtime to mark initialization as complete
-    auto runtime = strip->getSegmentRuntime();
-    runtime->modeinit = false;
     
     return true;
 }
 
 uint16_t TwinkleFadeEffect::update(WS2812FX* strip) {
+    // Validate strip pointer using helper
+    if (!EffectHelper::validateStripPointer(strip)) {
+        return 1000; // Return reasonable delay if strip is invalid
+    }
+    
     // Access segment and runtime data for effect parameters
     auto seg = strip->getSegment();
     auto runtime = strip->getSegmentRuntime();
@@ -26,11 +35,8 @@ uint16_t TwinkleFadeEffect::update(WS2812FX* strip) {
         // Higher beat88 values result in faster fading
         uint8_t fadeAmount = qadd8(seg->beat88 >> 8, 12);
         
-        // Fade all LEDs in the segment towards black
-        // This creates the gradual fade-out effect for existing twinkles
-        for (uint16_t i = 0; i < runtime->length; i++) {
-            strip->leds[runtime->start + i].fadeToBlackBy(fadeAmount);
-        }
+        // Apply fade effect using helper
+        EffectHelper::applyFadeEffect(strip, fadeAmount);
         
         _lastFadeTime = currentTime;
     }
@@ -44,11 +50,10 @@ uint16_t TwinkleFadeEffect::update(WS2812FX* strip) {
         }
     }
     
-    // Calculate target number of active LEDs based on twinkle density setting
-    // twinkleDensity ranges from 0-8, mapped to 0 to full segment length
-    uint16_t maxSparks = map((uint16_t)seg->twinkleDensity, 
-                             (uint16_t)0, (uint16_t)8, 
-                             (uint16_t)0, (uint16_t)runtime->length);
+    // Calculate target number of active LEDs based on twinkle density setting using helper
+    uint16_t maxSparks = EffectHelper::safeMap((uint16_t)seg->twinkleDensity, 
+                                              (uint16_t)0, (uint16_t)8, 
+                                              (uint16_t)0, (uint16_t)runtime->length);
     
     // Decide whether to add new twinkles or dim existing ones
     if (numSparks < maxSparks) {
