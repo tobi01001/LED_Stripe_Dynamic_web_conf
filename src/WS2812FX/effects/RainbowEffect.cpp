@@ -1,43 +1,35 @@
 #include "RainbowEffect.h"
 #include "../WS2812FX_FastLed.h"
+#include "../EffectHelper.h"
 
 bool RainbowEffect::init(WS2812FX* strip) {
-    if (initialized) {
-        return true; // Already initialized
-    }
-    
-    // Initialize private state variables
-    timebase = millis();    // Set time reference for consistent beat calculations
-    
-    // Get segment runtime data through the strip
-    auto runtime = strip->getSegmentRuntime();
-    
-    // Reset the runtime modeinit flag to indicate proper initialization
-    runtime->modeinit = false;
-    
-    initialized = true;
-    return true;
+    // Use standard initialization pattern from helper
+    return EffectHelper::standardInit(strip, timebase, initialized);
 }
 
 uint16_t RainbowEffect::update(WS2812FX* strip) {
+    // Validate strip pointer using helper
+    if (!EffectHelper::validateStripPointer(strip)) {
+        return 1000; // Return reasonable delay if strip is invalid
+    }
+    
     // Get segment and runtime data through the strip public interface
     auto seg = strip->getSegment();
     auto runtime = strip->getSegmentRuntime();
+    if (!seg || !runtime) {
+        return strip->getStripMinDelay();
+    }
     
     // Get current palette for color generation
     CRGBPalette16* currentPalette = strip->getCurrentPalette();
     
-    // Calculate current position in rainbow cycle using beat88 function
-    // beat88 provides smooth, continuous timing based on speed parameter
-    // The result is mapped from 16-bit beat range to 8-bit palette index range
-    uint16_t beatValue = beat88(seg->beat88, timebase);
-    uint8_t paletteIndex = map(beatValue, 
-                              (uint16_t)0, (uint16_t)65535,    // Input range: full 16-bit beat88 range
-                              (uint16_t)0, (uint16_t)255);     // Output range: 8-bit palette index
+    // Calculate current position in rainbow cycle using helper
+    uint16_t beatPosition = EffectHelper::calculateBeatPosition(strip, timebase);
+    uint8_t paletteIndex = map(beatPosition, 
+                              (uint16_t)0, (uint16_t)65535,
+                              (uint16_t)0, (uint16_t)255);
     
     // Generate single color from palette at calculated position
-    // ColorFromPaletteWithDistribution applies palette distribution settings
-    // and ensures consistent color appearance across different palettes
     CRGB rainbowColor = strip->ColorFromPaletteWithDistribution(
         *currentPalette,
         paletteIndex,
@@ -46,12 +38,9 @@ uint16_t RainbowEffect::update(WS2812FX* strip) {
     );
     
     // Fill entire segment with the calculated rainbow color
-    // fill_solid ensures all LEDs in the segment display the same color
-    // This creates the characteristic "all LEDs same color" rainbow effect
     fill_solid(&strip->leds[runtime->start], runtime->length, rainbowColor);
     
     // Return minimum delay for smooth color transitions
-    // The timing is controlled by the beat88 function and timebase
     return strip->getStripMinDelay();
 }
 

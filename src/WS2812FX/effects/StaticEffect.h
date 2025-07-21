@@ -18,6 +18,9 @@ public:
     uint16_t update(WS2812FX* strip) override;
     const __FlashStringHelper* getName() const override;
     uint8_t getModeId() const override;
+
+private:
+    uint32_t timebase = 0; ///< Time reference (required by helper, though not used for static effect)
 };
 
 #endif // STATIC_EFFECT_H

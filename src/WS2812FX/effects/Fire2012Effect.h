@@ -46,13 +46,18 @@ private:
      * @brief Current allocated size of heat array
      * Tracks the actual allocated size to handle dynamic allocation safely
      */
-    uint16_t heatArraySize;
+    uint16_t heatArraySize = 0;
     
     /**
      * @brief Flag to track initialization state
      * Ensures heat array is properly allocated and cleared on first activation
      */
-    bool initialized;
+    bool initialized = false;
+    
+    /**
+     * @brief Time reference for consistent animation timing
+     */
+    uint32_t timebase = 0;
     
     /**
      * @brief Allocate heat array for the current strip segment
