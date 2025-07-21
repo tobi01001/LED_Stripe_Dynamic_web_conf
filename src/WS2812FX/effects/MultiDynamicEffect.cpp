@@ -1,5 +1,6 @@
 #include "MultiDynamicEffect.h"
 #include "../WS2812FX_FastLed.h"
+#include "../EffectHelper.h"
 
 bool MultiDynamicEffect::init(WS2812FX* strip) {
     if (initialized) {
@@ -10,14 +11,8 @@ bool MultiDynamicEffect::init(WS2812FX* strip) {
     nextUpdate = 0;         // Reset timer to trigger immediate update
     lastColorIndex = 0;     // Start with first palette index
     
-    // Get segment runtime data through the strip
-    auto runtime = strip->getSegmentRuntime();
-    
-    // Reset the runtime modeinit flag to indicate proper initialization
-    runtime->modeinit = false;
-    
-    initialized = true;
-    return true;
+    // Use EffectHelper for standard initialization
+    return EffectHelper::standardInit(strip, nextUpdate, initialized);
 }
 
 uint16_t MultiDynamicEffect::update(WS2812FX* strip) {
@@ -29,21 +24,17 @@ uint16_t MultiDynamicEffect::update(WS2812FX* strip) {
     uint32_t currentTime = millis();
     
     // Check if it's time to update colors based on speed setting
-    // The interval calculation uses BEAT88_MAX to invert speed (higher speed = shorter interval)
-    // Right shift by 6 provides reasonable timing range (similar to original implementation)
     if (currentTime > nextUpdate) {
         
         // Update all LEDs in the segment with new random colors
         for (uint16_t i = runtime->start; i <= runtime->stop; i++) {
             // Generate next random palette index using the strip's random function
-            // This maintains consistent random distribution patterns
             lastColorIndex = strip->get_random_wheel_index(lastColorIndex, 32);
             
             // Get current palette and apply color with distribution
             CRGBPalette16* currentPalette = strip->getCurrentPalette();
             
             // Apply color from palette with brightness and blending
-            // ColorFromPaletteWithDistribution handles palette distribution settings
             strip->leds[i] = strip->ColorFromPaletteWithDistribution(
                 *currentPalette, 
                 lastColorIndex, 
@@ -52,15 +43,11 @@ uint16_t MultiDynamicEffect::update(WS2812FX* strip) {
             );
         }
         
-        // Calculate next update time based on speed parameter
-        // Higher beat88 values = faster changes (shorter intervals)
-        // The bit shift provides a reasonable timing range for visual effect
-        uint32_t interval = (BEAT88_MAX - seg->beat88) >> 6;
+        // Calculate next update time using EffectHelper safe mapping
+        uint32_t interval = EffectHelper::safeMap(seg->beat88, 0, BEAT88_MAX, 255, 4) << 4;
         nextUpdate = currentTime + interval;
     }
     
-    // Return minimum delay for smooth operation
-    // The actual timing is controlled by the internal nextUpdate mechanism
     return strip->getStripMinDelay();
 }
 
