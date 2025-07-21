@@ -1,14 +1,19 @@
 #include "EaseBarEffect.h"
 #include "../WS2812FX_FastLed.h"
+#include "../EffectHelper.h"
 
 bool EaseBarEffect::init(WS2812FX* strip) {
-    // Initialize internal state for ease bar effect
+    // Validate strip pointer
+    if (!EffectHelper::validateStripPointer(strip)) {
+        return false;
+    }
+    
     auto runtime = strip->getSegmentRuntime();
     auto seg = strip->getSegment();
     runtime->modeinit = false;
     
-    // Calculate minimum bar size based on strip length
-    state.minLeds = calculateMinLeds(runtime->length);
+    // Calculate minimum bar size based on strip length using helper
+    state.minLeds = EffectHelper::calculateProportionalWidth(strip, 4, 10);  // 1/4 with min 10
     
     // Calculate beat frequencies from speed setting
     calculateBeatFrequencies(seg->beat88, state.beatFreq1, state.beatFreq2);
@@ -25,12 +30,15 @@ bool EaseBarEffect::init(WS2812FX* strip) {
 }
 
 uint16_t EaseBarEffect::update(WS2812FX* strip) {
-    // Access segment and runtime data through strip public getters
+    // Validate strip pointer
+    if (!EffectHelper::validateStripPointer(strip)) {
+        return strip->getStripMinDelay();
+    }
+    
     auto seg = strip->getSegment();
     auto runtime = strip->getSegmentRuntime();
     
     // Generate primary and secondary beat patterns using calculated frequencies
-    // These create the core timing for position and size animations
     uint16_t beat1 = beatsin16(state.beatFreq1, 0, BEAT88_MAX + BEAT88_MAX / 5);
     uint16_t beat2 = beatsin16(state.beatFreq2, 0, BEAT88_MAX + BEAT88_MAX / 6);
     
@@ -43,11 +51,9 @@ uint16_t EaseBarEffect::update(WS2812FX* strip) {
     uint8_t triangularOffset = triwave8(state.counter);
     
     // Calculate brightness modulation using beat differential
-    // This creates pulsing effects synchronized with the animation
     uint8_t brightnessMod = 255 - beatsin8(max(state.beatFreq2 - state.beatFreq1, 1));
     
     // Calculate dynamic starting position for the bar
-    // Combines primary beat with offset to create smooth, organic movement
     uint16_t startLed = beatsin16(state.beatFreq1 / 2, 
                                   runtime->start, 
                                   runtime->stop - state.minLeds, 
@@ -55,7 +61,6 @@ uint16_t EaseBarEffect::update(WS2812FX* strip) {
                                   beat1 + triangularOffset);
     
     // Calculate dynamic bar size
-    // Uses secondary beat to vary size independently of position
     uint16_t numLeds = beatsin16(state.beatFreq2 / 2, 
                                  state.minLeds, 
                                  runtime->length - (startLed - runtime->start), 
@@ -65,33 +70,23 @@ uint16_t EaseBarEffect::update(WS2812FX* strip) {
     // Ensure bar doesn't exceed strip boundaries
     numLeds = min(numLeds, (uint16_t)(runtime->length - (startLed - runtime->start)));
     
-    // Calculate palette increment for smooth color progression across the strip
+    // Apply fade-out effect using helper
+    EffectHelper::applyFadeEffect(strip, 128);
+    
+    // Calculate palette increment and starting index using helper logic
     uint8_t paletteIncrement = calculatePaletteIncrement(runtime->length, seg->paletteDistribution);
-    
-    // Calculate starting palette index based on bar position and base hue
-    // This creates color that flows with the bar movement
-    uint8_t startPaletteIndex = map(startLed, runtime->start, runtime->stop, 
-                                    (uint16_t)0, (uint16_t)255) + runtime->baseHue;
-    
-    // Apply fade-out effect to create trailing visuals
-    // Fade amount provides smooth background dimming
-    fadeToBlackBy(&strip->leds[runtime->start], runtime->length, 128);
+    uint8_t startPaletteIndex = EffectHelper::safeMap(startLed, runtime->start, runtime->stop, 0, 255) + runtime->baseHue;
     
     // Render the main bar using palette colors
-    // fill_palette provides smooth color transitions across the bar length
     fill_palette(&strip->leds[startLed], numLeds, startPaletteIndex, paletteIncrement, 
                  *strip->getCurrentPalette(), 255, seg->blendType);
     
     // Apply brightness modulation across the entire strip
-    // This creates the synchronized pulsing effect that varies with animation
     for (uint16_t i = runtime->start; i < runtime->stop; i++) {
-        // Individual pixel brightness scales with global brightness modulation
-        // The modulation varies per pixel to create depth and movement
         strip->leds[i].nscale8(beatsin8(max((state.beatFreq2 - state.beatFreq1) / 2, 1), 
                                         128, 255, 0, brightnessMod + i));
     }
     
-    // Return minimum delay for smooth animation
     return strip->getStripMinDelay();
 }
 

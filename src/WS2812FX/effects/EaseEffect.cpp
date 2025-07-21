@@ -1,12 +1,17 @@
 #include "EaseEffect.h"
 #include "../WS2812FX_FastLed.h"
+#include "../EffectHelper.h"
 
 bool EaseEffect::init(WS2812FX* strip) {
     if (initialized) {
         return true; // Already initialized
     }
     
-    // Get segment and runtime data through the strip
+    // Validate strip pointer
+    if (!EffectHelper::validateStripPointer(strip)) {
+        return false;
+    }
+    
     auto seg = strip->getSegment();
     auto runtime = strip->getSegmentRuntime();
     
@@ -25,15 +30,20 @@ bool EaseEffect::init(WS2812FX* strip) {
 }
 
 uint16_t EaseEffect::update(WS2812FX* strip) {
-    // Get segment and runtime data through the strip
+    // Validate strip pointer and initialization
+    if (!EffectHelper::validateStripPointer(strip) || !initialized) {
+        return strip->getStripMinDelay();
+    }
+    
     auto seg = strip->getSegment();
     auto runtime = strip->getSegmentRuntime();
     
     // Get current color (stays at baseHue instead of moving around palette)
     uint8_t colorMove = runtime->baseHue;
     
-    // Fade out tail based on speed
-    strip->fade_out(seg->beat88 >> 5);
+    // Apply fade effect based on speed using helper
+    uint8_t fadeAmount = seg->beat88 >> 5;  // Convert beat88 to fade amount
+    EffectHelper::applyFadeEffect(strip, fadeAmount);
     
     // Calculate sine curve for LED position (factor 16 for fractional bar)
     uint16_t lerpVal = beatsin88(beat, 
