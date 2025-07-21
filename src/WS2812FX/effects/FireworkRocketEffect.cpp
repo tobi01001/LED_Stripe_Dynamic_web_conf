@@ -1,6 +1,9 @@
 #include "FireworkRocketEffect.h"
 #include "../WS2812FX_FastLed.h"
 
+// Define gravity scaling factor for beat88 to gravity conversion
+#define GRAVITY_SCALING_FACTOR -1019367.99184506
+
 bool FireworkRocketEffect::init(WS2812FX* strip) {
     // Initialize rocket array and set up initial physics state
     initialized = false;
@@ -208,7 +211,7 @@ void FireworkRocketEffect::renderExplosionPhase(const RocketData& rocket, WS2812
         strip->drawFractionalBar(pos, 3, CRGBPalette16(centerColor), 0, 255, true, 0);
         
         // Apply blur for explosion spread
-        uint16_t ledArraySize = strip->getSegment()->stop + 1; // Assuming 'stop' is the last valid index
+        uint16_t ledArraySize = strip->getSegmentRuntime()->length; // Assuming 'stop' is the last valid index
         uint16_t startIndex = pos / 16 + 1;
         if (startIndex + blendWidth <= ledArraySize) {
             blur1d(&strip->leds[startIndex], blendWidth, 172);
