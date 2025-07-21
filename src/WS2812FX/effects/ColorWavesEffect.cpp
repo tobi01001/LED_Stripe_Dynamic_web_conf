@@ -1,11 +1,16 @@
 #include "ColorWavesEffect.h"
 #include "../WS2812FX_FastLed.h"
+#include "../EffectHelper.h"
 
 bool ColorWavesEffect::init(WS2812FX* strip) {
-    // Initialize internal state for Color Waves effect
-    auto runtime = strip->getSegmentRuntime();
+    // Use standard initialization pattern from helper
+    bool initialized = false;
+    uint32_t timebase = 0;
+    if (!EffectHelper::standardInit(strip, timebase, initialized)) {
+        return false;
+    }
+    
     auto seg = strip->getSegment();
-    runtime->modeinit = false;
     
     // Initialize hue and timing state
     state.hue16 = 0;
@@ -31,6 +36,11 @@ bool ColorWavesEffect::init(WS2812FX* strip) {
 }
 
 uint16_t ColorWavesEffect::update(WS2812FX* strip) {
+    // Validate strip pointer using helper
+    if (!EffectHelper::validateStripPointer(strip)) {
+        return 1000; // Return reasonable delay if strip is invalid
+    }
+    
     // Access segment and runtime data through strip public getters
     auto seg = strip->getSegment();
     auto runtime = strip->getSegmentRuntime();
@@ -81,8 +91,7 @@ uint16_t ColorWavesEffect::update(WS2812FX* strip) {
         // Calculate pixel position (reverse order for wave direction)
         uint16_t pixelNumber = (runtime->length - 1) - i;
         
-        // Blend new color with existing pixel color for smooth transitions
-        // Using 128 provides balanced blending between old and new colors
+        // Blend new color with existing pixel color for smooth transitions using helper
         nblend(strip->leds[runtime->start + pixelNumber], newColor, 128);
         
         // Advance brightness theta for next pixel
