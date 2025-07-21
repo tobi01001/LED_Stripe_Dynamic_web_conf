@@ -1,6 +1,9 @@
 #include "PopcornEffect.h"
 #include "../WS2812FX_FastLed.h"
 
+// Define millimeters per LED based on LED density (e.g., 60 LEDs/meter)
+constexpr double MM_PER_LED = 1000.0 / 60.0; // 16.666... mm per LED for 60 LEDs/m
+
 bool PopcornEffect::init(WS2812FX* strip) {
     // Initialize kernel array and set up initial physics state
     initialized = false;
