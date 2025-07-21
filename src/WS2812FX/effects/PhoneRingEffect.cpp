@@ -27,9 +27,6 @@ uint16_t PhoneRingEffect::update(WS2812FX* strip) {
         return strip->getStripMinDelay();
     }
     
-    auto seg = strip->getSegment();
-    auto runtime = strip->getSegmentRuntime();
-    
     // Update current time
     state.now = millis();
     

@@ -1,10 +1,16 @@
 #include "PopcornEffect.h"
 #include "../WS2812FX_FastLed.h"
+#include "../EffectHelper.h"
 
 // Define millimeters per LED based on LED density (e.g., 60 LEDs/meter)
 constexpr double MM_PER_LED = 1000.0 / 60.0; // 16.666... mm per LED for 60 LEDs/m
 
 bool PopcornEffect::init(WS2812FX* strip) {
+    // Validate strip pointer
+    if (!EffectHelper::validateStripPointer(strip)) {
+        return false;
+    }
+    
     // Initialize kernel array and set up initial physics state
     initialized = false;
     numKernels = min(strip->getSegment()->numBars, (uint8_t)32);
@@ -37,12 +43,17 @@ bool PopcornEffect::init(WS2812FX* strip) {
 }
 
 uint16_t PopcornEffect::update(WS2812FX* strip) {
+    // Validate strip pointer and initialization
+    if (!EffectHelper::validateStripPointer(strip)) {
+        return strip->getStripMinDelay();
+    }
+    
     if (!initialized) {
         init(strip);
     }
     
-    // Clear the LED array to black for fresh frame
-    fill_solid(strip->leds, strip->getSegmentRuntime()->length, CRGB::Black);
+    // Clear the LED array using helper
+    EffectHelper::clearSegment(strip);
     
     // Get current physics parameters
     const double gravity = getGravity(strip);
@@ -64,7 +75,7 @@ uint16_t PopcornEffect::update(WS2812FX* strip) {
         }
         
         // Convert position from millimeters to LED index
-        uint16_t positionLeds = (uint16_t)(position / MM_PER_LED); // Millimeters per LED spacing approximation
+        uint16_t positionLeds = (uint16_t)(position / MM_PER_LED);
         
         // Render kernel with motion blur effect
         renderKernel(position, kernels[i].prev_pos, kernels[i], strip);
@@ -73,7 +84,7 @@ uint16_t PopcornEffect::update(WS2812FX* strip) {
         kernels[i].prev_pos = positionLeds;
     }
     
-    return strip->getStripMinDelay(); // Use strip's minimum delay for smooth animation
+    return strip->getStripMinDelay();
 }
 
 const __FlashStringHelper* PopcornEffect::getName() const {
