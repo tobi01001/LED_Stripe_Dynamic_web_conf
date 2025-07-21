@@ -78,9 +78,12 @@ uint16_t TwinkleMapEffect::update(WS2812FX* strip) {
         else if ((pixelState & 0x01) == 0x00) {
             // Even state (and not 0): LED is in dimming phase
             if (pixelState == 254) {
-                // Reached minimum brightness - return to base color
+                // Reached minimum brightness - perform final blend to base color
+                strip->leds[absoluteIndex] = blend(peakColor, baseColor, pixelState);
+                
+                // Return to idle state and set exact base color
                 strip->leds[absoluteIndex] = baseColor; // Ensure exact base color
-                pixelState = 0; // Return to idle state
+                pixelState = 0;
             } else {
                 // Continue dimming - increment state with speed control
                 // Use 0xFE mask to keep even values and avoid bit 0 being set
