@@ -14,7 +14,6 @@ uint16_t MoveBarSinEffect::update(WS2812FX* strip) {
     }
     
     auto seg = strip->getSegment();
-    auto runtime = strip->getSegmentRuntime();
     
     // Calculate the bar width using helper function
     const uint16_t width = EffectHelper::calculateProportionalWidth(strip, 2, 1);  // 1/2 with min 1
