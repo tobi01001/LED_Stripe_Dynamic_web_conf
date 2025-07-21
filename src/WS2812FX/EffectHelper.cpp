@@ -93,6 +93,80 @@ uint8_t EffectHelper::calculateColorIndex(WS2812FX* strip, uint16_t position, ui
     return colorIndex + runtime->baseHue + hueOffset;
 }
 
+uint16_t EffectHelper::calculateTrianglePosition(WS2812FX* strip, uint32_t timebase, uint8_t speedMultiplier) {
+    if (!validateStripPointer(strip)) {
+        return 0;
+    }
+    
+    auto seg = strip->getSegment();
+    if (!seg) {
+        return 0;
+    }
+    
+    // Get beat value for consistent timing
+    uint16_t beatValue = beat88(seg->beat88 * speedMultiplier, timebase);
+    
+    // Apply triangular wave for smooth back-and-forth motion
+    // Implement triwave16 manually: if high bit set, invert and shift
+    if (beatValue & 0x8000) {
+        beatValue = 65535 - beatValue;
+    }
+    return beatValue << 1;  // Double the value but it will wrap at 16-bit boundary
+}
+
+void EffectHelper::clearSegment(WS2812FX* strip) {
+    if (!validateStripPointer(strip)) {
+        return;
+    }
+    
+    auto runtime = strip->getSegmentRuntime();
+    if (!runtime) {
+        return;
+    }
+    
+    // Clear entire segment to black
+    fill_solid(&strip->leds[runtime->start], runtime->length, CRGB::Black);
+}
+
+void EffectHelper::drawBar(WS2812FX* strip, uint16_t relativePosition, uint16_t width, uint8_t colorIndex, uint8_t brightness) {
+    if (!validateStripPointer(strip)) {
+        return;
+    }
+    
+    auto runtime = strip->getSegmentRuntime();
+    if (!runtime) {
+        return;
+    }
+    
+    // Calculate absolute position
+    uint16_t absolutePosition = runtime->start * 16 + relativePosition;
+    
+    // Draw the bar using fractional positioning
+    strip->drawFractionalBar(absolutePosition, width, 
+                           *strip->getCurrentPalette(), colorIndex, 
+                           brightness, true, 1);
+}
+
+// ===== SPECIAL EFFECT UTILITIES =====
+
+uint8_t EffectHelper::attackDecayWave8(uint8_t phase) {
+    /**
+     * Create a natural-looking brightness curve with sharp attack and slow decay.
+     * This mimics how real fireflies and stars appear to twinkle.
+     * 
+     * Phase 0-85: Attack phase - rapid brightness increase (linear ramp up)
+     * Phase 86-255: Decay phase - slower brightness decrease (non-linear decay)
+     */
+    if (phase < 86) {
+        // Attack phase: linear ramp from 0 to 255 over first 86 steps
+        return phase * 3;  // 86 * 3 = 258, clamped to 255
+    } else {
+        // Decay phase: slower non-linear decay from 255 to 0
+        phase -= 86;  // Normalize to 0-169 range
+        return 255 - (phase + (phase / 2));  // Non-linear decay
+    }
+}
+
 void EffectHelper::applyFadeEffect(WS2812FX* strip, uint8_t fadeAmount) {
     if (!validateStripPointer(strip)) {
         return;

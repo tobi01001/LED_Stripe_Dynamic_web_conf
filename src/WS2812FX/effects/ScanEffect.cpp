@@ -1,49 +1,39 @@
 #include "ScanEffect.h"
 #include "../WS2812FX_FastLed.h"
+#include "../EffectHelper.h"
 
 bool ScanEffect::init(WS2812FX* strip) {
-    // Initialize the timebase for consistent beat calculations
-    // Using current millis ensures smooth continuation if effect is restarted
-    timebase = millis();
-    
-    // Clear the mode initialization flag
-    auto runtime = strip->getSegmentRuntime();
-    runtime->modeinit = false;
-    
-    return true;
+    // Use standard initialization pattern from helper
+    bool initialized = false; // Local since ScanEffect doesn't maintain persistent state beyond timebase
+    return EffectHelper::standardInit(strip, timebase, initialized);
 }
 
 uint16_t ScanEffect::update(WS2812FX* strip) {
-    // Get access to runtime and LED array
+    // Validate strip pointer using helper
+    if (!EffectHelper::validateStripPointer(strip)) {
+        return 1000;
+    }
+    
+    // Get access to runtime data
     auto runtime = strip->getSegmentRuntime();
-    CRGB* leds = strip->leds;
+    if (!runtime) {
+        return strip->getStripMinDelay();
+    }
     
-    // Calculate the current position of the scanning bar
-    // Uses triwave for smooth back-and-forth motion
-    uint16_t led_offset = calculateBarPosition(strip);
+    // Calculate the current position of the scanning bar using helper
+    uint16_t trianglePosition = EffectHelper::calculateTrianglePosition(strip, timebase);
+    uint16_t ledOffset = calculateBarPosition(trianglePosition, runtime);
     
-    // Clear the entire segment to black before drawing the new bar position
-    // This creates the clean scanning effect with only one bar visible
-    fill_solid(&(leds[runtime->start]), runtime->length, CRGB::Black);
+    // Clear the entire segment to black using helper
+    EffectHelper::clearSegment(strip);
     
     // Calculate color index based on position for dynamic color changing
-    uint8_t colorIndex = calculateColorIndex(led_offset, runtime->baseHue);
+    uint8_t colorIndex = EffectHelper::calculateColorIndex(strip, ledOffset, 0);
     
-    // Draw the scanning bar using fractional positioning for smooth movement
-    // The bar starts at the calculated offset position and has BAR_WIDTH pixels
-    // Parameters:
-    // - led_offset: 16-bit fractional position (actual_pos * 16)
-    // - BAR_WIDTH: width of the bar in pixels
-    // - current palette: for color selection
-    // - colorIndex: index into the palette
-    // - 255: full brightness
-    // - true: mix colors for smooth blending
-    // - 1: color increment for slight variation across bar width
-    strip->drawFractionalBar(runtime->start * 16 + led_offset, BAR_WIDTH, 
-                           *strip->getCurrentPalette(), colorIndex, 255, true, 1);
+    // Draw the scanning bar using helper
+    EffectHelper::drawBar(strip, ledOffset, BAR_WIDTH, colorIndex, 255);
     
     // Return minimum delay for smooth animation
-    // Scanning effects benefit from high frame rates for smooth motion
     return strip->getStripMinDelay();
 }
 
@@ -56,43 +46,20 @@ uint8_t ScanEffect::getModeId() const {
 }
 
 // Helper method implementations
-uint16_t ScanEffect::calculateBarPosition(WS2812FX* strip) const {
-    // Get the current beat value using our timebase for consistent timing
-    // beat88() returns a value that cycles from 0 to 65535 based on the speed setting
-    uint16_t beatValue = beat88(strip->getSegment()->beat88, timebase);
-    
-    // Apply triwave function to create smooth back-and-forth motion
-    // triwave16() converts the linear beat progression into a triangular wave
-    // that smoothly goes from 0 to max and back to 0
-    uint16_t triangularBeat = triwave16(beatValue);
-    
-    // Get runtime to access segment boundaries
-    auto runtime = strip->getSegmentRuntime();
+uint16_t ScanEffect::calculateBarPosition(uint16_t trianglePosition, const void* runtime_ptr) const {
+    // Cast runtime pointer back to proper type
+    const auto* runtime = static_cast<const WS2812FX::segment_runtime*>(runtime_ptr);
     
     // Map the triangular wave to the segment boundaries
     // We map to 16-bit fractional positions for sub-pixel accuracy
     // The range is adjusted to account for the bar width to prevent overflow
-    uint16_t startPos = runtime->start * 16;  // Convert start to 16-bit fractional
-    uint16_t endPos = runtime->stop * 16 - BAR_WIDTH * 16;  // Account for bar width
+    uint16_t segmentLength = runtime->length * 16;
+    uint16_t maxPosition = segmentLength - BAR_WIDTH * 16;  // Account for bar width
     
     // Map from the full triangle wave range (0-65535) to our segment range
-    uint16_t position = map(triangularBeat, 
-                           (uint16_t)0, (uint16_t)65535,      // Input range
-                           (uint16_t)0, endPos - startPos);   // Output range (relative to segment)
-    
-    return position;
-}
-
-uint8_t ScanEffect::calculateColorIndex(uint16_t position_16bit, uint8_t baseHue) const {
-    // Convert 16-bit fractional position back to pixel position for color calculation
-    uint16_t pixelPosition = position_16bit / 16;
-    
-    // Create a color index that changes based on the bar's position
-    // This makes the bar color shift as it moves across the strip
-    // The baseHue provides the base color offset, while the position creates variation
-    uint8_t colorIndex = pixelPosition + baseHue;
-    
-    return colorIndex;
+    return EffectHelper::safeMap(trianglePosition, 
+                               (uint16_t)0, (uint16_t)65535,    // Input range
+                               (uint16_t)0, maxPosition);       // Output range
 }
 
 // Register this effect with the factory so it can be created by mode ID

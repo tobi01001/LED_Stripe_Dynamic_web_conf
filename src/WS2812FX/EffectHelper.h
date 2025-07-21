@@ -79,6 +79,41 @@ public:
     static uint8_t calculateColorIndex(WS2812FX* strip, uint16_t position, uint8_t hueOffset = 0);
     
     /**
+     * @brief Calculate triangular wave position for smooth back-and-forth motion
+     * @param strip WS2812FX instance for accessing segment data
+     * @param timebase Time reference for consistent calculations
+     * @param speedMultiplier Multiplier for beat88 speed (default 1)
+     * @return Position value using triangular wave pattern (0-65535)
+     */
+    static uint16_t calculateTrianglePosition(WS2812FX* strip, uint32_t timebase, uint8_t speedMultiplier = 1);
+    
+    /**
+     * @brief Clear segment to black color
+     * @param strip WS2812FX instance
+     */
+    static void clearSegment(WS2812FX* strip);
+    
+    /**
+     * @brief Draw a fractional bar with automatic positioning
+     * @param strip WS2812FX instance
+     * @param relativePosition Position relative to segment start (16-bit fractional)
+     * @param width Width of the bar in pixels
+     * @param colorIndex Color index for palette lookup
+     * @param brightness Brightness value (0-255)
+     */
+    static void drawBar(WS2812FX* strip, uint16_t relativePosition, uint16_t width, uint8_t colorIndex, uint8_t brightness = 255);
+    
+    // ===== SPECIAL EFFECT UTILITIES =====
+    
+    /**
+     * @brief Generate attack-decay wave for natural looking twinkle effects
+     * Creates a brightness curve with sharp attack and slow decay, mimicking fireflies/stars
+     * @param phase Input phase (0-255)
+     * @return Brightness value (0-255) with attack-decay characteristic
+     */
+    static uint8_t attackDecayWave8(uint8_t phase);
+    
+    /**
      * @brief Apply fade effect to LED strip
      * @param strip WS2812FX instance
      * @param fadeAmount Amount to fade (0-255, higher = more fade)
