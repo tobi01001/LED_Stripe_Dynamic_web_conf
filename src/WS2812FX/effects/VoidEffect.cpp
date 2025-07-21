@@ -1,5 +1,6 @@
 #include "VoidEffect.h"
 #include "../WS2812FX_FastLed.h"
+#include "../EffectHelper.h"
 
 /**
  * @brief Initialize the void effect
@@ -12,7 +13,12 @@
  * @return Always true as void effect initialization cannot fail
  */
 bool VoidEffect::init(WS2812FX* strip) {
-    // Access the segment runtime through the public getter to mark initialization complete
+    // Validate strip pointer before proceeding
+    if (!EffectHelper::validateStripPointer(strip)) {
+        return false;
+    }
+    
+    // Access the segment runtime to mark initialization complete
     auto runtime = strip->getSegmentRuntime();
     runtime->modeinit = false;
     

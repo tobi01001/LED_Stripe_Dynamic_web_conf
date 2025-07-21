@@ -1,8 +1,13 @@
 #include "PhoneRingEffect.h"
 #include "../WS2812FX_FastLed.h"
+#include "../EffectHelper.h"
 
 bool PhoneRingEffect::init(WS2812FX* strip) {
-    // Initialize internal state for phone ring effect
+    // Validate strip pointer
+    if (!EffectHelper::validateStripPointer(strip)) {
+        return false;
+    }
+    
     auto runtime = strip->getSegmentRuntime();
     runtime->modeinit = false;
     
@@ -17,7 +22,11 @@ bool PhoneRingEffect::init(WS2812FX* strip) {
 }
 
 uint16_t PhoneRingEffect::update(WS2812FX* strip) {
-    // Access segment and runtime data through strip public getters
+    // Validate strip pointer
+    if (!EffectHelper::validateStripPointer(strip)) {
+        return strip->getStripMinDelay();
+    }
+    
     auto seg = strip->getSegment();
     auto runtime = strip->getSegmentRuntime();
     
@@ -25,8 +34,8 @@ uint16_t PhoneRingEffect::update(WS2812FX* strip) {
     state.now = millis();
     
     if (state.isPause) {
-        // During pause period: fade to black and check if pause is over
-        fadeToBlackBy(&strip->leds[runtime->start], runtime->length, 32);
+        // During pause period: apply fade effect and check if pause is over
+        EffectHelper::applyFadeEffect(strip, EffectHelper::LIGHT_FADE);
         
         // Check if pause period has ended
         if (state.now > (state.pausemillis + PAUSE_TIME)) {
@@ -36,14 +45,8 @@ uint16_t PhoneRingEffect::update(WS2812FX* strip) {
     } else {
         // During active ring sequence: alternate between on/off states
         if (state.isOn) {
-            // "On" state: fill strip with current palette colors
-            CRGBPalette16* currentPalette = strip->getCurrentPalette();
-            uint8_t paletteDistribution = seg->paletteDistribution;
-            uint8_t deltaHue = max(1, (256 * 100 / (runtime->length * paletteDistribution)));
-            
-            fill_palette(&strip->leds[runtime->start], runtime->length, 
-                        runtime->baseHue, deltaHue, *currentPalette, 
-                        255, seg->blendType);
+            // "On" state: fill strip with current palette colors using helper
+            EffectHelper::fillPaletteWithBrightness(strip, 255, EffectHelper::DEFAULT_HUE_DELTA);
             
             // Check if on time has elapsed
             if (state.now > (state.nextmillis + ON_TIME)) {
@@ -51,8 +54,8 @@ uint16_t PhoneRingEffect::update(WS2812FX* strip) {
                 state.isOn = false;            // Switch to off state
             }
         } else {
-            // "Off" state: turn all LEDs black
-            fill_solid(&strip->leds[runtime->start], runtime->length, CRGB::Black);
+            // "Off" state: clear segment to black
+            EffectHelper::clearSegment(strip);
             
             // Check if off time has elapsed
             if (state.now > (state.nextmillis + OFF_TIME)) {
@@ -68,7 +71,6 @@ uint16_t PhoneRingEffect::update(WS2812FX* strip) {
         }
     }
     
-    // Return minimum delay for smooth animation
     return strip->getStripMinDelay();
 }
 
