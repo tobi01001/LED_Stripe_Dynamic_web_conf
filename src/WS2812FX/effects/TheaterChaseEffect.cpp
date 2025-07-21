@@ -1,39 +1,13 @@
 #include "TheaterChaseEffect.h"
 #include "../WS2812FX_FastLed.h"
+#include "../EffectHelper.h"
 
 /**
- * @brief Initialize the theater chase effect when first activated
- * 
- * Sets up the initial state for the theater chase effect, establishing the 
- * timing baseline and resetting initialization flags. This method is idempotent
- * and safe to call multiple times.
- * 
- * @param strip Pointer to WS2812FX instance providing access to:
- *              - Segment configuration (speed, palette, etc.)
- *              - Runtime state management  
- *              - LED strip parameters
- * @return true Always succeeds unless strip is null
+ * @brief Initialize the theater chase effect using EffectHelper standard pattern
  */
 bool TheaterChaseEffect::init(WS2812FX* strip) {
-    if (!strip) {
-        return false; // Safety check for null pointer
-    }
-    
-    if (initialized) {
-        return true; // Already initialized, avoid redundant setup
-    }
-    
-    // Get runtime data to reset modeinit flag (compatibility with existing system)
-    auto runtime = strip->getSegmentRuntime();
-    if (runtime) {
-        runtime->modeinit = false; // Mark mode as initialized
-    }
-    
-    // Initialize timing baseline for consistent animation
-    timebase = millis(); // Current time in milliseconds since boot
-    
-    initialized = true;
-    return true;
+    // Use standard initialization pattern from helper
+    return EffectHelper::standardInit(strip, timebase, initialized);
 }
 
 /**
@@ -64,8 +38,8 @@ bool TheaterChaseEffect::init(WS2812FX* strip) {
  * @return STRIP_MIN_DELAY Minimum delay for smooth animation timing
  */
 uint16_t TheaterChaseEffect::update(WS2812FX* strip) {
-    // Safety check for null pointer
-    if (!strip) {
+    // Validate strip pointer using helper
+    if (!EffectHelper::validateStripPointer(strip)) {
         return 1000; // Return reasonable delay if strip is invalid
     }
     
@@ -73,20 +47,11 @@ uint16_t TheaterChaseEffect::update(WS2812FX* strip) {
     auto seg = strip->getSegment();
     auto runtime = strip->getSegmentRuntime();
     
-    if (!seg || !runtime) {
-        return 1000; // Return reasonable delay if data is unavailable
-    }
+    // Calculate current chase position using helper
+    uint16_t beat_position = EffectHelper::calculateBeatPosition(strip, timebase, SPEED_DIVISOR);
     
-    // Calculate current chase position (0, 1, or 2)
-    // beat88() creates smooth timing based on BPM parameter divided by speed divisor
-    // Formula: beat88(bpm / divisor, timebase) for slower, more visible movement
-    uint16_t beat_position = beat88(seg->beat88 / SPEED_DIVISOR, timebase);
-    
-    // Map beat position to 8-bit range then take modulo 3 for chase pattern
-    uint16_t chase_offset = map(beat_position, 
-                               (uint16_t)0, (uint16_t)65535,        // Input range (beat88 output)
-                               (uint16_t)0, (uint16_t)BEAT_RANGE_MAX) // Output range for modulo
-                           % CHASE_PATTERN_SIZE; // Results in 0, 1, or 2
+    // Map beat position to chase pattern using helper
+    uint16_t chase_offset = EffectHelper::safeMap(beat_position, 0, 65535, 0, BEAT_RANGE_MAX) % CHASE_PATTERN_SIZE;
     
     // Apply the chase pattern to each LED in the segment
     for (uint16_t i = 0; i < runtime->length; i++) {
@@ -98,23 +63,15 @@ uint16_t TheaterChaseEffect::update(WS2812FX* strip) {
         if ((i % CHASE_PATTERN_SIZE) == chase_offset) {
             // This LED is part of the current active chase position
             
-            // Calculate palette index for color variation across strip
-            // Maps LED position to palette color range (0-255)
-            uint8_t palette_index = map(i, 
-                                       (uint16_t)0, (uint16_t)(runtime->length - 1), // LED position range
-                                       (uint8_t)0, (uint8_t)255)                     // Palette index range
-                                   + runtime->baseHue; // Add base hue offset for color shifting
+            // Calculate color index using helper
+            uint8_t color_index = EffectHelper::calculateColorIndex(strip, i, runtime->baseHue);
             
-            // Get color from current palette with full brightness
-            // ColorFromPaletteWithDistribution handles palette distribution settings
-            CRGB led_color = strip->ColorFromPaletteWithDistribution(
+            // Set LED to calculated palette color
+            strip->leds[led_index] = strip->ColorFromPaletteWithDistribution(
                 *strip->getCurrentPalette(),    // Current color palette
-                palette_index,                  // Position in palette (0-255)
-                FULL_BRIGHTNESS,               // Brightness level (full for chase)
-                seg->blendType);               // Color blending mode
-            
-            // Set the LED to the calculated color
-            strip->leds[led_index] = led_color;
+                color_index,                    // Color index within palette  
+                seg->brightness,                // Use segment brightness setting
+                seg->blendType);                // Use segment blend mode
         } else {
             // This LED is not part of current active chase position - turn it off
             strip->leds[led_index] = CRGB::Black; // Complete darkness for non-active LEDs
