@@ -54,6 +54,7 @@
 #include "effects/PhoneRingEffect.h"
 #include "effects/HeartBeatEffect.h"
 #include "effects/MeteorShowerEffect.h"
+#include "effects/VoidEffect.h"
 
 
 /*
@@ -2459,16 +2460,7 @@ uint16_t WS2812FX::mode_softtwinkles(void)
 // mode_firework2(void) - Removed - now implemented as FireworkRocketEffect class
 
 
-uint16_t WS2812FX::mode_void(void)
-{
-  if (SEG_RT.modeinit)
-  {
-    SEG_RT.modeinit = false;
-    SEG.autoplay = AUTO_MODE_OFF;
-
-  }
-  return STRIP_MIN_DELAY;
-}
+// mode_void(void) - Removed - now implemented as VoidEffect class
 
 void WS2812FX::draw_sunrise_step(uint16_t sunriseStep)
 {

@@ -506,7 +506,7 @@ public:
     _mode[FX_MODE_PACIFICA]               = &WS2812FX::mode_class_based_fallback; // Now implemented as PacificaEffect class
     _mode[FX_MODE_COLOR_WAVES]            = &WS2812FX::mode_class_based_fallback; // Now implemented as ColorWavesEffect class
     _mode[FX_MODE_TWINKLE_MAP]            = &WS2812FX::mode_class_based_fallback; // Now implemented as TwinkleMapEffect class
-    _mode[FX_MODE_VOID]                   = &WS2812FX::mode_void;
+    _mode[FX_MODE_VOID]                   = &WS2812FX::mode_class_based_fallback; // Now implemented as VoidEffect class
     _mode[FX_MODE_SUNRISE]                = &WS2812FX::mode_sunrise;
     _mode[FX_MODE_SUNSET]                 = &WS2812FX::mode_sunset;
 
@@ -565,7 +565,7 @@ public:
     // _name[FX_MODE_PACIFICA] - provided by PacificaEffect class
     // _name[FX_MODE_COLOR_WAVES] - provided by ColorWavesEffect class
     // _name[FX_MODE_TWINKLE_MAP] - provided by TwinkleMapEffect class
-    _name[FX_MODE_VOID]                   = F("Void DOES NOTHING");
+    // _name[FX_MODE_VOID] - provided by VoidEffect class
     _name[FX_MODE_SUNRISE]                = F("Sunrise");
     _name[FX_MODE_SUNSET]                 = F("Sunset");
 
@@ -902,7 +902,7 @@ private:
       // mode_move_bar(uint8_t mode), // Removed - functionality moved to individual effect classes
       // mode_popcorn(void), // Removed - now implemented as PopcornEffect class
       // mode_firework2(void), // Removed - now implemented as FireworkRocketEffect class
-      mode_void(void),
+      // mode_void(void), // Removed - now implemented as VoidEffect class
       mode_sunrise(void),
       mode_sunset(void),
       // mode_ring_ring(void), // Removed - now implemented as PhoneRingEffect class
