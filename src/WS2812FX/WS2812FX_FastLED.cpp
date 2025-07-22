@@ -55,6 +55,12 @@
 #include "effects/HeartBeatEffect.h"
 #include "effects/MeteorShowerEffect.h"
 #include "effects/VoidEffect.h"
+#include "effects/BreathEffect.h"
+#include "effects/RunningLightsEffect.h"
+#include "effects/NoiseMoverEffect.h"
+#include "effects/PlasmaEffect.h"
+#include "effects/JugglePalEffect.h"
+#include "effects/FillBeatEffect.h"
 
 
 /*
