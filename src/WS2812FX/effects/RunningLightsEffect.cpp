@@ -55,7 +55,10 @@ uint16_t RunningLightsEffect::update(WS2812FX* strip) {
         // Blend new color with existing LED color for smooth transitions
         // Use speed-based blend amount (beat88 >> 8) plus minimum blend value
         uint8_t blendAmount = qadd8(seg->beat88 >> 8, 16);
-        nblend(strip->leds[runtime->start + finalOffset], newColor, blendAmount);
+        // Ensure the calculated index is within bounds
+        if (runtime->start + finalOffset < runtime->stop) {
+            nblend(strip->leds[runtime->start + finalOffset], newColor, blendAmount);
+        }
     }
     
     // Return minimum delay for smooth animation
