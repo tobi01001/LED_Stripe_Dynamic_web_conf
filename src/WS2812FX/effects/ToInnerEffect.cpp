@@ -60,7 +60,7 @@ uint16_t ToInnerEffect::update(WS2812FX* strip) {
     
     // Mirror the first half to create symmetrical pattern
     // Copy from the beginning to the end in reverse order
-    for (uint16_t i = runtime->length - 1; i >= (runtime->length - ledUpTo); i--) {
+    for (int16_t i = runtime->length - 1; i >= (runtime->length - ledUpTo); i--) {
         uint16_t mirrorIndex = (runtime->length - 1) - i + runtime->start;
         
         // Bounds checking to prevent array access violations
