@@ -11,7 +11,7 @@ uint16_t ColorWipeTriwaveEffect::calculateWipePosition(WS2812FX* strip, uint32_t
     // avoids conflicts and ensures consistent behavior.
     // Double the speed for more responsive movement
     uint16_t beatPosition = beat88((seg->beat88 * 2) % 65535, timebase);
-    return strip->triwave16(beatPosition);
+    return EffectHelper::triwave16(beatPosition);
 }
 
 const __FlashStringHelper* ColorWipeTriwaveEffect::getName() const {

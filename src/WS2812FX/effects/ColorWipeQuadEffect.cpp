@@ -8,7 +8,7 @@ uint16_t ColorWipeQuadEffect::calculateWipePosition(WS2812FX* strip, uint32_t ti
     // Create quadratic wave using quadwave16 with beat88 (mode 2 in original)
     // Double the speed for more responsive movement  
     uint16_t beatPosition = beat88((seg->beat88 * 2) % 65535, timebase);
-    return strip->quadwave16(beatPosition);
+    return EffectHelper::quadwave16(beatPosition);
 }
 
 const __FlashStringHelper* ColorWipeQuadEffect::getName() const {

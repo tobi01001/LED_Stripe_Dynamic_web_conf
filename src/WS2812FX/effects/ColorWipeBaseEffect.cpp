@@ -7,8 +7,8 @@ bool ColorWipeBaseEffect::init(WS2812FX* strip) {
     bool initResult = EffectHelper::standardInit(strip, timebase, initialized);
     
     // Initialize effect-specific state
-    currentColorIndex = strip->get_random_wheel_index(0, 32);
-    previousColorIndex = strip->get_random_wheel_index(currentColorIndex, 32);
+    currentColorIndex = EffectHelper::get_random_wheel_index(0, 32);
+    previousColorIndex = EffectHelper::get_random_wheel_index(currentColorIndex, 32);
     previousPosition = 0;
     needNewColor = true;
     isMovingUp = true;
@@ -19,7 +19,7 @@ bool ColorWipeBaseEffect::init(WS2812FX* strip) {
 void ColorWipeBaseEffect::updateColorIndices(WS2812FX* strip) {
     if (needNewColor) {
         previousColorIndex = currentColorIndex;
-        currentColorIndex = strip->get_random_wheel_index(currentColorIndex, 32);
+        currentColorIndex = EffectHelper::get_random_wheel_index(currentColorIndex, 32);
         needNewColor = false;
     }
 }

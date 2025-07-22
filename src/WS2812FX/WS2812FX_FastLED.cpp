@@ -36,6 +36,7 @@
 // TODO: May something like https://gist.github.com/kriegsman/626dca2f9d2189bd82ca ??
 
 #include "WS2812FX_FastLed.h"
+#include "EffectHelper.h"
 #include "Effect.h"
 #include "effects/StaticEffect.h"
 #include "effects/EaseEffect.h"
@@ -901,100 +902,40 @@ uint8_t WS2812FX::qadd8_lim(uint8_t i, uint8_t j, uint8_t lim = 255)
  * Due to Fractional leds / stripes 
  * I preferred a 16 bit triwave
  */
+// Forward declarations to EffectHelper for backward compatibility
 uint16_t WS2812FX::triwave16(uint16_t in)
 {
-  if (in & 0x8000)
-  {
-    in = 65535 - in;
-  }
-  return in << 1;
+  return EffectHelper::triwave16(in);
 }
 
-
-/*
- *
- * 
- *
- */
-inline uint16_t WS2812FX::ease16OutQuad(uint16_t i) 
+uint16_t WS2812FX::ease16OutQuad(uint16_t i) 
 {
-  
-  double val = (double)i / 65536.0;
-  val = -(val * (val-2));
-  return (uint16_t)(i*val);
+  return EffectHelper::ease16OutQuad(i);
 }
 
-/*
- *
- * 
- *
- */
-inline uint16_t WS2812FX::ease16InQuad(uint16_t i) 
+uint16_t WS2812FX::ease16InQuad(uint16_t i) 
 {
-  return (i>>8)*(i>>8);
-  double val = (double)i / 65536.0;
-  val = (val * val);
-  return (uint16_t)(i*val);
+  return EffectHelper::ease16InQuad(i);
 }
 
-/*
- * Due to Fractional leds / stripes 
- * I preferred a 16 bit quadwave
- */
 uint16_t WS2812FX::quadwave16(uint16_t in)
 {
-  return ease16InOutQuad(triwave16(in));
+  return EffectHelper::quadwave16(in);
 }
 
-/*
- * Due to Fractional leds / stripes 
- * I preferred a 16 bit easeInOutQuad
- */
-inline uint16_t WS2812FX::ease16InOutQuad(uint16_t i)
+uint16_t WS2812FX::ease16InOutQuad(uint16_t i)
 {
-  uint16_t j = i;
-  if (j & 0x8000)
-  {
-    j = 65535 - j;
-  }
-  uint16_t jj = scale16(j, j);
-  uint16_t jj2 = jj << 1;
-  if (i & 0x8000)
-  {
-    jj2 = 65535 - jj2;
-  }
-  return jj2;
+  return EffectHelper::ease16InOutQuad(i);
 }
 
-/*
- * Due to Fractional leds / stripes 
- * I preferred a 16 bit cubicWave
- */
 uint16_t WS2812FX::cubicwave16(uint16_t in)
 {
-  return ease16InOutCubic(triwave16(in));
+  return EffectHelper::cubicwave16(in);
 }
 
-/*
- * Due to Fractional leds / stripes 
- * I preferred a 16 bit easeInOutCubic
- */
-inline uint16_t WS2812FX::ease16InOutCubic(uint16_t i)
+uint16_t WS2812FX::ease16InOutCubic(uint16_t i)
 {
-
-  uint16_t ii = scale16(i, i);
-  uint16_t iii = scale16(ii, i);
-
-  uint32_t r1 = (3 * (uint16_t)(ii)) - (2 * (uint16_t)(iii));
-
-  uint16_t result = r1;
-
-  // if we got "65536", return 65535:
-  if (r1 & 0x10000)
-  {
-    result = 65535;
-  }
-  return result;
+  return EffectHelper::ease16InOutCubic(i);
 }
 
 void WS2812FX::setColorTemperature(uint8_t index)
@@ -1217,10 +1158,9 @@ void WS2812FX::drawFractionalBar(int pos16, int width, const CRGBPalette16 &pal,
 /*
  * Returns a new, random wheel index with a minimum distance of dist (default = 42) from pos.
  */
-uint8_t WS2812FX::get_random_wheel_index(uint8_t pos, uint8_t dist = 42)
+uint8_t WS2812FX::get_random_wheel_index(uint8_t pos, uint8_t dist)
 {
-  dist = dist < 85 ? dist : 85; // dist shouldn't be too high (not higher than 85 actually)
-  return (pos + random8(dist, 255 - (dist))); 
+  return EffectHelper::get_random_wheel_index(pos, dist);
 }
 
 /*

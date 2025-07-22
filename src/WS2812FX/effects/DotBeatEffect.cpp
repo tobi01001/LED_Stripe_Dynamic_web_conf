@@ -78,16 +78,16 @@ uint16_t DotBeatEffect::calculateBarPosition(uint8_t barIndex, uint8_t waveType,
     uint16_t wavePosition;
     switch (waveType) {
         case 0:
-            wavePosition = strip->triwave16(beatPosition);
+            wavePosition = EffectHelper::triwave16(beatPosition);
             break;
         case 1:
-            wavePosition = strip->quadwave16(beatPosition);
+            wavePosition = EffectHelper::quadwave16(beatPosition);
             break;
         case 2:
-            wavePosition = strip->cubicwave16(beatPosition);
+            wavePosition = EffectHelper::cubicwave16(beatPosition);
             break;
         default:
-            wavePosition = strip->quadwave16(beatPosition);
+            wavePosition = EffectHelper::quadwave16(beatPosition);
             break;
     }
     
@@ -122,7 +122,7 @@ void DotBeatEffect::updateBarColor(uint8_t barIndex, uint16_t position, WS2812FX
         }
         
         // Update color using helper function for wheel-based color cycling
-        barStates[barIndex].colorOffset = strip->get_random_wheel_index(
+        barStates[barIndex].colorOffset = EffectHelper::get_random_wheel_index(
             barStates[barIndex].colorOffset, 64);
     } else {
         barStates[barIndex].newBase = true;

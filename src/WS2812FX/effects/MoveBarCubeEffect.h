@@ -12,7 +12,7 @@
  * 
  * Key features:
  * - Bar width is half the strip length
- * - Movement follows ease16InOutCubic(triwave16()) for cubic easing
+ * - Movement follows EffectHelper::ease16InOutCubic(EffectHelper::triwave16()) for cubic easing
  * - Background fades based on speed setting
  * - Uses current palette for coloring
  * - Fractional positioning for smooth movement
@@ -58,35 +58,6 @@ private:
     
     // Initialization tracking
     bool initialized = false;
-    
-    /**
-     * @brief 16-bit triangle wave function for smooth back-and-forth motion
-     * @param in Input value (0-65535)
-     * @return Triangle wave output (0-65534, with smooth transitions)
-     */
-    static inline uint16_t triwave16(uint16_t in) {
-        if (in & 0x8000) {
-            in = 65535 - in;
-        }
-        return in << 1;
-    }
-    
-    /**
-     * @brief 16-bit cubic easing function for the most dramatic acceleration/deceleration
-     * @param i Input value (0-65535)
-     * @return Eased output with cubic curve
-     */
-    static inline uint16_t ease16InOutCubic(uint16_t i) {
-        uint16_t ii = scale16(i, i);
-        uint16_t iii = scale16(ii, i);
-        uint32_t r1 = (3 * (uint16_t)(ii)) - (2 * (uint16_t)(iii));
-        uint16_t result = r1;
-        // if we got "65536", return 65535:
-        if (r1 & 0x10000) {
-            result = 65535;
-        }
-        return result;
-    }
 };
 
 #endif // MOVE_BAR_CUBE_EFFECT_H
