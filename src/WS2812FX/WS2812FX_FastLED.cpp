@@ -63,6 +63,13 @@
 #include "effects/FillBeatEffect.h"
 #include "effects/DotBeatEffect.h"
 #include "effects/DotColWipeEffect.h"
+#include "effects/ColorWipeBaseEffect.h"
+#include "effects/ColorWipeSawtoothEffect.h"
+#include "effects/ColorWipeSineEffect.h"
+#include "effects/ColorWipeQuadEffect.h"
+#include "effects/ColorWipeTriwaveEffect.h"
+#include "effects/ToInnerEffect.h"
+#include "effects/FillBrightEffect.h"
 
 
 /*
