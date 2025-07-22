@@ -87,7 +87,6 @@ uint16_t TwinkleFadeEffect::update(WS2812FX* strip) {
     else
     {
         // do nothing if we are at or above target density
-        // This allows existing twinkles to fade naturally without adding new ones
     }
     // If numSparks >= maxSparks, we're at or above target density
     // Just let existing twinkles fade naturally without adding new ones

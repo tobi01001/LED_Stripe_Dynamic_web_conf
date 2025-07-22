@@ -90,6 +90,7 @@ void stripe_setup(  CRGB * pleds, CRGB* eleds);
 typedef void (*FieldSetter)(uint32_t);
 typedef uint32_t (*FieldGetter)();
 typedef void (*FieldGetterOpts)(JsonArray arr);
+typedef String (*FieldGetterOptAtIndex)(uint32_t index);
 
 enum fieldtypes {
     NumberFieldType,
@@ -111,6 +112,7 @@ struct Field {
   uint16_t max;
   FieldGetter getValue;
   FieldGetterOpts getOptions;
+  FieldGetterOptAtIndex getOptionAtIndex;
   FieldSetter setValue;
 };
 
