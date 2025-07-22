@@ -61,6 +61,8 @@
 #include "effects/PlasmaEffect.h"
 #include "effects/JugglePalEffect.h"
 #include "effects/FillBeatEffect.h"
+#include "effects/DotBeatEffect.h"
+#include "effects/DotColWipeEffect.h"
 
 
 /*
@@ -892,7 +894,7 @@ uint8_t WS2812FX::qadd8_lim(uint8_t i, uint8_t j, uint8_t lim = 255)
  * Due to Fractional leds / stripes 
  * I preferred a 16 bit triwave
  */
-inline uint16_t WS2812FX::triwave16(uint16_t in)
+uint16_t WS2812FX::triwave16(uint16_t in)
 {
   if (in & 0x8000)
   {
@@ -932,7 +934,7 @@ inline uint16_t WS2812FX::ease16InQuad(uint16_t i)
  * Due to Fractional leds / stripes 
  * I preferred a 16 bit quadwave
  */
-inline uint16_t WS2812FX::quadwave16(uint16_t in)
+uint16_t WS2812FX::quadwave16(uint16_t in)
 {
   return ease16InOutQuad(triwave16(in));
 }
@@ -961,7 +963,7 @@ inline uint16_t WS2812FX::ease16InOutQuad(uint16_t i)
  * Due to Fractional leds / stripes 
  * I preferred a 16 bit cubicWave
  */
-inline uint16_t WS2812FX::cubicwave16(uint16_t in)
+uint16_t WS2812FX::cubicwave16(uint16_t in)
 {
   return ease16InOutCubic(triwave16(in));
 }

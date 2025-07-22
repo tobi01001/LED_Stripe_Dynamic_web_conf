@@ -471,8 +471,8 @@ public:
     _mode[FX_MODE_PLASMA]                 = &WS2812FX::mode_class_based_fallback; // Now implemented as PlasmaEffect class
     _mode[FX_MODE_JUGGLE_PAL]             = &WS2812FX::mode_class_based_fallback; // Now implemented as JugglePalEffect class
     _mode[FX_MODE_FILL_BEAT]              = &WS2812FX::mode_class_based_fallback; // Now implemented as FillBeatEffect class
-    _mode[FX_MODE_DOT_BEAT]               = &WS2812FX::mode_dot_beat;
-    _mode[FX_MODE_DOT_COL_WIPE]           = &WS2812FX::mode_dot_col_move;
+    _mode[FX_MODE_DOT_BEAT]               = &WS2812FX::mode_class_based_fallback; // Now implemented as DotBeatEffect class
+    _mode[FX_MODE_DOT_COL_WIPE]           = &WS2812FX::mode_class_based_fallback; // Now implemented as DotColWipeEffect class
     _mode[FX_MODE_COLOR_WIPE_SAWTOOTH]    = &WS2812FX::mode_col_wipe_sawtooth;
     _mode[FX_MODE_COLOR_WIPE_SINE]        = &WS2812FX::mode_col_wipe_sine;
     _mode[FX_MODE_COLOR_WIPE_QUAD]        = &WS2812FX::mode_col_wipe_quad;
@@ -821,6 +821,11 @@ public:
 
   // Expose the random wheel index function for effects
   uint8_t get_random_wheel_index(uint8_t, uint8_t);
+  
+  // Wave functions made public for effect classes
+  uint16_t triwave16(uint16_t in);
+  uint16_t quadwave16(uint16_t in);
+  uint16_t cubicwave16(uint16_t in);
 
 
 private:
@@ -913,9 +918,6 @@ private:
       getPixelDirection(uint16_t i, uint8 *directionFlags);
 
   inline uint16_t
-      triwave16(uint16_t in),
-      quadwave16(uint16_t in),
-      cubicwave16(uint16_t in),
       ease16InOutQuad(uint16_t i),
       ease16OutQuad(uint16_t i),
       ease16InQuad(uint16_t i),
