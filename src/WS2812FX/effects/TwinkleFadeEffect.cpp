@@ -75,9 +75,14 @@ uint16_t TwinkleFadeEffect::update(WS2812FX* strip) {
                 seg->blendType                 // Blend type from segment settings
             );
         } else {
-            // LED is already lit - dim it slightly to create breathing effect
-            strip->leds[absoluteIndex].fadeToBlackBy(16);
+            // do nothing if the LED is already lit
+            // This prevents over-saturating the segment with twinkles
         }
+    }
+    else
+    {
+        // do nothing if we are at or above target density
+        // This prevents adding too many twinkles and allows existing ones to fade naturally
     }
     // If numSparks >= maxSparks, we're at or above target density
     // Just let existing twinkles fade naturally without adding new ones
