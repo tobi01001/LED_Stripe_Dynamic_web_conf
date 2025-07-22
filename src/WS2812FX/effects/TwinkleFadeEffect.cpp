@@ -51,7 +51,7 @@ uint16_t TwinkleFadeEffect::update(WS2812FX* strip) {
     }
     
     // Calculate target number of active LEDs based on twinkle density setting using helper
-    uint16_t maxSparks = EffectHelper::safeMap((uint16_t)seg->twinkleDensity, 
+    uint16_t maxSparks = EffectHelper::safeMapuint16_t((uint16_t)seg->twinkleDensity, 
                                               (uint16_t)0, (uint16_t)8, 
                                               (uint16_t)0, (uint16_t)runtime->length);
     
@@ -80,9 +80,14 @@ uint16_t TwinkleFadeEffect::update(WS2812FX* strip) {
                 seg->blendType                 // Blend type from segment settings
             );
         } else {
-            // LED is already lit - dim it slightly to create breathing effect
-            strip->leds[absoluteIndex].fadeToBlackBy(16);
+            // do not add twinkle if LED is already lit
+            // This prevents overwriting existing twinkles
         }
+    }
+    else
+    {
+        // do nothing if we are at or above target density
+        // This allows existing twinkles to fade naturally without adding new ones
     }
     // If numSparks >= maxSparks, we're at or above target density
     // Just let existing twinkles fade naturally without adding new ones

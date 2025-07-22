@@ -57,7 +57,7 @@ uint16_t DualScanEffect::calculateForwardBarPosition(WS2812FX* strip) const {
     
     // Map the triangular wave to the segment boundaries using helper
     uint16_t maxPosition = (runtime->length - BAR_WIDTH) * 16;
-    return EffectHelper::safeMap(triangularPosition, 0, 65535, 0, maxPosition);
+    return EffectHelper::safeMapuint16_t(triangularPosition, 0, 65535, 0, maxPosition);
 }
 
 uint16_t DualScanEffect::calculateReverseBarPosition(WS2812FX* strip) const {

@@ -130,7 +130,7 @@ uint16_t BeatsinGlowEffect::calculateElementPosition(uint8_t elementIndex, WS281
     int16_t si = sin16(beatval);
     
     // Map sine value (-32768 to 32767) to strip position using helper
-    uint16_t pos = EffectHelper::safeMap((65535 >> 1) + si, 0, 65535, 
+    uint16_t pos = EffectHelper::safeMapuint16_t((65535 >> 1) + si, 0, 65535, 
                                         runtime->start * 16, runtime->stop * 16);
     
     return pos;

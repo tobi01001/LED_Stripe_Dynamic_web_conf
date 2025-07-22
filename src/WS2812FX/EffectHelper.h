@@ -150,7 +150,7 @@ public:
     // ===== MATHEMATICAL UTILITIES =====
     
     /**
-     * @brief Map value from one range to another with bounds checking
+     * @brief Map uint16_t value from one range to another with bounds checking
      * @param value Input value
      * @param fromMin Input range minimum
      * @param fromMax Input range maximum
@@ -158,8 +158,23 @@ public:
      * @param toMax Output range maximum
      * @return Mapped value clamped to output range
      */
-    static uint16_t safeMap(uint16_t value, uint16_t fromMin, uint16_t fromMax, uint16_t toMin, uint16_t toMax);
+    static uint16_t safeMapuint16_t(uint16_t value, uint16_t fromMin, uint16_t fromMax, uint16_t toMin, uint16_t toMax);
     
+    /**
+     * @brief Map double value from one range to another with bounds checking
+     * @param value Input value
+     * @param fromMin Input range minimum
+     * @param fromMax Input range maximum
+     * @param toMin Output range minimum
+     * @param toMax Output range maximum
+     * @return Mapped value clamped to output range
+     */
+    static double safeMapdouble(double value, double fromMin, double fromMax, double toMin, double toMax);
+
+    
+
+
+
     /**
      * @brief Linear interpolation between two values
      * @param a First value

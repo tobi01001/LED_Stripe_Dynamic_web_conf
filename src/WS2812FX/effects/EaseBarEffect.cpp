@@ -75,7 +75,7 @@ uint16_t EaseBarEffect::update(WS2812FX* strip) {
     
     // Calculate palette increment and starting index using helper logic
     uint8_t paletteIncrement = calculatePaletteIncrement(runtime->length, seg->paletteDistribution);
-    uint8_t startPaletteIndex = EffectHelper::safeMap(startLed, runtime->start, runtime->stop, 0, 255) + runtime->baseHue;
+    uint8_t startPaletteIndex = EffectHelper::safeMapuint16_t(startLed, runtime->start, runtime->stop, 0, 255) + runtime->baseHue;
     
     // Render the main bar using palette colors
     fill_palette(&strip->leds[startLed], numLeds, startPaletteIndex, paletteIncrement, 

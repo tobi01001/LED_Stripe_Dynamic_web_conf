@@ -36,7 +36,7 @@ uint16_t FireworkEffect::update(WS2812FX* strip) {
     }
     
     // Apply blur effect using EffectHelper safe mapping
-    uint8_t blurAmount = EffectHelper::safeMap(seg->beat88 >> 8, 0, 255, 32, 172);
+    uint8_t blurAmount = EffectHelper::safeMapuint16_t(seg->beat88 >> 8, 0, 255, 32, 172);
     blur1d(&strip->leds[runtime->start], runtime->length, blurAmount);
     
     // Update existing fireworks - decrease burn time and render

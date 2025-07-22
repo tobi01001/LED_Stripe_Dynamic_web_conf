@@ -43,7 +43,7 @@ uint16_t PhoneRingEffect::update(WS2812FX* strip) {
         // During active ring sequence: alternate between on/off states
         if (state.isOn) {
             // "On" state: fill strip with current palette colors using helper
-            EffectHelper::fillPaletteWithBrightness(strip, 255, EffectHelper::DEFAULT_HUE_DELTA);
+            EffectHelper::fillPaletteWithBrightness(strip, EffectHelper::MAX_BRIGHTNESS, EffectHelper::DEFAULT_HUE_DELTA);
             
             // Check if on time has elapsed
             if (state.now > (state.nextmillis + ON_TIME)) {

@@ -56,7 +56,7 @@
 #include "FastLED.h"
 FASTLED_USING_NAMESPACE
 
-#include "Effect.h"
+#include "Effect.h" // Ensure Effect class is defined before use
 
 /* </FastLED implementation> */
 

@@ -68,7 +68,7 @@ uint16_t EffectHelper::mapPositionToStrip(WS2812FX* strip, uint16_t beatPosition
     }
     
     // Map beat position to strip length with 16-bit precision for sub-pixel accuracy
-    return safeMap(beatPosition, 
+    return safeMapuint16_t(beatPosition, 
                    (uint16_t)0, (uint16_t)65535,
                    (uint16_t)0, (uint16_t)(runtime->length * 16));
 }
@@ -238,7 +238,7 @@ void EffectHelper::safeFreeArray(void*& array, size_t& size) {
 
 // ===== MATHEMATICAL UTILITIES =====
 
-uint16_t EffectHelper::safeMap(uint16_t value, uint16_t fromMin, uint16_t fromMax, uint16_t toMin, uint16_t toMax) {
+uint16_t EffectHelper::safeMapuint16_t(uint16_t value, uint16_t fromMin, uint16_t fromMax, uint16_t toMin, uint16_t toMax) {
     // Handle edge cases
     if (fromMin == fromMax) {
         return toMin;
@@ -261,6 +261,31 @@ uint16_t EffectHelper::safeMap(uint16_t value, uint16_t fromMin, uint16_t fromMa
     }
     
     return (uint16_t)result;
+}
+
+double EffectHelper::safeMapdouble(double value, double fromMin, double fromMax, double toMin, double toMax) {
+    // Handle edge cases
+    if (fromMin == fromMax) {
+        return toMin;
+    }
+    
+    if (value <= fromMin) {
+        return toMin;
+    }
+    
+    if (value >= fromMax) {
+        return toMax;
+    }
+    
+    // Perform mapping with overflow protection
+    double result = (value - fromMin) * (toMax - toMin) / (fromMax - fromMin) + toMin;
+    
+    // Clamp to output range
+    if (result > toMax) {
+        return toMax;
+    }
+    
+    return result;
 }
 
 uint8_t EffectHelper::linearInterpolate(uint8_t a, uint8_t b, float fraction) {

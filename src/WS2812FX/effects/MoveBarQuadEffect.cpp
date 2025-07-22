@@ -29,14 +29,14 @@ uint16_t MoveBarQuadEffect::update(WS2812FX* strip) {
     // Calculate speed mapping from beat88 setting
     uint16_t constrainedSpeed = seg->beat88 > (20000 / seg->segments) ? 
                                 (20000 / seg->segments) : seg->beat88;
-    const uint16_t speed = EffectHelper::safeMap(constrainedSpeed, 0, (20000 / seg->segments), 0, 65535);
+    const uint16_t speed = EffectHelper::safeMapuint16_t(constrainedSpeed, 0, (20000 / seg->segments), 0, 65535);
     
     // Apply background fade effect using EffectHelper
-    uint8_t fadeAmount = EffectHelper::safeMap(speed, 0, 65535, 64, 255);
+    uint8_t fadeAmount = EffectHelper::safeMapuint16_t(speed, 0, 65535, 64, 255);
     EffectHelper::applyFadeEffect(strip, fadeAmount);
     
     // Calculate quadratic movement position
-    uint16_t position = calculateQuadPosition(speed, width);
+    uint16_t position = calculateQuadPosition(strip,speed, width);
     
     // Draw the moving bar using EffectHelper
     EffectHelper::drawBar(strip, position, width, runtime->baseHue, 255);
@@ -44,16 +44,16 @@ uint16_t MoveBarQuadEffect::update(WS2812FX* strip) {
     return strip->getStripMinDelay();
 }
 
-uint16_t MoveBarQuadEffect::calculateQuadPosition(uint16_t speed, uint16_t width) {
+uint16_t MoveBarQuadEffect::calculateQuadPosition(WS2812FX* strip, uint16_t speed, uint16_t width) {
     // Use triangle wave for smooth movement with quadratic easing
-    uint16_t beatPosition = EffectHelper::calculateBeatPosition(nullptr, timebase, speed / 32768);
+    uint16_t beatPosition = EffectHelper::calculateBeatPosition(strip, timebase, speed / 32768);
     uint16_t triangleWave = EffectHelper::generateTriangleWave(beatPosition, 0, 255);
     
     // Apply quadratic easing for dramatic acceleration/deceleration
     uint16_t easedWave = ease16InOutQuad(triangleWave << 8); // Scale to 16-bit for easing
     
     // Map to bar movement range
-    return EffectHelper::safeMap(easedWave, 0, 65535, 0, width * 16);
+    return EffectHelper::safeMapuint16_t(easedWave, 0, 65535, 0, width * 16);
 }
 
 const __FlashStringHelper* MoveBarQuadEffect::getName() const {

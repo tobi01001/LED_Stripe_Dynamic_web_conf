@@ -2,6 +2,7 @@
 #define WS2812FX_EFFECT_H
 
 #include "FastLED.h"
+#include "defaults.h"
 
 // Forward declarations - full definitions will be available in implementation files
 class WS2812FX;

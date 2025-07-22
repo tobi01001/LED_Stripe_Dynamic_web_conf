@@ -21,10 +21,10 @@ uint16_t MoveBarSinEffect::update(WS2812FX* strip) {
     // Calculate speed mapping from beat88 setting using helper
     uint16_t constrainedSpeed = seg->beat88 > (20000 / seg->segments) ? 
                                 (20000 / seg->segments) : seg->beat88;
-    const uint16_t speed = EffectHelper::safeMap(constrainedSpeed, 0, (20000 / seg->segments), 0, 65535);
+    const uint16_t speed = EffectHelper::safeMapuint16_t(constrainedSpeed, 0, (20000 / seg->segments), 0, 65535);
     
     // Apply background fade effect using helper
-    uint8_t fadeAmount = EffectHelper::safeMap(speed, 0, 65535, 64, 255);
+    uint8_t fadeAmount = EffectHelper::safeMapuint16_t(speed, 0, 65535, 64, 255);
     EffectHelper::applyFadeEffect(strip, fadeAmount);
     
     // Calculate the sine wave position for smooth movement

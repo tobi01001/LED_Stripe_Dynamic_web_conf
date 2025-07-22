@@ -3,6 +3,16 @@
 #include "../EffectHelper.h"
 #include "../../include/defaults.h"
 
+// Ensure the SunriseEffectState struct has a fixed-size noiseValues array
+// Example: If not present, add this to SunriseEffect.h
+// struct SunriseEffectState {
+//     uint32_t nextStepTime;
+//     uint16_t currentStep;
+//     bool alternateToggle;
+//     uint32_t lastNoiseUpdate;
+//     uint8_t noiseValues[32]; // Adjust size as needed
+// };
+
 bool SunriseEffect::init(WS2812FX* strip) {
     // Validate strip pointer
     if (!EffectHelper::validateStripPointer(strip)) {

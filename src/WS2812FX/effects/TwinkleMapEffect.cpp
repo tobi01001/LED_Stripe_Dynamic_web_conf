@@ -47,7 +47,7 @@ uint16_t TwinkleMapEffect::update(WS2812FX* strip) {
     
     // Calculate speed parameters using helper for safe mapping
     uint16_t beat88_val = seg->beat88;
-    uint8_t speedUp = EffectHelper::safeMap(beat88_val, BEAT88_MIN, BEAT88_MAX, 4, 64);
+    uint8_t speedUp = EffectHelper::safeMapuint16_t(beat88_val, BEAT88_MIN, BEAT88_MAX, 4, 64);
     uint8_t speedDown = speedUp / 2; // Dimming is slower than brightening
     
     // Process each LED in the segment
@@ -133,9 +133,9 @@ bool TwinkleMapEffect::ensureStateArrayAllocated(WS2812FX* strip) {
     size_t currentSize = _allocatedLength;
     size_t requiredSize = runtime->length;
     
-    void* newArray = EffectHelper::safeAllocateArray(currentArray, currentSize, requiredSize, sizeof(uint8_t));
+    void* arrayPointer = EffectHelper::safeAllocateArray(currentArray, currentSize, requiredSize, sizeof(uint8_t));
     
-    if (newArray == nullptr && requiredSize > 0) {
+    if (arrayPointer == nullptr && requiredSize > 0) {
         // Memory allocation failed
         _pixelStates = nullptr;
         _allocatedLength = 0;
@@ -143,7 +143,7 @@ bool TwinkleMapEffect::ensureStateArrayAllocated(WS2812FX* strip) {
     }
     
     // Update pointers if allocation succeeded or changed
-    _pixelStates = (uint8_t*)newArray;
+    _pixelStates = (uint8_t*)arrayPointer;
     _allocatedLength = requiredSize;
     
     // Initialize new array to base state if reallocated

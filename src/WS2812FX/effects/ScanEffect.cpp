@@ -57,7 +57,7 @@ uint16_t ScanEffect::calculateBarPosition(uint16_t trianglePosition, const void*
     uint16_t maxPosition = segmentLength - BAR_WIDTH * 16;  // Account for bar width
     
     // Map from the full triangle wave range (0-65535) to our segment range
-    return EffectHelper::safeMap(trianglePosition, 
+    return EffectHelper::safeMapuint16_t(trianglePosition, 
                                (uint16_t)0, (uint16_t)65535,    // Input range
                                (uint16_t)0, maxPosition);       // Output range
 }

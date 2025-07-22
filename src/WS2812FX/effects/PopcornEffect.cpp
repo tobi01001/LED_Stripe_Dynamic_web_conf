@@ -114,7 +114,7 @@ double PopcornEffect::getGravity(WS2812FX* strip) const {
     const double maxGravity = 9810.0 / (1000.0 * 1000.0);    // 0.009810 mm/ms²
     
     double beat88 = (double)strip->getSegment()->beat88;
-    double gravity = map(beat88, 0.0, 10000.0, minGravity, maxGravity);
+    double gravity = EffectHelper::safeMapdouble(beat88, 0.0, 10000.0, minGravity, maxGravity);
     
     return -gravity; // Negative for downward acceleration
 }

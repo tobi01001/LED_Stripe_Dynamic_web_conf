@@ -175,9 +175,9 @@ uint16_t BubbleSortEffect::calculateFrameDelay(WS2812FX* strip) const {
     auto runtime = strip->getSegmentRuntime();
     
     // Calculate delay using EffectHelper safe mapping
-    const uint16_t speed_delay = EffectHelper::safeMap(seg->beat88, 10000, 0, 0, 50);
-    const uint16_t length_delay = EffectHelper::safeMap(runtime->length, 300, 0, 0, 25);
-    
+    const uint16_t speed_delay = EffectHelper::safeMapuint16_t(seg->beat88, 10000, 0, 0, 50);
+    const uint16_t length_delay = EffectHelper::safeMapuint16_t(runtime->length, 300, 0, 0, 25);
+
     return speed_delay + length_delay;
 }
 

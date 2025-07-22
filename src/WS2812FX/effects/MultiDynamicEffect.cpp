@@ -44,7 +44,7 @@ uint16_t MultiDynamicEffect::update(WS2812FX* strip) {
         }
         
         // Calculate next update time using EffectHelper safe mapping
-        uint32_t interval = EffectHelper::safeMap(seg->beat88, 0, BEAT88_MAX, 255, 4) << 4;
+        uint32_t interval = EffectHelper::safeMapuint16_t(seg->beat88, 0, BEAT88_MAX, 255, 4) << 4;
         nextUpdate = currentTime + interval;
     }
     

@@ -252,7 +252,7 @@ void FireworkRocketEffect::renderExplosionPhase(const RocketData& rocket, WS2812
 
 void FireworkRocketEffect::applyGlobalFade(WS2812FX* strip) {
     // Apply global fading using EffectHelper with beat88-based calculation
-    uint8_t fadeAmount = EffectHelper::safeMap(strip->getSegment()->beat88, 0, 6000, 24, 255);
+    uint8_t fadeAmount = EffectHelper::safeMapuint16_t(strip->getSegment()->beat88, 0, 6000, 24, 255);
     EffectHelper::applyFadeEffect(strip, fadeAmount);
 }
 

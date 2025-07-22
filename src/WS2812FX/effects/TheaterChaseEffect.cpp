@@ -40,7 +40,7 @@ bool TheaterChaseEffect::init(WS2812FX* strip) {
 uint16_t TheaterChaseEffect::update(WS2812FX* strip) {
     // Validate strip pointer using helper
     if (!EffectHelper::validateStripPointer(strip)) {
-        return 1000; // Return reasonable delay if strip is invalid
+        return 0; // Return reasonable delay if strip is invalid
     }
     
     // Get segment and runtime configuration data
@@ -51,7 +51,7 @@ uint16_t TheaterChaseEffect::update(WS2812FX* strip) {
     uint16_t beat_position = EffectHelper::calculateBeatPosition(strip, timebase, SPEED_DIVISOR);
     
     // Map beat position to chase pattern using helper
-    uint16_t chase_offset = EffectHelper::safeMap(beat_position, 0, 65535, 0, BEAT_RANGE_MAX) % CHASE_PATTERN_SIZE;
+    uint16_t chase_offset = EffectHelper::safeMapuint16_t(beat_position, 0, 65535, 0, BEAT_RANGE_MAX) % CHASE_PATTERN_SIZE;
     
     // Apply the chase pattern to each LED in the segment
     for (uint16_t i = 0; i < runtime->length; i++) {
