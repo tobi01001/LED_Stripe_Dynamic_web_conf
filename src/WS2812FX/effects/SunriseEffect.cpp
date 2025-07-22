@@ -1,18 +1,24 @@
 #include "SunriseEffect.h"
 #include "../WS2812FX_FastLed.h"
+#include "../EffectHelper.h"
 #include "../../include/defaults.h"
 
-/**
- * @brief Initialize the sunrise effect
- * 
- * Sets up the initial state for the sunrise effect. The effect starts from
- * complete darkness (step 0) and will progress through the full sunrise
- * simulation over the configured time period.
- * 
- * @param strip Pointer to the WS2812FX instance
- * @return true if initialization was successful
- */
+// Ensure the SunriseEffectState struct has a fixed-size noiseValues array
+// Example: If not present, add this to SunriseEffect.h
+// struct SunriseEffectState {
+//     uint32_t nextStepTime;
+//     uint16_t currentStep;
+//     bool alternateToggle;
+//     uint32_t lastNoiseUpdate;
+//     uint8_t noiseValues[32]; // Adjust size as needed
+// };
+
 bool SunriseEffect::init(WS2812FX* strip) {
+    // Validate strip pointer
+    if (!EffectHelper::validateStripPointer(strip)) {
+        return false;
+    }
+    
     // Initialize effect state - start from darkness
     state.nextStepTime = millis();
     state.currentStep = 0;

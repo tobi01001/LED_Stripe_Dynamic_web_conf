@@ -54,6 +54,9 @@ private:
 private:
     // Internal timebase for beat calculations
     uint32_t timebase;
+    
+    // Initialization tracking
+    bool initialized = false;
 };
 
 #endif // MOVE_BAR_SIN_EFFECT_H

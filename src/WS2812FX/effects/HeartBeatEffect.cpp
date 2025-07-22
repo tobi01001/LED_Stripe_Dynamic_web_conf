@@ -1,11 +1,17 @@
 #include "HeartBeatEffect.h"
 #include "../WS2812FX_FastLed.h"
+#include "../EffectHelper.h"
 
 bool HeartBeatEffect::init(WS2812FX* strip) {
-    // Initialize internal state for heartbeat effect
+    // Use standard initialization pattern from helper
+    bool initialized = false;
+    uint32_t timebase = 0;
+    if (!EffectHelper::standardInit(strip, timebase, initialized)) {
+        return false;
+    }
+    
     auto runtime = strip->getSegmentRuntime();
     auto seg = strip->getSegment();
-    runtime->modeinit = false;
     
     // Initialize heartbeat state variables
     state.lastBeat = 0;
@@ -16,8 +22,8 @@ bool HeartBeatEffect::init(WS2812FX* strip) {
     state.msPerBeat = calculateBeatsPerMinute(seg->beat88);
     state.secondBeat = (state.msPerBeat / 3);  // Secondary beat at 1/3 of cycle
     
-    // Calculate pulse size based on strip length
-    state.size = calculatePulseSize(runtime->length);
+    // Calculate pulse size based on strip length using helper
+    state.size = EffectHelper::calculateProportionalWidth(strip, 25, 1);
     
     // Set up center position and pixel processing count
     state.centerOffset = (runtime->length / 2);
@@ -27,6 +33,11 @@ bool HeartBeatEffect::init(WS2812FX* strip) {
 }
 
 uint16_t HeartBeatEffect::update(WS2812FX* strip) {
+    // Validate strip pointer using helper
+    if (!EffectHelper::validateStripPointer(strip)) {
+        return 1000; // Return reasonable delay if strip is invalid
+    }
+    
     // Access segment and runtime data through strip public getters
     auto seg = strip->getSegment();
     auto runtime = strip->getSegmentRuntime();
@@ -44,10 +55,9 @@ uint16_t HeartBeatEffect::update(WS2812FX* strip) {
         }
     }
     
-    // Apply continuous fade to create smooth pulse decay
-    // Fade amount is influenced by speed setting with minimum fade of 32
+    // Apply continuous fade to create smooth pulse decay using helper
     uint8_t fadeAmount = (seg->beat88 >> 8) | 32;
-    fadeToBlackBy(&strip->leds[runtime->start], runtime->length, fadeAmount);
+    EffectHelper::applyFadeEffect(strip, fadeAmount);
     
     // Calculate elapsed time since last primary beat
     state.beatTimer = millis() - state.lastBeat;
@@ -91,18 +101,9 @@ uint16_t HeartBeatEffect::update(WS2812FX* strip) {
 }
 
 uint16_t HeartBeatEffect::calculateBeatsPerMinute(uint16_t speed) {
-    // Convert speed parameter to realistic heartbeat timing
-    // Speed ranges from BEAT88_MIN to BEAT88_MAX, map to reasonable BPM range
-    // Ensure minimum rate to prevent division by zero and overly slow beats
+    // Convert speed parameter to realistic heartbeat timing using helper
     uint16_t effectiveSpeed = (speed > 20) ? speed / 20 : 1;
     return (60000 / effectiveSpeed);  // Convert to milliseconds per beat
-}
-
-uint8_t HeartBeatEffect::calculatePulseSize(uint16_t stripLength) {
-    // Calculate appropriate pulse size based on strip length
-    // Map strip length range to reasonable pulse size range (1-6 pixels)
-    // Longer strips get larger pulses for better visibility
-    return map(stripLength, (uint16_t)25, (uint16_t)300, (uint16_t)1, (uint16_t)6);
 }
 
 const __FlashStringHelper* HeartBeatEffect::getName() const {

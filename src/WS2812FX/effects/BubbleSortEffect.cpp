@@ -1,5 +1,6 @@
 #include "BubbleSortEffect.h"
 #include "../WS2812FX_FastLed.h"
+#include "../EffectHelper.h"
 
 bool BubbleSortEffect::init(WS2812FX* strip) {
     // Clean up any existing memory first
@@ -10,13 +11,14 @@ bool BubbleSortEffect::init(WS2812FX* strip) {
     ci = co = cd = 0;
     initialized = false;
     
-    // Get current strip length and allocate memory for hue array
+    // Get current strip length and allocate memory for hue array using EffectHelper
     auto runtime = strip->getSegmentRuntime();
     strip_length = runtime->length;
     
     if (strip_length > 0) {
-        // Allocate memory for hue values - one per LED position
-        hues = new uint8_t[strip_length];
+        // Use EffectHelper for safe memory allocation
+        size_t currentSize = 0;
+        hues = (uint8_t*)EffectHelper::safeAllocateArray(nullptr, currentSize, strip_length, sizeof(uint8_t));
         if (hues != nullptr) {
             initialized = true;
             initializeHues(strip);
@@ -38,7 +40,7 @@ uint16_t BubbleSortEffect::update(WS2812FX* strip) {
     auto seg = strip->getSegment();
     auto runtime = strip->getSegmentRuntime();
     
-    // Calculate frame delay based on speed and strip length
+    // Calculate frame delay using EffectHelper safe mapping
     const uint16_t framedelay = calculateFrameDelay(strip);
     
     // Check if we need to reinitialize (e.g., after transition)
@@ -78,19 +80,19 @@ uint16_t BubbleSortEffect::update(WS2812FX* strip) {
         // Update LED display with current hue values
         updateLEDDisplay(strip);
         
-        // Highlight the elements being compared
+        // Highlight the elements being compared using EffectHelper color calculations
         if (ci < strip_length) {
-            // Highlight current comparison position
+            uint8_t colorIndex = EffectHelper::calculateColorIndex(strip, ci, hues[ci]);
             CRGB color = strip->ColorFromPaletteWithDistribution(
-                *strip->getCurrentPalette(), hues[ci], seg->brightness, seg->blendType
+                *strip->getCurrentPalette(), colorIndex, seg->brightness, seg->blendType
             );
             strip->leds[runtime->start + ci] = color;
         }
         
         if (co < strip_length) {
-            // Highlight outer loop position  
+            uint8_t colorIndex = EffectHelper::calculateColorIndex(strip, co, hues[co]);
             CRGB color = strip->ColorFromPaletteWithDistribution(
-                *strip->getCurrentPalette(), hues[co], seg->brightness, seg->blendType
+                *strip->getCurrentPalette(), colorIndex, seg->brightness, seg->blendType
             );
             strip->leds[runtime->start + co] = color;
         }
@@ -101,15 +103,17 @@ uint16_t BubbleSortEffect::update(WS2812FX* strip) {
         
         // Highlight the elements involved in the swap
         if (co < strip_length) {
+            uint8_t colorIndex = EffectHelper::calculateColorIndex(strip, co, hues[co]);
             CRGB color = strip->ColorFromPaletteWithDistribution(
-                *strip->getCurrentPalette(), hues[co], seg->brightness, seg->blendType
+                *strip->getCurrentPalette(), colorIndex, seg->brightness, seg->blendType
             );
             strip->leds[runtime->start + co] = color;
         }
         
         if (cd < strip_length) {
+            uint8_t colorIndex = EffectHelper::calculateColorIndex(strip, cd, hues[cd]);
             CRGB color = strip->ColorFromPaletteWithDistribution(
-                *strip->getCurrentPalette(), hues[cd], seg->brightness, seg->blendType
+                *strip->getCurrentPalette(), colorIndex, seg->brightness, seg->blendType
             );
             strip->leds[runtime->start + cd] = color;
         }
@@ -158,7 +162,9 @@ void BubbleSortEffect::initializeHues(WS2812FX* strip) {
 
 void BubbleSortEffect::cleanupMemory() {
     if (hues != nullptr) {
-        delete[] hues;
+        // Use EffectHelper for safe memory cleanup
+        size_t arraySize = strip_length;
+        EffectHelper::safeFreeArray((void*&)hues, arraySize);
         hues = nullptr;
     }
     initialized = false;
@@ -168,11 +174,10 @@ uint16_t BubbleSortEffect::calculateFrameDelay(WS2812FX* strip) const {
     auto seg = strip->getSegment();
     auto runtime = strip->getSegmentRuntime();
     
-    // Calculate delay based on speed (beat88) and strip length
-    // Slower speeds get longer delays, longer strips get slightly longer delays
-    const uint16_t speed_delay = map(seg->beat88, (uint16_t)10000, (uint16_t)0, (uint16_t)0, (uint16_t)50);
-    const uint16_t length_delay = map(runtime->length, (uint16_t)300, (uint16_t)0, (uint16_t)0, (uint16_t)25);
-    
+    // Calculate delay using EffectHelper safe mapping
+    const uint16_t speed_delay = EffectHelper::safeMapuint16_t(seg->beat88, 10000, 0, 0, 50);
+    const uint16_t length_delay = EffectHelper::safeMapuint16_t(runtime->length, 300, 0, 0, 25);
+
     return speed_delay + length_delay;
 }
 
@@ -185,10 +190,10 @@ void BubbleSortEffect::updateLEDDisplay(WS2812FX* strip) {
     auto runtime = strip->getSegmentRuntime();
     
     // Map all hue values to the current palette and display them
-    // This shows the current state of the array being sorted
     for (uint16_t i = 0; i < strip_length; i++) {
+        uint8_t colorIndex = EffectHelper::calculateColorIndex(strip, i, hues[i]);
         CRGB color = strip->ColorFromPaletteWithDistribution(
-            *strip->getCurrentPalette(), hues[i], 32, seg->blendType
+            *strip->getCurrentPalette(), colorIndex, 32, seg->blendType
         );
         strip->leds[runtime->start + i] = color;
     }

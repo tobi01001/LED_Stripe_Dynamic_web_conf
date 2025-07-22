@@ -1,11 +1,16 @@
 #include "MeteorShowerEffect.h"
 #include "../WS2812FX_FastLed.h"
+#include "../EffectHelper.h"
 
 bool MeteorShowerEffect::init(WS2812FX* strip) {
-    // Initialize internal state for meteor shower effect
-    auto runtime = strip->getSegmentRuntime();
+    // Use standard initialization pattern from helper
+    bool initialized = false;
+    uint32_t timebase = 0;
+    if (!EffectHelper::standardInit(strip, timebase, initialized)) {
+        return false;
+    }
+    
     auto seg = strip->getSegment();
-    runtime->modeinit = false;
     
     // Initialize all meteor state arrays
     // Clear all timebase, active status, and color indices
@@ -30,17 +35,22 @@ bool MeteorShowerEffect::init(WS2812FX* strip) {
 }
 
 uint16_t MeteorShowerEffect::update(WS2812FX* strip) {
+    // Validate strip pointer using helper
+    if (!EffectHelper::validateStripPointer(strip)) {
+        return 1000; // Return reasonable delay if strip is invalid
+    }
+    
     // Access segment and runtime data through strip public getters
     auto seg = strip->getSegment();
     auto runtime = strip->getSegmentRuntime();
     
     uint32_t currentTime = millis();
     
-    // Apply background fade at regular intervals for trailing effect
+    // Apply background fade at regular intervals for trailing effect using helper
     if (currentTime - lastFadeTime >= FADE_INTERVAL) {
-        // Fade amount is controlled by speed setting - faster speed = more fade
-        uint8_t fadeAmount = map(seg->beat88, (uint16_t)100, (uint16_t)7968, (uint16_t)3, (uint16_t)255);
-        fadeToBlackBy(&strip->leds[runtime->start], runtime->length, fadeAmount);
+        // Fade amount is controlled by speed setting using helper
+        uint8_t fadeAmount = EffectHelper::safeMapuint16_t(seg->beat88, 100, 7968, 3, 255);
+        EffectHelper::applyFadeEffect(strip, fadeAmount);
         lastFadeTime = currentTime;
     }
     
@@ -49,11 +59,11 @@ uint16_t MeteorShowerEffect::update(WS2812FX* strip) {
         if (state.actives[i]) {
             // Calculate meteor position using beat88 function for smooth movement
             // Position moves from top (stop) to bottom (start) of segment
-            uint16_t pos16 = map((uint16_t)(beat88(seg->beat88 * 3, state.timebase[i])), 
-                               (uint16_t)0, (uint16_t)65535, 
-                               (uint16_t)(runtime->stop * 16), (uint16_t)(runtime->start * 16));
+            uint16_t beatPos = EffectHelper::calculateBeatPosition(strip, state.timebase[i], EffectHelper::FAST_SPEED);
+            uint16_t pos16 = EffectHelper::safeMapuint16_t(beatPos, 0, 65535, 
+                                                 runtime->stop * 16, runtime->start * 16);
             
-            // Draw the meteor at current position
+            // Draw the meteor at current position using helper
             drawMeteor(strip, pos16, state.cind[i]);
             
             // Deactivate meteor when it reaches the bottom
@@ -65,8 +75,8 @@ uint16_t MeteorShowerEffect::update(WS2812FX* strip) {
     
     // Spawn new meteors at regular intervals
     if (currentTime - lastSpawnTime >= SPAWN_INTERVAL) {
-        // Check if spawn area is clear (minimum distance from bottom)
-        uint16_t minDistance = max(runtime->length / 12, 1);
+        // Check if spawn area is clear (minimum distance from bottom) using helper
+        uint16_t minDistance = EffectHelper::calculateProportionalWidth(strip, 12, 1);
         
         if (isSpawnAreaClear(strip, minDistance)) {
             // Try to spawn a new meteor in an available slot
@@ -78,10 +88,10 @@ uint16_t MeteorShowerEffect::update(WS2812FX* strip) {
                 state.timebase[availableSlot] = currentTime;
                 state.cind[availableSlot] = strip->get_random_wheel_index(state.cind[availableSlot], 42);
                 
-                // Draw initial meteor position
-                uint16_t initialPos = map((uint16_t)(beat88(seg->beat88 * 3, state.timebase[availableSlot])), 
-                                        (uint16_t)0, (uint16_t)65535, 
-                                        (uint16_t)(runtime->stop * 16), (uint16_t)(runtime->start * 16));
+                // Draw initial meteor position using helper
+                uint16_t beatPos = EffectHelper::calculateBeatPosition(strip, state.timebase[availableSlot], EffectHelper::FAST_SPEED);
+                uint16_t initialPos = EffectHelper::safeMapuint16_t(beatPos, 0, 65535,
+                                                          runtime->stop * 16, runtime->start * 16);
                 drawMeteor(strip, initialPos, state.cind[availableSlot]);
             }
         }

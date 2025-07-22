@@ -1,66 +1,44 @@
 #include "LarsonScannerEffect.h"
 #include "../WS2812FX_FastLed.h"
+#include "../EffectHelper.h"
 
 // Include FastLED lib8tion for beat88 function
 #include "lib8tion.h"
 
 bool LarsonScannerEffect::init(WS2812FX* strip) {
-    // Initialize the timebase for consistent animation timing
-    // This ensures the effect starts smoothly regardless of when it's activated
-    timebase = millis();
-    
-    // Mark initialization as complete - this is used by the base system
-    auto runtime = strip->getSegmentRuntime();
-    runtime->modeinit = false;
-    
-    return true;
+    // Use standard initialization pattern from helper
+    bool initialized = false;
+    return EffectHelper::standardInit(strip, timebase, initialized);
 }
 
 uint16_t LarsonScannerEffect::update(WS2812FX* strip) {
+    // Validate strip pointer using helper
+    if (!EffectHelper::validateStripPointer(strip)) {
+        return 1000; // Return reasonable delay if strip is invalid
+    }
+    
     // Access segment and runtime data through the strip's public interface
-    auto seg = strip->getSegment();
     auto runtime = strip->getSegmentRuntime();
     
-    // Calculate bar width proportional to strip length (1/15th of total length, minimum 1)
-    // This ensures the effect scales appropriately for different strip lengths
-    const uint16_t width = max(1, runtime->length / 15);
+    // Calculate bar width proportional to strip length using helper
+    const uint16_t width = EffectHelper::calculateProportionalWidth(strip, 15, 1);
     
-    // Apply fade out effect to create trailing - intensity 96 provides smooth trailing
-    // This creates the characteristic "comet tail" effect as the bar moves
-    strip->fade_out(96);
+    // Apply fade out effect using helper
+    EffectHelper::applyFadeEffect(strip, EffectHelper::MEDIUM_FADE);
     
-    // Generate smooth bouncing motion using triangular wave function
-    // The beat88 function provides consistent timing based on the effect speed setting
-    // Multiplying by 4 increases the movement speed for more dynamic action
-    uint16_t pos = triwave16(beat88(seg->beat88 * 4, timebase));
+    // Generate smooth bouncing motion using helper with increased speed
+    uint16_t triangularPosition = EffectHelper::calculateTrianglePosition(strip, timebase, EffectHelper::FAST_SPEED);
     
-    // Map the triangular wave output (0-65535) to the actual LED strip positions
-    // The mapping accounts for the bar width to ensure it doesn't exceed strip boundaries
-    // Position values are in 16-bit fixed point for smooth sub-pixel positioning
-    pos = map(pos, 
-              (uint16_t)0, (uint16_t)65535, 
-              (uint16_t)(runtime->start * 16), 
-              (uint16_t)(runtime->stop * 16 - width * 16));
+    // Map the triangular wave to the strip position using helper
+    uint16_t pos = EffectHelper::mapPositionToStrip(strip, triangularPosition);
     
-    // Draw the fractional bar with smooth positioning and color cycling
-    // - pos: position in 16-bit fixed point for sub-pixel accuracy
-    // - width: bar width in pixels  
-    // - currentPalette: use current color palette for consistent theming
-    // - color index: cycles based on position and base hue for dynamic coloring
-    // - brightness: maximum brightness (255) for vibrant colors
-    // - mixColor: true to blend colors smoothly
-    // - incindex: 1 for gradual color progression across the bar
-    strip->drawFractionalBar(pos,
-                            width,
-                            *strip->getCurrentPalette(),
-                            runtime->baseHue + map(pos, 
-                                                  (uint16_t)(runtime->start * 16), 
-                                                  (uint16_t)(runtime->stop * 16 - width * 16), 
-                                                  (uint16_t)0, (uint16_t)255), 
-                            255, true, 1);
+    // Calculate color index using helper
+    uint8_t colorIndex = EffectHelper::calculateColorIndex(strip, pos, runtime->baseHue);
+    
+    // Draw the fractional bar using helper
+    EffectHelper::drawBar(strip, pos, width, colorIndex);
     
     // Return minimum delay for smooth animation
-    // The strip system will handle timing constraints automatically
     return strip->getStripMinDelay();
 }
 

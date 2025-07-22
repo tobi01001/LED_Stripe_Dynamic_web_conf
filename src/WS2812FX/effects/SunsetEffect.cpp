@@ -1,18 +1,14 @@
 #include "SunsetEffect.h"
 #include "../WS2812FX_FastLed.h"
+#include "../EffectHelper.h"
 #include "../../include/defaults.h"
 
-/**
- * @brief Initialize the sunset effect
- * 
- * Sets up the initial state for the sunset effect. The effect analyzes the
- * current LED strip brightness to determine an appropriate starting point
- * in the sunset progression, then continues from there to complete darkness.
- * 
- * @param strip Pointer to the WS2812FX instance
- * @return true if initialization was successful
- */
 bool SunsetEffect::init(WS2812FX* strip) {
+    // Validate strip pointer
+    if (!EffectHelper::validateStripPointer(strip)) {
+        return false;
+    }
+    
     // Initialize effect state
     state.nextStepTime = millis();
     state.alternateToggle = false;
@@ -30,9 +26,6 @@ bool SunsetEffect::init(WS2812FX* strip) {
     
     // Clear background color settings as they interfere with sunset
     strip->setBckndBri(0);
-    
-    // Initial step will be calculated on first update based on current brightness
-    // This allows sunset to start from current state rather than always from maximum
     
     return true;
 }

@@ -1,7 +1,13 @@
 #include "PrideEffect.h"
 #include "../WS2812FX_FastLed.h"
+#include "../EffectHelper.h"
 
 bool PrideEffect::init(WS2812FX* strip) {
+    // Validate strip pointer
+    if (!EffectHelper::validateStripPointer(strip)) {
+        return false;
+    }
+    
     // Initialize all internal state variables to clean defaults
     sPseudotime = 0;      // Reset accumulated pseudo-time
     sLastMillis = 0;      // Will be set properly on first update
@@ -15,7 +21,11 @@ bool PrideEffect::init(WS2812FX* strip) {
 }
 
 uint16_t PrideEffect::update(WS2812FX* strip) {
-    // Get access to segment data and LED array
+    // Validate strip pointer
+    if (!EffectHelper::validateStripPointer(strip)) {
+        return strip->getStripMinDelay();
+    }
+    
     auto seg = strip->getSegment();
     auto runtime = strip->getSegmentRuntime();
     CRGB* leds = strip->leds;
@@ -35,10 +45,7 @@ uint16_t PrideEffect::update(WS2812FX* strip) {
     sLastMillis = ms;
     
     // Update internal state based on elapsed time
-    // Pseudo-time controls the wave movement speed
     sPseudotime += deltams * msmultiplier;
-    
-    // Hue progression speed - creates the cycling rainbow effect
     sHue16 += deltams * beatsin88((seg->beat88 / 5) * 2 + 1, 5, 9);
     
     // Initialize brightness wave position for this frame
@@ -56,14 +63,12 @@ uint16_t PrideEffect::update(WS2812FX* strip) {
         // Calculate brightness using sine wave for smooth transitions
         uint16_t b16 = sin16(brightnesstheta16) + 32768;  // Convert from ±32767 to 0-65535
         
-        // Apply brightness depth and scaling
-        // This creates the wave-like brightness variation
+        // Apply brightness depth and scaling - creates wave-like brightness variation
         uint16_t bri16 = (uint32_t)((uint32_t)b16 * (uint32_t)b16) / 65536;  // Square for more contrast
         uint8_t bri8 = (uint32_t)(((uint32_t)bri16) * brightdepth) / 65536;   // Apply depth scaling
         bri8 += (255 - brightdepth);  // Add base brightness to prevent full black
         
-        // Create final color using palette instead of direct HSV
-        // This maintains consistency with other effects and user color choices
+        // Create final color using palette for consistency
         CRGB newcolor = strip->ColorFromPaletteWithDistribution(*strip->getCurrentPalette(), 
                                                                 hue8, bri8, seg->blendType);
         
@@ -74,8 +79,6 @@ uint16_t PrideEffect::update(WS2812FX* strip) {
         nblend(leds[pixelnumber], newcolor, 64);
     }
     
-    // Return minimum delay for smooth animation
-    // Pride effect benefits from high frame rate for smooth color transitions
     return strip->getStripMinDelay();
 }
 

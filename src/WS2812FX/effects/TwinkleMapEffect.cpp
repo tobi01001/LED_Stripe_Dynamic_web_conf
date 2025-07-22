@@ -1,14 +1,19 @@
 #include "TwinkleMapEffect.h"
 #include "../WS2812FX_FastLed.h"
+#include "../EffectHelper.h"
 #include <new>  // For std::nothrow
 
 bool TwinkleMapEffect::init(WS2812FX* strip) {
-    // Ensure pixel state array is allocated for current strip length
+    // Validate strip pointer
+    if (!EffectHelper::validateStripPointer(strip)) {
+        return false;
+    }
+    
+    // Ensure pixel state array is allocated using helper
     if (!ensureStateArrayAllocated(strip)) {
         return false; // Memory allocation failed
     }
 
-    // Access the segment runtime to get strip configuration
     auto runtime = strip->getSegmentRuntime();
     
     // Initialize all pixel states to 0 (base color, not twinkling)
@@ -27,7 +32,11 @@ bool TwinkleMapEffect::init(WS2812FX* strip) {
 }
 
 uint16_t TwinkleMapEffect::update(WS2812FX* strip) {
-    // Get segment configuration and runtime data
+    // Validate strip pointer
+    if (!EffectHelper::validateStripPointer(strip)) {
+        return strip->getStripMinDelay();
+    }
+    
     auto seg = strip->getSegment();
     auto runtime = strip->getSegmentRuntime();
     
@@ -36,10 +45,9 @@ uint16_t TwinkleMapEffect::update(WS2812FX* strip) {
         return strip->getStripMinDelay(); // Return safe delay on allocation failure
     }
     
-    // Calculate speed parameters based on beat88 setting
-    // Map beat88 range to speed values (4-64), matching original implementation
+    // Calculate speed parameters using helper for safe mapping
     uint16_t beat88_val = seg->beat88;
-    uint8_t speedUp = ((uint8_t)((beat88_val - BEAT88_MIN) * (64 - 4)) / (BEAT88_MAX - BEAT88_MIN) + 4);
+    uint8_t speedUp = EffectHelper::safeMapuint16_t(beat88_val, BEAT88_MIN, BEAT88_MAX, 4, 64);
     uint8_t speedDown = speedUp / 2; // Dimming is slower than brightening
     
     // Process each LED in the segment
@@ -54,7 +62,6 @@ uint16_t TwinkleMapEffect::update(WS2812FX* strip) {
         // State machine for each LED:
         if (pixelState == 0) {
             // LED is at base color - randomly decide whether to start twinkling
-            // Use twinkleDensity setting with same logic as original (avoid values <3)
             uint8_t twinkleThreshold = (seg->twinkleDensity < 3) ? 1 : (seg->twinkleDensity - 2);
             if (random8() < twinkleThreshold) {
                 pixelState = 1; // Start brightening phase
@@ -95,8 +102,7 @@ uint16_t TwinkleMapEffect::update(WS2812FX* strip) {
         }
     }
     
-    // Calculate return delay based on beat88 setting (matches original implementation)
-    // Higher beat88 values result in faster updates (shorter delays)
+    // Calculate return delay based on beat88 setting
     uint32_t minDelay = strip->getStripMinDelay();
     uint32_t calculatedDelay = (uint32_t)(BEAT88_MAX - seg->beat88) / 1800;
     uint32_t delay = (minDelay > calculatedDelay) ? minDelay : calculatedDelay;
@@ -113,32 +119,36 @@ uint8_t TwinkleMapEffect::getModeId() const {
 }
 
 void TwinkleMapEffect::cleanup() {
-    if (_pixelStates != nullptr) {
-        delete[] _pixelStates;
-        _pixelStates = nullptr;
-    }
+    // Use helper for safe memory cleanup
+    size_t allocatedSize = _allocatedLength;
+    EffectHelper::safeFreeArray((void*&)_pixelStates, allocatedSize);
     _allocatedLength = 0;
 }
 
 bool TwinkleMapEffect::ensureStateArrayAllocated(WS2812FX* strip) {
     auto runtime = strip->getSegmentRuntime();
     
-    // Check if we need to allocate or reallocate
-    if (_allocatedLength != runtime->length) {
-        // Clean up existing allocation
-        cleanup();
-        
-        // Allocate new array for current strip length
-        _pixelStates = new (std::nothrow) uint8_t[runtime->length];
-        if (_pixelStates == nullptr) {
-            // Memory allocation failed
-            _allocatedLength = 0;
-            return false;
-        }
-        
-        // Initialize new array to base state
+    // Check if we need to allocate or reallocate using helper
+    void* currentArray = _pixelStates;
+    size_t currentSize = _allocatedLength;
+    size_t requiredSize = runtime->length;
+    
+    void* arrayPointer = EffectHelper::safeAllocateArray(currentArray, currentSize, requiredSize, sizeof(uint8_t));
+    
+    if (arrayPointer == nullptr && requiredSize > 0) {
+        // Memory allocation failed
+        _pixelStates = nullptr;
+        _allocatedLength = 0;
+        return false;
+    }
+    
+    // Update pointers if allocation succeeded or changed
+    _pixelStates = (uint8_t*)arrayPointer;
+    _allocatedLength = requiredSize;
+    
+    // Initialize new array to base state if reallocated
+    if (currentSize != requiredSize) {
         memset(_pixelStates, 0, runtime->length * sizeof(uint8_t));
-        _allocatedLength = runtime->length;
     }
     
     return true;
@@ -148,13 +158,13 @@ CRGB TwinkleMapEffect::calculateBaseColor(WS2812FX* strip, uint16_t ledIndex) {
     auto seg = strip->getSegment();
     auto runtime = strip->getSegmentRuntime();
     
-    // Map LED position to palette index (same algorithm as original)
-    uint8_t paletteIndex = (uint8_t)((ledIndex * 255) / runtime->length);
+    // Calculate palette index using helper function
+    uint8_t paletteIndex = EffectHelper::calculateColorIndex(strip, ledIndex, runtime->baseHue);
     
-    // Get color from current palette with hue rotation and blend type
+    // Get color from current palette
     CRGB color = strip->ColorFromPaletteWithDistribution(
         *(strip->getCurrentPalette()),
-        paletteIndex + runtime->baseHue,  // Add base hue rotation
+        paletteIndex,
         255,                              // Full saturation
         seg->blendType                    // Segment blend type setting
     );
@@ -167,13 +177,13 @@ CRGB TwinkleMapEffect::calculatePeakColor(WS2812FX* strip, uint16_t ledIndex) {
     auto seg = strip->getSegment();
     auto runtime = strip->getSegmentRuntime();
     
-    // Map LED position to palette index (same algorithm as original)
-    uint8_t paletteIndex = (uint8_t)((ledIndex * 255) / runtime->length);
+    // Calculate palette index using helper function
+    uint8_t paletteIndex = EffectHelper::calculateColorIndex(strip, ledIndex, runtime->baseHue);
     
-    // Get color from current palette with hue rotation and blend type
+    // Get color from current palette
     CRGB color = strip->ColorFromPaletteWithDistribution(
         *(strip->getCurrentPalette()),
-        paletteIndex + runtime->baseHue,  // Add base hue rotation
+        paletteIndex,
         255,                              // Full saturation
         seg->blendType                    // Segment blend type setting
     );

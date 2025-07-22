@@ -1,29 +1,32 @@
 #include "StaticEffect.h"
 #include "../WS2812FX_FastLed.h"
+#include "../EffectHelper.h"
 
 bool StaticEffect::init(WS2812FX* strip) {
-    // Static effect needs no special initialization
-    // Access the segment runtime through the public getter
-    auto runtime = strip->getSegmentRuntime();
-    runtime->modeinit = false;
-    return true;
+    // Use standard initialization pattern from helper
+    bool initialized = false; // Local variable since StaticEffect has no persistent state
+    return EffectHelper::standardInit(strip, timebase, initialized);
 }
 
 uint16_t StaticEffect::update(WS2812FX* strip) {
-    // Access segment and runtime data through the strip public getters
+    // Validate strip pointer using helper
+    if (!EffectHelper::validateStripPointer(strip)) {
+        return 1000; // Return reasonable delay if strip is invalid
+    }
+    
+    // Access segment data for palette distribution calculation
     auto seg = strip->getSegment();
     auto runtime = strip->getSegmentRuntime();
+    if (!seg || !runtime) {
+        return strip->getStripMinDelay();
+    }
     
-    // Fill the segment with colors from the current palette
-    // Distribute the palette over the display length based on paletteDistribution setting
-    CRGBPalette16* currentPalette = strip->getCurrentPalette();
-    
+    // Calculate hue delta based on palette distribution setting
     uint8_t paletteDistribution = seg->paletteDistribution;
     uint8_t deltaHue = max(1, (256 * 100 / (runtime->length * paletteDistribution)));
     
-    fill_palette(&strip->leds[runtime->start], runtime->length, 
-                 runtime->baseHue, deltaHue, *currentPalette, 
-                 255, seg->blendType);
+    // Use helper to fill palette with full brightness
+    EffectHelper::fillPaletteWithBrightness(strip, 255, deltaHue);
     
     // Static effect doesn't need frequent updates, return minimum delay
     return strip->getStripMinDelay();

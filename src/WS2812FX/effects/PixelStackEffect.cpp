@@ -1,19 +1,18 @@
 #include "PixelStackEffect.h"
 #include "../WS2812FX_FastLed.h"
+#include "../EffectHelper.h"
 
 // Register this effect with the factory
 REGISTER_EFFECT(FX_MODE_PIXEL_STACK, PixelStackEffect)
 
 bool PixelStackEffect::init(WS2812FX* strip) {
-    auto runtime = strip->getSegmentRuntime();
-    
     // Initialize effect state variables to starting conditions
     initializeEffectState();
     
-    // Mark initialization as complete
-    runtime->modeinit = false;
-    
-    return true;
+    // Use EffectHelper for standard initialization
+    uint32_t dummy_timebase = millis();
+    bool dummy_initialized = true;
+    return EffectHelper::standardInit(strip, dummy_timebase, dummy_initialized);
 }
 
 uint16_t PixelStackEffect::update(WS2812FX* strip) {
@@ -24,19 +23,19 @@ uint16_t PixelStackEffect::update(WS2812FX* strip) {
         return init(strip) ? strip->getStripMinDelay() : strip->getStripMinDelay();
     }
     
-    // Calculate effect parameters
+    // Calculate effect parameters using EffectHelper
     const uint16_t effectSpeed = calculateEffectSpeed(strip);
-    const uint16_t nLeds = runtime->length / 2;  // Half the strip length for the effect
-    const uint8_t baseHue = runtime->baseHue;    // Base hue for color calculations
+    const uint16_t nLeds = EffectHelper::calculateProportionalWidth(strip, 2, 1);
+    const uint8_t baseHue = runtime->baseHue;
     
-    // Apply background fade effect for smooth transitions
+    // Apply background fade effect using EffectHelper
     applyBackgroundFade(strip);
     
     // Render the static LEDs that are already in their final positions
     renderStackedLEDs(strip, nLeds, baseHue);
     
-    // Get current beat position for movement calculations
-    uint16_t beatPosition = beat88(effectSpeed);
+    // Get current beat position for movement calculations using EffectHelper
+    uint16_t beatPosition = EffectHelper::calculateBeatPosition(strip, millis(), effectSpeed / 255);
     
     // Handle movement based on current direction
     if (up) {
@@ -68,15 +67,13 @@ void PixelStackEffect::initializeEffectState() {
 }
 
 void PixelStackEffect::applyBackgroundFade(WS2812FX* strip) {
-    auto runtime = strip->getSegmentRuntime();
     const uint16_t effectSpeed = calculateEffectSpeed(strip);
     
-    // Apply speed-dependent fade to create smooth trails
-    // Faster speeds get more fading to prevent blur
+    // Apply speed-dependent fade using EffectHelper
     const uint8_t MIN_FADE_AMOUNT = 2;
     uint8_t fadeAmount = max(MIN_FADE_AMOUNT, (uint8_t)(effectSpeed >> 8));
     
-    fadeToBlackBy(strip->leds + runtime->start, runtime->length, fadeAmount);
+    EffectHelper::applyFadeEffect(strip, fadeAmount);
 }
 
 void PixelStackEffect::renderStackedLEDs(WS2812FX* strip, uint16_t nLeds, uint8_t baseHue) {

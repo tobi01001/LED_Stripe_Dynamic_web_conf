@@ -32,37 +32,18 @@ public:
 
 private:
     // Internal state variables - replaces the shared modevars union
-    uint32_t timebase;        ///< Base time for beat calculations and smooth motion
+    uint32_t timebase = 0;        ///< Base time for beat calculations and smooth motion
     
     // Effect configuration constants
     static const uint16_t BAR_WIDTH = 2;  ///< Width of the scanning bar in pixels
     
     /**
-     * @brief 16-bit triangle wave function for smooth back-and-forth motion
-     * @param in Input value (0-65535)
-     * @return Triangle wave output (0-65534, with smooth transitions)
+     * @brief Calculate the fractional position of the scanning bar within segment bounds
+     * @param trianglePosition Triangle wave position (0-65535) from helper
+     * @param runtime_ptr Pointer to runtime data for segment boundaries
+     * @return 16-bit fractional position relative to segment start
      */
-    static inline uint16_t triwave16(uint16_t in) {
-        if (in & 0x8000) {
-            in = 65535 - in;
-        }
-        return in << 1;
-    }
-    
-    /**
-     * @brief Calculate the fractional position of the scanning bar
-     * @param strip Pointer to the WS2812FX instance for accessing speed settings
-     * @return 16-bit fractional position (position * 16) for sub-pixel accuracy
-     */
-    uint16_t calculateBarPosition(WS2812FX* strip) const;
-    
-    /**
-     * @brief Calculate the color index for the bar based on its position
-     * @param position_16bit The current 16-bit fractional position of the bar
-     * @param baseHue The base hue offset from the segment runtime
-     * @return Color index for palette lookup
-     */
-    uint8_t calculateColorIndex(uint16_t position_16bit, uint8_t baseHue) const;
+    uint16_t calculateBarPosition(uint16_t trianglePosition, const void* runtime_ptr) const;
 };
 
 #endif // SCAN_EFFECT_H

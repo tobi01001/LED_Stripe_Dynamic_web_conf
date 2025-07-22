@@ -1,9 +1,16 @@
 #include "ShootingStarEffect.h"
 #include "../WS2812FX_FastLed.h"
+#include "../EffectHelper.h"
 
 bool ShootingStarEffect::init(WS2812FX* strip) {
+    // Use standard initialization pattern from helper
+    bool initialized = false;
+    uint32_t timebase = 0;
+    if (!EffectHelper::standardInit(strip, timebase, initialized)) {
+        return false;
+    }
+    
     auto seg = strip->getSegment();
-    auto runtime = strip->getSegmentRuntime();
     
     // Store current number of bars (shooting stars)
     numBars = seg->numBars;
@@ -17,13 +24,15 @@ bool ShootingStarEffect::init(WS2812FX* strip) {
     // Initialize timing and color parameters
     initializeStars(strip);
     
-    // Mark initialization as complete
-    runtime->modeinit = false;
-    
     return true;
 }
 
 uint16_t ShootingStarEffect::update(WS2812FX* strip) {
+    // Validate strip pointer using helper
+    if (!EffectHelper::validateStripPointer(strip)) {
+        return 1000; // Return reasonable delay if strip is invalid
+    }
+    
     auto seg = strip->getSegment();
     auto runtime = strip->getSegmentRuntime();
     
@@ -32,7 +41,7 @@ uint16_t ShootingStarEffect::update(WS2812FX* strip) {
         return init(strip) ? strip->getStripMinDelay() : strip->getStripMinDelay();
     }
     
-    // Apply fade and blur effects to create trailing stars
+    // Apply fade and blur effects to create trailing stars using helper
     applyTrailEffects(strip);
     
     // Update each shooting star
@@ -137,12 +146,10 @@ void ShootingStarEffect::applyTrailEffects(WS2812FX* strip) {
     auto seg = strip->getSegment();
     auto runtime = strip->getSegmentRuntime();
     
-    // Fade the entire strip to create trailing effect
+    // Fade the entire strip to create trailing effect using helper
     // Fade amount is based on speed - faster = longer trails
     uint8_t fadeAmount = (seg->beat88 >> 8) | 0x60;  // Ensure minimum fade
-    fadeToBlackBy(strip->leds, 
-                  runtime->length > 8 ? runtime->length - 8 : runtime->length, 
-                  fadeAmount);
+    EffectHelper::applyFadeEffect(strip, fadeAmount);
     
     // Apply blur to the end section for additional trail smoothing
     if (runtime->length > 8) {

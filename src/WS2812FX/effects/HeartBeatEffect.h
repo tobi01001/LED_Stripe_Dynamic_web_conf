@@ -47,13 +47,6 @@ private:
      * @return Milliseconds per beat
      */
     uint16_t calculateBeatsPerMinute(uint16_t speed);
-    
-    /**
-     * @brief Calculate appropriate pulse size based on strip length
-     * @param stripLength Total length of the LED strip
-     * @return Pulse size in pixels
-     */
-    uint8_t calculatePulseSize(uint16_t stripLength);
 };
 
 #endif // HEART_BEAT_EFFECT_H

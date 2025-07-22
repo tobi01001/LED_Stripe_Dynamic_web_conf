@@ -71,7 +71,7 @@ private:
     
     // Constants for effect behavior
     static const uint8_t CHASE_PATTERN_SIZE = 3;     ///< Number of positions in chase pattern
-    static const uint8_t SPEED_DIVISOR = 2;          ///< Speed reduction factor for smoother movement
+    static const uint8_t SPEED_DIVISOR = 1;          ///< Divides the base timing interval to slow down the chase animation; higher values result in slower movement by increasing the delay between position shifts, allowing for smoother visual transitions.
     static const uint8_t FULL_BRIGHTNESS = 255;      ///< Maximum brightness for lit pixels
     static const uint16_t BEAT_RANGE_MAX = 255;      ///< Maximum value for beat mapping
 };

@@ -63,22 +63,6 @@ private:
      * @return 16-bit fractional position (position * 16) for sub-pixel accuracy
      */
     uint16_t calculateReverseBarPosition(WS2812FX* strip) const;
-    
-    /**
-     * @brief Calculate the color index for the forward bar based on its position
-     * @param position_16bit The current 16-bit fractional position of the bar
-     * @param baseHue The base hue offset from the segment runtime
-     * @return Color index for palette lookup
-     */
-    uint8_t calculateForwardColorIndex(uint16_t position_16bit, uint8_t baseHue) const;
-    
-    /**
-     * @brief Calculate the color index for the reverse bar based on its position
-     * @param position_16bit The current 16-bit fractional position of the bar
-     * @param baseHue The base hue offset from the segment runtime
-     * @return Color index for palette lookup (complementary to forward bar)
-     */
-    uint8_t calculateReverseColorIndex(uint16_t position_16bit, uint8_t baseHue) const;
 };
 
 #endif // DUAL_SCAN_EFFECT_H

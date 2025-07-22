@@ -1,10 +1,16 @@
 #include "FireworkRocketEffect.h"
 #include "../WS2812FX_FastLed.h"
+#include "../EffectHelper.h"
 
 // Define gravity scaling factor for beat88 to gravity conversion
 #define GRAVITY_SCALING_FACTOR -1019367.99184506
 
 bool FireworkRocketEffect::init(WS2812FX* strip) {
+    // Validate strip pointer
+    if (!EffectHelper::validateStripPointer(strip)) {
+        return false;
+    }
+    
     // Initialize rocket array and set up initial physics state
     initialized = false;
     numRockets = min(strip->getSegment()->numBars, (uint8_t)32);
@@ -15,8 +21,8 @@ bool FireworkRocketEffect::init(WS2812FX* strip) {
     for (uint8_t i = 0; i < numRockets; i++) {
         rockets[i].timebase = currentTime;
         
-        // Distribute colors evenly across palette
-        rockets[i].color_index = (256 / numRockets) * i;
+        // Distribute colors evenly across palette using EffectHelper
+        rockets[i].color_index = EffectHelper::calculateColorIndex(strip, i, (256 / numRockets) * i);
         
         // Start at ground position
         rockets[i].pos = 0;
@@ -43,7 +49,7 @@ uint16_t FireworkRocketEffect::update(WS2812FX* strip) {
         init(strip);
     }
     
-    // Apply global fading for trail effects
+    // Apply global fading for trail effects using EffectHelper
     applyGlobalFade(strip);
     
     // Get current physics parameters
@@ -51,7 +57,7 @@ uint16_t FireworkRocketEffect::update(WS2812FX* strip) {
     const double gravity = getGravity(strip);
     const double segmentLength = calculateSegmentLength(strip);
     const double maxVelocity = calculateMaxVelocity(strip, gravity, segmentLength);
-    const uint16_t maxBlendWidth = min((uint16_t)(strip->getSegmentRuntime()->length / 2), (uint16_t)40);
+    const uint16_t maxBlendWidth = EffectHelper::calculateProportionalWidth(strip, 2, 1);
     
     // Update and render each rocket
     for (uint8_t i = 0; i < numRockets; i++) {
@@ -75,7 +81,7 @@ uint16_t FireworkRocketEffect::update(WS2812FX* strip) {
         }
     }
     
-    return strip->getStripMinDelay(); // Use strip's minimum delay for smooth animation
+    return strip->getStripMinDelay();
 }
 
 const __FlashStringHelper* FireworkRocketEffect::getName() const {
@@ -245,9 +251,9 @@ void FireworkRocketEffect::renderExplosionPhase(const RocketData& rocket, WS2812
 }
 
 void FireworkRocketEffect::applyGlobalFade(WS2812FX* strip) {
-    // Apply global fading based on beat88 parameter for trail effects
-    uint8_t fadeAmount = map(strip->getSegment()->beat88, 0, 6000, 24, 255);
-    strip->fade_out(fadeAmount);
+    // Apply global fading using EffectHelper with beat88-based calculation
+    uint8_t fadeAmount = EffectHelper::safeMapuint16_t(strip->getSegment()->beat88, 0, 6000, 24, 255);
+    EffectHelper::applyFadeEffect(strip, fadeAmount);
 }
 
 bool FireworkRocketEffect::shouldRelaunch(const RocketData& rocket) const {

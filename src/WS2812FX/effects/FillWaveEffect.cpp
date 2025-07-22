@@ -1,67 +1,41 @@
 #include "FillWaveEffect.h"
 #include "../WS2812FX_FastLed.h"
+#include "../EffectHelper.h"
 
 bool FillWaveEffect::init(WS2812FX* strip) {
-    // Initialize the effect - set timebase for consistent wave animation
-    timebase = millis();
-    initialized = true;
-    
-    // Mark as initialized in the segment runtime
-    auto runtime = strip->getSegmentRuntime();
-    runtime->modeinit = false;
-    
-    return true;
+    // Use standardized initialization pattern
+    return EffectHelper::standardInit(strip, timebase, initialized);
 }
 
 uint16_t FillWaveEffect::update(WS2812FX* strip) {
-    // Access segment and runtime data through the strip public getters
+    // Validate strip pointer and ensure initialization
+    if (!EffectHelper::validateStripPointer(strip) || !initialized) {
+        return strip->getStripMinDelay();
+    }
+    
     auto seg = strip->getSegment();
     auto runtime = strip->getSegmentRuntime();
     
-    // Ensure we have a valid timebase (fallback if somehow uninitialized)
-    if (!initialized) {
-        timebase = millis();
-        initialized = true;
-    }
+    // Calculate hue offset using beat position for smooth wave motion
+    // Multiplying speed by 2 creates faster hue cycling for more dynamic waves
+    uint16_t beatPosition = EffectHelper::calculateBeatPosition(strip, timebase, 2);
+    uint8_t hueOffset = runtime->baseHue + map(beatPosition, 0, 65535, 0, 255);
     
-    // Get current palette from the strip
-    CRGBPalette16* currentPalette = strip->getCurrentPalette();
-    
-    // Calculate hue offset using beatsin88 for smooth wave motion
-    // The beat88 value controls the speed of the wave animation
-    // Multiplying by 2 creates faster hue cycling for more dynamic waves
-    uint8_t hueOffset = runtime->baseHue + (uint8_t)beatsin88(seg->beat88 * 2, 0, 255, timebase);
-    
-    // Calculate palette distribution delta hue
-    // This determines how much the palette is stretched across the LED strip
-    // Higher paletteDistribution values create tighter color bands
+    // Calculate palette distribution delta hue for color spacing
     uint8_t paletteDistribution = seg->paletteDistribution;
     uint8_t deltaHue = max(255 * 100 / (runtime->length * paletteDistribution) + 1, 1);
     
-    // Calculate brightness using beatsin88 for pulsing wave effect
-    // The brightness oscillates from dim (brightness/10) to full (255)
-    // This creates the "wave" appearance as brightness pulses across the strip
-    uint8_t brightness = (uint8_t)beatsin88(
-        max(seg->beat88 * 1, 1),        // Speed of brightness oscillation
-        seg->targetBrightness / 10,      // Minimum brightness (10% of target)
-        255,                            // Maximum brightness
-        timebase                        // Use same timebase for synchronized motion
+    // Calculate brightness using triangle wave for pulsing wave effect
+    // Triangle wave creates smooth up-down brightness transitions
+    uint8_t brightness = EffectHelper::generateTriangleWave(
+        beatPosition, 
+        seg->targetBrightness / 10,  // Minimum brightness (10% of target)
+        255                          // Maximum brightness
     );
     
-    // Fill the LED strip with palette colors using the calculated parameters
-    // fill_palette distributes palette colors evenly across the strip length
-    fill_palette(
-        &strip->leds[runtime->start],   // Start position in LED array
-        runtime->length,                // Number of LEDs to fill
-        hueOffset,                      // Starting hue offset (animated)
-        deltaHue,                       // Hue increment between LEDs
-        *currentPalette,                // Current color palette
-        brightness,                     // Brightness value (animated)
-        seg->blendType                  // Color blending mode
-    );
+    // Fill strip with palette colors using calculated parameters
+    EffectHelper::fillPaletteWithBrightness(strip, brightness, deltaHue);
     
-    // Return minimum delay for smooth animation
-    // This ensures the effect updates as fast as the strip allows
     return strip->getStripMinDelay();
 }
 

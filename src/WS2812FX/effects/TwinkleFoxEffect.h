@@ -25,17 +25,6 @@
 class TwinkleFoxEffect : public Effect {
 private:
     /**
-     * @brief Compute attack/decay wave brightness curve
-     * 
-     * Creates a natural-looking brightness curve with a sharp attack (quick rise)
-     * and slower decay (gradual fall), similar to how real fireflies or stars twinkle.
-     * 
-     * @param phase Input phase value (0-255)
-     * @return Brightness value (0-255) following attack/decay curve
-     */
-    uint8_t attackDecayWave8(uint8_t phase);
-    
-    /**
      * @brief Compute the color and brightness for one LED's twinkle
      * 
      * This function implements the core TwinkleFox algorithm for a single pixel.

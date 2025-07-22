@@ -1,5 +1,6 @@
 #include "Fire2012Effect.h"
 #include "../WS2812FX_FastLed.h"
+#include "../EffectHelper.h"
 
 bool Fire2012Effect::init(WS2812FX* strip) {
     // Allocate and initialize heat array for fire simulation
@@ -10,13 +11,8 @@ bool Fire2012Effect::init(WS2812FX* strip) {
     // Clear heat array to start with a cold fire
     memset(heatArray, 0, heatArraySize * sizeof(byte));
     
-    initialized = true;
-    
-    // Mark as initialized in the segment runtime
-    auto runtime = strip->getSegmentRuntime();
-    runtime->modeinit = false;
-    
-    return true;
+    // Use standard initialization pattern from helper
+    return EffectHelper::standardInit(strip, timebase, initialized);
 }
 
 uint16_t Fire2012Effect::update(WS2812FX* strip) {
@@ -64,38 +60,39 @@ void Fire2012Effect::cleanup() {
 }
 
 bool Fire2012Effect::allocateHeatArray(WS2812FX* strip) {
-    auto runtime = strip->getSegmentRuntime();
+    // Validate strip pointer using helper
+    if (!EffectHelper::validateStripPointer(strip)) {
+        return false;
+    }
     
-    // Check if runtime is null
-    if (runtime == nullptr) {
+    auto runtime = strip->getSegmentRuntime();
+    if (!runtime) {
         return false; // Cannot allocate heat array without valid runtime
     }
     
-    // Free existing array if it exists and is wrong size
-    if (heatArray != nullptr && heatArraySize != runtime->length) {
-        freeHeatArray();
+    // Use helper to safely allocate memory for heat array
+    size_t currentSize = heatArraySize; // Convert to size_t for helper function
+    void* newArray = EffectHelper::safeAllocateArray(
+        heatArray,              // Current array pointer
+        currentSize,            // Current size (will be updated)
+        runtime->length,        // Required size
+        sizeof(byte)            // Element size
+    );
+    
+    if (newArray == nullptr) {
+        return false; // Memory allocation failed
     }
     
-    // Allocate new array if needed
-    if (heatArray == nullptr) {
-        heatArraySize = runtime->length;
-        heatArray = (byte*)malloc(heatArraySize * sizeof(byte));
-        
-        if (heatArray == nullptr) {
-            heatArraySize = 0;
-            return false; // Memory allocation failed
-        }
-    }
-    
+    heatArray = (byte*)newArray;
+    heatArraySize = (uint16_t)currentSize; // Update the class member
     return true;
 }
 
 void Fire2012Effect::freeHeatArray() {
-    if (heatArray != nullptr) {
-        free(heatArray);
-        heatArray = nullptr;
-        heatArraySize = 0;
-    }
+    // Use helper to safely free memory
+    size_t currentSize = heatArraySize; // Convert to size_t for helper function
+    EffectHelper::safeFreeArray((void*&)heatArray, currentSize);
+    heatArraySize = (uint16_t)currentSize; // Update the class member (should be 0)
 }
 
 void Fire2012Effect::performCooling(WS2812FX* strip) {

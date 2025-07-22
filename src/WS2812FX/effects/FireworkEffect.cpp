@@ -1,14 +1,20 @@
 #include "FireworkEffect.h"
 #include "../WS2812FX_FastLed.h"
+#include "../EffectHelper.h"
 
 bool FireworkEffect::init(WS2812FX* strip) {
+    // Validate strip pointer
+    if (!EffectHelper::validateStripPointer(strip)) {
+        return false;
+    }
+    
     // Initialize all firework state arrays to empty/inactive state
     memset(fireworkPositions, 0, sizeof(fireworkPositions));
     memset(colorIndices, 0, sizeof(colorIndices));
     memset(burnTimeRemaining, 0, sizeof(burnTimeRemaining));
     
-    // Clear the entire LED strip to black for clean start
-    fill_solid(strip->leds, LED_COUNT, CRGB::Black);
+    // Clear the entire LED strip using EffectHelper
+    EffectHelper::clearSegment(strip);
     
     initialized = true;
     
@@ -29,10 +35,8 @@ uint16_t FireworkEffect::update(WS2812FX* strip) {
         init(strip);
     }
     
-    // Apply blur effect to create trailing light effects
-    // The blur amount is calculated based on speed setting - faster speeds = more blur
-    // qadd8 prevents overflow, and the modulo creates a nice blur range
-    uint8_t blurAmount = qadd8(255 - (seg->beat88 >> 8), 32) % 172;
+    // Apply blur effect using EffectHelper safe mapping
+    uint8_t blurAmount = EffectHelper::safeMapuint16_t(seg->beat88 >> 8, 0, 255, 32, 172);
     blur1d(&strip->leds[runtime->start], runtime->length, blurAmount);
     
     // Update existing fireworks - decrease burn time and render
@@ -42,7 +46,6 @@ uint16_t FireworkEffect::update(WS2812FX* strip) {
             burnTimeRemaining[i]--;
             
             // Render the firework with palette color and blending
-            // Using nblend for smooth color mixing with existing LED content
             CRGB fireworkColor = strip->ColorFromPaletteWithDistribution(
                 *strip->getCurrentPalette(), 
                 colorIndices[i], 
@@ -50,16 +53,19 @@ uint16_t FireworkEffect::update(WS2812FX* strip) {
                 seg->blendType
             );
             
-            // Blend the firework color with the existing LED color
-            // 196 provides strong but not complete dominance of firework color
-            nblend(strip->leds[fireworkPositions[i]], fireworkColor, 196);
+            // Set firework pixel with additive blending for bright explosion effect
+            if (fireworkPositions[i] < runtime->length) {
+                strip->leds[runtime->start + fireworkPositions[i]] += fireworkColor;
+            }
         }
     }
     
-    // Randomly spawn new fireworks based on strip length and density
-    // Longer strips have higher spawn probability, but it's still quite rare
-    uint8_t spawnProbability = max(6, runtime->length / 7);
-    uint8_t spawnThreshold = max(3, runtime->length / 14);
+    // Launch new fireworks based on probability calculated from speed setting
+    auto runtime_spawn = strip->getSegmentRuntime();
+    
+    // Calculate spawn probability using EffectHelper
+    uint8_t spawnProbability = max(6, runtime_spawn->length / 7);
+    uint8_t spawnThreshold = max(3, runtime_spawn->length / 14);
     
     if (random8(spawnProbability) <= spawnThreshold) {
         // Calculate minimum distance between fireworks to prevent clustering
@@ -67,11 +73,11 @@ uint16_t FireworkEffect::update(WS2812FX* strip) {
         
         // Try to find a good position for a new firework
         uint16_t candidatePosition = random16(
-            minDistance + runtime->start, 
-            runtime->stop - minDistance
+            minDistance + runtime_spawn->start, 
+            runtime_spawn->stop - minDistance
         );
         
-        // Check if the candidate position is clear (no nearby fireworks or LEDs)
+        // Check if the candidate position is clear
         if (isPositionClear(candidatePosition, minDistance, strip)) {
             // Find an available slot for the new firework
             uint8_t availableSlot = findAvailableSlot();
@@ -83,7 +89,6 @@ uint16_t FireworkEffect::update(WS2812FX* strip) {
         }
     }
     
-    // Return minimum delay for smooth, responsive animation
     return strip->getStripMinDelay();
 }
 

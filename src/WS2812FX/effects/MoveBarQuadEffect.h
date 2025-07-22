@@ -31,11 +31,12 @@ public:
 private:
     /**
      * @brief Calculate the quadratic wave position for the moving bar
+     * @param strip Pointer to the WS2812FX instance
      * @param speed The calculated speed value for the animation
      * @param width The width of the bar (half strip length)
      * @return 16-bit fractional position for smooth movement
      */
-    uint16_t calculateQuadPosition(uint16_t speed, uint16_t width);
+    uint16_t calculateQuadPosition(WS2812FX* strip, uint16_t speed, uint16_t width);
     
     /**
      * @brief Apply background fade based on speed

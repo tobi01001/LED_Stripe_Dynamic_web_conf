@@ -56,6 +56,9 @@ private:
     // Internal timebase for beat calculations
     uint32_t timebase;
     
+    // Initialization tracking
+    bool initialized = false;
+    
     /**
      * @brief 16-bit triangle wave function for smooth back-and-forth motion
      * @param in Input value (0-65535)

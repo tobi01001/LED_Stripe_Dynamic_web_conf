@@ -1,33 +1,12 @@
 #include "TwinkleFoxEffect.h"
 #include "../WS2812FX_FastLed.h"
+#include "../EffectHelper.h"
 
 bool TwinkleFoxEffect::init(WS2812FX* strip) {
-    // TwinkleFox requires no persistent state initialization
-    // All state is computed fresh each frame for deterministic behavior
-    
-    // Access the segment runtime to mark initialization as complete
-    auto runtime = strip->getSegmentRuntime();
-    runtime->modeinit = false;
-    
-    return true;
-}
-
-uint8_t TwinkleFoxEffect::attackDecayWave8(uint8_t phase) {
-    /**
-     * Create a natural-looking brightness curve with sharp attack and slow decay.
-     * This mimics how real fireflies and stars appear to twinkle.
-     * 
-     * Phase 0-85: Attack phase - rapid brightness increase (linear ramp up)
-     * Phase 86-255: Decay phase - slower brightness decrease (non-linear decay)
-     */
-    if (phase < 86) {
-        // Attack phase: linear ramp from 0 to 255 over first 86 steps
-        return phase * 3;  // 86 * 3 = 258, clamped to 255
-    } else {
-        // Decay phase: slower non-linear decay from 255 to 0
-        phase -= 86;  // Normalize to 0-169 range
-        return 255 - (phase + (phase / 2));  // Non-linear decay
-    }
+    // Use standard initialization pattern from helper
+    bool initialized = false; // TwinkleFox computes state fresh each frame
+    uint32_t timebase = 0;     // Not actually used by TwinkleFox, but required by helper
+    return EffectHelper::standardInit(strip, timebase, initialized);
 }
 
 CRGB TwinkleFoxEffect::computeOneTwinkle(uint32_t* timeMs, uint8_t* salt, WS2812FX* strip) {
@@ -57,8 +36,8 @@ CRGB TwinkleFoxEffect::computeOneTwinkle(uint32_t* timeMs, uint8_t* salt, WS2812
     // Based on twinkleDensity setting (0=none lit, 8=all lit)
     uint8_t bright = 0;
     if (((slowCycle8 & 0x0E) / 2) < seg->twinkleDensity) {
-        // This pixel is active - compute its brightness using attack/decay wave
-        bright = attackDecayWave8(fastCycle8);
+        // This pixel is active - compute its brightness using helper's attack/decay wave
+        bright = EffectHelper::attackDecayWave8(fastCycle8);
     }
     
     // Generate color for this pixel
