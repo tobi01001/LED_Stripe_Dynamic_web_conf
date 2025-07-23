@@ -48,11 +48,6 @@ private:
      */
     uint16_t heatArraySize = 0;
     
-    /**
-     * @brief Flag to track initialization state
-     * Ensures heat array is properly allocated and cleared on first activation
-     */
-    bool initialized = false;
     
     /**
      * @brief Time reference for consistent animation timing

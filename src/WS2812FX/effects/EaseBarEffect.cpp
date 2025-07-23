@@ -25,7 +25,7 @@ bool EaseBarEffect::init(WS2812FX* strip) {
     // Initialize phase offsets for varied animation patterns
     state.phaseOffset1 = 0;
     state.phaseOffset2 = 0;
-    
+    initialized = true;  // Set initialized flag to true
     return true;
 }
 
@@ -33,6 +33,12 @@ uint16_t EaseBarEffect::update(WS2812FX* strip) {
     // Validate strip pointer
     if (!EffectHelper::validateStripPointer(strip)) {
         return strip->getStripMinDelay();
+    }
+    // Ensure effect is properly initialized
+    if (!isInitialized()) {
+        if (!init(strip)) {
+            return strip->getStripMinDelay(); // Return minimum delay if init failed
+        }
     }
     
     auto seg = strip->getSegment();

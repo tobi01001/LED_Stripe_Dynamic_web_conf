@@ -19,7 +19,12 @@ uint16_t MultiDynamicEffect::update(WS2812FX* strip) {
     // Get segment and runtime data through the strip public interface
     auto seg = strip->getSegment();
     auto runtime = strip->getSegmentRuntime();
-    
+    // Ensure effect is properly initialized
+    if (!isInitialized()) {
+        if (!init(strip)) {
+            return strip->getStripMinDelay(); // Return minimum delay if init failed
+        }
+    }
     // Get current system time
     uint32_t currentTime = millis();
     

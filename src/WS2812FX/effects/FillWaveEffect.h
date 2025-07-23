@@ -36,11 +36,6 @@ private:
      */
     uint32_t timebase;
     
-    /**
-     * @brief Flag to track initialization state
-     * Ensures timebase is set only once when effect first starts
-     */
-    bool initialized;
 };
 
 #endif // FILL_WAVE_EFFECT_H

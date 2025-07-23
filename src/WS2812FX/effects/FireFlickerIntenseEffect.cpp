@@ -6,6 +6,7 @@ bool FireFlickerIntenseEffect::init(WS2812FX* strip) {
     // Fire flicker effect is stateless - use minimal initialization
     auto runtime = strip->getSegmentRuntime();
     runtime->modeinit = false;
+    initialized = true;  // Set initialized flag to true
     return true;
 }
 
@@ -14,7 +15,12 @@ uint16_t FireFlickerIntenseEffect::update(WS2812FX* strip) {
     if (!EffectHelper::validateStripPointer(strip)) {
         return strip->getStripMinDelay();
     }
-    
+    // Ensure effect is properly initialized
+    if (!isInitialized()) {
+        if (!init(strip)) {
+            return strip->getStripMinDelay(); // Return minimum delay if init failed
+        }
+    }
     auto seg = strip->getSegment();
     auto runtime = strip->getSegmentRuntime();
     

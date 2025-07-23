@@ -66,6 +66,14 @@ CRGB TwinkleFoxEffect::computeOneTwinkle(uint32_t* timeMs, uint8_t* salt, WS2812
 }
 
 uint16_t TwinkleFoxEffect::update(WS2812FX* strip) {
+    
+    // Ensure effect is properly initialized
+    if (!isInitialized()) {
+        if (!init(strip)) {
+            return strip->getStripMinDelay(); // Return minimum delay if init failed
+        }
+    }
+
     // Access runtime data
     auto runtime = strip->getSegmentRuntime();
     

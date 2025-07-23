@@ -4,7 +4,6 @@
 
 bool ColorWavesEffect::init(WS2812FX* strip) {
     // Use standard initialization pattern from helper
-    bool initialized = false;
     uint32_t timebase = 0;
     if (!EffectHelper::standardInit(strip, timebase, initialized)) {
         return false;
@@ -39,6 +38,12 @@ uint16_t ColorWavesEffect::update(WS2812FX* strip) {
     // Validate strip pointer using helper
     if (!EffectHelper::validateStripPointer(strip)) {
         return 1000; // Return reasonable delay if strip is invalid
+    }
+    // Ensure effect is properly initialized
+    if (!isInitialized()) {
+        if (!init(strip)) {
+            return strip->getStripMinDelay(); // Return minimum delay if init failed
+        }
     }
     
     // Access segment and runtime data through strip public getters
