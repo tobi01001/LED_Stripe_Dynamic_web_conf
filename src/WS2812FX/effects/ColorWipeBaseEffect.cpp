@@ -9,7 +9,7 @@ bool ColorWipeBaseEffect::init(WS2812FX* strip) {
     // Initialize effect-specific state
     currentColorIndex = EffectHelper::get_random_wheel_index(0, 32);
     previousColorIndex = EffectHelper::get_random_wheel_index(currentColorIndex, 32);
-    previousPosition = 0;
+    previousWavePosition = 0;
     needNewColor = true;
     isMovingUp = true;
     
@@ -24,10 +24,14 @@ void ColorWipeBaseEffect::updateColorIndices(WS2812FX* strip) {
     }
 }
 
-void ColorWipeBaseEffect::fillWipeColors(WS2812FX* strip, uint16_t position) {
+void ColorWipeBaseEffect::fillWipeColors(WS2812FX* strip, uint16_t fractionalPos16) {
     auto seg = strip->getSegment();
     auto runtime = strip->getSegmentRuntime();
     if (!seg || !runtime) return;
+    
+    // Calculate segment length for boundary checking
+    uint16_t segmentLength = runtime->stop - runtime->start;
+    if (segmentLength == 0) return;
     
     // Get colors from palette with current indices
     CRGB color1 = strip->ColorFromPaletteWithDistribution(
@@ -42,28 +46,26 @@ void ColorWipeBaseEffect::fillWipeColors(WS2812FX* strip, uint16_t position) {
         seg->targetBrightness, 
         seg->blendType);
     
-    // Fill the strip based on direction and position
-    if (isMovingUp) {
-        // Moving up: fill from start to position with color1, rest with color2
-        if (position > runtime->start) {
-            uint16_t fillLength = position - runtime->start;
-            fill_solid(&strip->leds[runtime->start], fillLength, color1);
-        }
-        if (position < runtime->stop) {
-            uint16_t fillLength = runtime->stop - position;
-            fill_solid(&strip->leds[position], fillLength, color2);
-        }
-    } else {
-        // Moving down: fill from position to end with color1, start to position with color2
-        if (position < runtime->stop) {
-            uint16_t fillLength = runtime->stop - position;
-            fill_solid(&strip->leds[position], fillLength, color1);
-        }
-        if (position > runtime->start) {
-            uint16_t fillLength = position - runtime->start;
-            fill_solid(&strip->leds[runtime->start], fillLength, color2);
-        }
-    }
+    // Clear the segment first to ensure clean background
+    fill_solid(&strip->leds[runtime->start], segmentLength, color2);
+    
+    // Calculate the wipe bar width (minimum 1 pixel, maximum 3 pixels for smooth transition)
+    uint16_t barWidth = min(max(segmentLength / 8, 1), 3);
+    
+    // Draw the wipe bar using fractional positioning for smooth anti-aliased movement
+    // The fractional position is already in 16-bit format (0-65535)
+    uint16_t segmentStart16 = runtime->start * 16; // Convert to 16-bit fractional
+    uint16_t segmentEnd16 = runtime->stop * 16;    // Convert to 16-bit fractional
+    
+    // Map the wave position to the segment coordinates in 16-bit fractional format
+    uint16_t mappedPos16 = map(fractionalPos16, 0, 65535, segmentStart16, segmentEnd16);
+    
+    // Ensure the position stays within segment bounds
+    mappedPos16 = constrain(mappedPos16, segmentStart16, segmentEnd16 - barWidth * 16);
+    
+    // Draw the wipe bar with anti-aliasing
+    strip->drawFractionalBar(mappedPos16, barWidth, *strip->getCurrentPalette(), 
+                           currentColorIndex + runtime->baseHue, seg->targetBrightness, true, 1);
 }
 
 uint16_t ColorWipeBaseEffect::update(WS2812FX* strip) {
@@ -80,35 +82,35 @@ uint16_t ColorWipeBaseEffect::update(WS2812FX* strip) {
     }
     
     // Calculate wipe position using subclass-specific method
+    // This returns a value in range 0-65535
     uint16_t wavePosition = calculateWipePosition(strip, timebase);
     
-    // Map wave position to LED strip coordinates
-    uint16_t ledPosition = map(wavePosition, 
-                              (uint16_t)0, (uint16_t)65535,
-                              (uint16_t)runtime->start, 
-                              (uint16_t)(runtime->stop + 2));
+    // Detect direction changes by monitoring the wave function itself
+    // Compare current wave position with previous to determine direction
+    bool currentMovingUp = (wavePosition >= previousWavePosition);
     
-    // Clamp position to valid range
-    if (ledPosition >= runtime->stop) {
-        ledPosition = runtime->stop;
-    }
-    
-    // Detect direction changes
-    if ((isMovingUp && ledPosition < previousPosition) || 
-        (!isMovingUp && ledPosition > previousPosition)) {
-        // Direction changed - trigger color change
-        isMovingUp = !isMovingUp;
-        needNewColor = true;
+    // Check if direction actually changed (with hysteresis to avoid jitter)
+    if (isMovingUp != currentMovingUp) {
+        // Only change direction if the difference is significant enough
+        uint16_t positionDiff = (wavePosition > previousWavePosition) 
+            ? (wavePosition - previousWavePosition) 
+            : (previousWavePosition - wavePosition);
+            
+        // Use hysteresis threshold to prevent jitter at direction changes
+        if (positionDiff > 1000) {  // ~1.5% of full range to prevent noise
+            isMovingUp = currentMovingUp;
+            needNewColor = true;
+        }
     }
     
     // Update color indices if needed
     updateColorIndices(strip);
     
-    // Fill the strip with the appropriate colors
-    fillWipeColors(strip, ledPosition);
+    // Fill the strip with the appropriate colors using fractional positioning
+    fillWipeColors(strip, wavePosition);
     
-    // Store current position for next iteration
-    previousPosition = ledPosition;
+    // Store current wave position for next iteration  
+    previousWavePosition = wavePosition;
     
     return strip->getStripMinDelay();
 }

@@ -1,5 +1,6 @@
 #include "ColorWipeTriwaveEffect.h"
 #include "../WS2812FX_FastLed.h"
+#include "../EffectHelper.h"
 
 uint16_t ColorWipeTriwaveEffect::calculateWipePosition(WS2812FX* strip, uint32_t timebase) {
     auto seg = strip->getSegment();

@@ -23,17 +23,17 @@ protected:
     virtual uint16_t calculateWipePosition(WS2812FX* strip, uint32_t timebase) = 0;
 
 private:
-    uint32_t timebase = 0;           ///< Time reference for position calculations
-    uint8_t currentColorIndex = 0;   ///< Current color index for wipe
-    uint8_t previousColorIndex = 0;  ///< Previous color index for wipe
-    uint16_t previousPosition = 0;   ///< Previous wipe position
-    bool isMovingUp = true;          ///< Direction of wipe movement
-    bool needNewColor = true;        ///< Flag to trigger color change
-    bool initialized = false;        ///< Initialization flag
+    uint32_t timebase = 0;               ///< Time reference for position calculations
+    uint8_t currentColorIndex = 0;       ///< Current color index for wipe
+    uint8_t previousColorIndex = 0;      ///< Previous color index for wipe
+    uint16_t previousWavePosition = 0;   ///< Previous wave position (0-65535)
+    bool isMovingUp = true;              ///< Direction of wipe movement
+    bool needNewColor = true;            ///< Flag to trigger color change
+    bool initialized = false;            ///< Initialization flag
     
     // Helper methods
     void updateColorIndices(WS2812FX* strip);
-    void fillWipeColors(WS2812FX* strip, uint16_t position);
+    void fillWipeColors(WS2812FX* strip, uint16_t fractionalPos16);
 };
 
 #endif // COLOR_WIPE_BASE_EFFECT_H
