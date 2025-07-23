@@ -343,7 +343,7 @@ void FireworkRocketEffect::addExplosionSparks(uint8_t rocketIndex, WS2812FX* str
         
         if (sparkPos >= stripStart && sparkPos <= stripEnd) {
             // Random spark brightness (30-80% of main explosion)
-            uint8_t sparkBrightness = random8(77, 204); // 30-80% of 255
+            uint8_t sparkBrightness = random8(SPARK_BRIGHTNESS_MIN, SPARK_BRIGHTNESS_MAX); // 30-80% of 255
             
             // Random spark color variation (within 64 steps of main color)
             uint8_t sparkColorIndex = rocket.color_index + random8(128) - 64;
