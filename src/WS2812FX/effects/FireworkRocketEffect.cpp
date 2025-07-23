@@ -159,7 +159,7 @@ void FireworkRocketEffect::updateRocketPhysics(uint8_t rocketIndex, WS2812FX* st
         } else {
             // Apply damping for bouncing effect on rockets with remaining velocity
             uint8_t dampingPercent = strip->getSegment()->damping;
-            float damping = 0.1f / 100.0f; // Default minimal damping
+            float damping = DEFAULT_MINIMAL_DAMPING / 100.0f; // Default minimal damping
             
             if (dampingPercent > 0) {
                 if (dampingPercent <= 100) {
