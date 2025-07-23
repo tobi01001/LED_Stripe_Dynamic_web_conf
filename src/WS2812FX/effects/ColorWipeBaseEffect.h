@@ -31,6 +31,12 @@ private:
     bool needNewColor = true;            ///< Flag to trigger color change
     bool initialized = false;            ///< Initialization flag
     
+    // Color transition state
+    uint8_t targetColorIndex = 0;        ///< Target color for smooth transition
+    uint8_t transitionStep = 0;          ///< Current step in color transition
+    uint8_t transitionSteps = 0;         ///< Total steps for color transition
+    bool inTransition = false;           ///< Whether currently transitioning colors
+    
     // Helper methods
     void updateColorIndices(WS2812FX* strip);
     void fillWipeColors(WS2812FX* strip, uint16_t fractionalPos16);
