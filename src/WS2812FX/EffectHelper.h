@@ -150,6 +150,63 @@ public:
     // ===== MATHEMATICAL UTILITIES =====
     
     /**
+     * @brief Generate random wheel index with minimum distance from given position
+     * @param pos Current position on color wheel (0-255)
+     * @param dist Minimum distance from current position (default 42, max 85)
+     * @return New random wheel index with specified minimum distance
+     */
+    static uint8_t get_random_wheel_index(uint8_t pos, uint8_t dist = 42);
+    
+    /**
+     * @brief Generate triangular wave with 16-bit precision
+     * @param in Input value (0-65535)
+     * @return Triangular wave output (0-65535)
+     */
+    static uint16_t triwave16(uint16_t in);
+    
+    /**
+     * @brief Generate quadratic wave with 16-bit precision
+     * @param in Input value (0-65535)
+     * @return Quadratic wave output (0-65535)
+     */
+    static uint16_t quadwave16(uint16_t in);
+    
+    /**
+     * @brief Generate cubic wave with 16-bit precision
+     * @param in Input value (0-65535)
+     * @return Cubic wave output (0-65535)
+     */
+    static uint16_t cubicwave16(uint16_t in);
+    
+    /**
+     * @brief Ease-in quadratic function for smooth animation
+     * @param i Input value (0-65535)
+     * @return Ease-in quadratic output (0-65535)
+     */
+    static uint16_t ease16InQuad(uint16_t i);
+    
+    /**
+     * @brief Ease-out quadratic function for smooth animation
+     * @param i Input value (0-65535)
+     * @return Ease-out quadratic output (0-65535)
+     */
+    static uint16_t ease16OutQuad(uint16_t i);
+    
+    /**
+     * @brief Ease-in-out quadratic function for smooth animation
+     * @param i Input value (0-65535)
+     * @return Ease-in-out quadratic output (0-65535)
+     */
+    static uint16_t ease16InOutQuad(uint16_t i);
+    
+    /**
+     * @brief Ease-in-out cubic function for smooth animation
+     * @param i Input value (0-65535)
+     * @return Ease-in-out cubic output (0-65535)
+     */
+    static uint16_t ease16InOutCubic(uint16_t i);
+    
+    /**
      * @brief Map uint16_t value from one range to another with bounds checking
      * @param value Input value
      * @param fromMin Input range minimum

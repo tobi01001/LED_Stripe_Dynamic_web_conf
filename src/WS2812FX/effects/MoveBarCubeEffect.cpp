@@ -44,8 +44,8 @@ uint16_t MoveBarCubeEffect::update(WS2812FX* strip) {
 
 uint16_t MoveBarCubeEffect::calculateCubicPosition(uint16_t speed, uint16_t width) {
     // Use cubic easing for dramatic acceleration/deceleration
-    uint16_t triangleWave = triwave16(beat88(speed / 2, timebase));
-    uint16_t easedWave = ease16InOutCubic(triangleWave);
+    uint16_t triangleWave = EffectHelper::triwave16(beat88(speed / 2, timebase));
+    uint16_t easedWave = EffectHelper::ease16InOutCubic(triangleWave);
     return map(easedWave, (uint16_t)0, (uint16_t)65535, (uint16_t)0, (uint16_t)(width * 16));
 }
 

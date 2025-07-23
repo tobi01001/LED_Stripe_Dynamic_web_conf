@@ -465,20 +465,20 @@ public:
     _mode[FX_MODE_LARSON_SCANNER]         = &WS2812FX::mode_class_based_fallback; // Now implemented as LarsonScannerEffect class
     _mode[FX_MODE_COMET]                  = &WS2812FX::mode_class_based_fallback; // Now implemented as CometEffect class
     _mode[FX_MODE_FIRE_FLICKER_INTENSE]   = &WS2812FX::mode_class_based_fallback; // Now implemented as FireFlickerIntenseEffect class
-    _mode[FX_MODE_BREATH]                 = &WS2812FX::mode_breath;
-    _mode[FX_MODE_RUNNING_LIGHTS]         = &WS2812FX::mode_running_lights;
-    _mode[FX_MODE_NOISEMOVER]             = &WS2812FX::mode_inoise8_mover;
-    _mode[FX_MODE_PLASMA]                 = &WS2812FX::mode_plasma;
-    _mode[FX_MODE_JUGGLE_PAL]             = &WS2812FX::mode_juggle_pal;
-    _mode[FX_MODE_FILL_BEAT]              = &WS2812FX::mode_fill_beat;
-    _mode[FX_MODE_DOT_BEAT]               = &WS2812FX::mode_dot_beat;
-    _mode[FX_MODE_DOT_COL_WIPE]           = &WS2812FX::mode_dot_col_move;
-    _mode[FX_MODE_COLOR_WIPE_SAWTOOTH]    = &WS2812FX::mode_col_wipe_sawtooth;
-    _mode[FX_MODE_COLOR_WIPE_SINE]        = &WS2812FX::mode_col_wipe_sine;
-    _mode[FX_MODE_COLOR_WIPE_QUAD]        = &WS2812FX::mode_col_wipe_quad;
-    _mode[FX_MODE_COLOR_WIPE_TRIWAVE]     = &WS2812FX::mode_col_wipe_triwave;
-    _mode[FX_MODE_TO_INNER]               = &WS2812FX::mode_to_inner;
-    _mode[FX_MODE_FILL_BRIGHT]            = &WS2812FX::mode_fill_bright;
+    _mode[FX_MODE_BREATH]                 = &WS2812FX::mode_class_based_fallback; // Now implemented as BreathEffect class
+    _mode[FX_MODE_RUNNING_LIGHTS]         = &WS2812FX::mode_class_based_fallback; // Now implemented as RunningLightsEffect class
+    _mode[FX_MODE_NOISEMOVER]             = &WS2812FX::mode_class_based_fallback; // Now implemented as NoiseMoverEffect class
+    _mode[FX_MODE_PLASMA]                 = &WS2812FX::mode_class_based_fallback; // Now implemented as PlasmaEffect class
+    _mode[FX_MODE_JUGGLE_PAL]             = &WS2812FX::mode_class_based_fallback; // Now implemented as JugglePalEffect class
+    _mode[FX_MODE_FILL_BEAT]              = &WS2812FX::mode_class_based_fallback; // Now implemented as FillBeatEffect class
+    _mode[FX_MODE_DOT_BEAT]               = &WS2812FX::mode_class_based_fallback; // Now implemented as DotBeatEffect class
+    _mode[FX_MODE_DOT_COL_WIPE]           = &WS2812FX::mode_class_based_fallback; // Now implemented as DotColWipeEffect class
+    _mode[FX_MODE_COLOR_WIPE_SAWTOOTH]    = &WS2812FX::mode_class_based_fallback; // Now implemented as ColorWipeSawtoothEffect class
+    _mode[FX_MODE_COLOR_WIPE_SINE]        = &WS2812FX::mode_class_based_fallback; // Now implemented as ColorWipeSineEffect class
+    _mode[FX_MODE_COLOR_WIPE_QUAD]        = &WS2812FX::mode_class_based_fallback; // Now implemented as ColorWipeQuadEffect class
+    _mode[FX_MODE_COLOR_WIPE_TRIWAVE]     = &WS2812FX::mode_class_based_fallback; // Now implemented as ColorWipeTriwaveEffect class
+    _mode[FX_MODE_TO_INNER]               = &WS2812FX::mode_class_based_fallback; // Now implemented as ToInnerEffect class
+    _mode[FX_MODE_FILL_BRIGHT]            = &WS2812FX::mode_class_based_fallback; // Now implemented as FillBrightEffect class
     _mode[FX_MODE_FIREWORK]               = &WS2812FX::mode_class_based_fallback; // Now implemented as FireworkEffect class
     _mode[FX_MODE_FIRE2012]               = &WS2812FX::mode_class_based_fallback; // Now implemented as Fire2012Effect class
     _mode[FX_MODE_FILL_WAVE]              = &WS2812FX::mode_class_based_fallback; // Now implemented as FillWaveEffect class
@@ -821,6 +821,11 @@ public:
 
   // Expose the random wheel index function for effects
   uint8_t get_random_wheel_index(uint8_t, uint8_t);
+  
+  // Wave functions made public for effect classes
+  uint16_t triwave16(uint16_t in);
+  uint16_t quadwave16(uint16_t in);
+  uint16_t cubicwave16(uint16_t in);
 
 
 private:
@@ -913,9 +918,6 @@ private:
       getPixelDirection(uint16_t i, uint8 *directionFlags);
 
   inline uint16_t
-      triwave16(uint16_t in),
-      quadwave16(uint16_t in),
-      cubicwave16(uint16_t in),
       ease16InOutQuad(uint16_t i),
       ease16OutQuad(uint16_t i),
       ease16InQuad(uint16_t i),

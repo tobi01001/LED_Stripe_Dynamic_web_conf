@@ -21,18 +21,6 @@ class LarsonScannerEffect : public Effect {
 private:
     uint32_t timebase;  ///< Time reference for consistent animation timing
     
-    /**
-     * @brief 16-bit triangle wave function for smooth bouncing motion
-     * @param in Input value (0-65535) 
-     * @return Triangle wave output creating smooth back-and-forth motion
-     */
-    static inline uint16_t triwave16(uint16_t in) {
-        if (in & 0x8000) {
-            in = 65535 - in;
-        }
-        return in << 1;
-    }
-    
 public:
     LarsonScannerEffect() = default;
     virtual ~LarsonScannerEffect() = default;

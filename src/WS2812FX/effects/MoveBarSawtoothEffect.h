@@ -12,7 +12,7 @@
  * 
  * Key features:
  * - Bar width is half the strip length
- * - Movement follows triwave16() for linear sawtooth motion
+ * - Movement follows EffectHelper::triwave16() for linear sawtooth motion
  * - Background fades based on speed setting
  * - Uses current palette for coloring
  * - Fractional positioning for smooth movement
@@ -55,18 +55,6 @@ private:
 private:
     // Internal timebase for beat calculations
     uint32_t timebase;
-    
-    /**
-     * @brief 16-bit triangle wave function for smooth back-and-forth motion
-     * @param in Input value (0-65535)
-     * @return Triangle wave output (0-65534, with smooth transitions)
-     */
-    static inline uint16_t triwave16(uint16_t in) {
-        if (in & 0x8000) {
-            in = 65535 - in;
-        }
-        return in << 1;
-    }
 };
 
 #endif // MOVE_BAR_SAWTOOTH_EFFECT_H

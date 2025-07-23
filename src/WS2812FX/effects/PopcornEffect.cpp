@@ -26,7 +26,7 @@ bool PopcornEffect::init(WS2812FX* strip) {
         kernels[i].v0 = maxVelocity / (double)(i + 1.1);
         
         // Assign colors distributed across palette
-        kernels[i].color_index = strip->get_random_wheel_index((uint8_t)((255.0 / numKernels) * i), 32);
+        kernels[i].color_index = EffectHelper::get_random_wheel_index((uint8_t)((255.0 / numKernels) * i), 32);
         
         // Set initial time base to current time
         kernels[i].timebase = millis();
@@ -148,7 +148,7 @@ void PopcornEffect::updateKernelState(uint8_t kernelIndex, WS2812FX* strip, doub
         kernel.v0 = ((double)random8(80, 100) / 100.0) * maxVelocity;
         
         // Select new color for visual variety
-        kernel.color_index = strip->get_random_wheel_index(kernel.color_index, 32);
+        kernel.color_index = EffectHelper::get_random_wheel_index(kernel.color_index, 32);
         
         // Set new damping factor if damping is enabled
         if (dampingPercent < 100) {

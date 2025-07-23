@@ -157,7 +157,7 @@ void BubbleSortEffect::initializeHues(WS2812FX* strip) {
     // Generate subsequent hue values with some variation from previous values
     // This creates a visually pleasing but unsorted initial state
     for (uint16_t i = 1; i < strip_length; i++) {
-        hues[i] = strip->get_random_wheel_index(hues[i - 1], 48);
+        hues[i] = EffectHelper::get_random_wheel_index(hues[i - 1], 48);
     }
     
     // Reset algorithm state
