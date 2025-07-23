@@ -13,7 +13,12 @@ uint16_t ScanEffect::update(WS2812FX* strip) {
     if (!EffectHelper::validateStripPointer(strip)) {
         return 1000;
     }
-    
+    // Ensure effect is properly initialized
+    if (!isInitialized()) {
+        if (!init(strip)) {
+            return strip->getStripMinDelay(); // Return minimum delay if init failed
+        }
+    }
     // Get access to runtime data
     auto runtime = strip->getSegmentRuntime();
     if (!runtime) {

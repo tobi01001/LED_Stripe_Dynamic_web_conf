@@ -74,11 +74,7 @@ private:
      */
     uint8_t numRockets;
     
-    /**
-     * @brief Flag to track initialization state
-     * Ensures rocket arrays are properly initialized on first activation
-     */
-    bool initialized;
+   
     
     /**
      * @brief Calculate maximum launch velocity for rockets

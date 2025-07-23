@@ -18,11 +18,12 @@ bool PixelStackEffect::init(WS2812FX* strip) {
 uint16_t PixelStackEffect::update(WS2812FX* strip) {
     auto runtime = strip->getSegmentRuntime();
     
-    // Check if we need to reinitialize
-    if (runtime->modeinit) {
-        return init(strip) ? strip->getStripMinDelay() : strip->getStripMinDelay();
+    // Ensure effect is properly initialized
+    if (!isInitialized()) {
+        if (!init(strip)) {
+            return strip->getStripMinDelay(); // Return minimum delay if init failed
+        }
     }
-    
     // Calculate effect parameters using EffectHelper
     const uint16_t effectSpeed = calculateEffectSpeed(strip);
     const uint16_t nLeds = EffectHelper::calculateProportionalWidth(strip, 2, 1);

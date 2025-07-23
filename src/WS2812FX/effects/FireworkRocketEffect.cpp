@@ -48,7 +48,12 @@ uint16_t FireworkRocketEffect::update(WS2812FX* strip) {
     if (!initialized) {
         init(strip);
     }
-    
+    // Ensure effect is properly initialized
+    if (!isInitialized()) {
+        if (!init(strip)) {
+            return strip->getStripMinDelay(); // Return minimum delay if init failed
+        }
+    }
     // Apply global fading for trail effects using EffectHelper
     applyGlobalFade(strip);
     

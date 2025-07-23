@@ -57,11 +57,7 @@ private:
      */
     uint8_t burnTimeRemaining[MAX_FIREWORKS];
     
-    /**
-     * @brief Flag to track initialization state
-     * Ensures firework arrays are properly cleared on first activation
-     */
-    bool initialized;
+
     
     /**
      * @brief Calculate minimum distance between fireworks
