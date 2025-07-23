@@ -348,28 +348,18 @@ void FireworkRocketEffect::addExplosionSparks(uint8_t rocketIndex, WS2812FX* str
             // Random spark color variation (within 64 steps of main color)
             uint8_t sparkColorIndex = rocket.color_index + random8(128) - 64;
             
-            // Draw single pixel spark with some flicker
-            strip->drawFractionalBar(
-                sparkPos,                           // Spark position
-                1,                                  // Single pixel width
-                *strip->getCurrentPalette(),        // Current palette
-                sparkColorIndex,                    // Varied color index
-                sparkBrightness,                   // Reduced brightness
-                true,                              // Additive blending
-                0                                  // Single pixel precision
-            );
+            // Get the actual LED index and create spark color
+            uint16_t ledIndex = sparkPos / 16;
+            CRGB sparkColor = ColorFromPalette(*strip->getCurrentPalette(), sparkColorIndex, sparkBrightness);
+            
+            // Add spark to existing LED color (single frame spark)
+            strip->leds[ledIndex] |= sparkColor;
             
             // Occasionally add a white hot spark for extra sparkle
             if (random8() < 64) { // 25% chance
-                strip->drawFractionalBar(
-                    sparkPos,
-                    1,
-                    CRGBPalette16(CRGB::White),
-                    0,
-                    sparkBrightness / 2,
-                    true,
-                    0
-                );
+                CRGB whiteSparkColor = CRGB::White;
+                whiteSparkColor.nscale8(sparkBrightness / 2);
+                strip->leds[ledIndex] |= whiteSparkColor;
             }
         }
     }
