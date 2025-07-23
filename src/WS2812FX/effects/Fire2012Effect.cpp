@@ -5,6 +5,7 @@
 bool Fire2012Effect::init(WS2812FX* strip) {
     // Allocate and initialize heat array for fire simulation
     if (!allocateHeatArray(strip)) {
+        setInitialized(false);
         return false; // Failed to allocate memory
     }
     
@@ -12,12 +13,15 @@ bool Fire2012Effect::init(WS2812FX* strip) {
     memset(heatArray, 0, heatArraySize * sizeof(byte));
     
     // Use standard initialization pattern from helper
-    return EffectHelper::standardInit(strip, timebase, initialized);
+    bool tempInit = false;
+    bool result = EffectHelper::standardInit(strip, timebase, tempInit);
+    setInitialized(result);
+    return result;
 }
 
 uint16_t Fire2012Effect::update(WS2812FX* strip) {
     // Ensure initialization if somehow missed
-    if (!initialized) {
+    if (!isInitialized()) {
         if (!init(strip)) {
             return strip->getStripMinDelay(); // Return early if initialization fails
         }
@@ -56,7 +60,7 @@ uint8_t Fire2012Effect::getModeId() const {
 void Fire2012Effect::cleanup() {
     // Free allocated memory when effect is deactivated
     freeHeatArray();
-    initialized = false;
+    setInitialized(false);
 }
 
 bool Fire2012Effect::allocateHeatArray(WS2812FX* strip) {

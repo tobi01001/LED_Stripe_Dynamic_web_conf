@@ -4,13 +4,15 @@
 
 bool DotBeatEffect::init(WS2812FX* strip) {
     // Use standard initialization pattern from EffectHelper
-    bool initResult = EffectHelper::standardInit(strip, timebase, initialized);
+    bool tempInit = false;
+    bool initResult = EffectHelper::standardInit(strip, timebase, tempInit);
     
     // Initialize effect-specific state
     lastBeat88 = 0;
     numBars = 0;
     barStates = nullptr;
     
+    setInitialized(initResult);
     return initResult;
 }
 
@@ -130,6 +132,13 @@ void DotBeatEffect::updateBarColor(uint8_t barIndex, uint16_t position, WS2812FX
 }
 
 uint16_t DotBeatEffect::update(WS2812FX* strip) {
+    // Check if effect needs initialization
+    if (!isInitialized()) {
+        if (!init(strip)) {
+            return 1000; // Return reasonable delay if initialization fails
+        }
+    }
+    
     // Validate strip pointer using helper
     if (!EffectHelper::validateStripPointer(strip)) {
         return 1000;
