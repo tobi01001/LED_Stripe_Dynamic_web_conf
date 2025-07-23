@@ -58,13 +58,6 @@ bool SunriseEffect::init(WS2812FX* strip) {
  * @return Always returns 0 to ensure smooth continuous updates
  */
 uint16_t SunriseEffect::update(WS2812FX* strip) {
-    // Ensure effect is properly initialized
-    if (!isInitialized()) {
-        if (!init(strip)) {
-            return strip->getStripMinDelay(); // Return minimum delay if init failed
-        }
-    }
-    
     auto seg = strip->getSegment();
     
     // Calculate step interval based on configured sunrise duration

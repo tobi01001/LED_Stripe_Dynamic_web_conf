@@ -64,7 +64,12 @@ private:
      * Determined by strip configuration (SEG.numBars)
      */
     uint8_t numKernels;
-
+    
+    /**
+     * @brief Flag to track initialization state
+     * Ensures kernel arrays are properly initialized on first activation
+     */
+    bool initialized;
     
     /**
      * @brief Calculate maximum velocity needed to reach strip end
@@ -105,7 +110,7 @@ private:
      * @param kernel Kernel data containing color information
      * @param strip Pointer to WS2812FX instance for rendering functions
      */
-    void renderKernel(double position, KernelData& kernel, WS2812FX* strip);
+    void renderKernel(double position, uint16_t prevPosition, const KernelData& kernel, WS2812FX* strip);
 };
 
 #endif // POPCORN_EFFECT_H

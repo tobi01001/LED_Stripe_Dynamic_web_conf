@@ -24,12 +24,7 @@ uint16_t TheaterChaseRainbowEffect::update(WS2812FX* strip) {
     if (!EffectHelper::validateStripPointer(strip)) {
         return strip->getStripMinDelay();
     }
-    // Ensure effect is properly initialized
-    if (!isInitialized()) {
-        if (!init(strip)) {
-            return strip->getStripMinDelay(); // Return minimum delay if init failed
-        }
-    }
+    
     auto seg = strip->getSegment();
     auto runtime = strip->getSegmentRuntime();
     

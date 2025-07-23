@@ -4,6 +4,7 @@
 
 bool DualScanEffect::init(WS2812FX* strip) {
     // Use standard initialization pattern from helper
+    bool initialized = false;
     return EffectHelper::standardInit(strip, timebase, initialized);
 }
 
@@ -12,14 +13,7 @@ uint16_t DualScanEffect::update(WS2812FX* strip) {
     if (!EffectHelper::validateStripPointer(strip)) {
         return 1000; // Return reasonable delay if strip is invalid
     }
-
-    // Ensure effect is properly initialized
-    if (!isInitialized()) {
-        if (!init(strip)) {
-            return strip->getStripMinDelay(); // Return minimum delay if init failed
-        }
-    }
-
+    
     // Get access to runtime data
     auto runtime = strip->getSegmentRuntime();
     

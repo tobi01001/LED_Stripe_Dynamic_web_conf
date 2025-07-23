@@ -33,11 +33,6 @@ bool BubbleSortEffect::init(WS2812FX* strip) {
 
 uint16_t BubbleSortEffect::update(WS2812FX* strip) {
     // Ensure effect is properly initialized
-    if (!initialized) {
-        init(strip);
-        return strip->getStripMinDelay();
-    }
-
     if (!initialized || hues == nullptr) {
         return strip->getStripMinDelay();
     }

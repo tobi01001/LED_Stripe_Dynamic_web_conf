@@ -19,7 +19,7 @@ class WS2812FX;
  */
 class Effect {
 public:
-    Effect() : initialized(false) {}
+    Effect() = default;
     virtual ~Effect() = default;
 
     /**
@@ -59,19 +59,6 @@ public:
      * @return true if effect can blend smoothly with others
      */
     virtual bool supportsTransition() const { return true; }
-
-    bool isInitialized() const {
-        return initialized;
-    }
-    void setInitialized(bool init) {
-        initialized = init;
-    }
-    void resetInitialized() {
-        initialized = false;
-    }
-
-protected:
-    bool initialized; ///< Flag to track if effect has been initialized
 };
 
 /**

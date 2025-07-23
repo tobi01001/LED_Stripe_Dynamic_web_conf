@@ -37,12 +37,7 @@ uint16_t HeartBeatEffect::update(WS2812FX* strip) {
     if (!EffectHelper::validateStripPointer(strip)) {
         return 1000; // Return reasonable delay if strip is invalid
     }
-    // Ensure effect is properly initialized
-    if (!isInitialized()) {
-        if (!init(strip)) {
-            return strip->getStripMinDelay(); // Return minimum delay if init failed
-        }
-    }
+    
     // Access segment and runtime data through strip public getters
     auto seg = strip->getSegment();
     auto runtime = strip->getSegmentRuntime();
