@@ -42,12 +42,7 @@ uint16_t TheaterChaseEffect::update(WS2812FX* strip) {
     if (!EffectHelper::validateStripPointer(strip)) {
         return 0; // Return reasonable delay if strip is invalid
     }
-    // Ensure effect is properly initialized
-    if (!isInitialized()) {
-        if (!init(strip)) {
-            return strip->getStripMinDelay(); // Return minimum delay if init failed
-        }
-    }
+    
     // Get segment and runtime configuration data
     auto seg = strip->getSegment();
     auto runtime = strip->getSegmentRuntime();

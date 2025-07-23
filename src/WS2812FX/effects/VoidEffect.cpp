@@ -41,12 +41,6 @@ bool VoidEffect::init(WS2812FX* strip) {
  * @return Minimum strip delay since no processing or LED updates are needed
  */
 uint16_t VoidEffect::update(WS2812FX* strip) {
-    // Ensure effect is properly initialized
-    if (!isInitialized()) {
-        if (!init(strip)) {
-            return strip->getStripMinDelay(); // Return minimum delay if init failed
-        }
-    }
     // Void effect does nothing - just return minimum delay for optimal performance
     // No LED manipulation, no color changes, no visual effects
     return strip->getStripMinDelay();

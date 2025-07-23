@@ -22,12 +22,7 @@ uint16_t MoveBarQuadEffect::update(WS2812FX* strip) {
     // Access segment and runtime data through the strip public getters
     auto seg = strip->getSegment();
     auto runtime = strip->getSegmentRuntime();
-    // Ensure effect is properly initialized
-    if (!isInitialized()) {
-        if (!init(strip)) {
-            return strip->getStripMinDelay(); // Return minimum delay if init failed
-        }
-    }
+    
     // Calculate the bar width using EffectHelper
     const uint16_t width = EffectHelper::calculateProportionalWidth(strip, 2, 1);
     

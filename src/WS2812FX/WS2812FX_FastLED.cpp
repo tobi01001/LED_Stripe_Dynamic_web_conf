@@ -427,10 +427,6 @@ void WS2812FX::service()
     //fill_solid(_bleds, LED_COUNT, CRGB::Black);
     
     setTransition();
-    if(_currentEffect)
-    {
-      _currentEffect->resetInitialized(); // Reset the initialized flag to re-init the effect
-    }
     
     old_segs = SEG.segments;
 

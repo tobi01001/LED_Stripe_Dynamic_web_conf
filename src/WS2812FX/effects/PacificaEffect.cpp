@@ -29,12 +29,6 @@ bool PacificaEffect::init(WS2812FX* strip) {
 }
 
 uint16_t PacificaEffect::update(WS2812FX* strip) {
-    // Ensure effect is properly initialized
-    if (!isInitialized()) {
-        if (!init(strip)) {
-            return strip->getStripMinDelay(); // Return minimum delay if init failed
-        }
-    }
     // Access segment and runtime data through strip public getters
     auto seg = strip->getSegment();
     auto runtime = strip->getSegmentRuntime();

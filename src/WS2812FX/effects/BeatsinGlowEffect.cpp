@@ -4,6 +4,7 @@
 
 bool BeatsinGlowEffect::init(WS2812FX* strip) {
     // Use standard initialization pattern from helper
+    bool initialized = false;
     uint32_t timebase = 0;
     if (!EffectHelper::standardInit(strip, timebase, initialized)) {
         return false;
