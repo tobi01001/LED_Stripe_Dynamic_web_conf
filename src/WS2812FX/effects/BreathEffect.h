@@ -23,7 +23,6 @@ public:
 
 private:
     uint32_t timebase = 0;  ///< Time reference for consistent breathing animation
-    bool initialized = false;  ///< Initialization flag to ensure proper setup
 };
 
 #endif // BREATH_EFFECT_H

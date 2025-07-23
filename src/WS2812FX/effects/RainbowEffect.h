@@ -34,7 +34,6 @@ private:
      * These replace the union-based variables in the original implementation
      */
     uint32_t timebase = 0;          ///< Time reference for beat calculations (replaces rainbow.timebase)
-    bool initialized = false;       ///< Flag to track initialization state
 };
 
 #endif // RAINBOW_EFFECT_H

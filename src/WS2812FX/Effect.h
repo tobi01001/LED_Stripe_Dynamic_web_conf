@@ -59,6 +59,21 @@ public:
      * @return true if effect can blend smoothly with others
      */
     virtual bool supportsTransition() const { return true; }
+
+    /**
+     * @brief Check if this effect has been initialized
+     * @return true if the effect has been initialized
+     */
+    bool isInitialized() const { return _isInitialized; }
+
+    /**
+     * @brief Set the initialization state of this effect
+     * @param initialized true if the effect is initialized, false to force reinitialization
+     */
+    void setInitialized(bool initialized) { _isInitialized = initialized; }
+
+protected:
+    bool _isInitialized = false;  ///< Flag to track if the effect has been initialized
 };
 
 /**

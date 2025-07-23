@@ -4,11 +4,20 @@
 
 bool StaticEffect::init(WS2812FX* strip) {
     // Use standard initialization pattern from helper
-    bool initialized = false; // Local variable since StaticEffect has no persistent state
-    return EffectHelper::standardInit(strip, timebase, initialized);
+    bool tempInit = false; // Local variable since StaticEffect has no persistent state
+    bool result = EffectHelper::standardInit(strip, timebase, tempInit);
+    setInitialized(result); // Set base class initialization state
+    return result;
 }
 
 uint16_t StaticEffect::update(WS2812FX* strip) {
+    // Check if effect needs initialization
+    if (!isInitialized()) {
+        if (!init(strip)) {
+            return 1000; // Return reasonable delay if initialization fails
+        }
+    }
+    
     // Validate strip pointer using helper
     if (!EffectHelper::validateStripPointer(strip)) {
         return 1000; // Return reasonable delay if strip is invalid
