@@ -159,7 +159,7 @@ void FireworkRocketEffect::updateRocketPhysics(uint8_t rocketIndex, WS2812FX* st
         } else {
             // Apply damping for bouncing effect on rockets with remaining velocity
             uint8_t dampingPercent = strip->getSegment()->damping;
-            float damping = DEFAULT_MINIMAL_DAMPING / 100.0f; // Default minimal damping
+            float damping = 0.1f / 100.0f; // Default minimal damping
             
             if (dampingPercent > 0) {
                 if (dampingPercent <= 100) {
@@ -291,7 +291,7 @@ bool FireworkRocketEffect::shouldRelaunch(uint8_t rocketIndex) const {
     const RocketData& rocket = rockets[rocketIndex];
     // Relaunch if velocity is very low and random chance triggers
     // Increased probability from 2/256 (~0.78%) to 12/256 (~4.7%) for more frequent launches
-    return (rocket.v0 <= VELOCITY_THRESHOLD && random8() < LAUNCH_PROBABILITY);
+    return (rocket.v0 <= 0.01 && random8() < 2);
 }
 
 void FireworkRocketEffect::initializeRocketLaunch(uint8_t rocketIndex, WS2812FX* strip, uint32_t currentTime, double maxVelocity) {
@@ -343,7 +343,7 @@ void FireworkRocketEffect::addExplosionSparks(uint8_t rocketIndex, WS2812FX* str
         
         if (sparkPos >= stripStart && sparkPos <= stripEnd) {
             // Random spark brightness (30-80% of main explosion)
-            uint8_t sparkBrightness = random8(SPARK_BRIGHTNESS_MIN, SPARK_BRIGHTNESS_MAX); // 30-80% of 255
+            uint8_t sparkBrightness = random8(76, 206); // 30-80% of 255
             
             // Random spark color variation (within 64 steps of main color)
             uint8_t sparkColorIndex = rocket.color_index + random8(128) - 64;
@@ -356,7 +356,7 @@ void FireworkRocketEffect::addExplosionSparks(uint8_t rocketIndex, WS2812FX* str
             strip->leds[ledIndex] |= sparkColor;
             
             // Occasionally add a white hot spark for extra sparkle
-            if (random8() < PROBABILITY_THRESHOLD_25_PERCENT) { // 25% chance
+            if (random8() < 64) { // 25% chance
                 CRGB whiteSparkColor = CRGB::White;
                 whiteSparkColor.nscale8(sparkBrightness / 2);
                 strip->leds[ledIndex] |= whiteSparkColor;

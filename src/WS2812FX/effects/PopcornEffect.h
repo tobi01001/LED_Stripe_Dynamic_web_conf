@@ -110,7 +110,7 @@ private:
      * @param kernel Kernel data containing color information
      * @param strip Pointer to WS2812FX instance for rendering functions
      */
-    void renderKernel(double position, uint16_t prevPosition, const KernelData& kernel, WS2812FX* strip);
+    void renderKernel(double position, KernelData& kernel, WS2812FX* strip);
 };
 
 #endif // POPCORN_EFFECT_H
