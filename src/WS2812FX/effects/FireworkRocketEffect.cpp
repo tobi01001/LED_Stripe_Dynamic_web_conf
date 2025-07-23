@@ -291,7 +291,7 @@ bool FireworkRocketEffect::shouldRelaunch(uint8_t rocketIndex) const {
     const RocketData& rocket = rockets[rocketIndex];
     // Relaunch if velocity is very low and random chance triggers
     // Increased probability from 2/256 (~0.78%) to 12/256 (~4.7%) for more frequent launches
-    return (rocket.v0 <= 0.01 && random8() < 12);
+    return (rocket.v0 <= VELOCITY_THRESHOLD && random8() < LAUNCH_PROBABILITY);
 }
 
 void FireworkRocketEffect::initializeRocketLaunch(uint8_t rocketIndex, WS2812FX* strip, uint32_t currentTime, double maxVelocity) {
