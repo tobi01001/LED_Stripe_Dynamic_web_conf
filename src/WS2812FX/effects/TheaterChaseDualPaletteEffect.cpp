@@ -4,12 +4,22 @@
 
 bool TheaterChaseDualPaletteEffect::init(WS2812FX* strip) {
     // Use standardized initialization with validation
-    return EffectHelper::standardInit(strip, timebase, initialized);
+    bool tempInit = false;
+    bool result = EffectHelper::standardInit(strip, timebase, tempInit);
+    setInitialized(result);
+    return result;
 }
 
 uint16_t TheaterChaseDualPaletteEffect::update(WS2812FX* strip) {
+    // Check if effect needs initialization
+    if (!isInitialized()) {
+        if (!init(strip)) {
+            return strip->getStripMinDelay();
+        }
+    }
+    
     // Validate strip pointer and initialization
-    if (!EffectHelper::validateStripPointer(strip) || !initialized) {
+    if (!EffectHelper::validateStripPointer(strip)) {
         return strip->getStripMinDelay();
     }
     

@@ -7,11 +7,20 @@
 
 bool CometEffect::init(WS2812FX* strip) {
     // Use standard initialization pattern from helper
-    bool initialized = false; // Local since CometEffect doesn't maintain persistent state
-    return EffectHelper::standardInit(strip, timebase, initialized);
+    bool tempInit = false; // Local since CometEffect doesn't maintain persistent state
+    bool result = EffectHelper::standardInit(strip, timebase, tempInit);
+    setInitialized(result);
+    return result;
 }
 
 uint16_t CometEffect::update(WS2812FX* strip) {
+    // Check if effect needs initialization
+    if (!isInitialized()) {
+        if (!init(strip)) {
+            return 1000; // Return reasonable delay if initialization fails
+        }
+    }
+    
     // Validate strip pointer using helper
     if (!EffectHelper::validateStripPointer(strip)) {
         return 1000; // Return reasonable delay if strip is invalid

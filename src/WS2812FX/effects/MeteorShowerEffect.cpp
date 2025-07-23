@@ -4,9 +4,10 @@
 
 bool MeteorShowerEffect::init(WS2812FX* strip) {
     // Use standard initialization pattern from helper
-    bool initialized = false;
-    uint32_t timebase = 0;
-    if (!EffectHelper::standardInit(strip, timebase, initialized)) {
+    bool tempInit = false;
+    uint32_t tempTimebase = 0;
+    if (!EffectHelper::standardInit(strip, tempTimebase, tempInit)) {
+        setInitialized(false);
         return false;
     }
     
@@ -31,10 +32,18 @@ bool MeteorShowerEffect::init(WS2812FX* strip) {
         state.cind[0] = random8();
     }
     
+    setInitialized(true);
     return true;
 }
 
 uint16_t MeteorShowerEffect::update(WS2812FX* strip) {
+    // Check if effect needs initialization
+    if (!isInitialized()) {
+        if (!init(strip)) {
+            return 1000; // Return reasonable delay if initialization fails
+        }
+    }
+    
     // Validate strip pointer using helper
     if (!EffectHelper::validateStripPointer(strip)) {
         return 1000; // Return reasonable delay if strip is invalid
