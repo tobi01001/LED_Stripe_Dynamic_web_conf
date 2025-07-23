@@ -707,10 +707,6 @@ void setupWebServer(void)
   delay(INITDELAY);
 
   
-  
- 
- 
- 
   if (!MDNS.begin(LED_NAME)) {
 
   }
