@@ -356,7 +356,7 @@ void FireworkRocketEffect::addExplosionSparks(uint8_t rocketIndex, WS2812FX* str
             strip->leds[ledIndex] |= sparkColor;
             
             // Occasionally add a white hot spark for extra sparkle
-            if (random8() < 64) { // 25% chance
+            if (random8() < PROBABILITY_THRESHOLD_25_PERCENT) { // 25% chance
                 CRGB whiteSparkColor = CRGB::White;
                 whiteSparkColor.nscale8(sparkBrightness / 2);
                 strip->leds[ledIndex] |= whiteSparkColor;
