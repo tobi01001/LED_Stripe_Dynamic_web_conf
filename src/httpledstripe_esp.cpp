@@ -230,39 +230,10 @@ struct ESPrunTime {
 
 // function Definitions
 
-// will initialise the OTA anf the related callback functions
-void initOverTheAirUpdate  (void);
-// used to setup the WiFi connection
-// this can be called with a specific timeout for the captive portal (defaults to 240 seconds i.e. 4 minutes)
-void setupWiFi             (uint16_t timeout);
-// initialises the Web sever with the callback / handler functions
-void setupWebServer        (void);
-// handler for http://..../set calls (usually needs parameter and value)
-// will return the parameter and values being set as json
-void handleSet             (AsyncWebServerRequest *request);
-// not found handler - called when the uri is not managed
-void handleNotFound        (AsyncWebServerRequest *request);
-// will return all available modes (effects) in an json array
-void handleGetModes        (AsyncWebServerRequest *request);
-// will return all available color palettes in an json array
-void handleGetPals         (AsyncWebServerRequest *request);
-// will return the current status, listing all neccessary parameters 
-// as well as meta information
-void handleStatus          (AsyncWebServerRequest *request);
-// when called with the right parameter, it will reset 
-// either to default values or perform a factory reset.
-// Parameter rst=
-//    "FactoryReset" --> Factory Reset
-//    "Defaults"     --> Reset to default values (without WiFi settings)
-void handleResetRequest    (AsyncWebServerRequest *request);
 // broadcasts the name and value to all websocket clients
 // name : the Parameter as pointer in Flash (const __FlashStringHelper* )
 // value: the parameter value as uint16_t
 void broadcastInt          (const __FlashStringHelper* name, uint16_t value);
-// handles requests received via web sockets.
-// this is currently only used to (de)register new clients
-// and to manage the "ping/pong" mechanism checking if WS is alive
-void webSocketEvent        (AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len);
 // will delete the CRC stored in EEPROM 
 // used in case of e.g. WD reset
 void clearCRC              (void);
@@ -287,9 +258,6 @@ void showInitColor         (CRGB Color);
 void checkSegmentChanges   (void);
 // will write the current data to EEPROM (in case the "saveRuntimeData"-flag is true)
 void saveEEPROMData        (void);
-// removes the Websocket Client from the list of 
-// connected clients
-void removeClient          (uint32_t iD);
 
 // will delete the configFile (which gets recreated once /all is called)
 void deleteConfigFile      (void);
@@ -304,14 +272,6 @@ void updateConfigFile      (void);
 // will return a "relatively" increased or decreased value by the given percentage
 // used by the up and down parameters and is there more or less for backward compatibility
 uint8_t changebypercentage    (uint8_t value, uint8_t percentage);
-// will add the Client with iD to the client list.
-// iD: the WS client iD
-// return: the number in the list of connected WS
-uint8_t addClient             (uint32_t iD);
-// will return the list number of Client with iD.
-// iD: the WS client iD
-// return: the number in the list of connected WS
-uint8_t getClient             (uint32_t iD);
 // returns the uint8_t equivalent of the 
 // reset reason
 uint8_t getResetReason        (void);
@@ -749,285 +709,6 @@ void updateConfigFile(void)
   serializeJson(root, config_Json);
 
   config_Json.close();
-}
-
-void setupWebServer(void)
-{
-  showInitColor(CRGB::Blue);
-  delay(INITDELAY);
-  
-
-  server.on(("/all"), HTTP_GET, [](AsyncWebServerRequest *request) {
-    if(!LittleFS.exists(F("/config_all.json")))
-    {
-      updateConfigFile();
-    }
-    request->send(LittleFS, F("/config_all.json"), F("application/json"));
-  });
-
-
-  server.on("/allvalues", HTTP_GET, [](AsyncWebServerRequest *request) {
-    // Buffer size: 2048 bytes works great
-    AsyncJsonResponse * response = new AsyncJsonResponse(false, 2048);
-
-    JsonObject root = response->getRoot();
-    JsonArray arr = root.createNestedArray(F("values"));
-    if(!getAllValuesJSONArray(arr))
-    {
-      JsonObject obj = arr.createNestedObject();
-      obj[F("ValueError")] = F("Did not read any values!");
-    }
-    response->setLength();
-    request->send(response);
-  });
-
-  server.on("/fieldValue", HTTP_GET, [](AsyncWebServerRequest *request) {
-    String name = request->getParam(F("name"))->value();
-    String response = getFieldValue(name.c_str());
-    request->send(200, F("text/plain"), response);
-  });
-
-  
-  // keepAlive
-  server.on("/ping", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send(200, F("text/plain"), F("Pong"));
-  });
-
-  server.on("/set", handleSet);
-  server.on("/getmodes", handleGetModes);
-  server.on("/getpals", handleGetPals);
-  server.on("/status", handleStatus);
-  server.on("/reset", handleResetRequest);
-  
-  // Serve index.htm as the main page
-  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send(LittleFS, F("/index.htm"), F("text/html"));
-  });
-  
-  //server.onNotFound(handleNotFound);
-  server.onNotFound([](AsyncWebServerRequest *request) {
-    request->redirect("/");
-  });
-
-  /* should work without as we serve static below
-  server.on("/", HTTP_OPTIONS, [](AsyncWebServerRequest *request) {
-    request->send(200,  F("text/plain"), "" );
-  });
-  */
-
-  server.addHandler(new FileEditorLittleFS(LittleFS, String(), String()));
-
-  server.serveStatic("/", LittleFS, "/").setCacheControl("max-age=60");
-  delay(INITDELAY);
-
-  DefaultHeaders::Instance().addHeader(F("Access-Control-Allow-Methods"), "*");
-  DefaultHeaders::Instance().addHeader(F("Access-Control-Allow-Headers"), "*");
-  DefaultHeaders::Instance().addHeader(F("Access-Control-Allow-Origin"), "*");
-  DefaultHeaders::Instance().addHeader(F("Access-Control-Max-Age"), "1");
-  #ifndef DO_NOT_USE_WEBSOCKET
-  if(webSocketsServer == NULL) webSocketsServer = new AsyncWebSocket("/ws");
-  #endif
-  if(webSocketsServer)
-  {
-    webSocketsServer->enable(true);
-  
-    webSocketsServer->onEvent(webSocketEvent);
-
-    server.addHandler(webSocketsServer);
-  }
-
-  server.begin();
-
-  showInitColor(CRGB::Yellow);
-  delay(INITDELAY);
-
-  
-  
- 
- 
- 
-  if (!MDNS.begin(LED_NAME)) {
-
-  }
-  else
-  {
-    MDNS.addService("http", "tcp", 80);
-  }
-
-  showInitColor(CRGB::Green);
-  delay(INITDELAY);
-  showInitColor(CRGB::Black);
-  delay(INITDELAY);
-}
-
-uint8_t addClient(uint32_t iD)
-{
-  if(!webSocketsServer) return 0;
-  // add a client to the pingpong list
-  #ifdef HAS_KNOB_CONTROL
-  if(strip->getWiFiDisabled()) return DEFAULT_MAX_WS_CLIENTS;
-  #endif
-  if(webSocketsServer->count() >= DEFAULT_MAX_WS_CLIENTS)
-    return DEFAULT_MAX_WS_CLIENTS;
-  for(const auto& c: webSocketsServer->getClients())
-  {
-    for(uint8_t i=0; i<DEFAULT_MAX_WS_CLIENTS; i++)
-    {
-      if(c->id() == iD)
-        return i;
-    }
-    for(uint8_t i=0; i<DEFAULT_MAX_WS_CLIENTS; i++)
-    {
-        if(my_pingPongs[i].iD == 0)
-        {
-          my_pingPongs[i].iD = iD;
-          my_pingPongs[i].ping = 0;
-          my_pingPongs[i].pong = 0;
-          return i;
-        }
-    }
-  }
-  return DEFAULT_MAX_WS_CLIENTS;
-}
-
-uint8_t getClient(uint32_t iD)
-{
-  // get a client number based on the id.
-  for(uint8_t i=0; i<DEFAULT_MAX_WS_CLIENTS; i++)
-  {
-    if(my_pingPongs[i].iD == iD)
-    {
-      return i;
-    }
-  }
-  return DEFAULT_MAX_WS_CLIENTS;
-}
-
-void removeClient(uint32_t iD)
-{
-  // remove a client from the ping pong list
-  for(uint8_t i=0; i<DEFAULT_MAX_WS_CLIENTS; i++)
-  {
-    if(iD == my_pingPongs[i].iD)
-    {
-      my_pingPongs[i].iD = 0;
-      my_pingPongs[i].ping = 0;
-      my_pingPongs[i].pong = 0;
-    }
-  }
-}
-
-void webSocketEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len)
-{
-  // TODO: Make something useful with the Websocket Event
-  #ifdef HAS_KNOB_CONTROL
-  if(strip->getWiFiDisabled()) return;
-  #endif
-  
-  if(!webSocketsServer) return;
-
-  if(type == WS_EVT_CONNECT){
-    //client connected
-    #ifdef DEBUG
-    Serial.printf("ws[%s][%u] connect\n", server->url(), client->id());
-    #endif
-    client->printf("{\"Client\":%u}", client->id());
-    uint8_t i = addClient(client->id());
-    my_pingPongs[i].ping = random8();
-    client->ping(&my_pingPongs[i].ping, sizeof(uint8_t));
-  } else if(type == WS_EVT_DISCONNECT){
-    //client disconnected
-    #ifdef DEBUG
-    Serial.printf("ws[%s][%u] disconnect: %u\n", server->url(), client->id());
-    #endif
-    removeClient(client->id());
-  } else if(type == WS_EVT_ERROR){
-    //error was received from the other end
-    #ifdef DEBUG
-    Serial.printf("ws[%s][%u] error(%u): %s\n", server->url(), client->id(), *((uint16_t*)arg), (char*)data);
-    #endif
-  } else if(type == WS_EVT_PONG){
-    //pong message was received (in response to a ping request maybe)
-    #ifdef DEBUG
-    Serial.printf("ws[%s][%u] pong[%u]: %u\n", server->url(), client->id(), len, (len)?*data:0);
-    #endif
-    uint8_t i = getClient(client->id());
-    my_pingPongs[i].pong = (len)?*data:0;
-    
-  } else if(type == WS_EVT_DATA){
-    //data packet
-    AwsFrameInfo * info = (AwsFrameInfo*)arg;
-    if(info->final && info->index == 0 && info->len == len){
-      //the whole message is in a single frame and we got all of it's data
-      #ifdef DEBUG
-      Serial.printf("ws[%s][%u] %s-message[%llu]: ", server->url(), client->id(), (info->opcode == WS_TEXT)?"text":"binary", info->len);
-      #endif
-      if(info->opcode == WS_TEXT){
-        data[len] = 0;
-        #ifdef DEBUG
-        Serial.printf("%s\n", (char*)data);
-        #endif
-      } else {
-        for(size_t i=0; i < info->len; i++){
-          #ifdef DEBUG
-          Serial.printf("%02x ", data[i]);
-          #endif
-        }
-        #ifdef DEBUG
-        Serial.printf("\n");
-        #endif
-      }
-      #ifdef DEBUG
-      if(info->opcode == WS_TEXT)
-       client->text("{\"message\":\"I got your text message\"}");
-      else
-        client->binary("{\"message\":\"I got your binary message\"}");
-      #endif
-    } else {
-      //message is comprised of multiple frames or the frame is split into multiple packets
-      if(info->index == 0){
-        #ifdef DEBUG
-        if(info->num == 0)
-          Serial.printf("ws[%s][%u] %s-message start\n", server->url(), client->id(), (info->message_opcode == WS_TEXT)?"text":"binary");
-        Serial.printf("ws[%s][%u] frame[%u] start[%llu]\n", server->url(), client->id(), info->num, info->len);
-        #endif
-      }
-
-      #ifdef DEBUG
-        Serial.printf("ws[%s][%u] frame[%u] %s[%llu - %llu]: ", server->url(), client->id(), info->num, (info->message_opcode == WS_TEXT)?"text":"binary", info->index, info->index + len);
-      #endif
-      if(info->message_opcode == WS_TEXT){
-        data[len] = 0;
-        #ifdef DEBUG
-        Serial.printf("%s\n", (char*)data);
-        #endif
-      } else {
-        for(size_t i=0; i < len; i++){
-          #ifdef DEBUG
-          Serial.printf("%02x ", data[i]);
-          #endif
-        }
-        #ifdef DEBUG
-        Serial.printf("\n");
-        #endif
-      }
-
-      if((info->index + len) == info->len){
-        #ifdef DEBUG
-        Serial.printf("ws[%s][%u] frame[%u] end[%llu]\n", server->url(), client->id(), info->num, info->len);
-        #endif
-        if(info->final){
-          #ifdef DEBUG
-          Serial.printf("ws[%s][%u] %s-message end\n", server->url(), client->id(), (info->message_opcode == WS_TEXT)?"text":"binary");
-          if(info->message_opcode == WS_TEXT)
-            client->text("{\"message\":\"I got your framed text message\"}");
-          else
-            client->binary("{\"message\":\"I got your framed binary message\"}");
-          #endif
-        }
-      }
-    }
-  }
 }
 
 #ifdef HAS_KNOB_CONTROL
@@ -1916,23 +1597,13 @@ void loop()
 
   if(WLAN_Connected)
   {
-    ArduinoOTA.handle(); // check and handle OTA updates of the code....
+    handleOTA(); // check and handle OTA updates of the code....
 
-    MDNS.update();
+    handleMDNS();
 
     EVERY_N_SECONDS(2)
     {
-      if(webSocketsServer)
-      {
-        for(const auto& c: webSocketsServer->getClients())
-        {
-          uint8_t i = getClient(c->id());     
-          c->text("{\"Client\": " + String(c->id()) + "}");
-          my_pingPongs[i].ping = random8();
-          c->ping( &my_pingPongs[i].ping, sizeof(uint8_t));
-        }
-        webSocketsServer->cleanupClients();
-      }
+      handleWebSocketMaintenance();
     }
   }
   
@@ -2002,22 +1673,12 @@ void loop()
 
   if(!WiFiIsDisabled && WiFiConnected)
   {
-    ArduinoOTA.handle(); // check and handle OTA updates of the code....
-    MDNS.update();
+    handleOTA(); // check and handle OTA updates of the code....
+    handleMDNS();
 
     EVERY_N_SECONDS(2)
     {
-      if(webSocketsServer)
-      {
-        for(const auto& c: webSocketsServer->getClients())
-        {
-          uint8_t i = getClient(c->id());     
-          c->text("{\"Client\": " + String(c->id()) + "}");
-          my_pingPongs[i].ping = random8();
-          c->ping( &my_pingPongs[i].ping, sizeof(uint8_t));
-        }
-        webSocketsServer->cleanupClients(2);
-      }
+      handleWebSocketMaintenance();
     }
   }
 
