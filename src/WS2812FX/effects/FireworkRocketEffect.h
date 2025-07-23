@@ -117,19 +117,19 @@ private:
     
     /**
      * @brief Render rocket in launch phase with motion trail
-     * @param rocket Reference to rocket data
+     * @param rocketIndex Index of rocket to render
      * @param strip Pointer to WS2812FX instance for rendering functions
      * @param segmentLength Physical segment length for position mapping
      */
-    void renderLaunchPhase(const RocketData& rocket, WS2812FX* strip, double segmentLength);
+    void renderLaunchPhase(uint8_t rocketIndex, WS2812FX* strip, double segmentLength);
     
     /**
      * @brief Render rocket in explosion phase with blur effects
-     * @param rocket Reference to rocket data  
+     * @param rocketIndex Index of rocket to render
      * @param strip Pointer to WS2812FX instance for rendering functions
      * @param maxBlendWidth Maximum width for blur effects
      */
-    void renderExplosionPhase(const RocketData& rocket, WS2812FX* strip, uint16_t maxBlendWidth);
+    void renderExplosionPhase(uint8_t rocketIndex, WS2812FX* strip, uint16_t maxBlendWidth);
     
     /**
      * @brief Apply global fading to create trail effects
@@ -139,10 +139,10 @@ private:
     
     /**
      * @brief Check if rocket should be re-launched
-     * @param rocket Reference to rocket data to check
+     * @param rocketIndex Index of rocket to check
      * @return true if rocket should start new launch cycle
      */
-    bool shouldRelaunch(const RocketData& rocket) const;
+    bool shouldRelaunch(uint8_t rocketIndex) const;
     
     /**
      * @brief Initialize rocket for new launch cycle
@@ -152,6 +152,15 @@ private:
      * @param maxVelocity Maximum velocity for launch
      */
     void initializeRocketLaunch(uint8_t rocketIndex, WS2812FX* strip, uint32_t currentTime, double maxVelocity);
+    
+    /**
+     * @brief Add sparkling effects around explosion for visual enhancement
+     * @param rocketIndex Index of the exploding rocket
+     * @param strip Pointer to WS2812FX instance for rendering functions
+     * @param explosionPos Position of the explosion in 16ths of pixels
+     * @param sparkRadius Maximum radius for spark placement
+     */
+    void addExplosionSparks(uint8_t rocketIndex, WS2812FX* strip, uint16_t explosionPos, uint16_t sparkRadius);
 };
 
 #endif // FIREWORK_ROCKET_EFFECT_H
