@@ -23,7 +23,7 @@ bool PopcornEffect::init(WS2812FX* strip) {
     // Initialize each kernel with staggered velocities for visual variety
     for (uint8_t i = 0; i < numKernels; i++) {
         // Stagger initial velocities so kernels don't all pop at same height
-        kernels[i].v0 = maxVelocity / (double)(i + 2.0);
+        kernels[i].v0 = maxVelocity / (double)(i + 1.1);
         
         // Assign colors distributed across palette
         kernels[i].color_index = EffectHelper::get_random_wheel_index((uint8_t)((255.0 / numKernels) * i), 32);
@@ -74,14 +74,10 @@ uint16_t PopcornEffect::update(WS2812FX* strip) {
             position = 0; // Clamp to ground level
         }
         
-        // Convert position from millimeters to LED index
-        uint16_t positionLeds = (uint16_t)(position / MM_PER_LED);
         
         // Render kernel with motion blur effect
-        renderKernel(position, kernels[i].prev_pos, kernels[i], strip);
+        renderKernel(position, kernels[i], strip);
         
-        // Update previous position for next frame
-        kernels[i].prev_pos = positionLeds;
     }
     
     return strip->getStripMinDelay();
@@ -96,9 +92,9 @@ uint8_t PopcornEffect::getModeId() const {
 }
 
 double PopcornEffect::calculateMaxVelocity(WS2812FX* strip, double gravity) const {
-    // Length in 16mm units (approximate LED spacing at 60 LEDs per meter)
+    // Length in MM_PER_LED units (approximate LED spacing at 60 LEDs per meter)
     // Physical strip length in millimeters
-    const double segmentLength = (double)strip->getSegmentRuntime()->length * 16.0;
+    const double segmentLength = (double)strip->getSegmentRuntime()->length * MM_PER_LED;
     
     // Calculate velocity needed to reach end of strip using kinematic equation:
     // v² = v₀² + 2as, where final velocity v = 0, acceleration a = gravity
@@ -159,16 +155,17 @@ void PopcornEffect::updateKernelState(uint8_t kernelIndex, WS2812FX* strip, doub
     }
 }
 
-void PopcornEffect::renderKernel(double position, uint16_t prevPosition, const KernelData& kernel, WS2812FX* strip) {
+void PopcornEffect::renderKernel(double position, KernelData& kernel, WS2812FX* strip) {
     // Convert position to LED coordinates
-    uint16_t currentPos = (uint16_t)(position / 16.0);
-    
+    uint16_t currentPos = (uint16_t)(position);
+    uint16_t prevPosition = kernel.prev_pos;
     // Calculate width for motion blur effect
     uint8_t width = 1;
+    int myWidth = (uint8_t)((double)(currentPos - prevPosition) / MM_PER_LED);
     if (currentPos > prevPosition) {
-        width = max((currentPos - prevPosition) / 16, 1);
+        width = max(myWidth, 1);
     } else if (prevPosition > currentPos) {
-        width = max((prevPosition - currentPos) / 16, 1);
+        width = max(-myWidth, 1);
     }
     
     // Render kernel using the strip's drawing function with current palette
@@ -181,6 +178,8 @@ void PopcornEffect::renderKernel(double position, uint16_t prevPosition, const K
         true,                                                    // Additive blending
         1                                                        // Single pixel precision
     );
+    // Update previous position for next frame
+    kernel.prev_pos = currentPos;
 }
 
 // Register the effect with the factory system
