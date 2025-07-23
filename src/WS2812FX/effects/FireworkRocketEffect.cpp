@@ -276,7 +276,7 @@ void FireworkRocketEffect::initializeRocketLaunch(uint8_t rocketIndex, WS2812FX*
     rocket.timebase = currentTime;
     
     // Select new color
-    rocket.color_index = strip->get_random_wheel_index(rocket.color_index, 32);
+    rocket.color_index = EffectHelper::get_random_wheel_index(rocket.color_index, 32);
     
     // Set brightness and explosion parameters
     rocket.brightness = random8(12, 48);

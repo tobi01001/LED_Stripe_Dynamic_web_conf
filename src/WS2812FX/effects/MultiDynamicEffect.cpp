@@ -29,7 +29,7 @@ uint16_t MultiDynamicEffect::update(WS2812FX* strip) {
         // Update all LEDs in the segment with new random colors
         for (uint16_t i = runtime->start; i <= runtime->stop; i++) {
             // Generate next random palette index using the strip's random function
-            lastColorIndex = strip->get_random_wheel_index(lastColorIndex, 32);
+            lastColorIndex = EffectHelper::get_random_wheel_index(lastColorIndex, 32);
             
             // Get current palette and apply color with distribution
             CRGBPalette16* currentPalette = strip->getCurrentPalette();

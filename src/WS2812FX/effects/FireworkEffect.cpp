@@ -148,7 +148,7 @@ void FireworkEffect::spawnFirework(uint16_t position, uint8_t slotIndex, WS2812F
     
     // Select a random color from the palette, avoiding too similar colors
     // get_random_wheel_index helps distribute colors across the palette
-    colorIndices[slotIndex] = strip->get_random_wheel_index(colorIndices[slotIndex], 64);
+    colorIndices[slotIndex] = EffectHelper::get_random_wheel_index(colorIndices[slotIndex], 64);
     
     // Set random burn time - fireworks last different amounts of time
     // Shorter burns create quick flashes, longer burns create sustained sparkles

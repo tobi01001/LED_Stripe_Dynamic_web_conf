@@ -50,7 +50,7 @@ uint16_t MoveBarQuadEffect::calculateQuadPosition(WS2812FX* strip, uint16_t spee
     uint16_t triangleWave = EffectHelper::generateTriangleWave(beatPosition, 0, 255);
     
     // Apply quadratic easing for dramatic acceleration/deceleration
-    uint16_t easedWave = ease16InOutQuad(triangleWave << 8); // Scale to 16-bit for easing
+    uint16_t easedWave = EffectHelper::ease16InOutQuad(triangleWave << 8); // Scale to 16-bit for easing
     
     // Map to bar movement range
     return EffectHelper::safeMapuint16_t(easedWave, 0, 65535, 0, width * 16);

@@ -86,7 +86,7 @@ uint16_t MeteorShowerEffect::update(WS2812FX* strip) {
             if (availableSlot < 10 && !random8(4)) {
                 state.actives[availableSlot] = true;
                 state.timebase[availableSlot] = currentTime;
-                state.cind[availableSlot] = strip->get_random_wheel_index(state.cind[availableSlot], 42);
+                state.cind[availableSlot] = EffectHelper::get_random_wheel_index(state.cind[availableSlot], 42);
                 
                 // Draw initial meteor position using helper
                 uint16_t beatPos = EffectHelper::calculateBeatPosition(strip, state.timebase[availableSlot], EffectHelper::FAST_SPEED);

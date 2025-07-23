@@ -238,6 +238,64 @@ void EffectHelper::safeFreeArray(void*& array, size_t& size) {
 
 // ===== MATHEMATICAL UTILITIES =====
 
+uint8_t EffectHelper::get_random_wheel_index(uint8_t pos, uint8_t dist) {
+    dist = dist < 85 ? dist : 85; // dist shouldn't be too high (not higher than 85 actually)
+    return (pos + random8(dist, 255 - (dist))); 
+}
+
+uint16_t EffectHelper::triwave16(uint16_t in) {
+    if (in & 0x8000) {
+        in = 65535 - in;
+    }
+    return in << 1;
+}
+
+uint16_t EffectHelper::quadwave16(uint16_t in) {
+    return ease16InOutQuad(triwave16(in));
+}
+
+uint16_t EffectHelper::cubicwave16(uint16_t in) {
+    return ease16InOutCubic(triwave16(in));
+}
+
+uint16_t EffectHelper::ease16InQuad(uint16_t i) {
+    return (i>>8)*(i>>8);
+}
+
+uint16_t EffectHelper::ease16OutQuad(uint16_t i) {
+    double val = (double)i / 65536.0;
+    val = -(val * (val-2));
+    return (uint16_t)(i*val);
+}
+
+uint16_t EffectHelper::ease16InOutQuad(uint16_t i) {
+    uint16_t j = i;
+    if (j & 0x8000) {
+        j = 65535 - j;
+    }
+    uint16_t jj = scale16(j, j);
+    uint16_t jj2 = jj << 1;
+    if (i & 0x8000) {
+        jj2 = 65535 - jj2;
+    }
+    return jj2;
+}
+
+uint16_t EffectHelper::ease16InOutCubic(uint16_t i) {
+    uint16_t ii = scale16(i, i);
+    uint16_t iii = scale16(ii, i);
+
+    uint32_t r1 = (3 * (uint16_t)(ii)) - (2 * (uint16_t)(iii));
+
+    uint16_t result = r1;
+
+    // if we got "65536", return 65535:
+    if (r1 & 0x10000) {
+        result = 65535;
+    }
+    return result;
+}
+
 uint16_t EffectHelper::safeMapuint16_t(uint16_t value, uint16_t fromMin, uint16_t fromMax, uint16_t toMin, uint16_t toMax) {
     // Handle edge cases
     if (fromMin == fromMax) {

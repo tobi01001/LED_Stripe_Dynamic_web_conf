@@ -75,10 +75,10 @@ void ShootingStarEffect::initializeStars(WS2812FX* strip) {
         // Initialize colors with variation between stars
         if (i > 0) {
             // Generate color related to previous star but with variation
-            cind[i] = strip->get_random_wheel_index(cind[i - 1], 32);
+            cind[i] = EffectHelper::get_random_wheel_index(cind[i - 1], 32);
         } else {
             // First star gets a color related to the last star for smooth cycling
-            cind[i] = strip->get_random_wheel_index(cind[numBars - 1], 32);
+            cind[i] = EffectHelper::get_random_wheel_index(cind[numBars - 1], 32);
         }
         
         // Mark that star doesn't need immediate new color
@@ -135,10 +135,10 @@ void ShootingStarEffect::generateNewColor(WS2812FX* strip, uint8_t starIndex) {
     // Generate new color based on neighboring stars for smooth color transitions
     if (starIndex > 0) {
         // Base new color on previous star with some variation
-        cind[starIndex] = strip->get_random_wheel_index(cind[starIndex - 1], 32);
+        cind[starIndex] = EffectHelper::get_random_wheel_index(cind[starIndex - 1], 32);
     } else {
         // First star bases color on last star for continuous cycling
-        cind[starIndex] = strip->get_random_wheel_index(cind[numBars - 1], 32);
+        cind[starIndex] = EffectHelper::get_random_wheel_index(cind[numBars - 1], 32);
     }
 }
 
