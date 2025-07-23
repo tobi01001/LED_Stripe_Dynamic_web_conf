@@ -17,36 +17,26 @@ bool ColorWipeBaseEffect::init(WS2812FX* strip) {
     targetColorIndex = currentColorIndex;
     transitionStep = 0;
     transitionSteps = 0;
-    inTransition = false;
     
     return initResult;
 }
 
 void ColorWipeBaseEffect::updateColorIndices(WS2812FX* strip) {
-    if (needNewColor && !inTransition) {
+    if (needNewColor) {
         // Start a new color transition
         previousColorIndex = currentColorIndex;
         targetColorIndex = EffectHelper::get_random_wheel_index(currentColorIndex, 32);
         transitionStep = 0;
         transitionSteps = 10; // Transition over 10 frames
-        inTransition = true;
         needNewColor = false;
     }
     
-    if (inTransition) {
-        // Progress the color transition
+    // Progress the color transition
+    if (transitionStep < transitionSteps) {
         transitionStep++;
-        
-        // Lerp between current and target color indices
-        if (transitionStep >= transitionSteps) {
-            // Transition complete
-            currentColorIndex = targetColorIndex;
-            inTransition = false;
-        } else {
-            // Interpolate between previous and target
-            uint16_t lerpProgress = map(transitionStep, 0, transitionSteps, 0, 256);
-            currentColorIndex = lerp8by8(previousColorIndex, targetColorIndex, lerpProgress);
-        }
+        // Interpolate between previous and target
+        uint16_t lerpProgress = map(transitionStep, 0, transitionSteps, 0, 256);
+        currentColorIndex = lerp8by8(previousColorIndex, targetColorIndex, lerpProgress);
     }
 }
 
