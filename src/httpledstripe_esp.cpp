@@ -85,6 +85,8 @@ extern "C"
 
 // new approach starts here:
 #include "LED_strip/led_strip.h"
+#include "network/network_manager.h"
+#include "webserver/webserver_manager.h"
 
 #ifdef HAS_KNOB_CONTROL
   // the roating knob controller as input device
