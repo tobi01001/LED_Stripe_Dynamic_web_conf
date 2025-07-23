@@ -59,7 +59,6 @@ public:
 
 private:
     // Effect-specific state variables (minimizes shared resource usage)
-    bool initialized = false;    ///< Tracks initialization state to avoid re-init
     uint32_t timebase = 0;      ///< Base timestamp for beat timing calculations
     
     // Constants for effect behavior
