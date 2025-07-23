@@ -46,24 +46,32 @@ void ColorWipeBaseEffect::fillWipeColors(WS2812FX* strip, uint16_t fractionalPos
         seg->targetBrightness, 
         seg->blendType);
     
-    // Clear the segment first to ensure clean background
-    fill_solid(&strip->leds[runtime->start], segmentLength, color2);
-    
     // Calculate the wipe bar width (minimum 1 pixel, maximum 3 pixels for smooth transition)
     uint16_t barWidth = min(max(segmentLength / 8, 1), 3);
     
-    // Draw the wipe bar using fractional positioning for smooth anti-aliased movement
-    // The fractional position is already in 16-bit format (0-65535)
-    uint16_t segmentStart16 = runtime->start * 16; // Convert to 16-bit fractional
-    uint16_t segmentEnd16 = runtime->stop * 16;    // Convert to 16-bit fractional
+    // Convert segment coordinates to 16-bit fractional format
+    uint16_t segmentStart16 = runtime->start * 16;
+    uint16_t segmentEnd16 = runtime->stop * 16;
     
-    // Map the wave position to the segment coordinates in 16-bit fractional format
-    uint16_t mappedPos16 = map(fractionalPos16, 0, 65535, segmentStart16, segmentEnd16);
+    // Map the wave position to segment coordinates, accounting for bar width
+    uint16_t mappedPos16 = map(fractionalPos16, 0, 65535, segmentStart16, segmentEnd16 - barWidth * 16);
     
     // Ensure the position stays within segment bounds
     mappedPos16 = constrain(mappedPos16, segmentStart16, segmentEnd16 - barWidth * 16);
     
-    // Draw the wipe bar with anti-aliasing
+    // Get the center pixel position for the wipe boundary
+    uint16_t centerPixel = mappedPos16 / 16; // Convert back to pixel index
+    centerPixel = constrain(centerPixel, runtime->start, runtime->stop - 1);
+    
+    // Fill the wipe effect: color1 from start up to center, color2 from center to end
+    if (centerPixel > runtime->start) {
+        fill_solid(&strip->leds[runtime->start], centerPixel - runtime->start, color1);
+    }
+    if (centerPixel < runtime->stop) {
+        fill_solid(&strip->leds[centerPixel], runtime->stop - centerPixel, color2);
+    }
+    
+    // Draw the transitional bar at the wipe boundary for smooth anti-aliased effect
     strip->drawFractionalBar(mappedPos16, barWidth, *strip->getCurrentPalette(), 
                            currentColorIndex + runtime->baseHue, seg->targetBrightness, true, 1);
 }
@@ -85,22 +93,11 @@ uint16_t ColorWipeBaseEffect::update(WS2812FX* strip) {
     // This returns a value in range 0-65535
     uint16_t wavePosition = calculateWipePosition(strip, timebase);
     
-    // Detect direction changes by monitoring the wave function itself
-    // Compare current wave position with previous to determine direction
-    bool currentMovingUp = (wavePosition >= previousWavePosition);
-    
-    // Check if direction actually changed (with hysteresis to avoid jitter)
-    if (isMovingUp != currentMovingUp) {
-        // Only change direction if the difference is significant enough
-        uint16_t positionDiff = (wavePosition > previousWavePosition) 
-            ? (wavePosition - previousWavePosition) 
-            : (previousWavePosition - wavePosition);
-            
-        // Use hysteresis threshold to prevent jitter at direction changes
-        if (positionDiff > 1000) {  // ~1.5% of full range to prevent noise
-            isMovingUp = currentMovingUp;
-            needNewColor = true;
-        }
+    // Check if direction actually changed 
+    if (((wavePosition > previousWavePosition) && !isMovingUp) || 
+        ((wavePosition < previousWavePosition) && isMovingUp)) {
+        isMovingUp = !isMovingUp;
+        needNewColor = true;
     }
     
     // Update color indices if needed
