@@ -49,36 +49,43 @@ uint16_t FireworkRocketEffect::update(WS2812FX* strip) {
         init(strip);
     }
     
-    // Apply global fading for trail effects using EffectHelper
+    // Apply global fading for smooth trail effects
+    // This creates the trailing light effect behind moving rockets
     applyGlobalFade(strip);
     
-    // Get current physics parameters
+    // Get current physics parameters that affect all rockets
+    // These are recalculated each frame to respond to real-time parameter changes
     const uint32_t currentTime = millis();
-    const double gravity = getGravity(strip);
-    const double segmentLength = calculateSegmentLength(strip);
-    const double maxVelocity = calculateMaxVelocity(strip, gravity, segmentLength);
-    const uint16_t maxBlendWidth = EffectHelper::calculateProportionalWidth(strip, 2, 1);
+    const double gravity = getGravity(strip);                    // Based on beat88 for speed control
+    const double segmentLength = calculateSegmentLength(strip);  // Physical LED strip length in mm
+    const double maxVelocity = calculateMaxVelocity(strip, gravity, segmentLength);  // Max launch speed
+    const uint16_t maxBlendWidth = EffectHelper::calculateProportionalWidth(strip, 2, 1);  // Blur radius
     
-    // Update and render each rocket
+    // Process each rocket through its lifecycle: launch -> flight -> explosion -> fade -> relaunch
     for (uint8_t i = 0; i < numRockets; i++) {
         // Check if rocket needs to be launched or re-launched
+        // Rockets at ground level (pos <= 0) are candidates for new launch cycles
         if (rockets[i].pos <= 0 && shouldRelaunch(i)) {
             initializeRocketLaunch(i, strip, currentTime, maxVelocity);
         }
         
-        // Update physics if rocket is active
+        // Update and render active rockets (those above ground level)
         if (rockets[i].pos > 0) {
+            // Update physics: position, velocity, and handle ground collisions
             updateRocketPhysics(i, strip, currentTime, gravity, segmentLength, maxVelocity);
             
-            // Render rocket based on current phase
+            // Render rocket based on current flight phase
             if (rockets[i].v > rockets[i].v_explode) {
-                // Launch phase - rocket is still accelerating upward
+                // Launch phase: rocket is accelerating upward with bright trail
+                // Velocity is still above explosion threshold
                 renderLaunchPhase(i, strip, segmentLength);
             } else {
-                // Explosion/fade phase - rocket has slowed down enough to explode
+                // Explosion phase: rocket has slowed enough to trigger explosion
+                // Creates bright burst with blur effects and sparks
                 renderExplosionPhase(i, strip, maxBlendWidth);
                 
                 // Countdown explosion timer to control explosion duration
+                // When timer reaches 0, explosion fades and rocket becomes ready for relaunch
                 if (rockets[i].explodeTime > 0) {
                     rockets[i].explodeTime--;
                 }
@@ -106,7 +113,14 @@ double FireworkRocketEffect::calculateMaxVelocity(WS2812FX* strip, double gravit
 
 double FireworkRocketEffect::getGravity(WS2812FX* strip) const {
     // Map beat88 parameter to gravity range for visual appeal
-    // Scale from beat88 range to mm/ms² units
+    // 
+    // The beat88 parameter controls the overall effect speed and timing:
+    // - Lower values (1000-3000): Slower, more majestic rockets with longer flight times
+    // - Higher values (4000-6000): Faster, more energetic rockets with quicker cycles
+    // 
+    // Physics note: We use negative gravity constant for downward acceleration
+    // The scaling factor converts beat88 range to reasonable mm/ms² values
+    // that produce visually appealing ballistic trajectories
     double beat88 = (double)strip->getSegment()->beat88;
     return beat88 / GRAVITY_SCALING_FACTOR; // Use named constant for clarity and maintainability
 }
@@ -123,16 +137,20 @@ void FireworkRocketEffect::updateRocketPhysics(uint8_t rocketIndex, WS2812FX* st
                                              double gravity, double segmentLength, double maxVelocity) {
     RocketData& rocket = rockets[rocketIndex];
     
-    // Calculate time elapsed since rocket started
+    // Calculate time elapsed since rocket started its trajectory
+    // This delta time is crucial for accurate physics simulation
     double deltaTime = (double)(currentTime - rocket.timebase);
     
-    // Update position using kinematic equation: s = v₀t + ½at²
+    // Update position using kinematic equation for constant acceleration:
+    // s = v₀t + ½at²
+    // Where: s = displacement, v₀ = initial velocity, a = gravity, t = time
     rocket.pos = rocket.v0 * deltaTime + (gravity / 2.0) * deltaTime * deltaTime;
     
-    // Update velocity: v = v₀ + at
+    // Update velocity using: v = v₀ + at
+    // This gives us current velocity for determining explosion trigger
     rocket.v = rocket.v0 + gravity * deltaTime;
     
-    // Check for ground collision or end of explosion
+    // Handle ground collision and physics state transitions
     if (rocket.pos <= 0) {
         // Handle ground collision or reset after explosion
         if (rocket.v0 <= 0.001) {
@@ -279,25 +297,32 @@ bool FireworkRocketEffect::shouldRelaunch(uint8_t rocketIndex) const {
 void FireworkRocketEffect::initializeRocketLaunch(uint8_t rocketIndex, WS2812FX* strip, uint32_t currentTime, double maxVelocity) {
     RocketData& rocket = rockets[rocketIndex];
     
-    // Set random launch velocity (85-99% of maximum for variety)
+    // Set random launch velocity for visual variety
+    // Use 85-99% of maximum to ensure rockets reach different heights
+    // This creates a more natural, staggered explosion pattern
     rocket.v0 = (double)random((long)(maxVelocity * 850), (long)(maxVelocity * 990)) / 1000.0;
     rocket.v = rocket.v0;
     
-    // Start just above ground
+    // Start just above ground level to avoid immediate collision detection
     rocket.pos = 0.00001;
     rocket.prev_pos = 0;
     
-    // Reset timing
+    // Reset timing base for accurate physics calculations
     rocket.timebase = currentTime;
     
-    // Select new color
+    // Select new color for this launch cycle to add visual variety
     rocket.color_index = EffectHelper::get_random_wheel_index(rocket.color_index, 32);
     
-    // Set brightness and explosion parameters
+    // Set brightness and explosion timing parameters
     rocket.brightness = random8(12, 48);
+    
+    // Map beat88 to explosion duration - faster beat88 = shorter explosions
+    // This ensures the explosion timing scales with the overall effect speed
     rocket.explodeTime = map(strip->getSegment()->beat88, 1000, 6000, 80, 180);
     
-    // Set explosion velocity threshold (1-50% of launch velocity)
+    // Set explosion velocity threshold as percentage of launch velocity
+    // When rocket slows to this speed, it transitions to explosion phase
+    // Random range (1-50%) creates varied explosion heights
     rocket.v_explode = rocket.v0 * ((double)random8(1, 50) / 100.0);
 }
 
