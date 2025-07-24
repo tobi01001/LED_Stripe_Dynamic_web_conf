@@ -62,7 +62,9 @@ public:
     uint8_t getModeId() const override;
 
 private:
-    // Effect-specific state variables (minimizes shared resource usage)    // Constants for effect behavior
+    // Effect-specific state variables
+    // Minimizes shared resource usage
+    // Constants for effect behavior
     static const uint8_t CHASE_PATTERN_SIZE = 3;     ///< Number of positions in chase pattern
     static const uint8_t SPEED_DIVISOR = 1;          ///< Divides the base timing interval to slow down the chase animation; higher values result in slower movement by increasing the delay between position shifts, allowing for smoother visual transitions.
     static const uint8_t FULL_BRIGHTNESS = 255;      ///< Maximum brightness for lit pixels
