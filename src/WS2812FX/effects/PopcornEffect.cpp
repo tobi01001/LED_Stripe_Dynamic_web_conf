@@ -163,9 +163,7 @@ void PopcornEffect::renderKernel(double position, KernelData& kernel, WS2812FX* 
     uint8_t width = 1;
     if (currentPos > prevPosition) {
         width = (uint8_t)((double)(currentPos - prevPosition) / MM_PER_LED);
-    }
-    else
-    {
+    } else {
         width = (uint8_t)((double)(prevPosition - currentPos) / MM_PER_LED);
     }
     if(!width)
