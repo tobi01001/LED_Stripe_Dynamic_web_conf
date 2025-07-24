@@ -30,7 +30,7 @@ uint16_t FireworkEffect::update(WS2812FX* strip) {
     // Access segment and runtime data through the strip public getters
     auto seg = strip->getSegment();
     auto runtime = strip->getSegmentRuntime();
-    }
+    
     
     // Apply blur effect using EffectHelper safe mapping
     uint8_t blurAmount = EffectHelper::safeMapuint16_t(seg->beat88 >> 8, 0, 255, 32, 172);
