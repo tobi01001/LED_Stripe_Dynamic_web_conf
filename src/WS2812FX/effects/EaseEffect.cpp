@@ -3,12 +3,8 @@
 #include "../EffectHelper.h"
 
 bool EaseEffect::init(WS2812FX* strip) {
-    if (initialized) {
-        return true; // Already initialized
-    }
-    
-    // Validate strip pointer
-    if (!EffectHelper::validateStripPointer(strip)) {
+    // Call base class standard initialization first
+    if (!standardInit(strip)) {
         return false;
     }
     
@@ -22,16 +18,19 @@ bool EaseEffect::init(WS2812FX* strip) {
     p_lerp = 0;
     timebase = millis();
     
-    // Reset the runtime modeinit flag
-    runtime->modeinit = false;
-    
-    initialized = true;
     return true;
 }
 
 uint16_t EaseEffect::update(WS2812FX* strip) {
+    // Check if effect needs initialization
+    if (!isInitialized()) {
+        if (!init(strip)) {
+            return 1000; // Return reasonable delay if initialization fails
+        }
+    }
+    
     // Validate strip pointer and initialization
-    if (!EffectHelper::validateStripPointer(strip) || !initialized) {
+    if (!EffectHelper::validateStripPointer(strip)) {
         return strip->getStripMinDelay();
     }
     
