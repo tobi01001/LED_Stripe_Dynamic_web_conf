@@ -18,7 +18,6 @@ bool FireworkEffect::init(WS2812FX* strip) {
     
     return true;
 }
-}
 
 uint16_t FireworkEffect::update(WS2812FX* strip) {
     // Check if effect needs initialization
