@@ -3,13 +3,17 @@
 #include "../EffectHelper.h"
 
 bool BubbleSortEffect::init(WS2812FX* strip) {
+    // Call base class standard initialization first
+    if (!standardInit(strip)) {
+        return false;
+    }
+    
     // Clean up any existing memory first
     cleanupMemory();
     
     // Initialize state variables
     movedown = false;
     ci = co = cd = 0;
-    initialized = false;
     
     // Get current strip length and allocate memory for hue array using EffectHelper
     auto runtime = strip->getSegmentRuntime();
@@ -20,20 +24,27 @@ bool BubbleSortEffect::init(WS2812FX* strip) {
         size_t currentSize = 0;
         hues = (uint8_t*)EffectHelper::safeAllocateArray(nullptr, currentSize, strip_length, sizeof(uint8_t));
         if (hues != nullptr) {
-            initialized = true;
             initializeHues(strip);
+            return true;
         }
     }
     
-    // Mark initialization as complete
-    runtime->modeinit = false;
+    return false; // Failed to allocate memory
+}
     
     return initialized;
 }
 
 uint16_t BubbleSortEffect::update(WS2812FX* strip) {
-    // Ensure effect is properly initialized
-    if (!initialized || hues == nullptr) {
+    // Check if effect needs initialization
+    if (!isInitialized()) {
+        if (!init(strip)) {
+            return 1000; // Return reasonable delay if initialization fails
+        }
+    }
+    
+    // Ensure effect is properly initialized with memory
+    if (hues == nullptr) {
         return strip->getStripMinDelay();
     }
     

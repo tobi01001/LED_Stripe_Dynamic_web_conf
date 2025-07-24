@@ -3,14 +3,12 @@
 #include "../EffectHelper.h"
 
 bool EaseBarEffect::init(WS2812FX* strip) {
-    // Validate strip pointer
-    if (!EffectHelper::validateStripPointer(strip)) {
+    // Call base class standard initialization first
+    if (!standardInit(strip)) {
         return false;
     }
     
-    auto runtime = strip->getSegmentRuntime();
     auto seg = strip->getSegment();
-    runtime->modeinit = false;
     
     // Calculate minimum bar size based on strip length using helper
     state.minLeds = EffectHelper::calculateProportionalWidth(strip, 4, 10);  // 1/4 with min 10
@@ -30,6 +28,13 @@ bool EaseBarEffect::init(WS2812FX* strip) {
 }
 
 uint16_t EaseBarEffect::update(WS2812FX* strip) {
+    // Check if effect needs initialization
+    if (!isInitialized()) {
+        if (!init(strip)) {
+            return 1000; // Return reasonable delay if initialization fails
+        }
+    }
+    
     // Validate strip pointer
     if (!EffectHelper::validateStripPointer(strip)) {
         return strip->getStripMinDelay();

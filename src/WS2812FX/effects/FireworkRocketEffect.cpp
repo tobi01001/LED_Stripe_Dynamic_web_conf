@@ -6,13 +6,12 @@
 #define GRAVITY_SCALING_FACTOR -1019367.99184506
 
 bool FireworkRocketEffect::init(WS2812FX* strip) {
-    // Validate strip pointer
-    if (!EffectHelper::validateStripPointer(strip)) {
+    // Call base class standard initialization first
+    if (!standardInit(strip)) {
         return false;
     }
     
     // Initialize rocket array and set up initial physics state
-    initialized = false;
     numRockets = min(strip->getSegment()->numBars, (uint8_t)32);
     
     uint32_t currentTime = millis();
@@ -45,9 +44,13 @@ bool FireworkRocketEffect::init(WS2812FX* strip) {
 }
 
 uint16_t FireworkRocketEffect::update(WS2812FX* strip) {
-    if (!initialized) {
-        init(strip);
+    // Check if effect needs initialization
+    if (!isInitialized()) {
+        if (!init(strip)) {
+            return 1000; // Return reasonable delay if initialization fails
+        }
     }
+    
     
     // Apply global fading for smooth trail effects
     // This creates the trailing light effect behind moving rockets

@@ -3,15 +3,13 @@
 #include "../EffectHelper.h"
 
 bool PacificaEffect::init(WS2812FX* strip) {
-    // Validate strip pointer
-    if (!EffectHelper::validateStripPointer(strip)) {
+    // Call base class standard initialization first
+    if (!standardInit(strip)) {
         return false;
     }
     
     // Initialize internal state for Pacifica ocean wave effect
-    auto runtime = strip->getSegmentRuntime();
     auto seg = strip->getSegment();
-    runtime->modeinit = false;
     
     // Initialize wave layer color index starting positions with random values
     state.colorIndexStart1 = random16();
@@ -29,6 +27,13 @@ bool PacificaEffect::init(WS2812FX* strip) {
 }
 
 uint16_t PacificaEffect::update(WS2812FX* strip) {
+    // Check if effect needs initialization
+    if (!isInitialized()) {
+        if (!init(strip)) {
+            return 1000; // Return reasonable delay if initialization fails
+        }
+    }
+    
     // Access segment and runtime data through strip public getters
     auto seg = strip->getSegment();
     auto runtime = strip->getSegmentRuntime();
