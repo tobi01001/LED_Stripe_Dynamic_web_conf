@@ -35,7 +35,7 @@ public:
      * @brief Initialize the theater chase effect
      * @param strip Pointer to the WS2812FX instance for accessing segment data
      * @return true if initialization was successful
-     */    /**
+     * 
      * @brief Update the theater chase effect for one frame
      * 
      * This method:
