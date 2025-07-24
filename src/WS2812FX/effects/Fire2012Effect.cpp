@@ -3,6 +3,11 @@
 #include "../EffectHelper.h"
 
 bool Fire2012Effect::init(WS2812FX* strip) {
+    // Call base class standard initialization first
+    if (!standardInit(strip)) {
+        return false;
+    }
+    
     // Allocate and initialize heat array for fire simulation
     if (!allocateHeatArray(strip)) {
         setInitialized(false);
@@ -12,11 +17,7 @@ bool Fire2012Effect::init(WS2812FX* strip) {
     // Clear heat array to start with a cold fire
     memset(heatArray, 0, heatArraySize * sizeof(byte));
     
-    // Use standard initialization pattern from helper
-    bool tempInit = false;
-    bool result = EffectHelper::standardInit(strip, timebase, tempInit);
-    setInitialized(result);
-    return result;
+    return true;
 }
 
 uint16_t Fire2012Effect::update(WS2812FX* strip) {

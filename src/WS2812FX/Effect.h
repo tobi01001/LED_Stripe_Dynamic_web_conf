@@ -27,7 +27,9 @@ public:
      * @param strip Pointer to the WS2812FX instance
      * @return true if initialization was successful
      */
-    virtual bool init(WS2812FX* strip) = 0;
+    virtual bool init(WS2812FX* strip) {
+        return standardInit(strip);
+    }
 
     /**
      * @brief Render one frame of the effect
@@ -74,6 +76,13 @@ public:
 
 protected:
     bool _isInitialized = false;  ///< Flag to track if the effect has been initialized
+
+    /**
+     * @brief Standard initialization pattern for effects
+     * @param strip Pointer to the WS2812FX instance
+     * @return true if initialization was successful
+     */
+    bool standardInit(WS2812FX* strip);
 };
 
 /**

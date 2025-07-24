@@ -3,17 +3,17 @@
 #include "../EffectHelper.h"
 
 bool DotBeatEffect::init(WS2812FX* strip) {
-    // Use standard initialization pattern from EffectHelper
-    bool tempInit = false;
-    bool initResult = EffectHelper::standardInit(strip, timebase, tempInit);
+    // Call base class standard initialization first
+    if (!standardInit(strip)) {
+        return false;
+    }
     
     // Initialize effect-specific state
     lastBeat88 = 0;
     numBars = 0;
     barStates = nullptr;
     
-    setInitialized(initResult);
-    return initResult;
+    return true;
 }
 
 void DotBeatEffect::initializeBars(WS2812FX* strip) {

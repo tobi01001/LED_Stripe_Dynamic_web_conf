@@ -2,14 +2,6 @@
 #include "../WS2812FX_FastLed.h"
 #include "../EffectHelper.h"
 
-bool RainbowEffect::init(WS2812FX* strip) {
-    // Use standard initialization pattern from helper
-    bool tempInit = false; // Use local temp variable instead of member
-    bool result = EffectHelper::standardInit(strip, timebase, tempInit);
-    setInitialized(result); // Set base class initialization state
-    return result;
-}
-
 uint16_t RainbowEffect::update(WS2812FX* strip) {
     // Check if effect needs initialization
     if (!isInitialized()) {

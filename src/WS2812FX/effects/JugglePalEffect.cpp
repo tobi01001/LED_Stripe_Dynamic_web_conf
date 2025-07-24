@@ -3,16 +3,16 @@
 #include "../EffectHelper.h"
 
 bool JugglePalEffect::init(WS2812FX* strip) {
-    // Use standard initialization pattern from EffectHelper
-    bool tempInit = false;
-    bool initResult = EffectHelper::standardInit(strip, timebase, tempInit);
+    // Call base class standard initialization first
+    if (!standardInit(strip)) {
+        return false;
+    }
     
     // Initialize effect-specific state
     currentHue = 0;
     lastHueChange = millis();
     
-    setInitialized(initResult);
-    return initResult;
+    return true;
 }
 
 uint16_t JugglePalEffect::update(WS2812FX* strip) {

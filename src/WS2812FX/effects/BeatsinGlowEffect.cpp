@@ -3,11 +3,8 @@
 #include "../EffectHelper.h"
 
 bool BeatsinGlowEffect::init(WS2812FX* strip) {
-    // Use standard initialization pattern from helper
-    bool tempInit = false;
-    uint32_t timebase = 0;
-    if (!EffectHelper::standardInit(strip, timebase, tempInit)) {
-        setInitialized(false);
+    // Call base class standard initialization first
+    if (!standardInit(strip)) {
         return false;
     }
     
@@ -25,7 +22,6 @@ bool BeatsinGlowEffect::init(WS2812FX* strip) {
     // Initialize all glow elements
     initializeGlowElements(strip);
     
-    setInitialized(true);
     return true;
 }
 

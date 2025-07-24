@@ -2,14 +2,6 @@
 #include "../WS2812FX_FastLed.h"
 #include "../EffectHelper.h"
 
-bool StaticEffect::init(WS2812FX* strip) {
-    // Use standard initialization pattern from helper
-    bool tempInit = false; // Local variable since StaticEffect has no persistent state
-    bool result = EffectHelper::standardInit(strip, timebase, tempInit);
-    setInitialized(result); // Set base class initialization state
-    return result;
-}
-
 uint16_t StaticEffect::update(WS2812FX* strip) {
     // Check if effect needs initialization
     if (!isInitialized()) {
