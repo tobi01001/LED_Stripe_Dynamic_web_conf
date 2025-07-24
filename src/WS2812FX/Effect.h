@@ -27,7 +27,9 @@ public:
      * @param strip Pointer to the WS2812FX instance
      * @return true if initialization was successful
      */
-    virtual bool init(WS2812FX* strip) = 0;
+    virtual bool init(WS2812FX* strip) {
+        return standardInit(strip);
+    }
 
     /**
      * @brief Render one frame of the effect
@@ -59,6 +61,28 @@ public:
      * @return true if effect can blend smoothly with others
      */
     virtual bool supportsTransition() const { return true; }
+
+    /**
+     * @brief Check if this effect has been initialized
+     * @return true if the effect has been initialized
+     */
+    bool isInitialized() const { return _isInitialized; }
+
+    /**
+     * @brief Set the initialization state of this effect
+     * @param initialized true if the effect is initialized, false to force reinitialization
+     */
+    void setInitialized(bool initialized) { _isInitialized = initialized; }
+
+protected:
+    bool _isInitialized = false;  ///< Flag to track if the effect has been initialized
+
+    /**
+     * @brief Standard initialization pattern for effects
+     * @param strip Pointer to the WS2812FX instance
+     * @return true if initialization was successful
+     */
+    bool standardInit(WS2812FX* strip);
 };
 
 /**

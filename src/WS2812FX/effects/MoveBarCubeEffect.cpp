@@ -2,14 +2,16 @@
 #include "../WS2812FX_FastLed.h"
 #include "../EffectHelper.h"
 
-bool MoveBarCubeEffect::init(WS2812FX* strip) {
-    // Use standardized initialization
-    return EffectHelper::standardInit(strip, timebase, initialized);
-}
-
 uint16_t MoveBarCubeEffect::update(WS2812FX* strip) {
+    // Check if effect needs initialization
+    if (!isInitialized()) {
+        if (!init(strip)) {
+            return strip->getStripMinDelay();
+        }
+    }
+    
     // Validate strip pointer and initialization
-    if (!EffectHelper::validateStripPointer(strip) || !initialized) {
+    if (!EffectHelper::validateStripPointer(strip)) {
         return strip->getStripMinDelay();
     }
     

@@ -691,7 +691,15 @@ public:
   inline void setColCor               (COLORCORRECTIONS c) { SEG.colCor = (COLORCORRECTIONS)constrain(c, 0, COR_NUMCORRECTIONS-1); FastLED.setCorrection(colorCorrectionValues[SEG.colCor]);}
   inline void setSolidColor           (uint32_t c)      { SEG.solidColor = CRGB(c); }
 
-  inline void setTransition           (void)            { _transition = true; _segment_runtime.modeinit = true; _blend = 0; }
+  inline void setTransition           (void)            { 
+    _transition = true; 
+    _segment_runtime.modeinit = true; 
+    _blend = 0; 
+    // Reset effect initialization when transition occurs
+    if (_currentEffect) {
+      _currentEffect->setInitialized(false);
+    }
+  }
   
   // getters
   inline size_t         getCRCsize(void)              { return sizeof(SEG.CRC); }

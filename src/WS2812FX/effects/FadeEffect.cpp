@@ -8,10 +8,6 @@
  * Uses the standard initialization pattern from EffectHelper to set up
  * timing baseline and initialization flags consistently.
  */
-bool FadeEffect::init(WS2812FX* strip) {
-    // Use standard initialization pattern from helper
-    return EffectHelper::standardInit(strip, timebase, initialized);
-}
 
 /**
  * @brief Render one frame of the fade effect
@@ -44,6 +40,13 @@ bool FadeEffect::init(WS2812FX* strip) {
  * and apply it as brightness modulation to the current palette.
  */
 uint16_t FadeEffect::update(WS2812FX* strip) {
+    // Check if effect needs initialization
+    if (!isInitialized()) {
+        if (!init(strip)) {
+            return 1000; // Return reasonable delay if initialization fails
+        }
+    }
+    
     // Validate strip pointer using helper
     if (!EffectHelper::validateStripPointer(strip)) {
         return 1000; // Return reasonable delay if strip is invalid

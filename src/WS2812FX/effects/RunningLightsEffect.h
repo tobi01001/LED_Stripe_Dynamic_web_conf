@@ -16,14 +16,12 @@ public:
     RunningLightsEffect() = default;
     virtual ~RunningLightsEffect() = default;
 
-    bool init(WS2812FX* strip) override;
     uint16_t update(WS2812FX* strip) override;
     const __FlashStringHelper* getName() const override;
     uint8_t getModeId() const override;
 
 private:
     uint32_t timebase = 0;  ///< Time reference for consistent wave movement
-    bool initialized = false;  ///< Initialization flag to ensure proper setup
 };
 
 #endif // RUNNING_LIGHTS_EFFECT_H

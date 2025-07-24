@@ -25,13 +25,6 @@ public:
     virtual ~FadeEffect() = default;
 
     /**
-     * @brief Initialize the fade effect
-     * @param strip Pointer to the WS2812FX instance for accessing segment data
-     * @return true if initialization was successful
-     */
-    bool init(WS2812FX* strip) override;
-
-    /**
      * @brief Update the fade effect for one frame
      * 
      * This method:
@@ -59,7 +52,6 @@ public:
 
 private:
     // Effect-specific state variables (minimizes shared resource usage)
-    bool initialized = false;    ///< Tracks initialization state to avoid re-init
     uint32_t timebase = 0;      ///< Base timestamp for beat timing calculations
     
     // Constants for effect behavior

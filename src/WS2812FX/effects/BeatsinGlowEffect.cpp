@@ -3,10 +3,8 @@
 #include "../EffectHelper.h"
 
 bool BeatsinGlowEffect::init(WS2812FX* strip) {
-    // Use standard initialization pattern from helper
-    bool initialized = false;
-    uint32_t timebase = 0;
-    if (!EffectHelper::standardInit(strip, timebase, initialized)) {
+    // Call base class standard initialization first
+    if (!standardInit(strip)) {
         return false;
     }
     
@@ -28,6 +26,13 @@ bool BeatsinGlowEffect::init(WS2812FX* strip) {
 }
 
 uint16_t BeatsinGlowEffect::update(WS2812FX* strip) {
+    // Check if effect needs initialization
+    if (!isInitialized()) {
+        if (!init(strip)) {
+            return 1000; // Return reasonable delay if initialization fails
+        }
+    }
+    
     // Validate strip pointer using helper
     if (!EffectHelper::validateStripPointer(strip)) {
         return 1000; // Return reasonable delay if strip is invalid

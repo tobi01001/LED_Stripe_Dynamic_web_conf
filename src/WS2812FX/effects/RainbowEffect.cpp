@@ -2,12 +2,14 @@
 #include "../WS2812FX_FastLed.h"
 #include "../EffectHelper.h"
 
-bool RainbowEffect::init(WS2812FX* strip) {
-    // Use standard initialization pattern from helper
-    return EffectHelper::standardInit(strip, timebase, initialized);
-}
-
 uint16_t RainbowEffect::update(WS2812FX* strip) {
+    // Check if effect needs initialization
+    if (!isInitialized()) {
+        if (!init(strip)) {
+            return 1000; // Return reasonable delay if initialization fails
+        }
+    }
+    
     // Validate strip pointer using helper
     if (!EffectHelper::validateStripPointer(strip)) {
         return 1000; // Return reasonable delay if strip is invalid
@@ -54,7 +56,7 @@ uint8_t RainbowEffect::getModeId() const {
 
 void RainbowEffect::cleanup() {
     // Reset state for clean transition to next effect
-    initialized = false;
+    setInitialized(false);
     timebase = 0;
 }
 

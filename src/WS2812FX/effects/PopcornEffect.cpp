@@ -161,11 +161,14 @@ void PopcornEffect::renderKernel(double position, KernelData& kernel, WS2812FX* 
     uint16_t prevPosition = kernel.prev_pos;
     // Calculate width for motion blur effect
     uint8_t width = 1;
-    uint8_t myWidth = (uint8_t)((double)(currentPos - prevPosition) / MM_PER_LED);
     if (currentPos > prevPosition) {
-        width = max(myWidth, 1);
-    } else if (prevPosition > currentPos) {
-        width = max(-myWidth, 1);
+        width = (uint8_t)((double)(currentPos - prevPosition) / MM_PER_LED);
+    } else {
+        width = (uint8_t)((double)(prevPosition - currentPos) / MM_PER_LED);
+    }
+    if (!width)
+    {
+        width = 1;
     }
     
     // Render kernel using the strip's drawing function with current palette

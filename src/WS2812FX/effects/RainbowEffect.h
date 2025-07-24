@@ -22,7 +22,6 @@ public:
     RainbowEffect() = default;
     virtual ~RainbowEffect() = default;
 
-    bool init(WS2812FX* strip) override;
     uint16_t update(WS2812FX* strip) override;
     const __FlashStringHelper* getName() const override;
     uint8_t getModeId() const override;
@@ -34,7 +33,6 @@ private:
      * These replace the union-based variables in the original implementation
      */
     uint32_t timebase = 0;          ///< Time reference for beat calculations (replaces rainbow.timebase)
-    bool initialized = false;       ///< Flag to track initialization state
 };
 
 #endif // RAINBOW_EFFECT_H

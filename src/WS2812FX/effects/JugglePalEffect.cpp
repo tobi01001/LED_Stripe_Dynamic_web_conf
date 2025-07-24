@@ -3,17 +3,26 @@
 #include "../EffectHelper.h"
 
 bool JugglePalEffect::init(WS2812FX* strip) {
-    // Use standard initialization pattern from EffectHelper
-    bool initResult = EffectHelper::standardInit(strip, timebase, initialized);
+    // Call base class standard initialization first
+    if (!standardInit(strip)) {
+        return false;
+    }
     
     // Initialize effect-specific state
     currentHue = 0;
     lastHueChange = millis();
     
-    return initResult;
+    return true;
 }
 
 uint16_t JugglePalEffect::update(WS2812FX* strip) {
+    // Check if effect needs initialization
+    if (!isInitialized()) {
+        if (!init(strip)) {
+            return 1000; // Return reasonable delay if initialization fails
+        }
+    }
+    
     // Validate strip pointer using helper
     if (!EffectHelper::validateStripPointer(strip)) {
         return 1000; // Return reasonable delay if strip is invalid

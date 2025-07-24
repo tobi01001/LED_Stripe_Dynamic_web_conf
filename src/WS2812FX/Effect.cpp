@@ -1,4 +1,25 @@
 #include "Effect.h"
+#include "WS2812FX_FastLed.h"
+
+bool Effect::standardInit(WS2812FX* strip) {
+    // Validate strip pointer
+    if (strip == nullptr) {
+        return false;
+    }
+    
+    if (_isInitialized) {
+        return true; // Already initialized
+    }
+    
+    // Get runtime data and mark as initialized
+    auto runtime = strip->getSegmentRuntime();
+    if (runtime) {
+        runtime->modeinit = false;
+    }
+    
+    _isInitialized = true;
+    return true;
+}
 
 // Static member definitions for EffectFactory
 uint8_t EffectFactory::registeredModes[EffectFactory::MAX_EFFECTS];
