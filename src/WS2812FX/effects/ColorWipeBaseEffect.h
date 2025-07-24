@@ -23,13 +23,11 @@ protected:
     virtual uint16_t calculateWipePosition(WS2812FX* strip, uint32_t timebase) = 0;
 
 private:
-    uint32_t timebase = 0;               ///< Time reference for position calculations
     uint8_t currentColorIndex = 0;       ///< Current color index for wipe
     uint8_t previousColorIndex = 0;      ///< Previous color index for wipe
     uint16_t previousWavePosition = 0;   ///< Previous wave position (0-65535)
     bool isMovingUp = true;              ///< Direction of wipe movement
     bool needNewColor = true;            ///< Flag to trigger color change
-    bool initialized = false;            ///< Initialization flag
     
     // Color transition state
     uint8_t targetColorIndex = 0;        ///< Target color for smooth transition
