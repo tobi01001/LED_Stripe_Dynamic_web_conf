@@ -31,9 +31,7 @@ bool BubbleSortEffect::init(WS2812FX* strip) {
     
     return false; // Failed to allocate memory
 }
-    
-    return initialized;
-}
+
 
 uint16_t BubbleSortEffect::update(WS2812FX* strip) {
     // Check if effect needs initialization
