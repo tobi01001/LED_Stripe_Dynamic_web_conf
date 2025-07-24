@@ -2,14 +2,14 @@
 #include "../WS2812FX_FastLed.h"
 #include "../EffectHelper.h"
 
-bool FireFlickerIntenseEffect::init(WS2812FX* strip) {
-    // Fire flicker effect is stateless - use minimal initialization
-    auto runtime = strip->getSegmentRuntime();
-    runtime->modeinit = false;
-    return true;
-}
-
 uint16_t FireFlickerIntenseEffect::update(WS2812FX* strip) {
+    // Check if effect needs initialization
+    if (!isInitialized()) {
+        if (!init(strip)) {
+            return 1000; // Return reasonable delay if initialization fails
+        }
+    }
+    
     // Validate strip pointer
     if (!EffectHelper::validateStripPointer(strip)) {
         return strip->getStripMinDelay();
