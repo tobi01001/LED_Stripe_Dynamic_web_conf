@@ -45,13 +45,6 @@ public:
     virtual ~TwinkleFoxEffect() = default;
 
     /**
-     * @brief Initialize the twinkle fox effect
-     * @param strip Pointer to the WS2812FX instance providing LED control
-     * @return true if initialization successful
-     */
-    bool init(WS2812FX* strip) override;
-
-    /**
      * @brief Update the twinkle fox effect for one frame
      * 
      * This method implements the main TwinkleFox algorithm:
