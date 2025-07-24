@@ -24,7 +24,6 @@ private:
     static const uint8_t WIDTH = 3; // Number of pixels for antialiased bar
     
     // Effect-specific state variables (instead of using shared mode variables)
-    bool initialized = false;
     uint32_t timebase = 0;
     uint16_t beat = 0;
     uint16_t oldbeat = 0;

@@ -3,12 +3,17 @@
 #include "../EffectHelper.h"
 
 bool ScanEffect::init(WS2812FX* strip) {
-    // Use standard initialization pattern from helper
-    bool initialized = false; // Local since ScanEffect doesn't maintain persistent state beyond timebase
-    return EffectHelper::standardInit(strip, timebase, initialized);
+    return standardInit(strip);
 }
 
 uint16_t ScanEffect::update(WS2812FX* strip) {
+    // Check if effect needs initialization
+    if (!isInitialized()) {
+        if (!init(strip)) {
+            return 1000; // Return reasonable delay if initialization fails
+        }
+    }
+    
     // Validate strip pointer using helper
     if (!EffectHelper::validateStripPointer(strip)) {
         return 1000;
@@ -21,7 +26,7 @@ uint16_t ScanEffect::update(WS2812FX* strip) {
     }
     
     // Calculate the current position of the scanning bar using helper
-    uint16_t trianglePosition = EffectHelper::calculateTrianglePosition(strip, timebase);
+    uint16_t trianglePosition = EffectHelper::calculateTrianglePosition(strip, millis());
     uint16_t ledOffset = calculateBarPosition(trianglePosition, runtime);
     
     // Clear the entire segment to black using helper

@@ -6,22 +6,26 @@
 REGISTER_EFFECT(FX_MODE_PIXEL_STACK, PixelStackEffect)
 
 bool PixelStackEffect::init(WS2812FX* strip) {
+    // Call base class standard initialization first
+    if (!standardInit(strip)) {
+        return false;
+    }
+    
     // Initialize effect state variables to starting conditions
     initializeEffectState();
     
-    // Use EffectHelper for standard initialization
-    uint32_t dummy_timebase = millis();
-    bool dummy_initialized = true;
-    return EffectHelper::standardInit(strip, dummy_timebase, dummy_initialized);
+    return true;
 }
 
 uint16_t PixelStackEffect::update(WS2812FX* strip) {
-    auto runtime = strip->getSegmentRuntime();
-    
-    // Check if we need to reinitialize
-    if (runtime->modeinit) {
-        return init(strip) ? strip->getStripMinDelay() : strip->getStripMinDelay();
+    // Check if effect needs initialization
+    if (!isInitialized()) {
+        if (!init(strip)) {
+            return 1000; // Return reasonable delay if initialization fails
+        }
     }
+    
+    auto runtime = strip->getSegmentRuntime();
     
     // Calculate effect parameters using EffectHelper
     const uint16_t effectSpeed = calculateEffectSpeed(strip);

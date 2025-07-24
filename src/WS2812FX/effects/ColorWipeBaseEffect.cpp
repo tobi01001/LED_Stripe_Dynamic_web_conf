@@ -3,8 +3,10 @@
 #include "../EffectHelper.h"
 
 bool ColorWipeBaseEffect::init(WS2812FX* strip) {
-    // Use standard initialization pattern from EffectHelper
-    bool initResult = EffectHelper::standardInit(strip, timebase, initialized);
+    // Call base class standard initialization first
+    if (!standardInit(strip)) {
+        return false;
+    }
     
     // Initialize effect-specific state
     currentColorIndex = EffectHelper::get_random_wheel_index(0, 32);
@@ -18,7 +20,7 @@ bool ColorWipeBaseEffect::init(WS2812FX* strip) {
     transitionStep = 0;
     transitionSteps = 0;
     
-    return initResult;
+    return true;
 }
 
 void ColorWipeBaseEffect::updateColorIndices(WS2812FX* strip) {
@@ -101,6 +103,13 @@ void ColorWipeBaseEffect::fillWipeColors(WS2812FX* strip, uint16_t fractionalPos
 }
 
 uint16_t ColorWipeBaseEffect::update(WS2812FX* strip) {
+    // Check if effect needs initialization
+    if (!isInitialized()) {
+        if (!init(strip)) {
+            return 1000; // Return reasonable delay if initialization fails
+        }
+    }
+    
     // Validate strip pointer using helper
     if (!EffectHelper::validateStripPointer(strip)) {
         return 1000;
@@ -115,7 +124,8 @@ uint16_t ColorWipeBaseEffect::update(WS2812FX* strip) {
     
     // Calculate wipe position using subclass-specific method
     // This returns a value in range 0-65535
-    uint16_t wavePosition = calculateWipePosition(strip, timebase);
+    // Use millis() as timebase for consistent timing
+    uint16_t wavePosition = calculateWipePosition(strip, millis());
     
     // Check if direction actually changed 
     if (((wavePosition > previousWavePosition) && !isMovingUp) || 

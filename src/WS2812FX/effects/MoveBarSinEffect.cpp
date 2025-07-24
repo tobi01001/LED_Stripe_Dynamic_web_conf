@@ -2,14 +2,16 @@
 #include "../WS2812FX_FastLed.h"
 #include "../EffectHelper.h"
 
-bool MoveBarSinEffect::init(WS2812FX* strip) {
-    // Use standardized initialization
-    return EffectHelper::standardInit(strip, timebase, initialized);
-}
-
 uint16_t MoveBarSinEffect::update(WS2812FX* strip) {
+    // Check if effect needs initialization
+    if (!isInitialized()) {
+        if (!init(strip)) {
+            return 1000; // Return reasonable delay if initialization fails
+        }
+    }
+    
     // Validate strip pointer and initialization
-    if (!EffectHelper::validateStripPointer(strip) || !initialized) {
+    if (!EffectHelper::validateStripPointer(strip)) {
         return strip->getStripMinDelay();
     }
     
@@ -39,7 +41,7 @@ uint16_t MoveBarSinEffect::update(WS2812FX* strip) {
 uint16_t MoveBarSinEffect::calculateSinePosition(uint16_t speed, uint16_t width) {
     // Use beatsin16 for smooth sine wave movement
     // The bar oscillates from position 0 to (width * 16) for fractional positioning
-    return beatsin16(speed / 2, 0, width * 16, timebase);
+    return beatsin16(speed / 2, 0, width * 16, millis());
 }
 
 void MoveBarSinEffect::applyBackgroundFade(WS2812FX* strip, uint16_t speed) {

@@ -3,8 +3,8 @@
 #include "../EffectHelper.h"
 
 bool FireworkEffect::init(WS2812FX* strip) {
-    // Validate strip pointer
-    if (!EffectHelper::validateStripPointer(strip)) {
+    // Call base class standard initialization first
+    if (!standardInit(strip)) {
         return false;
     }
     
@@ -16,24 +16,21 @@ bool FireworkEffect::init(WS2812FX* strip) {
     // Clear the entire LED strip using EffectHelper
     EffectHelper::clearSegment(strip);
     
-    initialized = true;
-    
-    // Mark as initialized in the segment runtime
-    auto runtime = strip->getSegmentRuntime();
-    runtime->modeinit = false;
-    
     return true;
 }
 
 uint16_t FireworkEffect::update(WS2812FX* strip) {
+    // Check if effect needs initialization
+    if (!isInitialized()) {
+        if (!init(strip)) {
+            return 1000; // Return reasonable delay if initialization fails
+        }
+    }
+    
     // Access segment and runtime data through the strip public getters
     auto seg = strip->getSegment();
     auto runtime = strip->getSegmentRuntime();
     
-    // Ensure initialization if somehow missed
-    if (!initialized) {
-        init(strip);
-    }
     
     // Apply blur effect using EffectHelper safe mapping
     uint8_t blurAmount = EffectHelper::safeMapuint16_t(seg->beat88 >> 8, 0, 255, 32, 172);

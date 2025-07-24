@@ -3,19 +3,26 @@
 #include "../EffectHelper.h"
 
 bool MultiDynamicEffect::init(WS2812FX* strip) {
-    if (initialized) {
-        return true; // Already initialized
+    // Call base class standard initialization first
+    if (!standardInit(strip)) {
+        return false;
     }
     
     // Initialize private state variables
     nextUpdate = 0;         // Reset timer to trigger immediate update
     lastColorIndex = 0;     // Start with first palette index
     
-    // Use EffectHelper for standard initialization
-    return EffectHelper::standardInit(strip, nextUpdate, initialized);
+    return true;
 }
 
 uint16_t MultiDynamicEffect::update(WS2812FX* strip) {
+    // Check if effect needs initialization
+    if (!isInitialized()) {
+        if (!init(strip)) {
+            return 1000; // Return reasonable delay if initialization fails
+        }
+    }
+    
     // Get segment and runtime data through the strip public interface
     auto seg = strip->getSegment();
     auto runtime = strip->getSegmentRuntime();

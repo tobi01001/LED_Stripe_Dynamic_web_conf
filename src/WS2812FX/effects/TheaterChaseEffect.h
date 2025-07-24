@@ -35,10 +35,7 @@ public:
      * @brief Initialize the theater chase effect
      * @param strip Pointer to the WS2812FX instance for accessing segment data
      * @return true if initialization was successful
-     */
-    bool init(WS2812FX* strip) override;
-
-    /**
+     * 
      * @brief Update the theater chase effect for one frame
      * 
      * This method:
@@ -65,10 +62,8 @@ public:
     uint8_t getModeId() const override;
 
 private:
-    // Effect-specific state variables (minimizes shared resource usage)
-    bool initialized = false;    ///< Tracks initialization state to avoid re-init
-    uint32_t timebase = 0;      ///< Base timestamp for beat timing calculations
-    
+    // Effect-specific state variables
+    // Minimizes shared resource usage
     // Constants for effect behavior
     static const uint8_t CHASE_PATTERN_SIZE = 3;     ///< Number of positions in chase pattern
     static const uint8_t SPEED_DIVISOR = 1;          ///< Divides the base timing interval to slow down the chase animation; higher values result in slower movement by increasing the delay between position shifts, allowing for smoother visual transitions.

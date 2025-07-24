@@ -2,12 +2,14 @@
 #include "../WS2812FX_FastLed.h"
 #include "../EffectHelper.h"
 
-bool PlasmaEffect::init(WS2812FX* strip) {
-    // Use standard initialization pattern from EffectHelper
-    return EffectHelper::standardInit(strip, timebase, initialized);
-}
-
 uint16_t PlasmaEffect::update(WS2812FX* strip) {
+    // Check if effect needs initialization
+    if (!isInitialized()) {
+        if (!init(strip)) {
+            return 1000; // Return reasonable delay if initialization fails
+        }
+    }
+    
     // Validate strip pointer using helper
     if (!EffectHelper::validateStripPointer(strip)) {
         return 1000; // Return reasonable delay if strip is invalid
@@ -22,10 +24,10 @@ uint16_t PlasmaEffect::update(WS2812FX* strip) {
     
     // Calculate phase values for the two wave components
     // Primary phase - standard beat-based oscillation
-    uint8_t primaryPhase = beatsin88(seg->beat88, 0, 255, timebase);
+    uint8_t primaryPhase = beatsin88(seg->beat88, 0, 255, millis());
     
     // Secondary phase - slightly faster oscillation (11/10 * beat88) for complex interaction
-    uint8_t secondaryPhase = beatsin88((seg->beat88 * 11) / 10, 0, 255, timebase);
+    uint8_t secondaryPhase = beatsin88((seg->beat88 * 11) / 10, 0, 255, millis());
     
     // Additional phase for brightness modulation - even faster (12/10 * beat88)
     uint8_t brightnessModulator = beatsin88((seg->beat88 * 12) / 10, 0, 128);

@@ -2,12 +2,14 @@
 #include "../WS2812FX_FastLed.h"
 #include "../EffectHelper.h"
 
-bool FillBrightEffect::init(WS2812FX* strip) {
-    // Use standard initialization pattern from EffectHelper
-    return EffectHelper::standardInit(strip, timebase, initialized);
-}
-
 uint16_t FillBrightEffect::update(WS2812FX* strip) {
+    // Check if effect needs initialization
+    if (!isInitialized()) {
+        if (!init(strip)) {
+            return 1000; // Return reasonable delay if initialization fails
+        }
+    }
+    
     // Validate strip pointer using helper
     if (!EffectHelper::validateStripPointer(strip)) {
         return 1000; // Return reasonable delay if strip is invalid
@@ -25,7 +27,7 @@ uint16_t FillBrightEffect::update(WS2812FX* strip) {
                            (uint16_t)MIN_HUE_SPEED);
     
     // Calculate hue position using beat88 for continuous movement
-    uint8_t huePosition = beat88(hueSpeed, timebase);
+    uint8_t huePosition = beat88(hueSpeed, millis());
     
     // Calculate hue increment based on segment length and palette distribution
     // This creates appropriate color distribution across the strip
@@ -37,7 +39,7 @@ uint16_t FillBrightEffect::update(WS2812FX* strip) {
                                   (uint16_t)MIN_BRIGHTNESS_SPEED);
     
     // Calculate brightness using beatsin88 for smooth wave motion
-    uint8_t brightness = beatsin88(brightnessSpeed, MIN_BRIGHTNESS, MAX_BRIGHTNESS, timebase);
+    uint8_t brightness = beatsin88(brightnessSpeed, MIN_BRIGHTNESS, MAX_BRIGHTNESS, millis());
     
     // Fill the entire strip with palette colors
     // Parameters:

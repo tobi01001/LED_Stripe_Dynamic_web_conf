@@ -6,13 +6,12 @@
 constexpr double MM_PER_LED = 1000.0 / 60.0; // 16.666... mm per LED for 60 LEDs/m
 
 bool PopcornEffect::init(WS2812FX* strip) {
-    // Validate strip pointer
-    if (!EffectHelper::validateStripPointer(strip)) {
+    // Call base class standard initialization first
+    if (!standardInit(strip)) {
         return false;
     }
     
     // Initialize kernel array and set up initial physics state
-    initialized = false;
     numKernels = min(strip->getSegment()->numBars, (uint8_t)32);
     
     // Physics constants - convert from LEDS_PER_METER to mm scale
@@ -38,18 +37,21 @@ bool PopcornEffect::init(WS2812FX* strip) {
         kernels[i].prev_pos = 0;
     }
     
-    initialized = true;
     return true;
 }
 
 uint16_t PopcornEffect::update(WS2812FX* strip) {
-    // Validate strip pointer and initialization
+    // Check if effect needs initialization
+    if (!isInitialized()) {
+        if (!init(strip)) {
+            return 1000; // Return reasonable delay if initialization fails
+        }
+    }
+    
+    // Validate strip pointer
     if (!EffectHelper::validateStripPointer(strip)) {
         return strip->getStripMinDelay();
     }
-    
-    if (!initialized) {
-        init(strip);
     }
     
     // Clear the LED array using helper

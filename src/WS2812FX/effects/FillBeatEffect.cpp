@@ -2,12 +2,14 @@
 #include "../WS2812FX_FastLed.h"
 #include "../EffectHelper.h"
 
-bool FillBeatEffect::init(WS2812FX* strip) {
-    // Use standard initialization pattern from EffectHelper
-    return EffectHelper::standardInit(strip, timebase, initialized);
-}
-
 uint16_t FillBeatEffect::update(WS2812FX* strip) {
+    // Check if effect needs initialization
+    if (!isInitialized()) {
+        if (!init(strip)) {
+            return 1000; // Return reasonable delay if initialization fails
+        }
+    }
+    
     // Validate strip pointer using helper
     if (!EffectHelper::validateStripPointer(strip)) {
         return 1000; // Return reasonable delay if strip is invalid
@@ -28,7 +30,7 @@ uint16_t FillBeatEffect::update(WS2812FX* strip) {
         // Calculate position-dependent brightness using beatsin88
         // Each LED has a phase offset (k * 2) to create a wave across the strip
         uint8_t brightness = beatsin88(seg->beat88, MIN_BRIGHTNESS, MAX_BRIGHTNESS, 
-                                     timebase, (k - runtime->start) * 2);
+                                     millis(), (k - runtime->start) * 2);
         
         // Calculate complex color index using multiple wave components:
         

@@ -2,12 +2,14 @@
 #include "../WS2812FX_FastLed.h"
 #include "../EffectHelper.h"
 
-bool ToInnerEffect::init(WS2812FX* strip) {
-    // Use standard initialization pattern from EffectHelper
-    return EffectHelper::standardInit(strip, timebase, initialized);
-}
-
 uint16_t ToInnerEffect::update(WS2812FX* strip) {
+    // Check if effect needs initialization
+    if (!isInitialized()) {
+        if (!init(strip)) {
+            return 1000; // Return reasonable delay if initialization fails
+        }
+    }
+    
     // Validate strip pointer using helper
     if (!EffectHelper::validateStripPointer(strip)) {
         return 1000; // Return reasonable delay if strip is invalid
@@ -46,7 +48,7 @@ uint16_t ToInnerEffect::update(WS2812FX* strip) {
     }
     
     // Calculate position using beatsin88 for smooth pulsing
-    uint16_t pulseLength = beatsin88(beatSpeed, 0, ledUpTo, timebase);
+    uint16_t pulseLength = beatsin88(beatSpeed, 0, ledUpTo, millis());
     
     // Fill the first half of the strip with palette colors
     // Start from segment beginning, fill up to calculated pulse length

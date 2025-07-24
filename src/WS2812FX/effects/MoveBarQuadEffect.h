@@ -23,7 +23,6 @@ public:
     MoveBarQuadEffect() = default;
     virtual ~MoveBarQuadEffect() = default;
 
-    bool init(WS2812FX* strip) override;
     uint16_t update(WS2812FX* strip) override;
     const __FlashStringHelper* getName() const override;
     uint8_t getModeId() const override;
@@ -37,25 +36,6 @@ private:
      * @return 16-bit fractional position for smooth movement
      */
     uint16_t calculateQuadPosition(WS2812FX* strip, uint16_t speed, uint16_t width);
-    
-    /**
-     * @brief Apply background fade based on speed
-     * @param strip Pointer to the WS2812FX instance
-     * @param speed The calculated speed value
-     */
-    void applyBackgroundFade(WS2812FX* strip, uint16_t speed);
-    
-    /**
-     * @brief Draw the moving bar at the specified position
-     * @param strip Pointer to the WS2812FX instance
-     * @param position 16-bit fractional position of the bar
-     * @param width Width of the bar to draw
-     */
-    void drawMovingBar(WS2812FX* strip, uint16_t position, uint16_t width);
-
-private:
-    // Internal timebase for beat calculations
-    uint32_t timebase;
 };
 
 #endif // MOVE_BAR_QUAD_EFFECT_H

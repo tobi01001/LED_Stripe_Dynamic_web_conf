@@ -16,15 +16,11 @@ public:
     FillBeatEffect() = default;
     virtual ~FillBeatEffect() = default;
 
-    bool init(WS2812FX* strip) override;
     uint16_t update(WS2812FX* strip) override;
     const __FlashStringHelper* getName() const override;
     uint8_t getModeId() const override;
 
 private:
-    uint32_t timebase = 0;  ///< Time reference for beat calculations
-    bool initialized = false;  ///< Initialization flag to ensure proper setup
-    
     // Constants for brightness and blending
     static const uint8_t MIN_BRIGHTNESS = 20;  ///< Minimum brightness for beat modulation
     static const uint8_t MAX_BRIGHTNESS = 255; ///< Maximum brightness for beat modulation

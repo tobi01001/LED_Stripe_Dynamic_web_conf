@@ -2,13 +2,6 @@
 #include "../WS2812FX_FastLed.h"
 #include "../EffectHelper.h"
 
-bool TwinkleFoxEffect::init(WS2812FX* strip) {
-    // Use standard initialization pattern from helper
-    bool initialized = false; // TwinkleFox computes state fresh each frame
-    uint32_t timebase = 0;     // Not actually used by TwinkleFox, but required by helper
-    return EffectHelper::standardInit(strip, timebase, initialized);
-}
-
 CRGB TwinkleFoxEffect::computeOneTwinkle(uint32_t* timeMs, uint8_t* salt, WS2812FX* strip) {
     /**
      * Compute the color and brightness for one LED's twinkle cycle.
@@ -66,6 +59,13 @@ CRGB TwinkleFoxEffect::computeOneTwinkle(uint32_t* timeMs, uint8_t* salt, WS2812
 }
 
 uint16_t TwinkleFoxEffect::update(WS2812FX* strip) {
+    // Check if effect needs initialization
+    if (!isInitialized()) {
+        if (!init(strip)) {
+            return 1000; // Return reasonable delay if initialization fails
+        }
+    }
+    
     // Access runtime data
     auto runtime = strip->getSegmentRuntime();
     

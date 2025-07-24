@@ -42,7 +42,6 @@ private:
     uint16_t ci;             ///< Inner loop counter (comparison index)
     uint16_t co;             ///< Outer loop counter (current position)
     uint16_t cd;             ///< Movement animation counter (countdown)
-    bool initialized;        ///< Track if dynamic memory has been allocated
     uint16_t strip_length;   ///< Current strip length for memory management
 
     /**

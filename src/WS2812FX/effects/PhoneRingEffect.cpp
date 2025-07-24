@@ -22,6 +22,13 @@ bool PhoneRingEffect::init(WS2812FX* strip) {
 }
 
 uint16_t PhoneRingEffect::update(WS2812FX* strip) {
+    // Check if effect needs initialization
+    if (!isInitialized()) {
+        if (!init(strip)) {
+            return 1000; // Return reasonable delay if initialization fails
+        }
+    }
+    
     // Validate strip pointer
     if (!EffectHelper::validateStripPointer(strip)) {
         return strip->getStripMinDelay();

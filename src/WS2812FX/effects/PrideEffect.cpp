@@ -3,8 +3,8 @@
 #include "../EffectHelper.h"
 
 bool PrideEffect::init(WS2812FX* strip) {
-    // Validate strip pointer
-    if (!EffectHelper::validateStripPointer(strip)) {
+    // Call base class standard initialization first
+    if (!standardInit(strip)) {
         return false;
     }
     
@@ -13,14 +13,17 @@ bool PrideEffect::init(WS2812FX* strip) {
     sLastMillis = 0;      // Will be set properly on first update
     sHue16 = 0;           // Start with red hue position
     
-    // Clear the mode initialization flag
-    auto runtime = strip->getSegmentRuntime();
-    runtime->modeinit = false;
-    
     return true;
 }
 
 uint16_t PrideEffect::update(WS2812FX* strip) {
+    // Check if effect needs initialization
+    if (!isInitialized()) {
+        if (!init(strip)) {
+            return 1000; // Return reasonable delay if initialization fails
+        }
+    }
+    
     // Validate strip pointer
     if (!EffectHelper::validateStripPointer(strip)) {
         return strip->getStripMinDelay();

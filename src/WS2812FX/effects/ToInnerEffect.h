@@ -16,15 +16,11 @@ public:
     ToInnerEffect() = default;
     virtual ~ToInnerEffect() = default;
 
-    bool init(WS2812FX* strip) override;
     uint16_t update(WS2812FX* strip) override;
     const __FlashStringHelper* getName() const override;
     uint8_t getModeId() const override;
 
 private:
-    uint32_t timebase = 0;  ///< Time reference for position calculations
-    bool initialized = false;  ///< Initialization flag to ensure proper setup
-    
     // Constants for effect behavior
     static const uint8_t MIN_FADE = 16;           ///< Minimum fade amount
     static const uint8_t HUE_INCREMENT = 5;      ///< Hue increment for color distribution

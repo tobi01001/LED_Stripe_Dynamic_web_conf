@@ -3,14 +3,6 @@
 #include "../EffectHelper.h"
 
 /**
- * @brief Initialize the theater chase effect using EffectHelper standard pattern
- */
-bool TheaterChaseEffect::init(WS2812FX* strip) {
-    // Use standard initialization pattern from helper
-    return EffectHelper::standardInit(strip, timebase, initialized);
-}
-
-/**
  * @brief Render one frame of the theater chase effect
  * 
  * This method implements the core theater chase animation logic:
@@ -38,6 +30,13 @@ bool TheaterChaseEffect::init(WS2812FX* strip) {
  * @return STRIP_MIN_DELAY Minimum delay for smooth animation timing
  */
 uint16_t TheaterChaseEffect::update(WS2812FX* strip) {
+    // Check if effect needs initialization
+    if (!isInitialized()) {
+        if (!init(strip)) {
+            return 1000; // Return reasonable delay if initialization fails
+        }
+    }
+    
     // Validate strip pointer using helper
     if (!EffectHelper::validateStripPointer(strip)) {
         return 0; // Return reasonable delay if strip is invalid
@@ -48,7 +47,7 @@ uint16_t TheaterChaseEffect::update(WS2812FX* strip) {
     auto runtime = strip->getSegmentRuntime();
     
     // Calculate current chase position using helper
-    uint16_t beat_position = EffectHelper::calculateBeatPosition(strip, timebase, SPEED_DIVISOR);
+    uint16_t beat_position = EffectHelper::calculateBeatPosition(strip, millis(), SPEED_DIVISOR);
     
     // Map beat position to chase pattern using helper
     uint16_t chase_offset = EffectHelper::safeMapuint16_t(beat_position, 0, 65535, 0, BEAT_RANGE_MAX) % CHASE_PATTERN_SIZE;
