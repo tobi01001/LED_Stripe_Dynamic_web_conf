@@ -4,8 +4,8 @@
 #include <new>  // For std::nothrow
 
 bool TwinkleMapEffect::init(WS2812FX* strip) {
-    // Validate strip pointer
-    if (!EffectHelper::validateStripPointer(strip)) {
+    // Call base class standard initialization first
+    if (!standardInit(strip)) {
         return false;
     }
     
@@ -25,13 +25,17 @@ bool TwinkleMapEffect::init(WS2812FX* strip) {
         strip->leds[runtime->start + i] = baseColor;
     }
     
-    // Mark initialization as complete
-    runtime->modeinit = false;
-    
     return true;
 }
 
 uint16_t TwinkleMapEffect::update(WS2812FX* strip) {
+    // Check if effect needs initialization
+    if (!isInitialized()) {
+        if (!init(strip)) {
+            return 1000; // Return reasonable delay if initialization fails
+        }
+    }
+    
     // Validate strip pointer
     if (!EffectHelper::validateStripPointer(strip)) {
         return strip->getStripMinDelay();

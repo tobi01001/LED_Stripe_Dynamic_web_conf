@@ -14,8 +14,8 @@
 // };
 
 bool SunriseEffect::init(WS2812FX* strip) {
-    // Validate strip pointer
-    if (!EffectHelper::validateStripPointer(strip)) {
+    // Call base class standard initialization first
+    if (!standardInit(strip)) {
         return false;
     }
     
@@ -58,6 +58,13 @@ bool SunriseEffect::init(WS2812FX* strip) {
  * @return Always returns 0 to ensure smooth continuous updates
  */
 uint16_t SunriseEffect::update(WS2812FX* strip) {
+    // Check if effect needs initialization
+    if (!isInitialized()) {
+        if (!init(strip)) {
+            return 1000; // Return reasonable delay if initialization fails
+        }
+    }
+    
     auto seg = strip->getSegment();
     
     // Calculate step interval based on configured sunrise duration
