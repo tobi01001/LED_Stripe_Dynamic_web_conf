@@ -29,11 +29,9 @@ private:
         bool newBase;         ///< Flag for timing reset
     };
     
-    uint32_t timebase = 0;       ///< Main time reference
     uint16_t lastBeat88 = 0;     ///< Last beat88 value for change detection
     BarState* barStates = nullptr; ///< Dynamic array of bar states
     uint8_t numBars = 0;         ///< Number of active bars
-    bool initialized = false;    ///< Initialization flag
     
     // Constants - no fading for color wipe effect
     static const uint8_t FADE_AMOUNT = 0;     ///< No background fade 

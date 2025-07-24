@@ -15,16 +15,12 @@ class PlasmaEffect : public Effect {
 public:
     PlasmaEffect() = default;
     virtual ~PlasmaEffect() = default;
-
-    bool init(WS2812FX* strip) override;
+    
     uint16_t update(WS2812FX* strip) override;
     const __FlashStringHelper* getName() const override;
     uint8_t getModeId() const override;
 
-private:
-    uint32_t timebase = 0;  ///< Time reference for phase calculations
-    bool initialized = false;  ///< Initialization flag to ensure proper setup
-    
+private:    
     // Constants for wave calculations
     static const uint8_t CUBIC_WAVE_FREQUENCY = 15;  ///< Frequency multiplier for cubic wave
     static const uint8_t COS_WAVE_FREQUENCY = 8;     ///< Frequency multiplier for cosine wave

@@ -9,6 +9,13 @@ bool DualScanEffect::init(WS2812FX* strip) {
 }
 
 uint16_t DualScanEffect::update(WS2812FX* strip) {
+    // Check if effect needs initialization
+    if (!isInitialized()) {
+        if (!init(strip)) {
+            return 1000; // Return reasonable delay if initialization fails
+        }
+    }
+    
     // Validate strip pointer using helper
     if (!EffectHelper::validateStripPointer(strip)) {
         return 1000; // Return reasonable delay if strip is invalid
