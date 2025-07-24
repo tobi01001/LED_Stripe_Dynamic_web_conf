@@ -4,16 +4,11 @@
 
 bool Fire2012Effect::init(WS2812FX* strip) {
     // Call base class standard initialization first
-    if (!standardInit(strip)) {
+    // Allocate and initialize heat array for fire simulation
+    if (!standardInit(strip) || !allocateHeatArray(strip)) {
         return false;
     }
-    
-    // Allocate and initialize heat array for fire simulation
-    if (!allocateHeatArray(strip)) {
-        setInitialized(false);
-        return false; // Failed to allocate memory
-    }
-    
+        
     // Clear heat array to start with a cold fire
     memset(heatArray, 0, heatArraySize * sizeof(byte));
     
