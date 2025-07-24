@@ -8,13 +8,6 @@
  * Uses the standard initialization pattern from EffectHelper to set up
  * timing baseline and initialization flags consistently.
  */
-bool FadeEffect::init(WS2812FX* strip) {
-    // Use standard initialization pattern from helper
-    bool tempInit = false;
-    bool result = EffectHelper::standardInit(strip, timebase, tempInit);
-    setInitialized(result);
-    return result;
-}
 
 /**
  * @brief Render one frame of the fade effect

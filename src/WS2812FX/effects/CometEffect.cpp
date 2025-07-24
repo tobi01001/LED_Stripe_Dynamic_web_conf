@@ -5,14 +5,6 @@
 // Include FastLED lib8tion for beat88 function
 #include "lib8tion.h"
 
-bool CometEffect::init(WS2812FX* strip) {
-    // Use standard initialization pattern from helper
-    bool tempInit = false; // Local since CometEffect doesn't maintain persistent state
-    bool result = EffectHelper::standardInit(strip, timebase, tempInit);
-    setInitialized(result);
-    return result;
-}
-
 uint16_t CometEffect::update(WS2812FX* strip) {
     // Check if effect needs initialization
     if (!isInitialized()) {

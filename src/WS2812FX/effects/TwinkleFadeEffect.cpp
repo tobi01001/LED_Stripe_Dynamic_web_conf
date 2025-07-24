@@ -3,18 +3,14 @@
 #include "../EffectHelper.h"
 
 bool TwinkleFadeEffect::init(WS2812FX* strip) {
-    // Use standard initialization pattern from helper
-    bool tempInit = false;
-    uint32_t tempTimebase = 0;
-    if (!EffectHelper::standardInit(strip, tempTimebase, tempInit)) {
-        setInitialized(false);
+    // Call base class standard initialization first
+    if (!standardInit(strip)) {
         return false;
     }
     
     // Initialize timing variables
     _lastFadeTime = millis();
     
-    setInitialized(true);
     return true;
 }
 

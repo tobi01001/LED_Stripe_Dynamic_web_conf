@@ -3,15 +3,15 @@
 #include "../EffectHelper.h"
 
 bool NoiseMoverEffect::init(WS2812FX* strip) {
-    // Use standard initialization pattern from EffectHelper
-    bool tempInit = false;
-    bool initResult = EffectHelper::standardInit(strip, timebase, tempInit);
+    // Call base class standard initialization first
+    if (!standardInit(strip)) {
+        return false;
+    }
     
     // Initialize noise distance parameter for unique starting position
     noiseDist = 1234;
     
-    setInitialized(initResult);
-    return initResult;
+    return true;
 }
 
 uint16_t NoiseMoverEffect::update(WS2812FX* strip) {

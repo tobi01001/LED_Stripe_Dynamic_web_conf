@@ -23,7 +23,6 @@ public:
     MoveBarCubeEffect() = default;
     virtual ~MoveBarCubeEffect() = default;
 
-    bool init(WS2812FX* strip) override;
     uint16_t update(WS2812FX* strip) override;
     const __FlashStringHelper* getName() const override;
     uint8_t getModeId() const override;
@@ -55,9 +54,6 @@ private:
 private:
     // Internal timebase for beat calculations
     uint32_t timebase;
-    
-    // Initialization tracking
-    bool initialized = false;
 };
 
 #endif // MOVE_BAR_CUBE_EFFECT_H
