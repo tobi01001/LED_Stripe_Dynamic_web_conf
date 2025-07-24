@@ -2,23 +2,14 @@
 #include "../WS2812FX_FastLed.h"
 #include "../EffectHelper.h"
 
-bool MoveBarSawtoothEffect::init(WS2812FX* strip) {
-    // Validate strip pointer
-    if (!EffectHelper::validateStripPointer(strip)) {
-        return false;
+uint16_t MoveBarSawtoothEffect::update(WS2812FX* strip) {
+    // Check if effect needs initialization
+    if (!isInitialized()) {
+        if (!init(strip)) {
+            return 1000; // Return reasonable delay if initialization fails
+        }
     }
     
-    // Initialize timebase for consistent beat calculations
-    timebase = millis();
-    
-    // Mark effect as initialized
-    auto runtime = strip->getSegmentRuntime();
-    runtime->modeinit = false;
-    
-    return true;
-}
-
-uint16_t MoveBarSawtoothEffect::update(WS2812FX* strip) {
     // Access segment and runtime data through the strip public getters
     auto seg = strip->getSegment();
     auto runtime = strip->getSegmentRuntime();
@@ -36,7 +27,7 @@ uint16_t MoveBarSawtoothEffect::update(WS2812FX* strip) {
     EffectHelper::applyFadeEffect(strip, fadeAmount);
     
     // Calculate triangle position for sawtooth movement using EffectHelper
-    uint16_t beatPosition = EffectHelper::calculateBeatPosition(strip, timebase, speed / 32768);
+    uint16_t beatPosition = EffectHelper::calculateBeatPosition(strip, millis(), speed / 32768);
     uint16_t trianglePosition = EffectHelper::generateTriangleWave(beatPosition, 0, width * 16);
     
     // Draw the moving bar using EffectHelper

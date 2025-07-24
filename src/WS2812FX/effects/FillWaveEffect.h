@@ -23,24 +23,9 @@ public:
     FillWaveEffect() = default;
     virtual ~FillWaveEffect() = default;
 
-    bool init(WS2812FX* strip) override;
     uint16_t update(WS2812FX* strip) override;
     const __FlashStringHelper* getName() const override;
     uint8_t getModeId() const override;
-
-private:
-    /**
-     * @brief Timebase for consistent animation timing
-     * Stores the initial millis() value when effect starts to ensure
-     * consistent wave patterns regardless of when effect is activated
-     */
-    uint32_t timebase;
-    
-    /**
-     * @brief Flag to track initialization state
-     * Ensures timebase is set only once when effect first starts
-     */
-    bool initialized;
 };
 
 #endif // FILL_WAVE_EFFECT_H

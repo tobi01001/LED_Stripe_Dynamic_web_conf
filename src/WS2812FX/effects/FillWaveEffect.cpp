@@ -2,14 +2,16 @@
 #include "../WS2812FX_FastLed.h"
 #include "../EffectHelper.h"
 
-bool FillWaveEffect::init(WS2812FX* strip) {
-    // Use standardized initialization pattern
-    return EffectHelper::standardInit(strip, timebase, initialized);
-}
-
 uint16_t FillWaveEffect::update(WS2812FX* strip) {
+    // Check if effect needs initialization
+    if (!isInitialized()) {
+        if (!init(strip)) {
+            return 1000; // Return reasonable delay if initialization fails
+        }
+    }
+    
     // Validate strip pointer and ensure initialization
-    if (!EffectHelper::validateStripPointer(strip) || !initialized) {
+    if (!EffectHelper::validateStripPointer(strip)) {
         return strip->getStripMinDelay();
     }
     
@@ -18,7 +20,7 @@ uint16_t FillWaveEffect::update(WS2812FX* strip) {
     
     // Calculate hue offset using beat position for smooth wave motion
     // Multiplying speed by 2 creates faster hue cycling for more dynamic waves
-    uint16_t beatPosition = EffectHelper::calculateBeatPosition(strip, timebase, 2);
+    uint16_t beatPosition = EffectHelper::calculateBeatPosition(strip, millis(), 2);
     uint8_t hueOffset = runtime->baseHue + map(beatPosition, 0, 65535, 0, 255);
     
     // Calculate palette distribution delta hue for color spacing

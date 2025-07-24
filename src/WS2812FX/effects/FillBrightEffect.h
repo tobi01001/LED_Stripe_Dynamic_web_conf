@@ -15,15 +15,11 @@ public:
     FillBrightEffect() = default;
     virtual ~FillBrightEffect() = default;
 
-    bool init(WS2812FX* strip) override;
     uint16_t update(WS2812FX* strip) override;
     const __FlashStringHelper* getName() const override;
     uint8_t getModeId() const override;
 
 private:
-    uint32_t timebase = 0;  ///< Time reference for position and brightness calculations
-    bool initialized = false;  ///< Initialization flag to ensure proper setup
-    
     // Constants for effect behavior
     static const uint8_t MIN_BRIGHTNESS = 10;    ///< Minimum brightness for wave
     static const uint8_t MAX_BRIGHTNESS = 255;   ///< Maximum brightness for wave
