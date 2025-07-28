@@ -29,7 +29,7 @@ void ColorWipeBaseEffect::updateColorIndices(WS2812FX* strip) {
         previousColorIndex = currentColorIndex;
         targetColorIndex = EffectHelper::get_random_wheel_index(currentColorIndex, 32);
         transitionStep = 0;
-        transitionSteps = 10; // Transition over 200 frames
+        transitionSteps = 20; // Transition over 20 frames
         needNewColor = false;
     }
     
