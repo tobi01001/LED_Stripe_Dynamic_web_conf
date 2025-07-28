@@ -32,14 +32,14 @@ uint16_t CometEffect::update(WS2812FX* strip) {
     EffectHelper::applyFadeEffect(strip, EffectHelper::MEDIUM_FADE);
     
     // Generate linear movement across the strip using helper with increased speed
-    uint16_t beatPosition = EffectHelper::calculateBeatPosition(strip, timebase, EffectHelper::FAST_SPEED);
-    uint16_t pos = EffectHelper::mapPositionToStrip(strip, beatPosition);
+    uint16_t beatPosition = EffectHelper::calculateBeatPosition(strip, _timebase, EffectHelper::FAST_SPEED);
+    uint16_t pos = EffectHelper::mapPositionToStrip16(strip, beatPosition);
     
     // Calculate the absolute position by adding the relative position to the strip start
     uint16_t absolutePos = runtime->start * 16 + pos;
     
     // Calculate color index that progresses along the strip using helper
-    uint8_t colorIndex = EffectHelper::calculateColorIndex(strip, absolutePos);
+    uint8_t colorIndex = EffectHelper::calculateColorIndexFractPosition(strip, absolutePos);
     
     // Draw the fractional comet using the drawFractionalBar function
     strip->drawFractionalBar(absolutePos,

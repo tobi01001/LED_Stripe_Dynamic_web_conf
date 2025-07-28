@@ -61,19 +61,19 @@ uint16_t MeteorShowerEffect::update(WS2812FX* strip) {
     }
     
     // Update and draw all active meteors
-    for (uint8_t i = 0; i < seg->numBars && i < 10; i++) {
+    for (uint8_t i = 0; i < seg->numBars && i < 10; i++) { // Ensure i does not exceed array bounds
         if (state.actives[i]) {
             // Calculate meteor position using beat88 function for smooth movement
             // Position moves from top (stop) to bottom (start) of segment
-            uint16_t beatPos = EffectHelper::calculateBeatPosition(strip, state.timebase[i], EffectHelper::FAST_SPEED);
-            uint16_t pos16 = EffectHelper::safeMapuint16_t(beatPos, 0, 65535, 
-                                                 runtime->stop * 16, runtime->start * 16);
-            
-            // Draw the meteor at current position using helper
-            drawMeteor(strip, pos16, state.cind[i]);
-            
+            uint16_t beatPos = beat88(seg->beat88*3, state.timebase[i]);
+            //uint16_t pos16 = EffectHelper::safeMapuint16_t(beatPos, 0, 65535, 
+            //                                     runtime->stop * 16, runtime->start * 16);
+            uint16_t pos16 = map(beatPos, 0, 65535, runtime->stop * 16, runtime->start * 16);
+
+            strip->drawFractionalBar(pos16, 4, *strip->getCurrentPalette(), runtime->baseHue + state.cind[i], 255, true, 0);
+
             // Deactivate meteor when it reaches the bottom
-            if (!(pos16 / 16)) {
+            if ((pos16 == runtime->start * 16) || (pos16 / 16 <= 0)) {
                 state.actives[i] = false;
             }
         }
@@ -89,7 +89,7 @@ uint16_t MeteorShowerEffect::update(WS2812FX* strip) {
             uint8_t availableSlot = findAvailableSlot(seg->numBars);
             
             // Random chance to spawn (1 in 4 chance) and available slot exists
-            if (availableSlot < 10 && !random8(4)) {
+            if (availableSlot != 255 && availableSlot < 10 && !random8(4)) {
                 state.actives[availableSlot] = true;
                 state.timebase[availableSlot] = currentTime;
                 state.cind[availableSlot] = EffectHelper::get_random_wheel_index(state.cind[availableSlot], 42);
@@ -98,7 +98,8 @@ uint16_t MeteorShowerEffect::update(WS2812FX* strip) {
                 uint16_t beatPos = EffectHelper::calculateBeatPosition(strip, state.timebase[availableSlot], EffectHelper::FAST_SPEED);
                 uint16_t initialPos = EffectHelper::safeMapuint16_t(beatPos, 0, 65535,
                                                           runtime->stop * 16, runtime->start * 16);
-                drawMeteor(strip, initialPos, state.cind[availableSlot]);
+
+                strip->drawFractionalBar(initialPos, 4, *strip->getCurrentPalette(), runtime->baseHue + state.cind[availableSlot], 255, true, 0);
             }
         }
         lastSpawnTime = currentTime;
@@ -108,24 +109,6 @@ uint16_t MeteorShowerEffect::update(WS2812FX* strip) {
     return strip->getStripMinDelay();
 }
 
-void MeteorShowerEffect::drawMeteor(WS2812FX* strip, uint16_t pos16, uint8_t colorIndex) {
-    // Draw meteor using fractional bar drawing for smooth movement
-    // The meteor appears as a short bright bar with the specified color offset
-    auto seg = strip->getSegment();
-    auto runtime = strip->getSegmentRuntime();
-    
-    CRGB meteorColor = strip->ColorFromPaletteWithDistribution(
-        *strip->getCurrentPalette(), 
-        runtime->baseHue + colorIndex,  // Add color variation
-        255,                           // Full brightness for meteor
-        seg->blendType
-    );
-    
-    // Use the strip's fractional bar drawing function for smooth positioning
-    // This draws a bar at fractional pixel positions for fluid movement
-    strip->drawFractionalBar(pos16, METEOR_WIDTH, *strip->getCurrentPalette(), 
-                           runtime->baseHue + colorIndex, 255, true, 0);
-}
 
 bool MeteorShowerEffect::isSpawnAreaClear(WS2812FX* strip, uint16_t minDistance) {
     // Check if the spawn area (near the top/end of strip) is sufficiently dark
@@ -134,8 +117,7 @@ bool MeteorShowerEffect::isSpawnAreaClear(WS2812FX* strip, uint16_t minDistance)
     
     for (uint16_t i = 0; i < minDistance && i < runtime->length; i++) {
         uint16_t checkPos = runtime->stop - i;
-        if (checkPos >= runtime->start && checkPos < runtime->start + runtime->length && 
-            strip->leds[checkPos] != CRGB(0x000000)) {
+        if (strip->leds[checkPos] != CRGB(0x000000)) {
             return false;  // Area not clear
         }
     }
@@ -144,7 +126,7 @@ bool MeteorShowerEffect::isSpawnAreaClear(WS2812FX* strip, uint16_t minDistance)
 
 uint8_t MeteorShowerEffect::findAvailableSlot(uint8_t maxMeteors) {
     // Find first inactive meteor slot for spawning new meteor
-    for (uint8_t i = 0; i < maxMeteors && i < 10; i++) {
+    for (uint8_t i = 0; i < maxMeteors; i++) {
         if (!state.actives[i]) {
             return i;  // Found available slot
         }

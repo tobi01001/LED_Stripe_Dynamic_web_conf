@@ -16,7 +16,6 @@ bool EaseEffect::init(WS2812FX* strip) {
     beat = seg->beat88;
     oldbeat = seg->beat88;
     p_lerp = 0;
-    timebase = millis();
     
     return true;
 }
@@ -48,7 +47,7 @@ uint16_t EaseEffect::update(WS2812FX* strip) {
     uint16_t lerpVal = beatsin88(beat, 
                                 runtime->start * 16, 
                                 runtime->stop * 16 - (WIDTH * 16), 
-                                timebase);
+                                _timebase);
     
     // Check if we're in the middle to modify speed
     if (lerpVal == ((runtime->length * 16) / 2)) {
@@ -62,7 +61,7 @@ uint16_t EaseEffect::update(WS2812FX* strip) {
             
             // Reset trigger and timebase for smooth animation
             trigger = false;
-            timebase = millis();
+            _timebase = millis();
             
             // Randomly adjust beat speed
             if (beat < 255) {
@@ -75,10 +74,11 @@ uint16_t EaseEffect::update(WS2812FX* strip) {
         // Activate trigger if position changed
         if (lerpVal != p_lerp) {
             trigger = true;
+            p_lerp = lerpVal;
         }
     }
     
-    p_lerp = lerpVal;
+    
     
     // Draw two fractional bars - one normal, one mirrored
     CRGBPalette16* palette = strip->getCurrentPalette();

@@ -25,17 +25,9 @@ private:
      */
     uint8_t _colorCounter;
     
-    /**
-     * @brief Timebase for theater chase pattern timing
-     * 
-     * Stores the millisecond timestamp when the effect was initialized.
-     * Used with beat88() function to create smooth, speed-controlled movement
-     * of the theater chase pattern independent of frame rate.
-     */
-    uint32_t _timebase;
 
 public:
-    TheaterChaseRainbowEffect() : _colorCounter(0), _timebase(0) {}
+    TheaterChaseRainbowEffect() : _colorCounter(0) {}
     virtual ~TheaterChaseRainbowEffect() = default;
 
     /**

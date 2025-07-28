@@ -91,7 +91,7 @@ uint16_t BubbleSortEffect::update(WS2812FX* strip) {
         
         // Highlight the elements being compared using EffectHelper color calculations
         if (ci < strip_length) {
-            uint8_t colorIndex = EffectHelper::calculateColorIndex(strip, ci, hues[ci]);
+            uint8_t colorIndex = EffectHelper::calculateColorIndexPosition(strip, ci, hues[ci]);
             CRGB color = strip->ColorFromPaletteWithDistribution(
                 *strip->getCurrentPalette(), colorIndex, seg->brightness, seg->blendType
             );
@@ -99,7 +99,7 @@ uint16_t BubbleSortEffect::update(WS2812FX* strip) {
         }
         
         if (co < strip_length) {
-            uint8_t colorIndex = EffectHelper::calculateColorIndex(strip, co, hues[co]);
+            uint8_t colorIndex = EffectHelper::calculateColorIndexPosition(strip, co, hues[co]);
             CRGB color = strip->ColorFromPaletteWithDistribution(
                 *strip->getCurrentPalette(), colorIndex, seg->brightness, seg->blendType
             );
@@ -112,7 +112,7 @@ uint16_t BubbleSortEffect::update(WS2812FX* strip) {
         
         // Highlight the elements involved in the swap
         if (co < strip_length) {
-            uint8_t colorIndex = EffectHelper::calculateColorIndex(strip, co, hues[co]);
+            uint8_t colorIndex = EffectHelper::calculateColorIndexPosition(strip, co, hues[co]);
             CRGB color = strip->ColorFromPaletteWithDistribution(
                 *strip->getCurrentPalette(), colorIndex, seg->brightness, seg->blendType
             );
@@ -120,7 +120,7 @@ uint16_t BubbleSortEffect::update(WS2812FX* strip) {
         }
         
         if (cd < strip_length) {
-            uint8_t colorIndex = EffectHelper::calculateColorIndex(strip, cd, hues[cd]);
+            uint8_t colorIndex = EffectHelper::calculateColorIndexPosition(strip, cd, hues[cd]);
             CRGB color = strip->ColorFromPaletteWithDistribution(
                 *strip->getCurrentPalette(), colorIndex, seg->brightness, seg->blendType
             );
@@ -151,7 +151,7 @@ uint8_t BubbleSortEffect::getModeId() const {
 }
 
 void BubbleSortEffect::initializeHues(WS2812FX* strip) {
-    if (!initialized || hues == nullptr) {
+    if (hues == nullptr) {
         return;
     }
     
@@ -176,7 +176,6 @@ void BubbleSortEffect::cleanupMemory() {
         EffectHelper::safeFreeArray((void*&)hues, arraySize);
         hues = nullptr;
     }
-    initialized = false;
 }
 
 uint16_t BubbleSortEffect::calculateFrameDelay(WS2812FX* strip) const {
@@ -191,7 +190,7 @@ uint16_t BubbleSortEffect::calculateFrameDelay(WS2812FX* strip) const {
 }
 
 void BubbleSortEffect::updateLEDDisplay(WS2812FX* strip) {
-    if (!initialized || hues == nullptr) {
+    if (hues == nullptr) {
         return;
     }
     
@@ -200,7 +199,7 @@ void BubbleSortEffect::updateLEDDisplay(WS2812FX* strip) {
     
     // Map all hue values to the current palette and display them
     for (uint16_t i = 0; i < strip_length; i++) {
-        uint8_t colorIndex = EffectHelper::calculateColorIndex(strip, i, hues[i]);
+        uint8_t colorIndex = EffectHelper::calculateColorIndexPosition(strip, i, hues[i]);
         CRGB color = strip->ColorFromPaletteWithDistribution(
             *strip->getCurrentPalette(), colorIndex, 32, seg->blendType
         );

@@ -163,7 +163,7 @@ CRGB TwinkleMapEffect::calculateBaseColor(WS2812FX* strip, uint16_t ledIndex) {
     auto runtime = strip->getSegmentRuntime();
     
     // Calculate palette index using helper function
-    uint8_t paletteIndex = EffectHelper::calculateColorIndex(strip, ledIndex, runtime->baseHue);
+    uint8_t paletteIndex = EffectHelper::calculateColorIndexPosition(strip, ledIndex, runtime->baseHue);
     
     // Get color from current palette
     CRGB color = strip->ColorFromPaletteWithDistribution(
@@ -182,7 +182,7 @@ CRGB TwinkleMapEffect::calculatePeakColor(WS2812FX* strip, uint16_t ledIndex) {
     auto runtime = strip->getSegmentRuntime();
     
     // Calculate palette index using helper function
-    uint8_t paletteIndex = EffectHelper::calculateColorIndex(strip, ledIndex, runtime->baseHue);
+    uint8_t paletteIndex = EffectHelper::calculateColorIndexPosition(strip, ledIndex, runtime->baseHue);
     
     // Get color from current palette
     CRGB color = strip->ColorFromPaletteWithDistribution(

@@ -41,8 +41,8 @@ void DotBeatEffect::initializeBars(WS2812FX* strip) {
     uint32_t currentTime = millis();
     for (uint8_t i = 0; i < numBars; i++) {
         // Create varied speeds by dividing and multiplying beat88
-        uint8_t divisor = random8(MIN_BEAT, MAX_BEAT_MULTIPLIER + 1);
-        uint8_t multiplier = random8(MIN_SPEED_MULTIPLIER, MAX_SPEED_MULTIPLIER + 1);
+        uint8_t divisor = random8(MIN_BEAT, MAX_BEAT_MULTIPLIER);
+        uint8_t multiplier = random8(MIN_SPEED_MULTIPLIER, MAX_SPEED_MULTIPLIER);
         barStates[i].beat = max((uint16_t)((seg->beat88 / divisor) * multiplier), seg->beat88);
         
         // Set timebase and initialization flags
@@ -50,7 +50,7 @@ void DotBeatEffect::initializeBars(WS2812FX* strip) {
         barStates[i].newBase = false;
         
         // Distribute colors across spectrum based on bar index
-        barStates[i].colorOffset = random8(i * (255 / numBars), (i + 1) * (255 / numBars));
+        barStates[i].colorOffset = random8(i * (255 / numBars), (i + 1) * (numBars));
     }
     
     lastBeat88 = seg->beat88;
@@ -62,8 +62,8 @@ void DotBeatEffect::updateBarSpeeds(WS2812FX* strip) {
     
     // Update speeds when beat88 changes
     for (uint8_t i = 0; i < numBars; i++) {
-        uint8_t divisor = random8(MIN_BEAT, MAX_BEAT_MULTIPLIER + 1);
-        uint8_t multiplier = random8(MIN_SPEED_MULTIPLIER, MAX_SPEED_MULTIPLIER + 1);
+        uint8_t divisor = random8(MIN_BEAT, MAX_BEAT_MULTIPLIER);
+        uint8_t multiplier = random8(MIN_SPEED_MULTIPLIER, MAX_SPEED_MULTIPLIER);
         barStates[i].beat = max((uint16_t)((seg->beat88 / divisor) * multiplier), seg->beat88);
     }
     

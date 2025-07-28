@@ -52,7 +52,6 @@ uint16_t PopcornEffect::update(WS2812FX* strip) {
     if (!EffectHelper::validateStripPointer(strip)) {
         return strip->getStripMinDelay();
     }
-    }
     
     // Clear the LED array using helper
     EffectHelper::clearSegment(strip);

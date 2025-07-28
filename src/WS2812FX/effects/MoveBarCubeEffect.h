@@ -36,24 +36,8 @@ private:
      */
     uint16_t calculateCubicPosition(uint16_t speed, uint16_t width);
     
-    /**
-     * @brief Apply background fade based on speed
-     * @param strip Pointer to the WS2812FX instance
-     * @param speed The calculated speed value
-     */
-    void applyBackgroundFade(WS2812FX* strip, uint16_t speed);
     
-    /**
-     * @brief Draw the moving bar at the specified position
-     * @param strip Pointer to the WS2812FX instance
-     * @param position 16-bit fractional position of the bar
-     * @param width Width of the bar to draw
-     */
-    void drawMovingBar(WS2812FX* strip, uint16_t position, uint16_t width);
-
-private:
-    // Internal timebase for beat calculations
-    uint32_t timebase;
+   
 };
 
 #endif // MOVE_BAR_CUBE_EFFECT_H

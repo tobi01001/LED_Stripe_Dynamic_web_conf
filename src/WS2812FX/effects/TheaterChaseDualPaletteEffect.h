@@ -65,7 +65,7 @@ public:
 
 private:
     // Effect-specific state variables (minimizes shared resource usage)
-    uint32_t timebase = 0;      ///< Base timestamp for beat timing calculations
+
     
     // Constants for effect behavior
     static const uint8_t CHASE_PATTERN_SIZE = 3;     ///< Number of positions in chase pattern

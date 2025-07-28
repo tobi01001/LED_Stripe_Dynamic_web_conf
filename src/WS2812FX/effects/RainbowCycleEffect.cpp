@@ -21,7 +21,7 @@ uint16_t RainbowCycleEffect::update(WS2812FX* strip) {
     
     // Calculate current position in rainbow cycle using helper
     // Use millis() for consistent timing (same as old standardInit)
-    uint16_t beatValue = EffectHelper::calculateBeatPosition(strip, millis());
+    uint16_t beatValue = EffectHelper::calculateBeatPosition(strip, _timebase);
     uint8_t startingPaletteIndex = EffectHelper::safeMapuint16_t(beatValue, 0, 65535, 0, 255);
     
     // Calculate color spacing (delta) based on segment length and palette distribution

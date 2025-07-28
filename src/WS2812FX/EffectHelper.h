@@ -23,15 +23,6 @@ public:
     // ===== INITIALIZATION HELPERS =====
     
     /**
-     * @brief Standard effect initialization pattern
-     * @param strip Pointer to WS2812FX instance
-     * @param timebase Reference to effect's timebase variable (will be set to millis())
-     * @param initialized Reference to effect's initialized flag (will be set to true)
-     * @return true if initialization succeeded
-     */
-    static bool standardInit(WS2812FX* strip, uint32_t& timebase, bool& initialized);
-    
-    /**
      * @brief Safe pointer validation for WS2812FX instance
      * @param strip Pointer to validate
      * @return true if pointer is valid and safe to use
@@ -65,19 +56,28 @@ public:
      * @param speedMultiplier Speed multiplier for position calculation
      * @return Position in 16-bit fixed point format (for sub-pixel accuracy)
      */
-    static uint16_t mapPositionToStrip(WS2812FX* strip, uint16_t beatPosition, uint8_t speedMultiplier = 1);
+    static uint16_t mapPositionToStrip16(WS2812FX* strip, uint16_t beatPosition, uint8_t speedMultiplier = 1);
     
     // ===== COLOR AND PALETTE HELPERS =====
     
     /**
      * @brief Calculate color index with hue distribution
      * @param strip WS2812FX instance for accessing segment data
-     * @param position Current position on strip
+     * @param position Current fractional position on strip
      * @param hueOffset Additional hue offset to apply
      * @return Color index for palette lookup
      */
-    static uint8_t calculateColorIndex(WS2812FX* strip, uint16_t position, uint8_t hueOffset = 0);
+    static uint8_t calculateColorIndexFractPosition(WS2812FX* strip, uint16_t position, uint8_t hueOffset = 0);
     
+    /**
+     * @brief Calculate color index based on 16-bit position
+     * @param strip WS2812FX instance for accessing segment data
+     * @param position Current position (0-segment length)
+     * @param hueOffset Additional hue offset to apply
+     * @return Color index for palette lookup
+     */
+    static uint8_t calculateColorIndexPosition(WS2812FX* strip, uint16_t position, uint8_t hueOffset = 0);
+
     /**
      * @brief Calculate triangular wave position for smooth back-and-forth motion
      * @param strip WS2812FX instance for accessing segment data
@@ -93,15 +93,6 @@ public:
      */
     static void clearSegment(WS2812FX* strip);
     
-    /**
-     * @brief Draw a fractional bar with automatic positioning
-     * @param strip WS2812FX instance
-     * @param relativePosition Position relative to segment start (16-bit fractional)
-     * @param width Width of the bar in pixels
-     * @param colorIndex Color index for palette lookup
-     * @param brightness Brightness value (0-255)
-     */
-    static void drawBar(WS2812FX* strip, uint16_t relativePosition, uint16_t width, uint8_t colorIndex, uint8_t brightness = 255);
     
     // ===== SPECIAL EFFECT UTILITIES =====
     
@@ -239,7 +230,7 @@ public:
      * @param fraction Interpolation fraction (0.0 = a, 1.0 = b)
      * @return Interpolated value
      */
-    static uint8_t linearInterpolate(uint8_t a, uint8_t b, float fraction);
+    static uint8_t linearInterpolate_replacebylerp8(uint8_t a, uint8_t b, float fraction);
     
     /**
      * @brief Calculate proportional width based on strip length

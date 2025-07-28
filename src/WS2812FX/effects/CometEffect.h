@@ -19,8 +19,6 @@
  * - Continuous animation that automatically loops
  */
 class CometEffect : public Effect {
-private:
-    uint32_t timebase;  ///< Time reference for consistent animation timing
     
 public:
     CometEffect() = default;

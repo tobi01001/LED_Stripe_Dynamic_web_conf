@@ -47,7 +47,7 @@ uint16_t TheaterChaseEffect::update(WS2812FX* strip) {
     auto runtime = strip->getSegmentRuntime();
     
     // Calculate current chase position using helper
-    uint16_t beat_position = EffectHelper::calculateBeatPosition(strip, millis(), SPEED_DIVISOR);
+    uint16_t beat_position = EffectHelper::calculateBeatPosition(strip, _timebase, SPEED_DIVISOR);
     
     // Map beat position to chase pattern using helper
     uint16_t chase_offset = EffectHelper::safeMapuint16_t(beat_position, 0, 65535, 0, BEAT_RANGE_MAX) % CHASE_PATTERN_SIZE;
@@ -63,7 +63,7 @@ uint16_t TheaterChaseEffect::update(WS2812FX* strip) {
             // This LED is part of the current active chase position
             
             // Calculate color index using helper
-            uint8_t color_index = EffectHelper::calculateColorIndex(strip, i, runtime->baseHue);
+            uint8_t color_index = EffectHelper::calculateColorIndexPosition(strip, i, runtime->baseHue);
             
             // Set LED to calculated palette color
             strip->leds[led_index] = strip->ColorFromPaletteWithDistribution(

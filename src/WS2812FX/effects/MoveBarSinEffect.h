@@ -27,13 +27,8 @@ public:
     uint8_t getModeId() const override;
 
 private:
-    /**
-     * @brief Calculate the sine wave position for the moving bar
-     * @param speed The calculated speed value for the animation
-     * @param width The width of the bar (half strip length)
-     * @return 16-bit fractional position for smooth movement
-     */
-    uint16_t calculateSinePosition(uint16_t speed, uint16_t width);
+
+
 };
 
 #endif // MOVE_BAR_SIN_EFFECT_H

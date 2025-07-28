@@ -11,12 +11,8 @@ bool Effect::standardInit(WS2812FX* strip) {
         return true; // Already initialized
     }
     
-    // Get runtime data and mark as initialized
-    auto runtime = strip->getSegmentRuntime();
-    if (runtime) {
-        runtime->modeinit = false;
-    }
-    
+
+    _timebase = millis();  // Set timebase for consistent animation timing
     _isInitialized = true;
     return true;
 }

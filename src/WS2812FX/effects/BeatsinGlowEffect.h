@@ -84,12 +84,6 @@ private:
     void updateElementParameters(WS2812FX* strip, uint8_t elementIndex);
 
     /**
-     * @brief Apply background fade effect
-     * @param strip Pointer to WS2812FX instance
-     */
-    void applyBackgroundFade(WS2812FX* strip);
-
-    /**
      * @brief Calculate variation limit based on current speed
      * @param strip Pointer to WS2812FX instance
      * @return Variation limit for parameter changes

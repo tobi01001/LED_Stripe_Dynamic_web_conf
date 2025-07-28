@@ -30,7 +30,7 @@ uint16_t FillBeatEffect::update(WS2812FX* strip) {
         // Calculate position-dependent brightness using beatsin88
         // Each LED has a phase offset (k * 2) to create a wave across the strip
         uint8_t brightness = beatsin88(seg->beat88, MIN_BRIGHTNESS, MAX_BRIGHTNESS, 
-                                     millis(), (k - runtime->start) * 2);
+                                     _timebase, (k - runtime->start) * 2);
         
         // Calculate complex color index using multiple wave components:
         

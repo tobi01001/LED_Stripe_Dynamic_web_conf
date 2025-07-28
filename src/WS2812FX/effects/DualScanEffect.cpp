@@ -2,12 +2,6 @@
 #include "../WS2812FX_FastLed.h"
 #include "../EffectHelper.h"
 
-bool DualScanEffect::init(WS2812FX* strip) {
-    // Use standard initialization pattern from helper
-    bool initialized = false;
-    return EffectHelper::standardInit(strip, timebase, initialized);
-}
-
 uint16_t DualScanEffect::update(WS2812FX* strip) {
     // Check if effect needs initialization
     if (!isInitialized()) {
@@ -26,21 +20,20 @@ uint16_t DualScanEffect::update(WS2812FX* strip) {
     
     // Calculate the current positions of both scanning bars using helper
     uint16_t forwardBarOffset = calculateForwardBarPosition(strip);
-    uint16_t reverseBarOffset = calculateReverseBarPosition(strip);
     
     // Clear the segment using helper
     EffectHelper::clearSegment(strip);
     
     // Calculate color indices for both bars using helper
-    uint8_t forwardColorIndex = EffectHelper::calculateColorIndex(strip, forwardBarOffset, runtime->baseHue);
-    uint8_t reverseColorIndex = EffectHelper::calculateColorIndex(strip, 255 - reverseBarOffset, runtime->baseHue);
-    
+    uint8_t forwardColorIndex = EffectHelper::calculateColorIndexFractPosition(strip, forwardBarOffset, runtime->baseHue);
+    uint8_t reverseColorIndex = EffectHelper::calculateColorIndexFractPosition(strip, 255 - forwardBarOffset, runtime->baseHue);
+
     // Draw the forward-moving bar using helper
-    EffectHelper::drawBar(strip, forwardBarOffset, BAR_WIDTH, forwardColorIndex);
-    
+    strip->drawFractionalBar(forwardBarOffset, BAR_WIDTH, *strip->getCurrentPalette(), forwardColorIndex, 255, true, 1);
+        
     // Draw the reverse-moving bar using helper
-    uint16_t reversePosition = (runtime->length - 1) * 16 - reverseBarOffset;
-    EffectHelper::drawBar(strip, reversePosition, BAR_WIDTH, reverseColorIndex);
+    uint16_t reversePosition = (runtime->length - 1) * 16 - forwardBarOffset;
+    strip->drawFractionalBar(reversePosition, BAR_WIDTH, *strip->getCurrentPalette(), reverseColorIndex, 255, true, 1);
     
     // Return minimum delay for smooth animation
     return strip->getStripMinDelay();
@@ -57,7 +50,7 @@ uint8_t DualScanEffect::getModeId() const {
 // Helper method implementations
 uint16_t DualScanEffect::calculateForwardBarPosition(WS2812FX* strip) const {
     // Calculate triangular position using helper
-    uint16_t triangularPosition = EffectHelper::calculateTrianglePosition(strip, timebase);
+    uint16_t triangularPosition = EffectHelper::calculateTrianglePosition(strip, _timebase);
     
     // Get runtime to access segment boundaries
     auto runtime = strip->getSegmentRuntime();

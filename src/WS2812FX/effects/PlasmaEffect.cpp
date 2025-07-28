@@ -24,14 +24,14 @@ uint16_t PlasmaEffect::update(WS2812FX* strip) {
     
     // Calculate phase values for the two wave components
     // Primary phase - standard beat-based oscillation
-    uint8_t primaryPhase = beatsin88(seg->beat88, 0, 255, millis());
+    uint8_t primaryPhase = beatsin88(seg->beat88, 0, 255, _timebase);
     
     // Secondary phase - slightly faster oscillation (11/10 * beat88) for complex interaction
-    uint8_t secondaryPhase = beatsin88((seg->beat88 * 11) / 10, 0, 255, millis());
+    uint8_t secondaryPhase = beatsin88((seg->beat88 * 11) / 10, 0, 255, _timebase);
     
     // Additional phase for brightness modulation - even faster (12/10 * beat88)
-    uint8_t brightnessModulator = beatsin88((seg->beat88 * 12) / 10, 0, 128);
-    
+    uint8_t brightnessModulator = beatsin88((seg->beat88 * 12) / 10, 0, 128, _timebase);
+
     // Process each LED in the segment
     for (int k = runtime->start; k < runtime->stop; k++) {
         // Calculate position within the segment for wave calculations

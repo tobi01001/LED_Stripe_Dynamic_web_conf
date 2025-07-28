@@ -52,7 +52,6 @@ public:
 
 private:
     // Effect-specific state variables (minimizes shared resource usage)
-    uint32_t timebase = 0;      ///< Base timestamp for beat timing calculations
     
     // Constants for effect behavior
     static const uint8_t FADE_SPEED_MULTIPLIER = 10; ///< Speed scaling factor for beat timing

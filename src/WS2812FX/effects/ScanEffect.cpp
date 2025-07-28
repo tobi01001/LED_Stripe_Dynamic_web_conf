@@ -2,10 +2,6 @@
 #include "../WS2812FX_FastLed.h"
 #include "../EffectHelper.h"
 
-bool ScanEffect::init(WS2812FX* strip) {
-    return standardInit(strip);
-}
-
 uint16_t ScanEffect::update(WS2812FX* strip) {
     // Check if effect needs initialization
     if (!isInitialized()) {
@@ -26,17 +22,17 @@ uint16_t ScanEffect::update(WS2812FX* strip) {
     }
     
     // Calculate the current position of the scanning bar using helper
-    uint16_t trianglePosition = EffectHelper::calculateTrianglePosition(strip, millis());
+    uint16_t trianglePosition = EffectHelper::calculateTrianglePosition(strip, _timebase, 1);
     uint16_t ledOffset = calculateBarPosition(trianglePosition, runtime);
     
     // Clear the entire segment to black using helper
     EffectHelper::clearSegment(strip);
     
     // Calculate color index based on position for dynamic color changing
-    uint8_t colorIndex = EffectHelper::calculateColorIndex(strip, ledOffset, 0);
+    uint8_t colorIndex = EffectHelper::calculateColorIndexFractPosition(strip, ledOffset, 0);
     
     // Draw the scanning bar using helper
-    EffectHelper::drawBar(strip, ledOffset, BAR_WIDTH, colorIndex, 255);
+    strip->drawFractionalBar(ledOffset, BAR_WIDTH, *strip->getCurrentPalette(), colorIndex, 255, true, 1);
     
     // Return minimum delay for smooth animation
     return strip->getStripMinDelay();

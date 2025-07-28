@@ -16,6 +16,7 @@ uint16_t MoveBarSinEffect::update(WS2812FX* strip) {
     }
     
     auto seg = strip->getSegment();
+    auto runtime = strip->getSegmentRuntime();
     
     // Calculate the bar width using helper function
     const uint16_t width = EffectHelper::calculateProportionalWidth(strip, 2, 1);  // 1/2 with min 1
@@ -30,34 +31,16 @@ uint16_t MoveBarSinEffect::update(WS2812FX* strip) {
     EffectHelper::applyFadeEffect(strip, fadeAmount);
     
     // Calculate the sine wave position for smooth movement
-    uint16_t position = calculateSinePosition(speed, width);
-    
-    // Draw the moving bar at the calculated position
-    drawMovingBar(strip, position, width);
-    
-    return strip->getStripMinDelay();
-}
-
-uint16_t MoveBarSinEffect::calculateSinePosition(uint16_t speed, uint16_t width) {
-    // Use beatsin16 for smooth sine wave movement
-    // The bar oscillates from position 0 to (width * 16) for fractional positioning
-    return beatsin16(speed / 2, 0, width * 16, millis());
-}
-
-void MoveBarSinEffect::applyBackgroundFade(WS2812FX* strip, uint16_t speed) {
-    // Background fade is now handled in update() using EffectHelper
-    // This method is kept for compatibility but no longer used
-}
-
-void MoveBarSinEffect::drawMovingBar(WS2812FX* strip, uint16_t position, uint16_t width) {
-    auto runtime = strip->getSegmentRuntime();
-    
+    uint16_t position = beatsin16(speed / 2, 0, width * 16, _timebase);
     // Calculate color increment for smooth palette distribution
     uint8_t colorIncrement = max(255 / width, 1);
     
     // Draw fractional bar using the current palette
-    strip->drawFractionalBar(position, width, *strip->getCurrentPalette(), 
+    strip->drawFractionalBar(position, width, *strip->getCurrentPalette(),
                             runtime->baseHue, 255, false, colorIncrement);
+    
+    
+    return strip->getStripMinDelay();
 }
 
 const __FlashStringHelper* MoveBarSinEffect::getName() const {

@@ -26,14 +26,11 @@ public:
     DualScanEffect() = default;
     virtual ~DualScanEffect() = default;
 
-    bool init(WS2812FX* strip) override;
     uint16_t update(WS2812FX* strip) override;
     const __FlashStringHelper* getName() const override;
     uint8_t getModeId() const override;
 
 private:
-    // Internal state variables - replaces the shared modevars union
-    uint32_t timebase;        ///< Base time for beat calculations and smooth motion
     
     // Effect configuration constants
     static const uint16_t BAR_WIDTH = 2;  ///< Width of each scanning bar in pixels

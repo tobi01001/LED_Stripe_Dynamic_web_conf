@@ -76,6 +76,8 @@ public:
 
 protected:
     bool _isInitialized = false;  ///< Flag to track if the effect has been initialized
+    uint32_t _timebase = 0;  ///< Internal timebase for timing calculations
+    
 
     /**
      * @brief Standard initialization pattern for effects

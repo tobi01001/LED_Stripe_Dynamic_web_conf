@@ -10,7 +10,6 @@ bool TheaterChaseRainbowEffect::init(WS2812FX* strip) {
     
     // Initialize effect state variables
     _colorCounter = 0;
-    _timebase = millis();  // Record current time for pattern timing
     
     // Mark initialization as complete
     auto runtime = strip->getSegmentRuntime();

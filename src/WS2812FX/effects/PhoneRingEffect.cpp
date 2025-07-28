@@ -7,6 +7,10 @@ bool PhoneRingEffect::init(WS2812FX* strip) {
     if (!EffectHelper::validateStripPointer(strip)) {
         return false;
     }
+    // Call base class standard initialization first
+    if (!standardInit(strip)) {
+        return false;
+    }
     
     auto runtime = strip->getSegmentRuntime();
     runtime->modeinit = false;

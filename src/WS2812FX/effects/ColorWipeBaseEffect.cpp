@@ -12,7 +12,7 @@ bool ColorWipeBaseEffect::init(WS2812FX* strip) {
     currentColorIndex = EffectHelper::get_random_wheel_index(0, 32);
     previousColorIndex = EffectHelper::get_random_wheel_index(currentColorIndex, 32);
     previousWavePosition = 0;
-    needNewColor = true;
+    needNewColor = false;
     isMovingUp = true;
     
     // Initialize color transition state
@@ -29,16 +29,16 @@ void ColorWipeBaseEffect::updateColorIndices(WS2812FX* strip) {
         previousColorIndex = currentColorIndex;
         targetColorIndex = EffectHelper::get_random_wheel_index(currentColorIndex, 32);
         transitionStep = 0;
-        transitionSteps = 10; // Transition over 10 frames
+        transitionSteps = 10; // Transition over 200 frames
         needNewColor = false;
     }
     
     // Progress the color transition
     if (transitionStep < transitionSteps) {
-        transitionStep++;
         // Interpolate between previous and target
-        uint16_t lerpProgress = map(transitionStep, 0, transitionSteps, 0, 256);
+        uint16_t lerpProgress = map(transitionStep, 0, transitionSteps-1, 0, 255);
         currentColorIndex = lerp8by8(previousColorIndex, targetColorIndex, lerpProgress);
+        transitionStep++;
     }
 }
 
@@ -79,7 +79,7 @@ void ColorWipeBaseEffect::fillWipeColors(WS2812FX* strip, uint16_t fractionalPos
     
     // Get the center pixel position for the wipe boundary
     uint16_t centerPixel = mappedPos16 / 16; // Convert back to pixel index
-    centerPixel = constrain(centerPixel, runtime->start, runtime->stop - 1);
+    centerPixel = constrain(centerPixel, runtime->start, runtime->stop);
     
     // First, fill the entire strip with color2 as the background
     fill_solid(&strip->leds[runtime->start], segmentLength, color2);
@@ -87,13 +87,15 @@ void ColorWipeBaseEffect::fillWipeColors(WS2812FX* strip, uint16_t fractionalPos
     // Then add color1 based on direction
     if (isMovingUp) {
         // Moving up: fill color1 from start to center position
+        uint16_t fillTo = constrain(centerPixel + 2, runtime->start, runtime->stop);
         if (centerPixel > runtime->start) {
-            fill_solid(&strip->leds[runtime->start], centerPixel - runtime->start, color1);
+            fill_solid(&strip->leds[runtime->start], fillTo - runtime->start, color1);
         }
     } else {
         // Moving down: fill color1 from center position to end
+        uint16_t fillFrom = constrain(centerPixel + 2, runtime->start, runtime->stop);
         if (centerPixel < runtime->stop) {
-            fill_solid(&strip->leds[centerPixel], runtime->stop - centerPixel, color1);
+            fill_solid(&strip->leds[fillFrom], runtime->stop - fillFrom, color1);
         }
     }
     
@@ -124,8 +126,7 @@ uint16_t ColorWipeBaseEffect::update(WS2812FX* strip) {
     
     // Calculate wipe position using subclass-specific method
     // This returns a value in range 0-65535
-    // Use millis() as timebase for consistent timing
-    uint16_t wavePosition = calculateWipePosition(strip, millis());
+    uint16_t wavePosition = calculateWipePosition(strip, _timebase);
     
     // Check if direction actually changed 
     if (((wavePosition > previousWavePosition) && !isMovingUp) || 

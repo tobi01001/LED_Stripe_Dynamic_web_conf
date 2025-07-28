@@ -25,7 +25,6 @@ public:
     ScanEffect() = default;
     virtual ~ScanEffect() = default;
 
-    bool init(WS2812FX* strip) override;
     uint16_t update(WS2812FX* strip) override;
     const __FlashStringHelper* getName() const override;
     uint8_t getModeId() const override;

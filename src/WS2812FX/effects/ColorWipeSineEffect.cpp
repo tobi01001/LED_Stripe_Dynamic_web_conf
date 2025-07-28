@@ -7,7 +7,7 @@ uint16_t ColorWipeSineEffect::calculateWipePosition(WS2812FX* strip, uint32_t ti
     
     // Create sine wave using beatsin16 (mode 0 in original)
     // Double the speed for more responsive movement
-    return beatsin16((seg->beat88 * 2) % 65535, 0, 65535, timebase);
+    return beatsin16((seg->beat88 * 2) % 65535, 0U, 65535U, timebase);
 }
 
 const __FlashStringHelper* ColorWipeSineEffect::getName() const {

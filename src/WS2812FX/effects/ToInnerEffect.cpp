@@ -48,7 +48,7 @@ uint16_t ToInnerEffect::update(WS2812FX* strip) {
     }
     
     // Calculate position using beatsin88 for smooth pulsing
-    uint16_t pulseLength = beatsin88(beatSpeed, 0, ledUpTo, millis());
+    uint16_t pulseLength = beatsin88(beatSpeed, 0, ledUpTo, _timebase);
     
     // Fill the first half of the strip with palette colors
     // Start from segment beginning, fill up to calculated pulse length

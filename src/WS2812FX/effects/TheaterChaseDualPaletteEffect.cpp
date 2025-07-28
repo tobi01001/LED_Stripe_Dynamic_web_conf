@@ -19,7 +19,7 @@ uint16_t TheaterChaseDualPaletteEffect::update(WS2812FX* strip) {
     auto runtime = strip->getSegmentRuntime();
     
     // Calculate current chase position using helper
-    uint16_t beatPosition = EffectHelper::calculateBeatPosition(strip, timebase, SPEED_DIVISOR);
+    uint16_t beatPosition = EffectHelper::calculateBeatPosition(strip, _timebase, SPEED_DIVISOR);
     uint16_t chaseOffset = map(beatPosition, 0, 65535, 0, BEAT_RANGE_MAX) % CHASE_PATTERN_SIZE;
     
     // Apply the dual palette chase pattern to each LED in the segment
@@ -27,7 +27,7 @@ uint16_t TheaterChaseDualPaletteEffect::update(WS2812FX* strip) {
         uint16_t ledIndex = runtime->start + i;
         
         // Calculate base palette index using helper function
-        uint8_t basePaletteIndex = EffectHelper::calculateColorIndex(strip, i, runtime->baseHue);
+        uint8_t basePaletteIndex = EffectHelper::calculateColorIndexPosition(strip, i, runtime->baseHue);
         
         // Determine if this LED should be foreground (active chase) or background
         if ((i % CHASE_PATTERN_SIZE) == chaseOffset) {

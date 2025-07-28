@@ -27,7 +27,7 @@ uint16_t FillBrightEffect::update(WS2812FX* strip) {
                            (uint16_t)MIN_HUE_SPEED);
     
     // Calculate hue position using beat88 for continuous movement
-    uint8_t huePosition = beat88(hueSpeed, millis());
+    uint8_t huePosition = beat88(hueSpeed, _timebase);
     
     // Calculate hue increment based on segment length and palette distribution
     // This creates appropriate color distribution across the strip
@@ -39,7 +39,7 @@ uint16_t FillBrightEffect::update(WS2812FX* strip) {
                                   (uint16_t)MIN_BRIGHTNESS_SPEED);
     
     // Calculate brightness using beatsin88 for smooth wave motion
-    uint8_t brightness = beatsin88(brightnessSpeed, MIN_BRIGHTNESS, MAX_BRIGHTNESS, millis());
+    uint8_t brightness = beatsin88(brightnessSpeed, MIN_BRIGHTNESS, MAX_BRIGHTNESS, _timebase);
     
     // Fill the entire strip with palette colors
     // Parameters:

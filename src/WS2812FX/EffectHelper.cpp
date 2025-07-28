@@ -3,28 +3,6 @@
 
 // ===== INITIALIZATION HELPERS =====
 
-bool EffectHelper::standardInit(WS2812FX* strip, uint32_t& timebase, bool& initialized) {
-    if (!validateStripPointer(strip)) {
-        return false;
-    }
-    
-    if (initialized) {
-        return true; // Already initialized
-    }
-    
-    // Set timebase for consistent animation timing
-    timebase = millis();
-    
-    // Get runtime data and mark as initialized
-    auto runtime = strip->getSegmentRuntime();
-    if (runtime) {
-        runtime->modeinit = false;
-    }
-    
-    initialized = true;
-    return true;
-}
-
 bool EffectHelper::validateStripPointer(WS2812FX* strip) {
     return (strip != nullptr);
 }
@@ -57,7 +35,7 @@ uint8_t EffectHelper::generateTriangleWave(uint16_t beatPosition, uint8_t minBri
     return map8(triangleBrightness, minBrightness, maxBrightness);
 }
 
-uint16_t EffectHelper::mapPositionToStrip(WS2812FX* strip, uint16_t beatPosition, uint8_t speedMultiplier) {
+uint16_t EffectHelper::mapPositionToStrip16(WS2812FX* strip, uint16_t beatPosition, uint8_t speedMultiplier) {
     if (!validateStripPointer(strip)) {
         return 0;
     }
@@ -75,7 +53,7 @@ uint16_t EffectHelper::mapPositionToStrip(WS2812FX* strip, uint16_t beatPosition
 
 // ===== COLOR AND PALETTE HELPERS =====
 
-uint8_t EffectHelper::calculateColorIndex(WS2812FX* strip, uint16_t position, uint8_t hueOffset) {
+uint8_t EffectHelper::calculateColorIndexFractPosition(WS2812FX* strip, uint16_t position, uint8_t hueOffset) {
     if (!validateStripPointer(strip)) {
         return 0;
     }
@@ -88,6 +66,24 @@ uint8_t EffectHelper::calculateColorIndex(WS2812FX* strip, uint16_t position, ui
     // Calculate position-based color index with base hue offset
     uint8_t colorIndex = map(position,
                             (uint16_t)0, (uint16_t)(runtime->length * 16),
+                            (uint16_t)0, (uint16_t)255);
+    
+    return colorIndex + runtime->baseHue + hueOffset;
+}
+
+uint8_t EffectHelper::calculateColorIndexPosition(WS2812FX* strip, uint16_t position, uint8_t hueOffset) {
+    if (!validateStripPointer(strip)) {
+        return 0;
+    }
+    
+    auto runtime = strip->getSegmentRuntime();
+    if (!runtime) {
+        return 0;
+    }
+    
+    // Calculate position-based color index with base hue offset
+    uint8_t colorIndex = map(position,
+                            (uint16_t)0, (uint16_t)(runtime->length),
                             (uint16_t)0, (uint16_t)255);
     
     return colorIndex + runtime->baseHue + hueOffset;
@@ -127,26 +123,6 @@ void EffectHelper::clearSegment(WS2812FX* strip) {
     // Clear entire segment to black
     fill_solid(&strip->leds[runtime->start], runtime->length, CRGB::Black);
 }
-
-void EffectHelper::drawBar(WS2812FX* strip, uint16_t relativePosition, uint16_t width, uint8_t colorIndex, uint8_t brightness) {
-    if (!validateStripPointer(strip)) {
-        return;
-    }
-    
-    auto runtime = strip->getSegmentRuntime();
-    if (!runtime) {
-        return;
-    }
-    
-    // Calculate absolute position
-    uint16_t absolutePosition = runtime->start * 16 + relativePosition;
-    
-    // Draw the bar using fractional positioning
-    strip->drawFractionalBar(absolutePosition, width, 
-                           *strip->getCurrentPalette(), colorIndex, 
-                           brightness, true, 1);
-}
-
 // ===== SPECIAL EFFECT UTILITIES =====
 
 uint8_t EffectHelper::attackDecayWave8(uint8_t phase) {
@@ -346,7 +322,7 @@ double EffectHelper::safeMapdouble(double value, double fromMin, double fromMax,
     return result;
 }
 
-uint8_t EffectHelper::linearInterpolate(uint8_t a, uint8_t b, float fraction) {
+uint8_t EffectHelper::linearInterpolate_replacebylerp8(uint8_t a, uint8_t b, float fraction) {
     // Clamp fraction to valid range
     if (fraction <= 0.0f) {
         return a;

@@ -25,7 +25,7 @@ uint16_t BreathEffect::update(WS2812FX* strip) {
     // Calculate breathing brightness using beatsin88 for smooth sine wave modulation
     // Double the speed (beat88 * 2) for more responsive breathing effect
     // Range from 10 (minimum visible) to 255 (maximum brightness)
-    uint8_t breathingBrightness = beatsin88(seg->beat88 * 2, 10, 255, timebase);
+    uint8_t breathingBrightness = beatsin88(seg->beat88 * 2, 10, 255, _timebase);
     
     // Fill the entire strip segment with palette colors
     // Using fill_palette for efficient rendering with the breathing brightness

@@ -21,8 +21,10 @@ bool FireworkRocketEffect::init(WS2812FX* strip) {
         rockets[i].timebase = currentTime;
         
         // Distribute colors evenly across palette using EffectHelper
-        rockets[i].color_index = EffectHelper::calculateColorIndex(strip, i, (256 / numRockets) * i);
-        
+        rockets[i].color_index = map(i,
+                            (uint16_t)0, (uint16_t)(numRockets-1),
+                            (uint16_t)0, (uint16_t)255);
+
         // Start at ground position
         rockets[i].pos = 0;
         rockets[i].prev_pos = 0;
@@ -162,10 +164,10 @@ void FireworkRocketEffect::updateRocketPhysics(uint8_t rocketIndex, WS2812FX* st
         } else {
             // Apply damping for bouncing effect on rockets with remaining velocity
             uint8_t dampingPercent = strip->getSegment()->damping;
-            float damping = 0.1f / 100.0f; // Default minimal damping
+            float damping = 99.0f / 100.0f; // Default minimal damping
             
             if (dampingPercent > 0) {
-                if (dampingPercent <= 100) {
+                if (dampingPercent < 100) {
                     damping = (float)dampingPercent / 100.0f;
                 } else {
                     damping = 1.0f;
@@ -173,7 +175,7 @@ void FireworkRocketEffect::updateRocketPhysics(uint8_t rocketIndex, WS2812FX* st
             }
             
             // Apply damping to reduce velocity for next bounce
-            rocket.v0 = rocket.v0 * (1.0 - damping);
+            rocket.v0 = rocket.v0 * damping;
             
             // Ensure minimum velocity threshold to prevent infinite small bounces
             if (rocket.v0 < 0.001) {
@@ -183,7 +185,7 @@ void FireworkRocketEffect::updateRocketPhysics(uint8_t rocketIndex, WS2812FX* st
         
         // Reset physics state
         rocket.v = rocket.v0;
-        rocket.pos = 0.00001; // Slightly above ground to maintain active state
+        //rocket.pos = 0.00001; // Slightly above ground to maintain active state
         rocket.prev_pos = 0;
         rocket.timebase = currentTime;
     }
@@ -331,9 +333,9 @@ void FireworkRocketEffect::initializeRocketLaunch(uint8_t rocketIndex, WS2812FX*
 
 void FireworkRocketEffect::addExplosionSparks(uint8_t rocketIndex, WS2812FX* strip, uint16_t explosionPos, uint16_t sparkRadius) {
     const RocketData& rocket = rockets[rocketIndex];
-    
-    // Generate 3-6 sparks around the explosion
-    uint8_t numSparks = random8(3, 7);
+
+    // Generate 1-4 sparks around the explosion
+    uint8_t numSparks = random8(1, 5);
     
     for (uint8_t i = 0; i < numSparks; i++) {
         // Random offset from explosion center (within spark radius)

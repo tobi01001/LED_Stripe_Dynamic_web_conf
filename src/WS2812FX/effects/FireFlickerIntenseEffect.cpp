@@ -24,7 +24,7 @@ uint16_t FireFlickerIntenseEffect::update(WS2812FX* strip) {
     // Process each LED in the segment individually
     for (uint16_t i = runtime->start; i <= runtime->stop; i++) {
         // Calculate color index for this LED position using helper
-        uint8_t colorIndex = EffectHelper::calculateColorIndex(strip, i - runtime->start, runtime->baseHue);
+        uint8_t colorIndex = EffectHelper::calculateColorIndexPosition(strip, i - runtime->start, runtime->baseHue);
         
         // Set the base color from current palette
         strip->leds[i] = strip->ColorFromPaletteWithDistribution(*strip->getCurrentPalette(), 

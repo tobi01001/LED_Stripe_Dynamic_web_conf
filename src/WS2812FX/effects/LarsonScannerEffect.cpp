@@ -28,16 +28,16 @@ uint16_t LarsonScannerEffect::update(WS2812FX* strip) {
     EffectHelper::applyFadeEffect(strip, EffectHelper::MEDIUM_FADE);
     
     // Generate smooth bouncing motion using helper with increased speed
-    uint16_t triangularPosition = EffectHelper::calculateTrianglePosition(strip, millis(), EffectHelper::FAST_SPEED);
+    uint16_t triangularPosition = EffectHelper::calculateTrianglePosition(strip, _timebase, EffectHelper::FAST_SPEED);
     
     // Map the triangular wave to the strip position using helper
-    uint16_t pos = EffectHelper::mapPositionToStrip(strip, triangularPosition);
+    uint16_t pos = EffectHelper::mapPositionToStrip16(strip, triangularPosition);
     
     // Calculate color index using helper
-    uint8_t colorIndex = EffectHelper::calculateColorIndex(strip, pos, runtime->baseHue);
+    uint8_t colorIndex = EffectHelper::calculateColorIndexFractPosition(strip, pos, runtime->baseHue);
     
     // Draw the fractional bar using helper
-    EffectHelper::drawBar(strip, pos, width, colorIndex);
+    strip->drawFractionalBar(pos, width, *strip->getCurrentPalette(), colorIndex, 255, true, 1);
     
     // Return minimum delay for smooth animation
     return strip->getStripMinDelay();

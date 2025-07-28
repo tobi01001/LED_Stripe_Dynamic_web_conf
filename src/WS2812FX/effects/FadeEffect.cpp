@@ -2,12 +2,6 @@
 #include "../WS2812FX_FastLed.h"
 #include "../EffectHelper.h"
 
-/**
- * @brief Initialize the fade effect when first activated
- * 
- * Uses the standard initialization pattern from EffectHelper to set up
- * timing baseline and initialization flags consistently.
- */
 
 /**
  * @brief Render one frame of the fade effect
@@ -60,7 +54,7 @@ uint16_t FadeEffect::update(WS2812FX* strip) {
     }
     
     // Calculate current position in animation cycle using helper
-    uint16_t beatPosition = EffectHelper::calculateBeatPosition(strip, timebase, FADE_SPEED_MULTIPLIER);
+    uint16_t beatPosition = EffectHelper::calculateBeatPosition(strip, _timebase, FADE_SPEED_MULTIPLIER);
     
     // Generate triangular wave for smooth fade in/out effect using helper
     uint8_t finalBrightness = EffectHelper::generateTriangleWave(beatPosition, MIN_BRIGHTNESS, MAX_BRIGHTNESS);

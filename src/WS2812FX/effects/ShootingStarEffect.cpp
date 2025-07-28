@@ -27,8 +27,10 @@ bool ShootingStarEffect::init(WS2812FX* strip) {
 }
 
 uint16_t ShootingStarEffect::update(WS2812FX* strip) {
+    auto seg = strip->getSegment();
+    auto runtime = strip->getSegmentRuntime();
     // Check if effect needs initialization
-    if (!isInitialized()) {
+    if (!isInitialized() || basebeat != seg->beat88) {
         if (!init(strip)) {
             return 1000; // Return reasonable delay if initialization fails
         }
@@ -39,13 +41,6 @@ uint16_t ShootingStarEffect::update(WS2812FX* strip) {
         return 1000; // Return reasonable delay if strip is invalid
     }
     
-    auto seg = strip->getSegment();
-    auto runtime = strip->getSegmentRuntime();
-    
-    // Check if we need to reinitialize (e.g., speed changed)
-    if (runtime->modeinit || basebeat != seg->beat88) {
-        return init(strip) ? strip->getStripMinDelay() : strip->getStripMinDelay();
-    }
     
     // Apply fade and blur effects to create trailing stars using helper
     applyTrailEffects(strip);
@@ -74,18 +69,15 @@ void ShootingStarEffect::initializeStars(WS2812FX* strip) {
     
     // Initialize timing offsets for each shooting star
     // This spreads them out across the animation cycle
-    for (uint8_t i = 0; i < numBars; i++) {
+    cind[0] = EffectHelper::get_random_wheel_index(0, 32);
+    delta_b[0] = 0; // First star starts at beat 0
+    new_cind[0] = false; // First star doesn't need new color immediately
+    for (uint8_t i = 1; i < numBars; i++) {
         // Distribute stars evenly across the timing cycle
         delta_b[i] = (65535 / numBars) * i;
         
-        // Initialize colors with variation between stars
-        if (i > 0) {
-            // Generate color related to previous star but with variation
-            cind[i] = EffectHelper::get_random_wheel_index(cind[i - 1], 32);
-        } else {
-            // First star gets a color related to the last star for smooth cycling
-            cind[i] = EffectHelper::get_random_wheel_index(cind[numBars - 1], 32);
-        }
+        // Generate color related to previous star but with variation
+        cind[i] = EffectHelper::get_random_wheel_index(cind[i - 1], 32);
         
         // Mark that star doesn't need immediate new color
         new_cind[i] = false;
@@ -155,7 +147,8 @@ void ShootingStarEffect::applyTrailEffects(WS2812FX* strip) {
     // Fade the entire strip to create trailing effect using helper
     // Fade amount is based on speed - faster = longer trails
     uint8_t fadeAmount = (seg->beat88 >> 8) | 0x60;  // Ensure minimum fade
-    EffectHelper::applyFadeEffect(strip, fadeAmount);
+    uint16_t fadeLength = runtime->length > 8 ? runtime->length - 8 : runtime->length;
+    fadeToBlackBy(strip->leds, fadeLength, fadeAmount);
     
     // Apply blur to the end section for additional trail smoothing
     if (runtime->length > 8) {

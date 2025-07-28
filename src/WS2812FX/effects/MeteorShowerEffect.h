@@ -40,13 +40,6 @@ private:
     uint32_t lastFadeTime;        ///< Timestamp for fade timing control
     uint32_t lastSpawnTime;       ///< Timestamp for meteor spawn timing control
     
-    /**
-     * @brief Draw a meteor at the specified position with fractional positioning
-     * @param strip Pointer to the WS2812FX instance
-     * @param pos16 Position in 16-bit fractional format (position * 16)
-     * @param colorIndex Color index offset for this meteor
-     */
-    void drawMeteor(WS2812FX* strip, uint16_t pos16, uint8_t colorIndex);
     
     /**
      * @brief Check if there's sufficient distance from the end for a new meteor

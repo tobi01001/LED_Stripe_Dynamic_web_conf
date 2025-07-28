@@ -8,10 +8,13 @@ bool BeatsinGlowEffect::init(WS2812FX* strip) {
         return false;
     }
     
-    auto seg = strip->getSegment();
+    auto segment = strip->getSegment();
+    if (!segment) { 
+        return false; // Ensure segment is valid
+    }
     
     // Store current number of bars (glow elements)
-    numBars = seg->numBars;
+    numBars = segment->numBars;
     if (numBars > MAX_NUM_BARS) {
         numBars = MAX_NUM_BARS;
     }
@@ -32,21 +35,17 @@ uint16_t BeatsinGlowEffect::update(WS2812FX* strip) {
             return 1000; // Return reasonable delay if initialization fails
         }
     }
-    
+    auto seg = strip->getSegment();
+    if (!seg) {
+        return 1000; // Return reasonable delay if segment is invalid
+    }   
     // Validate strip pointer using helper
     if (!EffectHelper::validateStripPointer(strip)) {
         return 1000; // Return reasonable delay if strip is invalid
     }
     
-    auto runtime = strip->getSegmentRuntime();
-    
-    // Check if we need to reinitialize
-    if (runtime->modeinit) {
-        return init(strip) ? strip->getStripMinDelay() : strip->getStripMinDelay();
-    }
-    
     // Apply background fade for smooth transitions using helper
-    applyBackgroundFade(strip);
+    EffectHelper::applyFadeEffect(strip, (seg->beat88 >> 8) | 32);
     
     // Update each glow element
     for (uint8_t i = 0; i < numBars; i++) {
@@ -65,14 +64,16 @@ uint8_t BeatsinGlowEffect::getModeId() const {
 }
 
 void BeatsinGlowEffect::initializeGlowElements(WS2812FX* strip) {
-    auto seg = strip->getSegment();
     const uint16_t lim = calculateVariationLimit(strip);
-    
+    auto segment = strip->getSegment();
+    if (!segment) {
+        return; // Ensure segment is valid
+    }
     // Initialize each glow element with unique parameters
     for (uint8_t i = 0; i < numBars; i++) {
         // Set beat frequency with random variation around base speed
-        beats[i] = seg->beat88 + lim / 2 - random16(lim);
-        
+        beats[i] = segment->beat88 + lim / 2 - random16(lim);
+
         // Distribute phase offsets evenly with some randomization
         // This creates interesting interference patterns between elements
         theta[i] = (65535 / numBars) * i + (65535 / (4 * numBars)) - random16(65535 / (2 * numBars));
@@ -99,7 +100,6 @@ void BeatsinGlowEffect::initializeGlowElements(WS2812FX* strip) {
 }
 
 void BeatsinGlowEffect::updateGlowElement(WS2812FX* strip, uint8_t elementIndex) {
-    auto seg = strip->getSegment();
     
     // Calculate current sine value with beat, time, and phase offsets
     uint16_t beatval = beat88(beats[elementIndex], times[elementIndex] + theta[elementIndex]);
@@ -120,35 +120,38 @@ void BeatsinGlowEffect::updateGlowElement(WS2812FX* strip, uint8_t elementIndex)
     // Calculate position from sine value
     uint16_t pos = calculateElementPosition(elementIndex, strip);
     
+
     // Draw the glow element using fractional bar for smooth positioning
     // Each element gets its own color with brightness variation
     uint8_t color_index = cinds[elementIndex] + elementIndex * (255 / numBars);
     strip->drawFractionalBar(pos, 2, *strip->getCurrentPalette(), 
-                            color_index, seg->brightness, true, 1);
+                            color_index, strip->getSegment()->brightness, true, 1);
 }
 
 uint16_t BeatsinGlowEffect::calculateElementPosition(uint8_t elementIndex, WS2812FX* strip) {
-    auto runtime = strip->getSegmentRuntime();
     
     // Get current sine value
     uint16_t beatval = beat88(beats[elementIndex], times[elementIndex] + theta[elementIndex]);
     int16_t si = sin16(beatval);
-    
+    auto runtime = strip->getSegmentRuntime();
     // Map sine value (-32768 to 32767) to strip position using helper
-    uint16_t pos = EffectHelper::safeMapuint16_t((65535 >> 1) + si, 0, 65535, 
+    uint16_t pos = EffectHelper::safeMapuint16_t((65535 >> 1) + si, 0, 65535,
                                         runtime->start * 16, runtime->stop * 16);
-    
+
     return pos;
 }
 
 void BeatsinGlowEffect::updateElementParameters(WS2812FX* strip, uint8_t elementIndex) {
-    auto seg = strip->getSegment();
+
     const uint8_t rand_delta = 64;  // Amount of random variation to apply
-    
+    auto seg = strip->getSegment();
+    if (!seg) {
+        return;
+    }
     // Update beat frequency with controlled random variation
     // Keep it within reasonable bounds relative to base speed
     beats[elementIndex] = beats[elementIndex] + (seg->beat88 * 10) / 50 - random16((seg->beat88 * 10) / 25);
-    
+
     // Constrain beat frequency to reasonable range
     if (beats[elementIndex] < (seg->beat88 / 2)) {
         beats[elementIndex] = seg->beat88 / 2;
@@ -167,20 +170,13 @@ void BeatsinGlowEffect::updateElementParameters(WS2812FX* strip, uint8_t element
     times[elementIndex] = millis() - theta[elementIndex];
 }
 
-void BeatsinGlowEffect::applyBackgroundFade(WS2812FX* strip) {
-    auto seg = strip->getSegment();
-    
-    // Apply fade to create smooth background transitions using helper
-    // Fade amount is based on speed with minimum value to ensure visibility
-    uint8_t fadeAmount = (seg->beat88 >> 8) | 32;
-    EffectHelper::applyFadeEffect(strip, fadeAmount);
-}
-
 uint16_t BeatsinGlowEffect::calculateVariationLimit(WS2812FX* strip) const {
-    auto seg = strip->getSegment();
-    
     // Calculate variation limit based on current speed
     // Faster speeds get more variation for dynamic effects
+    auto seg = strip->getSegment();
+    if (!seg) {
+        return 0; // Return 0 if segment is invalid
+    }
     return (seg->beat88 * 10) / 50;
 }
 

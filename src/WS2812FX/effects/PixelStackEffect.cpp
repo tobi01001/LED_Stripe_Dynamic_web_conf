@@ -39,7 +39,7 @@ uint16_t PixelStackEffect::update(WS2812FX* strip) {
     renderStackedLEDs(strip, nLeds, baseHue);
     
     // Get current beat position for movement calculations using EffectHelper
-    uint16_t beatPosition = EffectHelper::calculateBeatPosition(strip, millis(), effectSpeed / 255);
+    uint16_t beatPosition = EffectHelper::calculateBeatPosition(strip, _timebase, effectSpeed / 255);
     
     // Handle movement based on current direction
     if (up) {

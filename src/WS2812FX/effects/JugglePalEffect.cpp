@@ -66,7 +66,7 @@ uint16_t JugglePalEffect::update(WS2812FX* strip) {
         uint16_t position = beatsin88(barSpeed, 
                                      runtime->start * 16, 
                                      runtime->stop * 16 - barWidth * 16, 
-                                     timebase);
+                                     _timebase);
         
         // Calculate color index for this bar
         // Distribute colors evenly across the color spectrum based on bar number
