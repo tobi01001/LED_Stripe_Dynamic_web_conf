@@ -35,9 +35,14 @@ If enabled (via include flag) it also provides local display support and control
 ## Coding Standards, Coding and review guidelines
 - Use camelCase naming, while private variables start with _
 - use comments for automatic documentation creation
-- focus on modularity, maintainability and readability
-- focus on robustness (failsafe code)
-- focus on efficient memeory use and on runtime
+- primary objectve is runtime and memory efficient code for embedded use with limited ressouces (or dedicated use on the HW mentioned in platformio.ini) - where applicable:
+  - avoid uneccessary overhead
+  - avoid multiple type casts
+  - prefer Flash over RAM
+  - avoid dynamic memory - especially use of String
+- further:
+  - focus on modularity, maintainability and readability
+  - focus on robustness (failsafe code)
 - this code is for platform.io
-- use the https://isocpp.github.io/CppCoreGuidelines/ CppCoreGuidelines
+- enforce the https://isocpp.github.io/CppCoreGuidelines/ CppCoreGuidelines
 
