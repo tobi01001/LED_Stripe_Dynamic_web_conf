@@ -53,6 +53,7 @@ private:
     struct RocketData {
         uint32_t timebase;         ///< Time reference for physics calculations (milliseconds)
         double pos;                ///< Current position in millimeters from strip start
+        double render_pos;         ///< Render position in fractional LED units (16ths of a pixel)
         double v0;                 ///< Initial launch velocity (mm/ms)
         double v;                  ///< Current velocity (mm/ms)
         double v_explode;          ///< Velocity threshold for triggering explosion

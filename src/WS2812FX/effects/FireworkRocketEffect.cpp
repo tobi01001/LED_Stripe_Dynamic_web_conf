@@ -126,114 +126,89 @@ double FireworkRocketEffect::getGravity(WS2812FX* strip) const {
     // Physics note: We use negative gravity constant for downward acceleration
     // The scaling factor converts beat88 range to reasonable mm/ms² values
     // that produce visually appealing ballistic trajectories
+    // Map beat88 to gravity in mm/ms^2
+    // beat88=1000 -> 9.81 m/s^2 = 0.00981 mm/ms^2
+    // beat88=6000 -> much higher gravity
     double beat88 = (double)strip->getSegment()->beat88;
-    return beat88 / GRAVITY_SCALING_FACTOR; // Use named constant for clarity and maintainability
+    double g_earth = 0.00981; // mm/ms^2
+    double gravity = g_earth * (beat88 / 1000.0); // scale gravity with beat88
+    return -gravity; // negative for downward acceleration
 }
 
 double FireworkRocketEffect::calculateSegmentLength(WS2812FX* strip) const {
-    // Convert LED segment length to physical millimeters
-    // Assuming 60 LEDs per meter, with blend width consideration
-    const uint16_t maxBlendWidth = min((uint16_t)(strip->getSegmentRuntime()->length / 2), (uint16_t)40);
-    const double lengthLeds = (double)(strip->getSegmentRuntime()->length - maxBlendWidth / 2);
-    return (lengthLeds / 60.0) * 1000.0; // Convert to millimeters
+    // Calculate physical length in mm
+    // Assume 60 LEDs per meter
+    double leds = (double)strip->getSegmentRuntime()->length;
+    return leds * (1000.0 / 60.0); // mm
 }
 
 void FireworkRocketEffect::updateRocketPhysics(uint8_t rocketIndex, WS2812FX* strip, uint32_t currentTime, 
                                              double gravity, double segmentLength, double maxVelocity) {
     RocketData& rocket = rockets[rocketIndex];
     
-    // Calculate time elapsed since rocket started its trajectory
-    // This delta time is crucial for accurate physics simulation
-    double deltaTime = (double)(currentTime - rocket.timebase);
-    
-    // Update position using kinematic equation for constant acceleration:
+    // Calculate time elapsed since rocket started its trajectory (milliseconds)
+    double deltaTime = (double)(currentTime - rocket.timebase); // ms
+    // Physics in mm and mm/ms
     // s = v₀t + ½at²
-    // Where: s = displacement, v₀ = initial velocity, a = gravity, t = time
     rocket.pos = rocket.v0 * deltaTime + (gravity / 2.0) * deltaTime * deltaTime;
-    
-    // Update velocity using: v = v₀ + at
-    // This gives us current velocity for determining explosion trigger
     rocket.v = rocket.v0 + gravity * deltaTime;
+    auto segment_start = strip->getSegmentRuntime()->start;
+    auto segment_stop = strip->getSegmentRuntime()->stop;
+    // Map mm position to fractional LED position
+    double segmentLength_mm = calculateSegmentLength(strip);
+    // Map physics position to render position for drawing, but keep rocket.pos for physics
+    double renderPos = map(rocket.pos, 0.0, segmentLength_mm, segment_start * 16.0, segment_stop * 16.0);
+    rocket.render_pos = renderPos; // Store for rendering functions (add render_pos to RocketData struct)
     
     // Handle ground collision and physics state transitions
     if (rocket.pos <= 0) {
-        // Handle ground collision or reset after explosion
-        if (rocket.v0 <= 0.001) {
-            // Very low velocity - ready for potential re-launch, keep at minimal velocity
-            rocket.v0 = 0.001;
-        } else {
-            // Apply damping for bouncing effect on rockets with remaining velocity
-            uint8_t dampingPercent = strip->getSegment()->damping;
-            float damping = 99.0f / 100.0f; // Default minimal damping
-            
-            if (dampingPercent > 0) {
-                if (dampingPercent < 100) {
-                    damping = (float)dampingPercent / 100.0f;
-                } else {
-                    damping = 1.0f;
-                }
-            }
-            
-            // Apply damping to reduce velocity for next bounce
-            rocket.v0 = rocket.v0 * damping;
-            
-            // Ensure minimum velocity threshold to prevent infinite small bounces
-            if (rocket.v0 < 0.001) {
-                rocket.v0 = 0.001;
-            }
-        }
-        
-        // Reset physics state
-        rocket.v = rocket.v0;
-        //rocket.pos = 0.00001; // Slightly above ground to maintain active state
-        rocket.prev_pos = 0;
-        rocket.timebase = currentTime;
+        // Rocket has hit the ground - bound it there and prepare for relaunch
+        rocket.pos = 0;           // Bound position to ground level
+        rocket.v0 = 0.0;          // Stop all velocity
+        rocket.v = 0.0;           // Current velocity also zero
+        rocket.prev_pos = 0;      // Reset previous position
+        rocket.timebase = currentTime; // Reset time base
+        rocket.explodeTime = 0;   // Reset explosion timer
+        rocket.render_pos = 0;    // Also reset render position
     }
 }
 
 void FireworkRocketEffect::renderLaunchPhase(uint8_t rocketIndex, WS2812FX* strip, double segmentLength) {
-    const RocketData& rocket = rockets[rocketIndex];
-    // Map position from millimeters to LED coordinates
-    uint16_t pos = map(rocket.pos, 0.0, segmentLength, 
-                      strip->getSegmentRuntime()->start * 16.0, 
-                      strip->getSegmentRuntime()->stop * 16.0);
+    RocketData& rocket = rockets[rocketIndex];
     
-    // Calculate motion blur width
-    uint16_t width = 2; // Default width
-    if (pos != rocket.prev_pos) {
-        if (pos > rocket.prev_pos) {
-            width = max((pos - rocket.prev_pos) / 16, 2);
-        } else {
-            width = max((rocket.prev_pos - pos) / 16, 2);
-        }
+    // Use fractional LED position for smooth movement
+    uint16_t fracPos = (uint16_t)rocket.pos;
+    uint16_t width = 1;
+    if (rocket.prev_pos != 0) {
+        uint16_t prevFrac = (uint16_t)rocket.prev_pos;
+        width = max(abs(fracPos - prevFrac) / 16, 1);
+        width = min(width, (uint16_t)5);
     }
-    
-    // Render rocket trail using heat colors for launch phase
+    rocket.prev_pos = fracPos;
     strip->drawFractionalBar(
-        rocket.prev_pos,     // Start position
-        width,               // Width for motion blur
-        HeatColors_p,        // Heat palette for rocket trail
-        64,                  // Color index in heat palette
-        rocket.brightness / 2, // Reduced brightness for trail
-        true,                // Additive blending
-        1                    // Single pixel precision
+        fracPos,                 // Fractional LED position
+        width,                   // Width for motion blur
+        HeatColors_p,            // Heat palette for rocket trail
+        64,                      // Color index in heat palette
+        rocket.brightness,       // Full brightness for rocket
+        true,                    // Additive blending
+        1                        // Single pixel precision
     );
 }
 
 void FireworkRocketEffect::renderExplosionPhase(uint8_t rocketIndex, WS2812FX* strip, uint16_t maxBlendWidth) {
     const RocketData& rocket = rockets[rocketIndex];
-    // Map position to LED coordinates
-    uint16_t pos = map(rocket.pos, 0.0, calculateSegmentLength(strip),
-                      strip->getSegmentRuntime()->start * 16.0,
-                      strip->getSegmentRuntime()->stop * 16.0);
     
+    // Use fractional LED position for smooth movement
+    uint16_t fracPos = (uint16_t)rocket.pos;
+  
     // Calculate blur width based on position and strip bounds
     uint16_t blendWidth = maxBlendWidth - 3;
-    if ((strip->getSegmentRuntime()->stop - pos / 16) < blendWidth / 2 + 3) {
-        blendWidth = (strip->getSegmentRuntime()->stop - pos / 16) * 2;
+    if ((strip->getSegmentRuntime()->stop - fracPos / 16) < blendWidth / 2 + 3) {
+        blendWidth = (strip->getSegmentRuntime()->stop - fracPos / 16) * 2;
     }
-    if (pos / 16 < blendWidth / 2) {
-        blendWidth = (pos / 16) * 2;
+    if (fracPos / 16 < blendWidth / 2) {
+        blendWidth = (fracPos / 16) * 2;
     }
     
     // Scale brightness for rendering
@@ -243,18 +218,18 @@ void FireworkRocketEffect::renderExplosionPhase(uint8_t rocketIndex, WS2812FX* s
         // Main explosion phase - bright burst with blur
         
         // Draw main explosion point with palette color
-        strip->drawFractionalBar(pos, 3, *strip->getCurrentPalette(), rocket.color_index, 255, true, 0);
-        
+        strip->drawFractionalBar(fracPos, 3, *strip->getCurrentPalette(), rocket.color_index, 255, true, 0);
+
         // Add white hot center
-        CRGB centerColor = strip->leds[pos / 16] + CRGB(0x202020);
-        strip->drawFractionalBar(pos, 3, CRGBPalette16(centerColor), 0, 255, true, 0);
+        CRGB centerColor = strip->leds[fracPos / 16] + CRGB(0x202020);
+        strip->drawFractionalBar(fracPos, 3, CRGBPalette16(centerColor), 0, 255, true, 0);
         
         // Add sparks around the explosion for visual flair
-        addExplosionSparks(rocketIndex, strip, pos, blendWidth);
+        addExplosionSparks(rocketIndex, strip, fracPos, blendWidth/4);
         
         // Apply blur for explosion spread
-        uint16_t ledArraySize = strip->getSegmentRuntime()->length; // Use segment length as the LED array size
-        uint16_t startIndex = pos / 16 + 1;
+        uint16_t ledArraySize = strip->getSegmentRuntime()->length;
+        uint16_t startIndex = fracPos / 16 + 1;
         if (startIndex + blendWidth <= ledArraySize) {
             blur1d(&strip->leds[startIndex], blendWidth, 172);
         } else {
@@ -269,20 +244,20 @@ void FireworkRocketEffect::renderExplosionPhase(uint8_t rocketIndex, WS2812FX* s
         // Fade phase - dimming explosion
         
         // Draw fading explosion with reduced brightness
-        strip->drawFractionalBar(pos, 3, *strip->getCurrentPalette(), rocket.color_index, renderBrightness, true, 0);
-        strip->drawFractionalBar(pos, 3, CRGBPalette16(0x202020), 0, renderBrightness, true, 0);
-        
+        strip->drawFractionalBar(fracPos, 3, *strip->getCurrentPalette(), rocket.color_index, renderBrightness, true, 0);
+        strip->drawFractionalBar(fracPos, 3, CRGBPalette16(0x202020), 0, renderBrightness, true, 0);
+
         // Apply reduced blur
-        blur1d(&strip->leds[pos / 16], blendWidth, 128);
-        
+        blur1d(&strip->leds[fracPos / 16], blendWidth, 128);
+
     } else {
         // Final fade phase - minimal brightness
-        
-        strip->drawFractionalBar(pos, 3, *strip->getCurrentPalette(), rocket.color_index, renderBrightness, true, 0);
-        strip->drawFractionalBar(pos, 3, CRGBPalette16(0x202020), 0, renderBrightness, true, 0);
+
+        strip->drawFractionalBar(fracPos, 3, *strip->getCurrentPalette(), rocket.color_index, renderBrightness, true, 0);
+        strip->drawFractionalBar(fracPos, 3, CRGBPalette16(0x202020), 0, renderBrightness, true, 0);
         
         // Minimal blur
-        blur1d(&strip->leds[pos / 16], blendWidth, 64);
+        blur1d(&strip->leds[fracPos / 16], blendWidth, 64);
     }
 }
 
@@ -294,9 +269,8 @@ void FireworkRocketEffect::applyGlobalFade(WS2812FX* strip) {
 
 bool FireworkRocketEffect::shouldRelaunch(uint8_t rocketIndex) const {
     const RocketData& rocket = rockets[rocketIndex];
-    // Relaunch if velocity is very low and random chance triggers
-    // Increased probability from 2/256 (~0.78%) to 12/256 (~4.7%) for more frequent launches
-    return (rocket.v0 <= 0.01 && random8() < 2);
+    // Relaunch if velocity is zero and random chance triggers (higher probability)
+    return (rocket.v0 == 0.0 && random8() < 2);
 }
 
 void FireworkRocketEffect::initializeRocketLaunch(uint8_t rocketIndex, WS2812FX* strip, uint32_t currentTime, double maxVelocity) {
@@ -335,40 +309,38 @@ void FireworkRocketEffect::addExplosionSparks(uint8_t rocketIndex, WS2812FX* str
     const RocketData& rocket = rockets[rocketIndex];
 
     // Generate 1-4 sparks around the explosion
-    uint8_t numSparks = random8(1, 5);
-    
+    uint8_t numSparks = random8(1, 3);
     for (uint8_t i = 0; i < numSparks; i++) {
         // Random offset from explosion center (within spark radius)
         int16_t sparkOffset = random16(sparkRadius * 2) - sparkRadius;
-        uint16_t sparkPos = explosionPos + (sparkOffset * 16);
-        
-        // Ensure spark is within strip bounds
-        uint16_t stripStart = strip->getSegmentRuntime()->start * 16;
-        uint16_t stripEnd = strip->getSegmentRuntime()->stop * 16;
-        
-        if (sparkPos >= stripStart && sparkPos <= stripEnd) {
-            // Random spark brightness (30-80% of main explosion)
-            uint8_t sparkBrightness = random8(76, 206); // 30-80% of 255
-            
-            // Random spark color variation (within 64 steps of main color)
-            uint8_t sparkColorIndex = rocket.color_index + random8(128) - 64;
-            
-            // Get the actual LED index and create spark color
-            uint16_t ledIndex = sparkPos / 16;
-            CRGB sparkColor = ColorFromPalette(*strip->getCurrentPalette(), sparkColorIndex, sparkBrightness);
-            
-            // Add spark to existing LED color (single frame spark)
-            strip->leds[ledIndex] |= sparkColor;
-            
-            // Occasionally add a white hot spark for extra sparkle
-            if (random8() < 64) { // 25% chance
-                CRGB whiteSparkColor = CRGB::White;
-                whiteSparkColor.nscale8(sparkBrightness / 2);
-                strip->leds[ledIndex] |= whiteSparkColor;
-            }
+        int16_t ledIndexRaw = (int16_t)(explosionPos / 16) + sparkOffset;
+
+        // Ensure spark is within strip bounds and ledIndex is non-negative
+        uint16_t stripStart = strip->getSegmentRuntime()->start;
+        uint16_t stripEnd = strip->getSegmentRuntime()->stop;
+        uint16_t ledIndex = constrain(ledIndexRaw, stripStart, stripEnd);
+
+        // Random spark brightness (30-80% of main explosion)
+        uint8_t sparkBrightness = random8(76, 206);
+
+        // Random spark color variation (within 64 steps of main color)
+        uint8_t sparkColorIndex = rocket.color_index + random8(128) - 64;
+
+        CRGB sparkColor = ColorFromPalette(*strip->getCurrentPalette(), sparkColorIndex, sparkBrightness);
+
+        // Add spark to existing LED color (single frame spark)
+        strip->leds[ledIndex] |= sparkColor;
+
+        // Occasionally add a white hot spark for extra sparkle
+        if (random8() < 64) {
+            CRGB whiteSparkColor = CRGB::White;
+            whiteSparkColor.nscale8(sparkBrightness / 2);
+            strip->leds[ledIndex] |= whiteSparkColor;
         }
     }
 }
 
+#ifdef DEF_FX_MODE_FIREWORKROCKETS
 // Register the effect with the factory system
 REGISTER_EFFECT(FX_MODE_FIREWORKROCKETS, FireworkRocketEffect)
+#endif

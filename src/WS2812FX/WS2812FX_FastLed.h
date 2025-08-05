@@ -56,6 +56,8 @@
 #include "FastLED.h"
 FASTLED_USING_NAMESPACE
 
+#include "./effects/00__modes.h"
+
 #include "Effect.h" // Ensure Effect class is defined before use
 
 /* </FastLED implementation> */
@@ -88,70 +90,6 @@ FASTLED_USING_NAMESPACE
 #define ORANGE 0xFF3000
 #define ULTRAWHITE 0xFFFFFFFF
 
-enum MODES
-{
-  FX_MODE_STATIC,
-  FX_MODE_EASE,
-  FX_MODE_NOISEMOVER,
-  FX_MODE_PLASMA,
-  FX_MODE_JUGGLE_PAL,
-  //  FX_MODE_CONFETTI,
-  FX_MODE_FILL_BEAT,
-  FX_MODE_FILL_WAVE,
-  FX_MODE_DOT_BEAT,
-  FX_MODE_DOT_COL_WIPE,
-  FX_MODE_COLOR_WIPE_SAWTOOTH,
-  FX_MODE_COLOR_WIPE_SINE,
-  FX_MODE_COLOR_WIPE_QUAD,
-  FX_MODE_COLOR_WIPE_TRIWAVE,
-  FX_MODE_TO_INNER,
-  FX_MODE_BREATH,
-  FX_MODE_MULTI_DYNAMIC,
-  FX_MODE_RAINBOW,
-  FX_MODE_RAINBOW_CYCLE,
-  FX_MODE_PRIDE,
-  FX_MODE_SCAN,
-  FX_MODE_DUAL_SCAN,
-  FX_MODE_FADE,
-  FX_MODE_THEATER_CHASE,
-  FX_MODE_THEATER_CHASE_DUAL_P,
-  FX_MODE_THEATER_CHASE_RAINBOW,
-  FX_MODE_RUNNING_LIGHTS,
-  FX_MODE_TWINKLE_FADE,
-  FX_MODE_TWINKLE_FOX,
-  FX_MODE_FILL_BRIGHT,
-  FX_MODE_FIREWORK,
-  FX_MODE_FIRE2012,
-  FX_MODE_LARSON_SCANNER,
-  FX_MODE_COMET,
-  FX_MODE_FIRE_FLICKER_INTENSE,
-  FX_MODE_BUBBLE_SORT,
-  FX_MODE_SHOOTING_STAR,
-  FX_MODE_BEATSIN_GLOW,
-  FX_MODE_PIXEL_STACK,
-  FX_MODE_MOVE_BAR_SIN,
-  FX_MODE_MOVE_BAR_QUAD,
-  FX_MODE_MOVE_BAR_CUBE,
-  FX_MODE_MOVE_BAR_SAWTOOTH,
-  FX_MODE_POPCORN,
-  FX_MODE_FIREWORKROCKETS,
-  FX_MODE_HEARTBEAT,
-  FX_MODE_RAIN,
-  FX_MODE_EASE_BAR,
-  FX_MODE_PACIFICA,
-  FX_MODE_COLOR_WAVES,
-  FX_MODE_TWINKLE_MAP,
- 
-  FX_MODE_VOID,
-  
-  // make sure these are the last ones...
-  FX_MODE_RING_RING,
-  FX_MODE_SUNRISE,
-  FX_MODE_SUNSET,
-
-  // has to be the final entry!
-  MODE_COUNT
-};
 
 extern const TProgmemRGBPalette16
     Ice_Colors_p,
@@ -446,122 +384,7 @@ public:
     physicalLeds = pleds; 
     _bleds = &physicalLeds[LED_OFFSET];
     leds = eleds; 
-
-    // Effects implemented as classes - these entries are fallback only
-    _mode[FX_MODE_STATIC]                 = &WS2812FX::mode_class_based_fallback; // Now implemented as StaticEffect class
-    _mode[FX_MODE_EASE]                   = &WS2812FX::mode_class_based_fallback; // Now implemented as EaseEffect class
-    _mode[FX_MODE_THEATER_CHASE_RAINBOW]  = &WS2812FX::mode_class_based_fallback; // Now implemented as TheaterChaseRainbowEffect class
-    _mode[FX_MODE_TWINKLE_FADE]           = &WS2812FX::mode_class_based_fallback; // Now implemented as TwinkleFadeEffect class
-    _mode[FX_MODE_TWINKLE_FOX]            = &WS2812FX::mode_class_based_fallback; // Now implemented as TwinkleFoxEffect class
-    _mode[FX_MODE_MULTI_DYNAMIC]          = &WS2812FX::mode_class_based_fallback; // Now implemented as MultiDynamicEffect class
-    _mode[FX_MODE_RAINBOW]                = &WS2812FX::mode_class_based_fallback; // Now implemented as RainbowEffect class
-    _mode[FX_MODE_RAINBOW_CYCLE]          = &WS2812FX::mode_class_based_fallback; // Now implemented as RainbowCycleEffect class
-    _mode[FX_MODE_PRIDE]                  = &WS2812FX::mode_class_based_fallback; // Now implemented as PrideEffect class
-    _mode[FX_MODE_SCAN]                   = &WS2812FX::mode_class_based_fallback; // Now implemented as ScanEffect class
-    _mode[FX_MODE_DUAL_SCAN]              = &WS2812FX::mode_class_based_fallback; // Now implemented as DualScanEffect class
-    _mode[FX_MODE_FADE]                   = &WS2812FX::mode_class_based_fallback; // Now implemented as FadeEffect class
-    _mode[FX_MODE_THEATER_CHASE]          = &WS2812FX::mode_class_based_fallback; // Now implemented as TheaterChaseEffect class
-    _mode[FX_MODE_THEATER_CHASE_DUAL_P]   = &WS2812FX::mode_class_based_fallback; // Now implemented as TheaterChaseDualPaletteEffect class
-    _mode[FX_MODE_LARSON_SCANNER]         = &WS2812FX::mode_class_based_fallback; // Now implemented as LarsonScannerEffect class
-    _mode[FX_MODE_COMET]                  = &WS2812FX::mode_class_based_fallback; // Now implemented as CometEffect class
-    _mode[FX_MODE_FIRE_FLICKER_INTENSE]   = &WS2812FX::mode_class_based_fallback; // Now implemented as FireFlickerIntenseEffect class
-    _mode[FX_MODE_BREATH]                 = &WS2812FX::mode_class_based_fallback; // Now implemented as BreathEffect class
-    _mode[FX_MODE_RUNNING_LIGHTS]         = &WS2812FX::mode_class_based_fallback; // Now implemented as RunningLightsEffect class
-    _mode[FX_MODE_NOISEMOVER]             = &WS2812FX::mode_class_based_fallback; // Now implemented as NoiseMoverEffect class
-    _mode[FX_MODE_PLASMA]                 = &WS2812FX::mode_class_based_fallback; // Now implemented as PlasmaEffect class
-    _mode[FX_MODE_JUGGLE_PAL]             = &WS2812FX::mode_class_based_fallback; // Now implemented as JugglePalEffect class
-    _mode[FX_MODE_FILL_BEAT]              = &WS2812FX::mode_class_based_fallback; // Now implemented as FillBeatEffect class
-    _mode[FX_MODE_DOT_BEAT]               = &WS2812FX::mode_class_based_fallback; // Now implemented as DotBeatEffect class
-    _mode[FX_MODE_DOT_COL_WIPE]           = &WS2812FX::mode_class_based_fallback; // Now implemented as DotColWipeEffect class
-    _mode[FX_MODE_COLOR_WIPE_SAWTOOTH]    = &WS2812FX::mode_class_based_fallback; // Now implemented as ColorWipeSawtoothEffect class
-    _mode[FX_MODE_COLOR_WIPE_SINE]        = &WS2812FX::mode_class_based_fallback; // Now implemented as ColorWipeSineEffect class
-    _mode[FX_MODE_COLOR_WIPE_QUAD]        = &WS2812FX::mode_class_based_fallback; // Now implemented as ColorWipeQuadEffect class
-    _mode[FX_MODE_COLOR_WIPE_TRIWAVE]     = &WS2812FX::mode_class_based_fallback; // Now implemented as ColorWipeTriwaveEffect class
-    _mode[FX_MODE_TO_INNER]               = &WS2812FX::mode_class_based_fallback; // Now implemented as ToInnerEffect class
-    _mode[FX_MODE_FILL_BRIGHT]            = &WS2812FX::mode_class_based_fallback; // Now implemented as FillBrightEffect class
-    _mode[FX_MODE_FIREWORK]               = &WS2812FX::mode_class_based_fallback; // Now implemented as FireworkEffect class
-    _mode[FX_MODE_FIRE2012]               = &WS2812FX::mode_class_based_fallback; // Now implemented as Fire2012Effect class
-    _mode[FX_MODE_FILL_WAVE]              = &WS2812FX::mode_class_based_fallback; // Now implemented as FillWaveEffect class
-    _mode[FX_MODE_BUBBLE_SORT]            = &WS2812FX::mode_class_based_fallback; // Now implemented as BubbleSortEffect class
-    _mode[FX_MODE_SHOOTING_STAR]          = &WS2812FX::mode_class_based_fallback; // Now implemented as ShootingStarEffect class
-    _mode[FX_MODE_BEATSIN_GLOW]           = &WS2812FX::mode_class_based_fallback; // Now implemented as BeatsinGlowEffect class
-    _mode[FX_MODE_PIXEL_STACK]            = &WS2812FX::mode_class_based_fallback; // Now implemented as PixelStackEffect class
-    _mode[FX_MODE_MOVE_BAR_SIN]           = &WS2812FX::mode_class_based_fallback; // Now implemented as MoveBarSinEffect class
-    _mode[FX_MODE_MOVE_BAR_QUAD]          = &WS2812FX::mode_class_based_fallback; // Now implemented as MoveBarQuadEffect class
-    _mode[FX_MODE_MOVE_BAR_CUBE]          = &WS2812FX::mode_class_based_fallback; // Now implemented as MoveBarCubeEffect class
-    _mode[FX_MODE_MOVE_BAR_SAWTOOTH]      = &WS2812FX::mode_class_based_fallback; // Now implemented as MoveBarSawtoothEffect class
-    _mode[FX_MODE_POPCORN]                = &WS2812FX::mode_class_based_fallback; // Now implemented as PopcornEffect class
-    _mode[FX_MODE_FIREWORKROCKETS]        = &WS2812FX::mode_class_based_fallback; // Now implemented as FireworkRocketEffect class
-    _mode[FX_MODE_RING_RING]              = &WS2812FX::mode_class_based_fallback; // Now implemented as PhoneRingEffect class
-    _mode[FX_MODE_HEARTBEAT]              = &WS2812FX::mode_class_based_fallback; // Now implemented as HeartBeatEffect class
-    _mode[FX_MODE_RAIN]                   = &WS2812FX::mode_class_based_fallback; // Now implemented as MeteorShowerEffect class
-    _mode[FX_MODE_EASE_BAR]               = &WS2812FX::mode_class_based_fallback; // Now implemented as EaseBarEffect class
-    _mode[FX_MODE_PACIFICA]               = &WS2812FX::mode_class_based_fallback; // Now implemented as PacificaEffect class
-    _mode[FX_MODE_COLOR_WAVES]            = &WS2812FX::mode_class_based_fallback; // Now implemented as ColorWavesEffect class
-    _mode[FX_MODE_TWINKLE_MAP]            = &WS2812FX::mode_class_based_fallback; // Now implemented as TwinkleMapEffect class
-    _mode[FX_MODE_VOID]                   = &WS2812FX::mode_class_based_fallback; // Now implemented as VoidEffect class
-    _mode[FX_MODE_SUNRISE]                = &WS2812FX::mode_class_based_fallback; // Now implemented as SunriseEffect class
-    _mode[FX_MODE_SUNSET]                 = &WS2812FX::mode_class_based_fallback; // Now implemented as SunsetEffect class
-
-    // Names for class-based effects are retrieved dynamically via getName()
-    // _name[FX_MODE_STATIC] - provided by StaticEffect class
-    // _name[FX_MODE_EASE] - provided by EaseEffect class
-    // _name[FX_MODE_MULTI_DYNAMIC] - provided by MultiDynamicEffect class
-    // _name[FX_MODE_RAINBOW] - provided by RainbowEffect class
-    // _name[FX_MODE_RAINBOW_CYCLE] - provided by RainbowCycleEffect class
-    // _name[FX_MODE_FADE] - provided by FadeEffect class
-    // _name[FX_MODE_THEATER_CHASE] - provided by TheaterChaseEffect class
-    // _name[FX_MODE_THEATER_CHASE_DUAL_P] - provided by TheaterChaseDualPaletteEffect class
-    _name[FX_MODE_BREATH]                 = F("Breath");
-    _name[FX_MODE_NOISEMOVER]             = F("iNoise8");
-    _name[FX_MODE_PLASMA]                 = F("Plasma");
-    _name[FX_MODE_JUGGLE_PAL]             = F("Juggle Pixels");
-    _name[FX_MODE_FILL_BEAT]              = F("Color Fill");
-    _name[FX_MODE_DOT_BEAT]               = F("Dots");
-    _name[FX_MODE_DOT_COL_WIPE]           = F("Dots Color Wipe");
-    _name[FX_MODE_COLOR_WIPE_SAWTOOTH]    = F("Wipe Sawtooth");
-    _name[FX_MODE_COLOR_WIPE_SINE]        = F("Wipe Sine");
-    _name[FX_MODE_COLOR_WIPE_QUAD]        = F("Wipe Quad");
-    _name[FX_MODE_COLOR_WIPE_TRIWAVE]     = F("Wipe Triwave");
-    // _name[FX_MODE_PRIDE] - provided by PrideEffect class
-    // _name[FX_MODE_SCAN] - provided by ScanEffect class
-    // _name[FX_MODE_DUAL_SCAN] - provided by DualScanEffect class
-    // _name[FX_MODE_FADE] - provided by FadeEffect class
-    // _name[FX_MODE_THEATER_CHASE] - provided by TheaterChaseEffect class
-    // _name[FX_MODE_THEATER_CHASE_DUAL_P] - provided by TheaterChaseDualPaletteEffect class
-    _name[FX_MODE_THEATER_CHASE_RAINBOW]  = F("Theater Chase Rainbow");
-    _name[FX_MODE_RUNNING_LIGHTS]         = F("Running Lights");
-    _name[FX_MODE_TO_INNER]               = F("Centering");
-    _name[FX_MODE_FILL_BRIGHT]            = F("Wave Bright");
-    _name[FX_MODE_TWINKLE_FADE]           = F("Twinkle Fade");
-    _name[FX_MODE_TWINKLE_FOX]            = F("Twinkle Fox");
-    // _name[FX_MODE_FIREWORK] - provided by FireworkEffect class
-    // _name[FX_MODE_FIRE2012] - provided by Fire2012Effect class  
-    // _name[FX_MODE_FILL_WAVE] - provided by FillWaveEffect class
-    // _name[FX_MODE_LARSON_SCANNER] - provided by LarsonScannerEffect class
-    // _name[FX_MODE_COMET] - provided by CometEffect class
-    // _name[FX_MODE_FIRE_FLICKER_INTENSE] - provided by FireFlickerIntenseEffect class
-    // _name[FX_MODE_BUBBLE_SORT] - provided by BubbleSortEffect class
-    // _name[FX_MODE_SHOOTING_STAR] - provided by ShootingStarEffect class
-    // _name[FX_MODE_BEATSIN_GLOW] - provided by BeatsinGlowEffect class
-    // _name[FX_MODE_PIXEL_STACK] - provided by PixelStackEffect class
-    // _name[FX_MODE_MOVE_BAR_SIN] - provided by MoveBarSinEffect class
-    // _name[FX_MODE_MOVE_BAR_QUAD] - provided by MoveBarQuadEffect class
-    // _name[FX_MODE_MOVE_BAR_CUBE] - provided by MoveBarCubeEffect class
-    // _name[FX_MODE_MOVE_BAR_SAWTOOTH] - provided by MoveBarSawtoothEffect class
-    // _name[FX_MODE_POPCORN] - provided by PopcornEffect class
-    // _name[FX_MODE_FIREWORKROCKETS] - provided by FireworkRocketEffect class
-    // _name[FX_MODE_RING_RING] - provided by PhoneRingEffect class
-    // _name[FX_MODE_HEARTBEAT] - provided by HeartBeatEffect class
-    // _name[FX_MODE_RAIN] - provided by MeteorShowerEffect class
-    // _name[FX_MODE_EASE_BAR] - provided by EaseBarEffect class
-    // _name[FX_MODE_PACIFICA] - provided by PacificaEffect class
-    // _name[FX_MODE_COLOR_WAVES] - provided by ColorWavesEffect class
-    // _name[FX_MODE_TWINKLE_MAP] - provided by TwinkleMapEffect class
-    // _name[FX_MODE_VOID] - provided by VoidEffect class
-    // _name[FX_MODE_SUNRISE] - provided by SunriseEffect class
-    // _name[FX_MODE_SUNSET] - provided by SunsetEffect class
-
+  
     _pal_name[RAINBOW_PAL]            = F("Rainbow");
     _pal_name[LAVA_PAL]               = F("Lava");
     _pal_name[ICE_WATER_PAL]          = F("Iced Water");
@@ -590,7 +413,7 @@ public:
 
     // Initialize effect system
     _currentEffect = nullptr;
-    _useClassBasedEffects = false;
+    
 
     FastLED.setBrightness(255);  // DEFAULT_BRIGHTNESS);
 
@@ -774,7 +597,7 @@ public:
   
 
   uint8_t
-  getMode(void),
+      getMode(void),
       getModeCount(void),
       getPalCount(void),
       nextMode(AUTOPLAYMODES mode),
@@ -816,7 +639,7 @@ public:
 
   // New effect system methods
   void enableClassBasedEffects(bool enable = true);
-  bool isUsingClassBasedEffects() const { return _useClassBasedEffects; }
+
   Effect* getCurrentEffect() const { return _currentEffect; }
 
   // Make internal methods accessible to effects
@@ -981,15 +804,16 @@ private:
   uint16_t 
       _service_Interval_microseconds = 0;
 
+      /*
   const __FlashStringHelper *
       _name[MODE_COUNT]; // SRAM footprint: 2 bytes per element
 
   mode_ptr
       _mode[MODE_COUNT]; // SRAM footprint: 4 bytes per element
-
+*/
   // New effect system
   Effect* _currentEffect;
-  bool _useClassBasedEffects;
+  // bool _useClassBasedEffects;
 
   segment _segment;
 

@@ -15,7 +15,6 @@ bool PopcornEffect::init(WS2812FX* strip) {
     numKernels = min(strip->getSegment()->numBars, (uint8_t)32);
     
     // Physics constants - convert from LEDS_PER_METER to mm scale
-    const uint16_t LEDS_PER_METER = 60;
     const double gravity = getGravity(strip);
     const double maxVelocity = calculateMaxVelocity(strip, gravity);
     

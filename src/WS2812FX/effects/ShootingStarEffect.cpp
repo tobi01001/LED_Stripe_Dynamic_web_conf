@@ -28,7 +28,6 @@ bool ShootingStarEffect::init(WS2812FX* strip) {
 
 uint16_t ShootingStarEffect::update(WS2812FX* strip) {
     auto seg = strip->getSegment();
-    auto runtime = strip->getSegmentRuntime();
     // Check if effect needs initialization
     if (!isInitialized() || basebeat != seg->beat88) {
         if (!init(strip)) {
@@ -89,7 +88,7 @@ void ShootingStarEffect::updateStar(WS2812FX* strip, uint8_t starIndex) {
     auto runtime = strip->getSegmentRuntime();
     
     // Calculate current beat for this star (base + offset)
-    uint16_t beat = beat88(seg->beat88) + delta_b[starIndex];
+    uint16_t beat = (beat88(seg->beat88) * 2) + delta_b[starIndex];
     
     // Calculate position using quadratic acceleration for realistic motion
     uint16_t pos = calculateStarPosition(beat, strip);

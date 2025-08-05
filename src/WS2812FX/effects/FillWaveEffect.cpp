@@ -21,7 +21,6 @@ uint16_t FillWaveEffect::update(WS2812FX* strip) {
     // Calculate hue offset using beat position for smooth wave motion
     // Multiplying speed by 2 creates faster hue cycling for more dynamic waves
     uint16_t beatPosition = EffectHelper::calculateBeatPosition(strip, _timebase, 2);
-    uint8_t hueOffset = runtime->baseHue + map(beatPosition, 0, 65535, 0, 255);
     
     // Calculate palette distribution delta hue for color spacing
     uint8_t paletteDistribution = seg->paletteDistribution;

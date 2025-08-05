@@ -407,7 +407,7 @@ template <typename T> T WS2812FX::map(T x, T x1, T x2, T y1, T y2)
  */
 void WS2812FX::service()
 {
-  unsigned long now = millis(); // Be aware, millis() rolls over every 49 days
+  //unsigned long now = millis(); // Be aware, millis() rolls over every 49 days
   static uint32_t last_show = 0;
 
   if ((SEG.segments != old_segs))
@@ -448,45 +448,33 @@ void WS2812FX::service()
     if (SEG.isRunning || _triggered)
     {
 
-      if (now > SEG_RT.next_time || _triggered)
+      if (millis() > SEG_RT.next_time || _triggered)
       {
         uint16_t delay;
         
-        // Check if a class-based effect is available for this mode
-        Effect* classEffect = EffectFactory::createEffect(SEG.mode);
-        bool useClassBasedForThisMode = (classEffect != nullptr) || _useClassBasedEffects;
-        
-        if (classEffect) {
-          delete classEffect; // We just needed to check if it exists
-        }
-        
-        if (useClassBasedForThisMode) {
-          // Use new effect system
-          if (!_currentEffect || _currentEffect->getModeId() != SEG.mode) {
-            // Switch to new effect
-            if (_currentEffect) {
-              _currentEffect->cleanup();
-              delete _currentEffect;
-            }
-            
-            _currentEffect = EffectFactory::createEffect(SEG.mode);
-            if (_currentEffect) {
-              _currentEffect->init(this);
-            }
+       
+        if (!_currentEffect || _currentEffect->getModeId() != SEG.mode) {
+          // Switch to new effect
+          if (_currentEffect) {
+            _currentEffect->cleanup();
+            delete _currentEffect;
           }
           
+          _currentEffect = EffectFactory::createEffect(SEG.mode);
           if (_currentEffect) {
-            delay = _currentEffect->update(this);
-          } else {
-            // Fallback to function-based system if effect not found
-            delay = (this->*_mode[SEG.mode])();
+            _currentEffect->init(this);
           }
-        } else {
-          // Use original function-based system
-          delay = (this->*_mode[SEG.mode])();
         }
-        
-        SEG_RT.next_time = now + delay; 
+          
+        if (_currentEffect) {
+          delay = _currentEffect->update(this);
+        } else {
+          // Fallback to function-based system if effect not found
+          // Fallback: No effect found for the current mode. Delay is set to 1000ms as a placeholder.
+          // To implement legacy function-based effects, insert the appropriate function call here.
+          delay = 1000;
+        }
+        SEG_RT.next_time = millis() + delay;
       }
       // reset trigger...
       _triggered = false;
@@ -503,7 +491,7 @@ void WS2812FX::service()
     //if (now > SEG_RT.next_time || _triggered)
     EVERY_N_MILLISECONDS(STRIP_DELAY_MICROSEC/1000)
     {
-      SEG_RT.next_time = now + (uint32_t)(STRIP_DELAY_MICROSEC/1000);
+      SEG_RT.next_time = millis() + (uint32_t)(STRIP_DELAY_MICROSEC/1000);
       // no need to write data if nothing is shown (but we safeguard)
       
       // next approach for #35
@@ -711,7 +699,7 @@ EVERY_N_MILLISECONDS(20)
     nscale8(_bleds, LED_COUNT,SEG.brightness);
     FastLED.show();
   }
-
+  uint32_t now = millis();
   // every "hueTime" we set either the deltaHue (fixed offset)
   // or we increase the offset...
   if (now > SEG_RT.nextHue)
@@ -1740,16 +1728,21 @@ const __FlashStringHelper *WS2812FX::getModeName(uint8_t m)
 {
   if (m < MODE_COUNT)
   {
-    // For class-based effects, get the name from the effect class
-    Effect* effect = EffectFactory::createEffect(m);
-    if (effect) {
-      const __FlashStringHelper* name = effect->getName();
-      delete effect; // Clean up temporary instance
-      return name;
+    if(_currentEffect && _currentEffect->getModeId() == m)
+    {
+      // If we have a current effect, use its name
+      return _currentEffect->getName();
     }
-    
-    // Fall back to hardcoded names for function-based effects
-    return _name[m];
+    else
+    {
+      // For class-based effects, get the name from the effect class
+      Effect* effect = EffectFactory::createEffect(m);
+      if (effect) {
+        const __FlashStringHelper* name = effect->getName();
+        delete effect; // Clean up temporary instance
+        return name;
+      }
+    }
   }
   else
   {
@@ -2522,17 +2515,14 @@ uint16_t WS2812FX::mode_class_based_fallback(void) {
 
 // Effect system implementation
 void WS2812FX::enableClassBasedEffects(bool enable) {
-    if (_useClassBasedEffects != enable) {
-        // Clean up current effect if switching away from class-based
-        if (!enable && _currentEffect) {
-            _currentEffect->cleanup();
-            delete _currentEffect;
-            _currentEffect = nullptr;
-        }
-        
-        _useClassBasedEffects = enable;
-        
-        // Trigger mode reinitialization to load the appropriate effect
-        _segment_runtime.modeinit = true;
-    }
+    
+      if (!enable && _currentEffect) {
+          _currentEffect->cleanup();
+          delete _currentEffect;
+          _currentEffect = nullptr;
+      }
+      
+      
+      // Trigger mode reinitialization to load the appropriate effect
+      _segment_runtime.modeinit = true;
 }

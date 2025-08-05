@@ -9,7 +9,6 @@ bool EaseEffect::init(WS2812FX* strip) {
     }
     
     auto seg = strip->getSegment();
-    auto runtime = strip->getSegmentRuntime();
     
     // Initialize ease-specific variables
     trigger = false;

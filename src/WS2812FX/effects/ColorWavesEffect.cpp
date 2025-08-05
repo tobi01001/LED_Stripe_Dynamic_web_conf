@@ -138,7 +138,7 @@ uint8_t ColorWavesEffect::shapeHue(uint16_t hue16) {
     // Convert 16-bit hue to 8-bit with sine wave shaping
     // This creates more organic color transitions instead of linear progression
     
-    uint8_t baseHue = hue16 / 256;
+    
     uint16_t hue16_128 = hue16 >> 7;
     
     // Apply sine wave shaping to create non-linear hue progression
