@@ -348,3 +348,31 @@ uint16_t EffectHelper::calculateProportionalWidth(WS2812FX* strip, uint16_t divi
     uint16_t calculatedWidth = runtime->length / divisor;
     return max(minimum, calculatedWidth);
 }
+
+double EffectHelper::getGravity(WS2812FX* strip) {
+    // Map beat88 parameter (0-10000) to gravity range
+    // Earth gravity: 9.81 m/s² = 9810 mm/s² = 0.00981 mm/ms²
+    // Scale to effect range for visual appeal
+    const double minGravity = 0.09810 / (1000.0 * 1000.0);     
+    const double maxGravity = 9810.0 / (1000.0 * 1000.0);   
+    
+    double beat88 = (double)strip->getSegment()->beat88;
+    double gravity = EffectHelper::safeMapdouble(beat88, 0.0, 10000.0, minGravity, maxGravity);
+    
+    return -gravity; // Negative for downward acceleration
+}
+
+double EffectHelper::calculateMaxVelocity(WS2812FX* strip, double gravity, uint16_t distanceToEnd) {
+    // Length in MM_PER_LED units (approximate LED spacing at 60 LEDs per meter)
+    // Physical strip length in millimeters
+    uint16_t segmentLengthLEDs = strip->getSegmentRuntime()->length;
+    if(distanceToEnd >= segmentLengthLEDs) {
+        distanceToEnd = segmentLengthLEDs - 1;
+    }
+    const double segmentLength = (double)(strip->getSegmentRuntime()->length - distanceToEnd) * MM_PER_LED;
+    
+    // Calculate velocity needed to reach end of strip using kinematic equation:
+    // v² = v₀² + 2as, where final velocity v = 0, acceleration a = gravity
+    // Solving for v₀: v₀ = √(-2 * gravity * distance)
+    return sqrt(-2.0 * gravity * segmentLength);
+}

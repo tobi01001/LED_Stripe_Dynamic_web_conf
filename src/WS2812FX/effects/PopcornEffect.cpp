@@ -12,12 +12,12 @@ bool PopcornEffect::init(WS2812FX* strip) {
     }
     
     // Initialize kernel array and set up initial physics state
-    numKernels = min(strip->getSegment()->numBars, (uint8_t)32);
+    numKernels = min(strip->getSegment()->numBars, (uint8_t)MAX_POP_KERNELS);
     
     // Physics constants - convert from LEDS_PER_METER to mm scale
-    const double gravity = getGravity(strip);
-    const double maxVelocity = calculateMaxVelocity(strip, gravity);
-    
+    gravity = EffectHelper::getGravity(strip);
+    maxVelocity = EffectHelper::calculateMaxVelocity(strip, gravity);
+
     // Initialize each kernel with staggered velocities for visual variety
     for (uint8_t i = 0; i < numKernels; i++) {
         // Stagger initial velocities so kernels don't all pop at same height
@@ -56,8 +56,6 @@ uint16_t PopcornEffect::update(WS2812FX* strip) {
     EffectHelper::clearSegment(strip);
     
     // Get current physics parameters
-    const double gravity = getGravity(strip);
-    const double maxVelocity = calculateMaxVelocity(strip, gravity);
     const uint32_t currentTime = millis();
     
     // Update and render each kernel
@@ -66,7 +64,7 @@ uint16_t PopcornEffect::update(WS2812FX* strip) {
         double deltaTime = (double)(currentTime - kernels[i].timebase);
         
         // Calculate current position using physics
-        double position = calculatePosition(kernels[i], gravity, deltaTime);
+        double position =  (gravity / 2.0 * deltaTime + kernels[i].v0) * deltaTime;
         
         // Handle ground collision and bouncing
         if (position < 0) {
@@ -91,36 +89,6 @@ uint8_t PopcornEffect::getModeId() const {
     return FX_MODE_POPCORN;
 }
 
-double PopcornEffect::calculateMaxVelocity(WS2812FX* strip, double gravity) const {
-    // Length in MM_PER_LED units (approximate LED spacing at 60 LEDs per meter)
-    // Physical strip length in millimeters
-    const double segmentLength = (double)strip->getSegmentRuntime()->length * MM_PER_LED;
-    
-    // Calculate velocity needed to reach end of strip using kinematic equation:
-    // v² = v₀² + 2as, where final velocity v = 0, acceleration a = gravity
-    // Solving for v₀: v₀ = √(-2 * gravity * distance)
-    return sqrt(-2.0 * gravity * segmentLength);
-}
-
-double PopcornEffect::getGravity(WS2812FX* strip) const {
-    // Map beat88 parameter (0-10000) to gravity range
-    // Earth gravity: 9.81 m/s² = 9810 mm/s² = 0.00981 mm/ms²
-    // Scale to effect range for visual appeal
-    const double minGravity = 9.810 / (1000.0 * 1000.0);     // 0.00000981 mm/ms²
-    const double maxGravity = 9810.0 / (1000.0 * 1000.0);    // 0.009810 mm/ms²
-    
-    double beat88 = (double)strip->getSegment()->beat88;
-    double gravity = EffectHelper::safeMapdouble(beat88, 0.0, 10000.0, minGravity, maxGravity);
-    
-    return -gravity; // Negative for downward acceleration
-}
-
-double PopcornEffect::calculatePosition(const KernelData& kernel, double gravity, double deltaTime) const {
-    // Kinematic equation for position under constant acceleration:
-    // s = v₀t + ½at²
-    // Where: s = displacement, v₀ = initial velocity, t = time, a = acceleration (gravity)
-    return (gravity / 2.0 * deltaTime + kernel.v0) * deltaTime;
-}
 
 void PopcornEffect::updateKernelState(uint8_t kernelIndex, WS2812FX* strip, double maxVelocity) {
     KernelData& kernel = kernels[kernelIndex];

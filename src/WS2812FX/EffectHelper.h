@@ -240,6 +240,9 @@ public:
      * @return Calculated width, at least minimum value
      */
     static uint16_t calculateProportionalWidth(WS2812FX* strip, uint16_t divisor, uint16_t minimum = 1);
+
+    static double getGravity(WS2812FX* strip);
+    static double calculateMaxVelocity(WS2812FX* strip, double gravity, uint16_t distanceToEnd = 0);
     
     // ===== CONSTANTS =====
     
@@ -260,6 +263,8 @@ public:
     static const uint8_t SLOW_SPEED = 1;
     static const uint8_t NORMAL_SPEED = 2;
     static const uint8_t FAST_SPEED = 4;
+
+    static constexpr double MM_PER_LED = 1000.0 / 60.0;
 };
 
 #endif // EFFECT_HELPER_H

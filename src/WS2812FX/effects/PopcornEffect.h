@@ -52,12 +52,17 @@ private:
         uint8_t damp;           ///< Damping factor for bouncing (percentage, 0-100)
         uint16_t prev_pos;      ///< Previous LED position for motion effects
     };
-    
+
+    double gravity = -0.00981; ///< Gravitational acceleration in mm/ms² (negative for downward)
+    double maxVelocity = 0.0;   ///< Maximum velocity for kernels (mm/ms)
+
+    static constexpr uint8_t MAX_POP_KERNELS = 8; ///< Maximum number of kernels to simulate
+
     /**
      * @brief Array storing physics data for each active kernel
      * Each element manages the complete state of one popping kernel
      */
-    KernelData kernels[32];  // Using reasonable limit based on MAX_NUM_BARS
+    KernelData kernels[MAX_POP_KERNELS];  // Using reasonable limit based on MAX_NUM_BARS
     
     /**
      * @brief Number of active kernels currently being simulated
@@ -65,26 +70,6 @@ private:
      */
     uint8_t numKernels;
     
-    /**
-     * @brief Flag to track initialization state
-     * Ensures kernel arrays are properly initialized on first activation
-     */
-    bool initialized;
-    
-    /**
-     * @brief Calculate maximum velocity needed to reach strip end
-     * @param strip Pointer to WS2812FX instance for accessing strip parameters
-     * @param gravity Gravitational acceleration in mm/ms²
-     * @return Maximum initial velocity in mm/ms
-     */
-    double calculateMaxVelocity(WS2812FX* strip, double gravity) const;
-    
-    /**
-     * @brief Get gravitational acceleration based on effect parameters
-     * @param strip Pointer to WS2812FX instance for accessing beat88 parameter
-     * @return Gravity value in mm/ms² (negative for downward acceleration)
-     */
-    double getGravity(WS2812FX* strip) const;
     
     /**
      * @brief Calculate current position using physics simulation
