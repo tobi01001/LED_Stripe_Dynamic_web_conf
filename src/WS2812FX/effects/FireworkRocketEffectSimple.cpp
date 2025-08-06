@@ -9,12 +9,10 @@ bool FireworkRocketEffectSimple::init(WS2812FX* strip) {
     blendWidth = strip->getSegmentRuntime()->length / 2 ; // Calculate blend width from segment runtime
     if(blendWidth < 4) blendWidth = 4;
 
-    gravity = EffectHelper::getGravity(strip);
-    maxVelocity = EffectHelper::calculateMaxVelocity(strip, gravity, blendWidth/2);
     maxRockets = min(strip->getSegment()->numBars, MAX_ROCKETS);
 
     for (uint8_t i = 0; i < maxRockets; i++) {
-        initializeRocket(rockets[i]);
+        initializeRocket(strip, rockets[i]);
         rockets[i].active = false; // Randomly activate some rockets
     }
     setInitialized(true);
@@ -34,13 +32,19 @@ uint16_t FireworkRocketEffectSimple::update(WS2812FX* strip) {
         SimpleRocket& r = rockets[i];
         // Launch logic
         if (!r.active && r.pos_mm < EffectHelper::MM_PER_LED && random8() < 4) {
-            initializeRocket(r);
+            initializeRocket(strip, r);
             r.active = true;
         }
         // Flight
         double dt = (double)(now - r.launch_time);
-        r.pos_mm = (gravity / 2.0 * dt + r.vel_mm_per_ms) * dt;
         double vel = r.vel_mm_per_ms + gravity * dt;
+        if(vel >= 0)
+        {
+            r.pos_mm = (gravity / 2.0 * dt + r.vel_mm_per_ms) * dt;
+        }
+        else {
+            r.pos_mm = (gravity / 1.5 * dt + r.vel_mm_per_ms) * dt;
+        }
         uint16_t segment_start = strip->getSegmentRuntime()->start;
         uint16_t segment_stop = strip->getSegmentRuntime()->stop;
         double ledPos = r.pos_mm / EffectHelper::MM_PER_LED;
@@ -70,10 +74,12 @@ uint16_t FireworkRocketEffectSimple::update(WS2812FX* strip) {
     return strip->getStripMinDelay();
 }
 
-void FireworkRocketEffectSimple::initializeRocket(SimpleRocket& rocket) {
+void FireworkRocketEffectSimple::initializeRocket(WS2812FX* strip, SimpleRocket& rocket) {
+    gravity = EffectHelper::getGravity(strip);
+    maxVelocity = EffectHelper::calculateMaxVelocity(strip, gravity, blendWidth/2);
     rocket.pos_mm = 0;
     rocket.vel_mm_per_ms = maxVelocity * (0.85 + 0.15 * (random8() / 255.0));
-    rocket.explosionTrigger = maxVelocity * 0.3 * (0.85 + 0.15 * (random8() / 255.0));
+    rocket.explosionTrigger = maxVelocity * 0.15 * (0.85 + 0.15 * (random8() / 255.0));
     rocket.launch_time = millis() - 1; // <-- ensures dt > 0 on first update
     rocket.color_index = EffectHelper::get_random_wheel_index(rocket.color_index, 32);
     rocket.brightness = random8(192, 255);
@@ -130,17 +136,17 @@ void FireworkRocketEffectSimple::drawExplosion(WS2812FX* strip, double pos, Simp
     uint16_t segment_start = strip->getSegmentRuntime()->start;
     uint16_t segment_stop = strip->getSegmentRuntime()->stop;
     uint8_t explodeTime = r.explodeTime > MAX_EXPLODE_TIME ? MAX_EXPLODE_TIME : r.explodeTime;
-    uint8_t blur = 172;
-    if(explodeTime < MAX_EXPLODE_TIME/2) {
-        blur = (uint8_t)(16 + ((172 - 16) * explodeTime) / (MAX_EXPLODE_TIME/2));
+    uint8_t blur = MAX_BLUR;
+    if(explodeTime < MAX_EXPLODE_TIME/3) {
+        blur = (uint8_t)(MIN_BLUR + ((MAX_BLUR - MIN_BLUR) * explodeTime) / (MAX_EXPLODE_TIME/3));
     }
     // Apply blur only to a window around the explosion center
     int margin = blendWidth;
     int blur_start = max((int)segment_start, (int)currentPos - margin);
     int blur_end = min((int)segment_stop, (int)currentPos + margin);
     int blur_count = blur_end - blur_start + 1;
-    if(explodeTime < MAX_EXPLODE_TIME/2) {
-        r.brightness = r.brightness > 3 ? r.brightness - 3 : 0;
+    if(explodeTime < MAX_EXPLODE_TIME/3) {
+        r.brightness = r.brightness > 8? r.brightness - 8 : 0;
     }
     // Render kernel using the strip's drawing function with current palette
 

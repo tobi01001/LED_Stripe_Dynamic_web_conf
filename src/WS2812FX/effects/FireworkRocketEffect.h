@@ -51,16 +51,15 @@ private:
      * Contains all physics, timing, and visual data needed to simulate one rocket
      */
     struct RocketData {
-        uint32_t timebase;         ///< Time reference for physics calculations (milliseconds)
-        double pos;                ///< Current position in millimeters from strip start
-        double render_pos;         ///< Render position in fractional LED units (16ths of a pixel)
-        double v0;                 ///< Initial launch velocity (mm/ms)
-        double v;                  ///< Current velocity (mm/ms)
-        double v_explode;          ///< Velocity threshold for triggering explosion
-        uint16_t prev_pos;         ///< Previous LED position for motion effects
-        uint16_t explodeTime;      ///< Remaining explosion duration (decrements each frame)
-        uint8_t color_index;       ///< Index into current palette for rocket color
-        uint8_t brightness;        ///< Current brightness level (0-255)
+    uint32_t timebase;         ///< Time reference for physics calculations (milliseconds)
+    int32_t pos;              ///< Current position in 16xLED units from strip start
+    int16_t v0;               ///< Initial launch velocity (16xLED/ms)
+    int16_t v;                ///< Current velocity (16xLED/ms)
+    int16_t v_explode;        ///< Velocity threshold for triggering explosion (16xLED/ms)
+    uint16_t prev_pos;        ///< Previous LED position for motion effects
+    uint16_t explodeTime;     ///< Remaining explosion duration (decrements each frame)
+    uint8_t color_index;      ///< Index into current palette for rocket color
+    uint8_t brightness;       ///< Current brightness level (0-255)
     };
     
     /**
@@ -84,45 +83,45 @@ private:
     /**
      * @brief Calculate maximum launch velocity for rockets
      * @param strip Pointer to WS2812FX instance for accessing strip parameters
-     * @param gravity Gravitational acceleration in mm/ms²
-     * @param segmentLength Physical length of LED segment in millimeters
-     * @return Maximum initial velocity in mm/ms
+     * @param gravity Gravitational acceleration in 16xLED/ms²
+     * @param segmentLength Physical length of LED segment in LED units
+     * @return Maximum initial velocity in 16xLED/ms
      */
-    double calculateMaxVelocity(WS2812FX* strip, double gravity, double segmentLength) const;
+    int16_t calculateMaxVelocity(WS2812FX* strip, int16_t gravity, uint16_t segmentLength) const;
     
     /**
      * @brief Get gravitational acceleration based on effect parameters
      * @param strip Pointer to WS2812FX instance for accessing beat88 parameter
-     * @return Gravity value in mm/ms² (negative for downward acceleration)
+     * @return Gravity value in 16xLED units/ms² (negative for downward acceleration)
      */
-    double getGravity(WS2812FX* strip) const;
+    int16_t getGravity(WS2812FX* strip) const;
     
     /**
-     * @brief Calculate physical segment length in millimeters
+     * @brief Calculate physical segment length in 16xLED units
      * @param strip Pointer to WS2812FX instance for accessing segment data
-     * @return Segment length in millimeters
+     * @return Segment length in 16xLED units
      */
-    double calculateSegmentLength(WS2812FX* strip) const;
+    uint16_t calculateSegmentLength(WS2812FX* strip) const;
     
     /**
      * @brief Update rocket physics and handle phase transitions
      * @param rocketIndex Index of rocket to update
      * @param strip Pointer to WS2812FX instance for accessing parameters
      * @param currentTime Current time in milliseconds
-     * @param gravity Current gravitational acceleration
-     * @param segmentLength Physical segment length
-     * @param maxVelocity Maximum velocity for re-launch
+     * @param gravity Current gravitational acceleration (16xLED units/ms²)
+     * @param segmentLength Physical segment length (16xLED units)
+     * @param maxVelocity Maximum velocity for re-launch (16xLED units/ms)
      */
     void updateRocketPhysics(uint8_t rocketIndex, WS2812FX* strip, uint32_t currentTime, 
-                           double gravity, double segmentLength, double maxVelocity);
+                           int16_t gravity, uint16_t segmentLength, int16_t maxVelocity);
     
     /**
      * @brief Render rocket in launch phase with motion trail
      * @param rocketIndex Index of rocket to render
      * @param strip Pointer to WS2812FX instance for rendering functions
-     * @param segmentLength Physical segment length for position mapping
+     * @param segmentLength Physical segment length for position mapping (16xLED units)
      */
-    void renderLaunchPhase(uint8_t rocketIndex, WS2812FX* strip, double segmentLength);
+    void renderLaunchPhase(uint8_t rocketIndex, WS2812FX* strip, uint16_t segmentLength);
     
     /**
      * @brief Render rocket in explosion phase with blur effects
@@ -152,7 +151,7 @@ private:
      * @param currentTime Current time in milliseconds
      * @param maxVelocity Maximum velocity for launch
      */
-    void initializeRocketLaunch(uint8_t rocketIndex, WS2812FX* strip, uint32_t currentTime, double maxVelocity);
+    void initializeRocketLaunch(uint8_t rocketIndex, WS2812FX* strip, uint32_t currentTime, int16_t maxVelocity);
     
     /**
      * @brief Add sparkling effects around explosion for visual enhancement

@@ -26,11 +26,19 @@ public:
     bool init(WS2812FX* strip) override;
     uint16_t update(WS2812FX* strip) override;
     const __FlashStringHelper* getName() const override { return F("Simple Firework Rocket"); }
-    uint8_t getModeId() const override { return FX_MODE_FIREWORKROCKETSIMPLE; } // Example mode id
+    uint8_t getModeId() const override { 
+        #ifdef DEF_FX_MODE_FIREWORKROCKETSIMPLE
+        return FX_MODE_FIREWORKROCKETSIMPLE; 
+        #else
+        return 255; // Not defined, return invalid ID
+        #endif
+    }
 
 private:
     static constexpr uint8_t MAX_ROCKETS = 8;
     static constexpr uint8_t MAX_EXPLODE_TIME = 240;
+    static constexpr uint8_t MIN_BLUR = 64;
+    static constexpr uint8_t MAX_BLUR = 172;
     uint16_t blendWidth = 16; ///< Millimeters per LED
     uint8_t maxRockets = MAX_ROCKETS;
     SimpleRocket rockets[MAX_ROCKETS];
@@ -39,5 +47,5 @@ private:
     inline double getSegmentLengthMM(WS2812FX* strip) const { return strip->getSegmentRuntime()->length * (1000.0 / 60.0); }
     void drawRocketTrail(WS2812FX* strip, double pos, SimpleRocket& r);
     void drawExplosion(WS2812FX* strip, double pos, SimpleRocket& r);
-    void initializeRocket(SimpleRocket& rocket);
+    void initializeRocket(WS2812FX* strip, SimpleRocket& rocket);
 };
