@@ -25,7 +25,7 @@ public:
 
     bool init(WS2812FX* strip) override;
     uint16_t update(WS2812FX* strip) override;
-    const __FlashStringHelper* getName() const override { return F("Simple Firework Rocket"); }
+    const __FlashStringHelper* getName() const override { return F("Firework Rocket"); }
     uint8_t getModeId() const override { 
         #ifdef DEF_FX_MODE_FIREWORKROCKETSIMPLE
         return FX_MODE_FIREWORKROCKETSIMPLE; 

@@ -43,7 +43,7 @@ uint16_t FireworkRocketEffectSimple::update(WS2812FX* strip) {
             r.pos_mm = (gravity / 2.0 * dt + r.vel_mm_per_ms) * dt;
         }
         else {
-            r.pos_mm = (gravity / 1.5 * dt + r.vel_mm_per_ms) * dt;
+            r.pos_mm = (gravity * dt + r.vel_mm_per_ms) * dt;
         }
         uint16_t segment_start = strip->getSegmentRuntime()->start;
         uint16_t segment_stop = strip->getSegmentRuntime()->stop;
@@ -79,7 +79,7 @@ void FireworkRocketEffectSimple::initializeRocket(WS2812FX* strip, SimpleRocket&
     maxVelocity = EffectHelper::calculateMaxVelocity(strip, gravity, blendWidth/2);
     rocket.pos_mm = 0;
     rocket.vel_mm_per_ms = maxVelocity * (0.85 + 0.15 * (random8() / 255.0));
-    rocket.explosionTrigger = maxVelocity * 0.15 * (0.85 + 0.15 * (random8() / 255.0));
+    rocket.explosionTrigger = maxVelocity * 0.3 * (0.85 + 0.15 * (random8() / 255.0));
     rocket.launch_time = millis() - 1; // <-- ensures dt > 0 on first update
     rocket.color_index = EffectHelper::get_random_wheel_index(rocket.color_index, 32);
     rocket.brightness = random8(192, 255);

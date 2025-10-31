@@ -45,6 +45,7 @@
 #define DEF_FX_MODE_MOVE_BAR_SAWTOOTH
 #define DEF_FX_MODE_POPCORN
 //#define DEF_FX_MODE_FIREWORKROCKETS
+#define DEF_FX_MODE_FIREWORKROCKETEFFECT_INT
 #define DEF_FX_MODE_FIREWORKROCKETSIMPLE
 #define DEF_FX_MODE_HEARTBEAT
 #define DEF_FX_MODE_RAIN
@@ -196,6 +197,9 @@ enum MODES
   #endif
   #ifdef DEF_FX_MODE_FIREWORKROCKETSIMPLE
   FX_MODE_FIREWORKROCKETSIMPLE, // #include FireworkRocketEffectSimple.h - the simple firework rocket effect
+  #endif
+  #ifdef DEF_FX_MODE_FIREWORKROCKETEFFECT_INT
+  FX_MODE_FIREWORKROCKETS_INT, // #include FireworkRocketEffectInt.h - the firework rocket effect (integer version)
   #endif
   #ifdef DEF_FX_MODE_HEARTBEAT
   FX_MODE_HEARTBEAT, // #include HeartBeatEffect.h - the heartbeat effect
