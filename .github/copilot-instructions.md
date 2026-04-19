@@ -8,7 +8,7 @@ This firmware drives WS2812/NeoPixel LED strips connected to an ESP8266 (target:
 - Optional **local control** via a rotary encoder + SSD1306 OLED display (`HAS_KNOB_CONTROL` build flag)
 - OTA (over-the-air) firmware and filesystem upload
 
-Future roadmap items include **MQTT** and **Matter** integration. All new code must be written so that adding these protocols requires only additive changes (new handler files/classes), without restructuring existing logic.
+Future roadmap items include **MQTT** and **Matter** integration. When those features are eventually added, they must be purely opt-in (guarded by build flags) and require only additive changes (new handler files/classes), without restructuring existing logic.
 
 ---
 
@@ -65,7 +65,7 @@ Follow the [C++ Core Guidelines](https://isocpp.github.io/CppCoreGuidelines/CppC
 - Every public class, method, and non-trivial constant must have a Doxygen `/** … */` comment block
 - Use `@brief`, `@param`, `@return` tags consistently
 - Inline comments explain *why*, not *what*
-- Store effect-specific algorithm notes in the class header, not the `.cpp`
+- Store effect-specific algorithm notes in the class header, not the `.cpp` — headers are the first file a contributor opens when exploring a class, so putting the algorithm description there means the intent is visible without navigating to the implementation
 
 ### File Organisation
 - One effect per `.h`/`.cpp` pair inside `src/WS2812FX/effects/`
@@ -86,7 +86,7 @@ This firmware targets ESP8266 with ~80 KB usable heap. Treat every byte as expen
 - Avoid `new` / `delete` in the main loop and effect `update()` methods; prefer stack allocation or statically sized members
 - When dynamic allocation is unavoidable (e.g. `Fire2012Effect` heat array), allocate once in `init()`, free in `cleanup()`, and guard with null checks
 - Use `uint8_t`, `uint16_t`, `uint32_t` (from `<stdint.h>`) — never `int` where a smaller type is sufficient
-- Avoid `double`; use `float` or fixed-point integer arithmetic
+- Avoid `double`; prefer fixed-point integer arithmetic where possible — use `float` only as a fallback when fixed-point would measurably hurt performance or visual quality
 
 ### CPU
 - `update()` must return as fast as possible — avoid blocking waits (`delay()`) inside effects
@@ -138,22 +138,28 @@ This firmware targets ESP8266 with ~80 KB usable heap. Treat every byte as expen
 - Any change applied via `/set` **must** also be broadcast over WebSocket so all clients stay in sync
 - Status query: `/status` returns the full JSON field-value map
 
-### Future: MQTT
+### Future: MQTT *(not yet implemented — opt-in via `HAS_MQTT`)*
+> These are design guidelines for when MQTT support is added. No MQTT code exists yet; do **not** add any unless the feature is explicitly activated.
+
 - Planned topics follow `<LED_NAME>/set/<field>` (subscribe) and `<LED_NAME>/state` (publish on change)
 - Use an async MQTT client (e.g. `AsyncMqttClient`) — no synchronous blocking calls
 - Decouple the MQTT handler from `led_strip.cpp` by using the existing `setFieldValue()` / `getAllValuesJSON()` API
 - Add a `#ifdef HAS_MQTT` compile-time guard so the feature is opt-in
 - TLS support should be optional (`#ifdef MQTT_TLS`) to keep RAM usage manageable on ESP8266
 
-### Future: Matter / Thread
-- Matter requires ESP32-S3 or newer; protect all Matter code with `#ifdef ESP32` and a `HAS_MATTER` flag
+### Future: Matter / Thread *(not yet implemented — opt-in via `HAS_MATTER`)*
+> Matter support targets ESP32-S3 or newer hardware and does not exist yet. Do **not** add any Matter code to the current ESP8266 codebase.
+
+- Protect all Matter code with `#ifdef ESP32` and a `HAS_MATTER` flag
 - Expose the strip state as a **ColorTemperatureLight** or **ExtendedColorLight** cluster
 - Re-use `setFieldValue()` / `getFieldValue()` as the single source-of-truth; Matter callbacks must not bypass this layer
 - Keep the Matter stack isolated in its own source file (e.g. `src/matter_bridge.cpp`)
 
 ---
 
-## ESP8266 / ESP32 Portability
+## Future: ESP32 Portability *(not yet implemented — forward-looking guidelines only)*
+
+> The current firmware targets **ESP8266 exclusively**. ESP32 support does not exist yet. Do **not** add ESP32-specific code until it is explicitly planned. The notes below are design guidelines to keep the codebase ready for a future port.
 
 - All ESP8266-specific includes (`ESP8266WiFi.h`, `ESP8266mDNS.h`, `EEPROM_Rotate.h`, `ESPAsyncTCP.h`) are currently unconditional; guard them with `#ifdef ESP8266` when adding ESP32 support
 - Replace with the ESP32 equivalents (`WiFi.h`, `ESPmDNS.h`, `AsyncTCP.h`, `Preferences.h`) inside `#elif defined(ESP32)` blocks
